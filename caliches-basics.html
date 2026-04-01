@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Caliche's 4 Number 1s Inspection</title>
+    <style>
+        :root {
+            --caliches-blue: #0033A0;
+            --caliches-pink: #E91E63;
+            --light-gray: #f4f4f9;
+            --white: #ffffff;
+            --pass-green: #28a745;
+            --fail-red: #dc3545;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--light-gray);
+            margin: 0; padding: 0; color: #333;
+        }
+        .header {
+            background-color: var(--caliches-blue);
+            color: var(--white);
+            text-align: center;
+            padding: 20px 15px;
+            position: sticky;
+            top: 0; z-index: 100;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .logo-img { 
+            max-height: 100px; 
+            width: auto; 
+            display: block; 
+            margin: 0 auto 10px auto;
+        }
+        .header p { margin: 0; font-size: 13px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
+        .container { max-width: 600px; margin: 15px auto; padding: 0 15px; }
+        .info-group {
+            background: var(--white); padding: 15px; border-radius: 12px;
+            margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .info-group label { display: block; font-weight: bold; margin-bottom: 5px; color: var(--caliches-blue); font-size: 14px; }
+        .info-group input, .info-group select {
+            width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px;
+            box-sizing: border-box; font-size: 16px; margin-bottom: 12px;
+        }
+        .category {
+            background: var(--white); border-radius: 12px; padding: 15px;
+            margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-top: 6px solid var(--caliches-pink);
+        }
+        .category h2 { margin: 0 0 15px 0; color: var(--caliches-blue); font-size: 22px; }
+        .question { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+        .question:last-child { border-bottom: none; }
+        .question p { margin: 0 0 12px 0; font-weight: 600; line-height: 1.4; font-size: 16px; }
+        .rating-group { display: flex; justify-content: space-between; gap: 6px; }
+        .rating-group input[type="radio"] { display: none; }
+        .rating-group label {
+            flex: 1; text-align: center; padding: 14px 0;
+            background-color: #eee; border-radius: 8px;
+            font-weight: bold; font-size: 18px; cursor: pointer; transition: 0.2s;
+        }
+        .rating-group input[value="1"]:checked + label, 
+        .rating-group input[value="2"]:checked + label { background-color: var(--fail-red); color: white; }
+        .rating-group input[value="3"]:checked + label,
+        .rating-group input[value="4"]:checked + label,
+        .rating-group input[value="5"]:checked + label { background-color: var(--caliches-blue); color: white; }
+        .note-input {
+            width: 100%; margin-top: 10px; padding: 10px;
+            border: 1px solid #eee; border-radius: 6px;
+            font-size: 14px; box-sizing: border-box; background: #fafafa;
+        }
+        .results {
+            background: var(--caliches-blue); color: white;
+            padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 30px;
+        }
+        .score-display { font-size: 28px; font-weight: bold; }
+        .status {
+            font-size: 18px; font-weight: bold; padding: 8px 25px;
+            border-radius: 20px; display: inline-block; margin-top: 10px;
+        }
+        .status.pass { background-color: var(--pass-green); }
+        .status.fail { background-color: var(--fail-red); }
+        .save-btn {
+            width: 100%; background-color: var(--caliches-pink); color: white;
+            border: none; padding: 20px; font-size: 18px; font-weight: bold;
+            border-radius: 12px; cursor: pointer; margin-bottom: 60px;
+            box-shadow: 0 4px 10px rgba(233, 30, 99, 0.3);
+        }
+        .save-btn:disabled { background-color: #ccc; box-shadow: none; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAgVBMVEUAAAD///+7u7uXl5e3t7f///8AAAAAAAAAAACXl5e7u7v///8AAAAAAACXl5e7u7v///8AAAAAAACXl5e7u7v///8AAAAAAACXl5e7u7v///8AAAAAAACXl5e7u7v///8AAAAAAACXl5e7u7v///8AAAAAAACXl5e7u7v///8AAAAAAAD6O5MhAAAAFXRSTlMAAAAAAEBAQEBAQEBAQEBAQEBAQPrr65YAAARCSURBVHja7Z1bVwIhEIbN4VBCFBDUUs//f/NlX4XjEtoZBy5e71vXmX43M99OEhLREUccceT/Bw2W13W3pP+YV6Isc6L8D5/8u7Tf9B4Vv8fWz04V5Cfs5f8lqR+Bsn8m5b4AxfXv7uF5VNxq0Nf+9zXzN+u35/2Kvxm/X3I35y7jN8Pfx6Y/4bU3+z18/tqPfnrT3w68H3m/8XjN7w9wHh76b/eG55N2v/XbY99rvR94PuZ/yfsrvVfFp/Pvx+8X44/Kbw68P74/7uYOfuX3O/ZzzNfdLztf895mvefD18GveN7znfM97zve8H3nf875nvufB1+Ov+X8Pvj78uuv/f+B24PYA4bYCtwXcLXFXwN0KdwV+X+CugLsK7gq4K+GugLsC7iq4q+CugrsK7ga4G+CugLsB7ga4G+CugLsB7ga4G+BuhbsC7vN/n/v/3p5Kvx//fuz9N+/H3v/5fuv9v+9f43/rf2f8b50f7p4G93uDe9rgngX3fYO7K7j7G9wX4O5rcL/P3Zfgbv34Nbi7Ety9HbeH4/Zw3B6O28Nxe/f3h9Xf71f/Nrz+/Xzz7+O3n59f/v5666vrr6++/Pzyd9fXf1/59Vb9/fVXX375+Uv/vuzvzr477XOnfXbU5476bK/PDXrdoNcNepWgNwh6g6A3CnqDoDcIeqOgNwh6o6A3CHqDoDcIeoOgNwh6o6A3CnqDoNcJepWglwl6iaD3CXqfoPcJepegNwp6o6A3CHqToPcJerOg9wl6o6B3CXqfoNcLepmgXyh7n6D3CnqdoHcJep2gF7XvRc17WfNu1rwXNe9FzXtZ857YvCc2b9m6L8veZeuuWHfFuyvWXfHuwuG7cPhi/77mXbMv7H6v++W6f6H/r9f99/w7rvuX+He2+8/595Z/H3nf8+8T/z57f8T+/S/6L//7X//7v//7v//7v//7v/8n//7nf/4f/v2/5P3P3NfO/pW/8Nf8644/5193/Fn/pufP9f//vWbe/55/3fmveP8V77/ivZreX02/mr+a95vXm9eb35vfm8+bz6vOf/V5zXvNf40HXw+/5n3De873vOd8z/uR9z3ve+Z7XpP3HnxN/nrA1fTvh63p329f6/8b9X99/V9Hfx/8O+p/G/Tf8K+fP3/++X789vPzy89Pn58+P34+/Txy4+fTj6/vDndPDnt/N7zN4fN75Nf5pf5/T//7/v8v86eP/98fv789XHz9e/H5w/+v/z5n//n/+9fvv335/fvD68fbw8eHiYfXi+8fbyX/DxeM35+XzN+P1wX/ny+Hvx5+Hrx4+b7xb8PD5/f5r9m/Gb4pP31gK//wG+/GfyG/Wz4HfbjA397+N/9YfgX/m74Hfb9C/8N+/6FP+F/5t+p4vPY+tkpf9SgVvFv7lXxP7mPxf/p3vH//B9r/sD16//A9fV/0PoT9vUftH7C/vz/7I9W/+n+bP8v9t/w5wO3P3S6+7Xf9v/254477rjjjjv//N8U/w8SjQWJRgAAAABJRU5ErkJggg==" alt="Caliche's Logo" class="logo-img">
+        <p>4 NUMBER 1s INSPECTION</p>
+    </div>
+
+    <div class="container">
+        <form id="auditForm">
+            <div class="info-group">
+                <label>Location:</label>
+                <select id="loc" name="Location" required>
+                    <option value="" disabled selected>Select Location</option>
+                    <option>Roadrunner</option><option>Valley</option><option>Lenox</option>
+                    <option>Alamogordo</option><option>Roswell</option><option>Scoopy</option>
+                    <option>Poochi</option><option>Caliche's Cruiser</option>
+                </select>
+                <label>Manager on Duty:</label>
+                <input type="text" id="mgr" name="Manager" placeholder="Enter Name" required>
+                <label>Shift Leader:</label>
+                <input type="text" id="sldr" name="ShiftLeader" placeholder="Enter Name" required>
+                <label>Date:</label>
+                <input type="date" id="dt" name="Date">
+            </div>
+
+            <div id="questionsContainer"></div>
+            
+            <div class="results">
+                <div class="score-display">Total: <span id="ts">0</span> / 80</div>
+                <div style="font-size: 40px; font-weight: 900;"><span id="pct">0</span>%</div>
+                <div id="st" class="status" style="background-color: #555;">Incomplete</div>
+                <input type="hidden" id="finalScore" name="TotalScore">
+                <input type="hidden" id="finalPct" name="Percentage">
+                <input type="hidden" id="finalStatus" name="Status">
+            </div>
+
+            <button type="button" id="submitBtn" class="save-btn" onclick="submitAudit()">🚀 SUBMIT TO OFFICE</button>
+        </form>
+    </div>
+
+    <script>
+        // Update G_URL with your actual Web App URL
+        const G_URL = 'PASTE_YOUR_GOOGLE_URL_HERE';
+
+        const questions = [
+            {cat: "Cleanliness", q: ["Dining area/tables wiped & trash empty", "Counter glass & stainless shining", "Floors swept (Front & Back)", "Staff in clean uniforms/hats"]},
+            {cat: "Friendliness", q: ["Guest greeted immediately w/ smile", "Using 'Please/Thank You/Have a Great Day'", "Positive energy & eye contact", "Team helping w/ good attitude"]},
+            {cat: "Speed", q: ["Line moving with 'Urgency'", "Orders served under 3 mins", "POS operator fast & accurate", "No bottlenecks in production"]},
+            {cat: "Quality", q: ["Custard texture perfect", "Topping portions follow guide", "Cups/cones clean (no drips)", "All items look 'Menu Ready'"]}
+        ];
+
+        let html = "";
+        let qIdx = 1;
+        questions.forEach(group => {
+            html += `<div class="category"><h2>${group.cat}</h2>`;
+            group.q.forEach(text => {
+                html += `<div class="question"><p>${text}</p><div class="rating-group">`;
+                for(let i=1; i<=5; i++) {
+                    html += `<input type="radio" name="q${qIdx}" id="q${qIdx}-${i}" value="${i}" onchange="calc()" required><label for="q${qIdx}-${i}">${i}</label>`;
+                }
+                html += `</div><input type="text" id="note${qIdx}" name="note${qIdx}" class="note-input" placeholder="Add note if needed..."></div>`;
+                qIdx++;
+            });
+            html += `</div>`;
+        });
+        document.getElementById('questionsContainer').innerHTML = html;
+        document.getElementById('dt').valueAsDate = new Date();
+
+        function calc() {
+            let total = 0, count = 0;
+            for(let i=1; i<=16; i++) {
+                let sel = document.querySelector(`input[name="q${i}"]:checked`);
+                if(sel) { total += parseInt(sel.value); count++; }
+            }
+            document.getElementById('ts').innerText = total;
+            document.getElementById('finalScore').value = total;
+            let p = Math.round((total/80)*100);
+            document.getElementById('pct').innerText = p;
+            document.getElementById('finalPct').value = p + "%";
+            let badge = document.getElementById('st');
+            if(count === 16) {
+                let stat = p >= 85 ? "PASS (EXCELLENT)" : (p >= 75 ? "PASS" : "NEEDS WORK");
+                badge.innerText = stat;
+                document.getElementById('finalStatus').value = stat;
+                badge.className = p >= 75 ? "status pass" : "status fail";
+            }
+        }
+
+        async function submitAudit() {
+            const btn = document.getElementById('submitBtn');
+            const form = document.getElementById('auditForm');
+            if(!document.getElementById('loc').value || !document.getElementById('mgr').value) return alert("Fill out the top info!");
+            
+            btn.innerText = "Submitting...";
+            btn.disabled = true;
+
+            const formData = new URLSearchParams(new FormData(form));
+
+            try {
+                await fetch(G_URL, {
+                    method: 'POST',
+                    body: formData,
+                    mode: 'no-cors' 
+                });
+                alert("Audit Submitted Successfully!");
+                location.reload(); 
+            } catch (err) {
+                alert("Connection error. Try again.");
+                btn.disabled = false;
+                btn.innerText = "🚀 SUBMIT TO OFFICE";
+            }
+        }
+    </script>
+</body>
+</html>
