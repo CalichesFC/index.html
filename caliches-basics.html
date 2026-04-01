@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Caliche's 4 Number 1s Inspection</title>
+    <title>Caliche's Pop In Inspection</title>
     <style>
         :root {
             --caliches-blue: #0033A0;
@@ -12,6 +12,7 @@
             --white: #ffffff;
             --pass-green: #28a745;
             --fail-red: #dc3545;
+            --na-gray: #9e9e9e;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -22,157 +23,282 @@
             background-color: var(--caliches-blue);
             color: var(--white);
             text-align: center;
-            padding: 25px 15px;
+            padding: 20px 10px;
             position: sticky;
             top: 0; z-index: 100;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         .logo-img { 
-            max-height: 100px; 
+            max-height: 80px; 
             width: auto; 
             display: block; 
             margin: 0 auto 10px auto;
             filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2));
         }
-        .header p { margin: 0; font-size: 13px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
-        .container { max-width: 600px; margin: 15px auto; padding: 0 15px; }
+        .header p { margin: 0; font-size: 14px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
+        .container { max-width: 700px; margin: 15px auto; padding: 0 15px; }
+        
         .info-group {
             background: var(--white); padding: 15px; border-radius: 12px;
             margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
         }
-        .info-group label { display: block; font-weight: bold; margin-bottom: 5px; color: var(--caliches-blue); font-size: 14px; }
-        .info-group input, .info-group select {
-            width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px;
-            box-sizing: border-box; font-size: 16px; margin-bottom: 12px;
+        .info-group .full-width { grid-column: span 2; }
+        .info-group label { display: block; font-weight: bold; margin-bottom: 5px; color: var(--caliches-blue); font-size: 13px; }
+        .info-group input, .info-group select, .info-group textarea {
+            width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;
+            box-sizing: border-box; font-size: 15px; background: #fafafa;
         }
+        
         .category {
             background: var(--white); border-radius: 12px; padding: 15px;
             margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             border-top: 6px solid var(--caliches-pink);
         }
-        .category h2 { margin: 0 0 15px 0; color: var(--caliches-blue); font-size: 22px; }
-        .question { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
-        .question:last-child { border-bottom: none; }
-        .question p { margin: 0 0 12px 0; font-weight: 600; line-height: 1.4; font-size: 16px; }
-        .rating-group { display: flex; justify-content: space-between; gap: 6px; }
+        .category h2 { margin: 0 0 15px 0; color: var(--caliches-blue); font-size: 20px; border-bottom: 2px solid #eee; padding-bottom: 8px;}
+        
+        .question { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #f0f0f0; }
+        .question:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .question p { margin: 0 0 10px 0; font-weight: 600; line-height: 1.3; font-size: 15px; }
+        
+        .rating-group { display: flex; justify-content: space-between; gap: 4px; }
         .rating-group input[type="radio"] { display: none; }
         .rating-group label {
-            flex: 1; text-align: center; padding: 14px 0;
-            background-color: #eee; border-radius: 8px;
-            font-weight: bold; font-size: 18px; cursor: pointer; transition: 0.2s;
+            flex: 1; text-align: center; padding: 12px 0;
+            background-color: #eee; border-radius: 6px;
+            font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s;
         }
+        
+        /* Color Coding */
+        .rating-group input[value="0"]:checked + label { background-color: var(--na-gray); color: white; }
         .rating-group input[value="1"]:checked + label, 
         .rating-group input[value="2"]:checked + label { background-color: var(--fail-red); color: white; }
         .rating-group input[value="3"]:checked + label,
         .rating-group input[value="4"]:checked + label,
         .rating-group input[value="5"]:checked + label { background-color: var(--caliches-blue); color: white; }
+
         .note-input {
-            width: 100%; margin-top: 10px; padding: 10px;
+            width: 100%; margin-top: 8px; padding: 8px;
             border: 1px solid #eee; border-radius: 6px;
-            font-size: 14px; box-sizing: border-box; background: #fafafa;
+            font-size: 13px; box-sizing: border-box; background: #fafafa;
         }
+
         .results {
             background: var(--caliches-blue); color: white;
             padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 30px;
         }
-        .score-display { font-size: 28px; font-weight: bold; }
+        .score-display { font-size: 24px; font-weight: bold; }
         .status {
-            font-size: 18px; font-weight: bold; padding: 8px 25px;
+            font-size: 16px; font-weight: bold; padding: 8px 25px;
             border-radius: 20px; display: inline-block; margin-top: 10px;
         }
         .status.pass { background-color: var(--pass-green); }
         .status.fail { background-color: var(--fail-red); }
+        
         .save-btn {
             width: 100%; background-color: var(--caliches-pink); color: white;
             border: none; padding: 20px; font-size: 18px; font-weight: bold;
             border-radius: 12px; cursor: pointer; margin-bottom: 60px;
             box-shadow: 0 4px 10px rgba(233, 30, 99, 0.3);
         }
-        .save-btn:disabled { background-color: #ccc; box-shadow: none; cursor: not-allowed; }
+        .save-btn:disabled { background-color: #ccc; cursor: not-allowed; box-shadow: none; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <img src="logo.png" alt="Caliche's Logo" class="logo-img">
-        <p>4 NUMBER 1s INSPECTION</p>
+        <p>STORE "POP IN" FORM</p>
     </div>
 
     <div class="container">
         <form id="auditForm">
             <div class="info-group">
-                <label>Location:</label>
-                <select id="loc" name="Location" required>
-                    <option value="" disabled selected>Select Location</option>
-                    <option>Roadrunner</option><option>Valley</option><option>Lenox</option>
-                    <option>Alamogordo</option><option>Roswell</option><option>Scoopy</option>
-                    <option>Poochi</option><option>Caliche's Cruiser</option>
-                </select>
-                <label>Manager on Duty:</label>
-                <input type="text" id="mgr" name="Manager" placeholder="Enter Name" required>
-                <label>Shift Leader:</label>
-                <input type="text" id="sldr" name="ShiftLeader" placeholder="Enter Name" required>
-                <label>Date:</label>
-                <input type="date" id="dt" name="Date">
+                <div>
+                    <label>Location:</label>
+                    <select id="loc" name="Location" required>
+                        <option value="" disabled selected>Select Location</option>
+                        <option>Roadrunner</option><option>Valley</option><option>Lenox</option>
+                        <option>Alamogordo</option><option>Roswell</option><option>Scoopy</option>
+                        <option>Poochi</option><option>Caliche's Cruiser</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Date:</label>
+                    <input type="date" id="dt" name="Date" required>
+                </div>
+                <div>
+                    <label>Shift Time:</label>
+                    <select id="shiftTime" name="ShiftTime">
+                        <option>Day</option><option>Night</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Shift Leader:</label>
+                    <input type="text" id="sldr" name="ShiftLeader" placeholder="Name" required>
+                </div>
+                <div class="full-width">
+                    <label>Conducted By:</label>
+                    <input type="text" id="conductor" name="ConductedBy" placeholder="Your Name" required>
+                </div>
             </div>
 
             <div id="questionsContainer"></div>
+
+            <div class="category">
+                <h2>Overall Comments & Requests</h2>
+                <textarea id="overallComments" name="OverallComments" rows="4" placeholder="Summarize the pop in, shout out good behavior, or note major issues..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; box-sizing: border-box;"></textarea>
+            </div>
             
             <div class="results">
-                <div class="score-display">Total: <span id="ts">0</span> / 80</div>
-                <div style="font-size: 40px; font-weight: 900;"><span id="pct">0</span>%</div>
-                <div id="st" class="status" style="background-color: #555;">Incomplete</div>
+                <div class="score-display">Total Points: <span id="ts">0</span> / <span id="maxPts">0</span></div>
+                <div style="font-size: 36px; font-weight: 900; margin: 10px 0;"><span id="pct">0</span>%</div>
+                <div id="st" class="status" style="background-color: #555;">Pending</div>
+                
                 <input type="hidden" id="finalScore" name="TotalScore">
                 <input type="hidden" id="finalPct" name="Percentage">
                 <input type="hidden" id="finalStatus" name="Status">
             </div>
 
-            <button type="button" id="submitBtn" class="save-btn" onclick="submitAudit()">🚀 SUBMIT TO OFFICE</button>
+            <button type="button" id="submitBtn" class="save-btn" onclick="submitAudit()">🚀 SUBMIT POP IN REPORT</button>
         </form>
     </div>
 
     <script>
-        // CRITICAL: Replace the link below with your Google Apps Script URL
+        // Update this URL to point to your new Google Sheet for Pop Ins
         const G_URL = 'PASTE_YOUR_GOOGLE_URL_HERE';
 
         const questions = [
-            {cat: "Cleanliness", q: ["Dining area/tables wiped & trash empty", "Counter glass & stainless shining", "Floors swept (Front & Back)", "Staff in clean uniforms/hats"]},
-            {cat: "Friendliness", q: ["Guest greeted immediately w/ smile", "Using 'Please/Thank You/Have a Great Day'", "Positive energy & eye contact", "Team helping w/ good attitude"]},
-            {cat: "Speed", q: ["Line moving with 'Urgency'", "Orders served under 3 mins", "POS operator fast & accurate", "No bottlenecks in production"]},
-            {cat: "Quality", q: ["Custard texture perfect", "Topping portions follow guide", "Cups/cones clean (no drips)", "All items look 'Menu Ready'"]}
+            {
+                cat: "Team Member Performance", 
+                q: [
+                    "Moving with a purpose, motivated to work, positive attitude",
+                    "All team members are following dress code",
+                    "Teamwork is being conducted",
+                    "Multitasking when possible",
+                    "Respecting the no talking when windows are open policy",
+                    "Backups are being done in a timely manner",
+                    "During busy hours everyone is staying composed and collected",
+                    "Register runners are small talking with customers",
+                    "Everyone is listening to the orders being called out",
+                    "Register runners providing excellent customer service",
+                    "Everyone is lending a hand to get out lines faster",
+                    "Team members are handing out items correctly"
+                ]
+            },
+            {
+                cat: "Shift Leader Performance", 
+                q: [
+                    "Moving with a purpose, motivated, positive attitude",
+                    "Constantly lending a helping hand",
+                    "Ensuring duties are performed efficiently to standard",
+                    "Always staying composed and collected",
+                    "Communicating and providing good direction to team",
+                    "Promoting a positive and healthy work environment",
+                    "Displaying good judgment",
+                    "Coaching team members and helping train new staff",
+                    "Ensuring compliance with company health/safety policies",
+                    "Shift is organized and is on or ahead of schedule",
+                    "Can influence the team's efforts through leadership",
+                    "Easily adapts to changing conditions and delegates",
+                    "Monitoring that machine runner is performing to standard"
+                ]
+            },
+            {
+                cat: "Cleanliness", 
+                q: [
+                    "Stations are being wiped down after use",
+                    "Glove protocol is being followed",
+                    "Dirty dishes are being pre-rinsed and tape taken off",
+                    "Sani buckets are being changed when dirty (or every 2 hrs)",
+                    "Spills or messes on floors are being addressed",
+                    "Exterior front counters are being wiped down",
+                    "Middle sink in dish area is maintained clean and free of dishes",
+                    "Machine area is clean and being wiped down",
+                    "Hands are being washed",
+                    "Malt collars are attended to after orders/before leaving area",
+                    "Caliche and shake machines attended to after orders",
+                    "Team members are wearing clean aprons",
+                    "Quick spiffs are being maintained",
+                    "Item makers clean off dirty items before placing on handout counter"
+                ]
+            },
+            {
+                cat: "Quality", 
+                q: [
+                    "Machine runner's custard is high quality and fresh",
+                    "All fruits are fresh to taste",
+                    "All backups in walk-in rotated correctly (labels face center)",
+                    "Hot dogs are hot and plump, not cold or old",
+                    "Coleslaw is made correctly",
+                    "Tostadas are fresh to taste",
+                    "Enough hot dog buns are being defrosted",
+                    "Hot fudge warmers are set to 150 degrees (F)",
+                    "Machine runner is keeping up with melts",
+                    "Items are being scooped properly",
+                    "Caliches and shakes are being blended properly"
+                ]
+            }
         ];
 
         let html = "";
         let qIdx = 1;
+        
         questions.forEach(group => {
             html += `<div class="category"><h2>${group.cat}</h2>`;
             group.q.forEach(text => {
-                html += `<div class="question"><p>${text}</p><div class="rating-group">`;
-                for(let i=1; i<=5; i++) {
-                    html += `<input type="radio" name="q${qIdx}" id="q${qIdx}-${i}" value="${i}" onchange="calc()" required><label for="q${qIdx}-${i}">${i}</label>`;
-                }
-                html += `</div><input type="text" id="note${qIdx}" name="note${qIdx}" class="note-input" placeholder="Add note if needed..."></div>`;
+                html += `
+                <div class="question">
+                    <p>${text}</p>
+                    <div class="rating-group">
+                        <input type="radio" name="q${qIdx}" id="q${qIdx}-0" value="0" onchange="calc()"><label for="q${qIdx}-0">N/A</label>`;
+                        for(let i=1; i<=5; i++) {
+                            html += `<input type="radio" name="q${qIdx}" id="q${qIdx}-${i}" value="${i}" onchange="calc()"><label for="q${qIdx}-${i}">${i}</label>`;
+                        }
+                html += `
+                    </div>
+                    <input type="text" id="note${qIdx}" name="note${qIdx}" class="note-input" placeholder="Add specific feedback...">
+                </div>`;
                 qIdx++;
             });
             html += `</div>`;
         });
+        
         document.getElementById('questionsContainer').innerHTML = html;
         document.getElementById('dt').valueAsDate = new Date();
+        const totalQuestions = qIdx - 1;
 
         function calc() {
-            let total = 0, count = 0;
-            for(let i=1; i<=16; i++) {
+            let totalScore = 0;
+            let questionsCounted = 0;
+            let answered = 0;
+
+            for(let i=1; i<=totalQuestions; i++) {
                 let sel = document.querySelector(`input[name="q${i}"]:checked`);
-                if(sel) { total += parseInt(sel.value); count++; }
+                if(sel) { 
+                    answered++;
+                    let val = parseInt(sel.value);
+                    if(val > 0) { // If it's NOT N/A
+                        totalScore += val;
+                        questionsCounted++;
+                    }
+                }
             }
-            document.getElementById('ts').innerText = total;
-            document.getElementById('finalScore').value = total;
-            let p = Math.round((total/80)*100);
+
+            let maxPossible = questionsCounted * 5;
+            let p = maxPossible === 0 ? 0 : Math.round((totalScore / maxPossible) * 100);
+
+            document.getElementById('ts').innerText = totalScore;
+            document.getElementById('maxPts').innerText = maxPossible;
+            document.getElementById('finalScore').value = totalScore;
+            
             document.getElementById('pct').innerText = p;
             document.getElementById('finalPct').value = p + "%";
+            
             let badge = document.getElementById('st');
-            if(count === 16) {
-                let stat = p >= 85 ? "PASS (EXCELLENT)" : (p >= 75 ? "PASS" : "NEEDS WORK");
+            
+            if(answered === totalQuestions) {
+                let stat = p >= 85 ? "EXCELLENT" : (p >= 75 ? "MEETS STANDARD" : "NEEDS IMPROVEMENT");
                 badge.innerText = stat;
                 document.getElementById('finalStatus').value = stat;
                 badge.className = p >= 75 ? "status pass" : "status fail";
@@ -182,15 +308,21 @@
         async function submitAudit() {
             const btn = document.getElementById('submitBtn');
             const form = document.getElementById('auditForm');
-            if(!document.getElementById('loc').value || !document.getElementById('mgr').value || !document.getElementById('sldr').value) {
-                return alert("Please fill out the Location, Manager, and Shift Leader!");
+            
+            if(!document.getElementById('loc').value || !document.getElementById('sldr').value || !document.getElementById('conductor').value) {
+                return alert("Please fill out Location, Shift Leader, and Conducted By!");
             }
             
-            let count = 0;
-            for(let i=1; i<=16; i++) if(document.querySelector(`input[name="q${i}"]:checked`)) count++;
-            if(count < 16) return alert("Please complete all 16 items before submitting!");
+            let answered = 0;
+            for(let i=1; i<=totalQuestions; i++) {
+                if(document.querySelector(`input[name="q${i}"]:checked`)) answered++;
+            }
+            
+            if(answered < totalQuestions) {
+                return alert(`Please answer all questions. You have answered ${answered} out of ${totalQuestions}. Select N/A if a question does not apply.`);
+            }
 
-            btn.innerText = "Sending to Office...";
+            btn.innerText = "Submitting Pop In...";
             btn.disabled = true;
 
             const formData = new URLSearchParams(new FormData(form));
@@ -201,15 +333,14 @@
                     body: formData,
                     mode: 'no-cors' 
                 });
-                alert("Inspection Submitted Successfully! Scores are in the Google Sheet.");
+                alert("Pop In Submitted Successfully!");
                 location.reload(); 
             } catch (err) {
-                alert("Connection error. Please try submitting again.");
+                alert("Connection error. Please check your internet and try again.");
                 btn.disabled = false;
-                btn.innerText = "🚀 SUBMIT TO OFFICE";
+                btn.innerText = "🚀 SUBMIT POP IN REPORT";
             }
         }
     </script>
 </body>
 </html>
-G_URL
