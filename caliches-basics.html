@@ -234,7 +234,6 @@
                     "Tostadas are fresh to taste",
                     "Enough hot dog buns are being defrosted",
                     "Hot fudge warmers are set to 150 degrees (F)",
-                    "Caramel warmers are set to 100 degrees (F)"
                     "Machine runner is keeping up with melts",
                     "Items are being scooped properly",
                     "Caliches and shakes are being blended properly"
@@ -242,32 +241,44 @@
             }
         ];
 
-        let html = "";
-        let qIdx = 1;
-        
-        questions.forEach(group => {
-            html += `<div class="category"><h2>${group.cat}</h2>`;
-            group.q.forEach(text => {
-                html += `
-                <div class="question">
-                    <p>${text}</p>
-                    <div class="rating-group">
-                        <input type="radio" name="q${qIdx}" id="q${qIdx}-0" value="0" onchange="calc()"><label for="q${qIdx}-0">N/A</label>`;
-                        for(let i=1; i<=5; i++) {
-                            html += `<input type="radio" name="q${qIdx}" id="q${qIdx}-${i}" value="${i}" onchange="calc()"><label for="q${qIdx}-${i}">${i}</label>`;
-                        }
-                html += `
-                    </div>
-                    <input type="text" id="note${qIdx}" name="note${qIdx}" class="note-input" placeholder="Add specific feedback...">
-                </div>`;
-                qIdx++;
+        let totalQuestions = 0;
+
+        // SAFETY WRAPPER: Wait for the entire page to load before building questions
+        window.onload = function() {
+            let html = "";
+            let qIdx = 1;
+            
+            questions.forEach(group => {
+                html += `<div class="category"><h2>${group.cat}</h2>`;
+                group.q.forEach(text => {
+                    html += `
+                    <div class="question">
+                        <p>${text}</p>
+                        <div class="rating-group">
+                            <input type="radio" name="q${qIdx}" id="q${qIdx}-0" value="0" onchange="calc()"><label for="q${qIdx}-0">N/A</label>`;
+                            for(let i=1; i<=5; i++) {
+                                html += `<input type="radio" name="q${qIdx}" id="q${qIdx}-${i}" value="${i}" onchange="calc()"><label for="q${qIdx}-${i}">${i}</label>`;
+                            }
+                    html += `
+                        </div>
+                        <input type="text" id="note${qIdx}" name="note${qIdx}" class="note-input" placeholder="Add specific feedback...">
+                    </div>`;
+                    qIdx++;
+                });
+                html += `</div>`;
             });
-            html += `</div>`;
-        });
-        
-        document.getElementById('questionsContainer').innerHTML = html;
-        document.getElementById('dt').valueAsDate = new Date();
-        const totalQuestions = qIdx - 1;
+            
+            document.getElementById('questionsContainer').innerHTML = html;
+            
+            // Bulletproof date setter
+            let today = new Date();
+            let yyyy = today.getFullYear();
+            let mm = String(today.getMonth() + 1).padStart(2, '0');
+            let dd = String(today.getDate()).padStart(2, '0');
+            document.getElementById('dt').value = `${yyyy}-${mm}-${dd}`;
+            
+            totalQuestions = qIdx - 1;
+        };
 
         function calc() {
             let totalScore = 0;
@@ -326,7 +337,7 @@
             btn.innerText = "Generating PDF & Sending Email...";
             btn.disabled = true;
 
-            // --- BUILD THE PDF DOCUMENT FORMAT ---
+            // BUILD THE PDF DOCUMENT FORMAT
             let pdfHtml = `
                 <div style="font-family: Arial, sans-serif; color: #333;">
                     <h1 style="color: #0033A0;">Caliche's Pop In Inspection</h1>
@@ -365,7 +376,6 @@
             });
             pdfHtml += `</table></div>`;
             
-            // Put the HTML into our hidden field
             document.getElementById('hiddenReportHtml').value = pdfHtml;
 
             const formData = new URLSearchParams(new FormData(form));
