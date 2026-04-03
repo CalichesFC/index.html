@@ -1,0 +1,41 @@
+name: Deploy Pop In App to GitHub Pages
+
+# This tells the robot to run every time you push changes to the 'main' branch
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+# Sets the permissions the robot needs to update your live site
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Ensures only one update runs at a time
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Uploads the entire repository
+          path: '.'
+          
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
