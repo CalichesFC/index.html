@@ -165,8 +165,8 @@
     </div>
 
     <script>
-        // CRITICAL: Update this URL to point to your new Google Sheet for Pop Ins
-        const G_URL = 'PASTE_YOUR_GOOGLE_URL_HERE';
+        // LIVE GOOGLE APPS SCRIPT WEBHOOK URL
+        const G_URL = 'https://script.google.com/macros/s/AKfycbw83dV7F5nc40KZcck62BM5Oqya0JKv4RTrEO5Ad1EpwRzSVKjI0XOAs_9twOwzB_dFDA/exec';
 
         const questions = [
             {
@@ -234,7 +234,6 @@
                     "Tostadas are fresh to taste",
                     "Enough hot dog buns are being defrosted",
                     "Hot fudge warmers are set to 150 degrees (F)",
-                    "Caramel warmers are set to 100 degrees (F)",
                     "Machine runner is keeping up with melts",
                     "Items are being scooped properly",
                     "Caliches and shakes are being blended properly"
@@ -244,7 +243,6 @@
 
         let totalQuestions = 0;
 
-        // SAFETY WRAPPER: Wait for the entire page to load before building questions
         window.onload = function() {
             let html = "";
             let qIdx = 1;
@@ -271,7 +269,6 @@
             
             document.getElementById('questionsContainer').innerHTML = html;
             
-            // Bulletproof date setter
             let today = new Date();
             let yyyy = today.getFullYear();
             let mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -387,7 +384,7 @@
                     body: formData,
                     mode: 'no-cors' 
                 });
-                alert("Success! The PDF has been emailed to issacm@caliches.com.");
+                alert("Success! The PDF has been emailed to the office.");
                 location.reload(); 
             } catch (err) {
                 alert("Connection error. Please check your internet and try again.");
