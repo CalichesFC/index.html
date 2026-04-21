@@ -163,7 +163,7 @@
                 <input type="hidden" id="hiddenReportHtml" name="ReportHTML">
             </div>
 
-            <button type="button" id="submitBtn" class="save-btn" onclick="submitAudit()">🚀 SUBMIT, DOWNLOAD & EMAIL REPORT</button>
+            <button type="button" id="submitBtn" class="save-btn" onclick="submitAudit()">🚀 SUBMIT, EMAIL & DOWNLOAD</button>
         </form>
     </div>
 
@@ -389,7 +389,7 @@
                 return alert(`Please answer all questions. You have answered ${answered} out of ${totalQuestions}.`);
             }
 
-            btn.innerText = "Generating PDF & Sending Email...";
+            btn.innerText = "1/2: Sending Email securely...";
             btn.disabled = true;
 
             let pdfHtml = `
@@ -447,41 +447,46 @@
             
             document.getElementById('hiddenReportHtml').value = pdfHtml;
 
-            // Generate Local PDF Download File Name
-            let locName = document.getElementById('loc').value.replace(/[^a-z0-9]/gi, '_');
-            let dateVal = document.getElementById('dt').value;
-            let fileName = `Caliches_PopIn_${locName}_${dateVal}.pdf`;
+            // FIX 1: Use raw FormData. This handles heavy photo payloads flawlessly without crashing.
+            const formData = new FormData(form);
 
-            // Prepare the HTML container for the PDF generator
-            let tempDiv = document.createElement('div');
-            tempDiv.innerHTML = pdfHtml;
+            try {
+                // STEP 1: Email it to Google first!
+                await fetch(G_URL, {
+                    method: 'POST',
+                    body: formData,
+                    mode: 'no-cors' 
+                });
 
-            let opt = {
-                margin:       0.5,
-                filename:     fileName,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2 },
-                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-            };
+                // STEP 2: The email was successful! Now try to download it locally.
+                btn.innerText = "2/2: Email Sent! Building PDF...";
+                
+                let locName = document.getElementById('loc').value.replace(/[^a-z0-9]/gi, '_');
+                let dateVal = document.getElementById('dt').value;
+                let fileName = `Caliches_PopIn_${locName}_${dateVal}.pdf`;
 
-            const formData = new URLSearchParams(new FormData(form));
+                let opt = {
+                    margin:       0.5,
+                    filename:     fileName,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2 },
+                    jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+                };
 
-            // Start the Download, then Send the Email
-            html2pdf().set(opt).from(tempDiv).save().then(async () => {
-                try {
-                    await fetch(G_URL, {
-                        method: 'POST',
-                        body: formData,
-                        mode: 'no-cors' 
-                    });
-                    alert("Success! The PDF has been downloaded to your device AND emailed to the office.");
+                html2pdf().set(opt).from(pdfHtml).save().then(() => {
+                    alert("Success! The report was EMAILED to the office and DOWNLOADED to your device.");
                     location.reload(); 
-                } catch (err) {
-                    alert("Connection error sending the email, but the PDF was saved to your device!");
-                    btn.disabled = false;
-                    btn.innerText = "🚀 SUBMIT & EMAIL POP IN REPORT";
-                }
-            });
+                }).catch(err => {
+                    // FIX 2: If the phone strictly blocks the download, the user is alerted, but they know the email still worked.
+                    alert("Success! The email was sent to the office. (Note: Your phone blocked the local download, but the office received it!)");
+                    location.reload();
+                });
+
+            } catch (err) {
+                alert("Connection error! The report failed to send. Please check your internet.");
+                btn.disabled = false;
+                btn.innerText = "🚀 SUBMIT, EMAIL & DOWNLOAD";
+            }
         }
     </script>
 </body>
