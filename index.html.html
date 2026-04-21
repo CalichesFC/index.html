@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Caliche's Pop In Inspection</title>
-    
+
     <style>
         :root {
             --caliches-blue: #0033A0;
@@ -104,10 +104,10 @@
         }
         .save-btn:disabled { background-color: #ccc; cursor: not-allowed; box-shadow: none; }
 
-        /* NATIVE APPLE PRINT SETTINGS */
+        /* Apple/Mobile Native Print Settings */
         @media print {
             body { background-color: white !important; }
-            .save-btn, #cleanImage, p.photo-text { display: none !important; }
+            .save-btn, .photo-upload-section { display: none !important; }
             .header { position: static !important; padding: 10px !important; }
             .container { margin: 0 !important; box-shadow: none !important; max-width: 100% !important; }
             .category { box-shadow: none !important; border-top: 4px solid var(--caliches-pink) !important; }
@@ -172,7 +172,7 @@
                 <input type="hidden" id="hiddenReportHtml" name="ReportHTML">
             </div>
 
-            <button type="button" id="submitBtn" class="save-btn" onclick="submitAudit()">🚀 SUBMIT, EMAIL & SAVE</button>
+            <button type="button" id="submitBtn" class="save-btn" onclick="submitAudit()">🚀 SUBMIT TO OFFICE</button>
         </form>
     </div>
 
@@ -281,8 +281,8 @@
 
                 if (group.cat === "Cleanliness") {
                     html += `
-                    <div style="margin-top: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 2px dashed #ddd; text-align: center;">
-                        <p class="photo-text" style="margin: 0 0 10px 0; font-weight: bold; color: var(--caliches-blue);">📸 Attach Cleanliness Photos (Max 8)</p>
+                    <div class="photo-upload-section" style="margin-top: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 2px dashed #ddd; text-align: center;">
+                        <p style="margin: 0 0 10px 0; font-weight: bold; color: var(--caliches-blue);">📸 Attach Cleanliness Photos (Max 8)</p>
                         <input type="file" id="cleanImage" accept="image/*" multiple onchange="compressAndPreview(event)" style="margin-bottom: 10px; width: 100%;">
                         <div id="imgPreviewContainer" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 10px;"></div>
                     </div>`;
@@ -324,8 +324,6 @@
                         let canvas = document.createElement('canvas');
                         let ctx = canvas.getContext('2d');
                         
-                        // THE GOOGLE BYPASS: Extremely aggressive shrink (300px width)
-                        // This guarantees 8 photos will fit securely under Google's strict 256KB data limit!
                         let maxWidth = 300;
                         let scaleSize = maxWidth / img.width;
                         if(scaleSize > 1) scaleSize = 1;
@@ -334,7 +332,6 @@
                         canvas.height = img.height * scaleSize;
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-                        // THE GOOGLE BYPASS: Aggressive compression quality (0.4)
                         let compressedBase64 = canvas.toDataURL('image/jpeg', 0.4);
                         uploadedPhotos.push(compressedBase64); 
 
@@ -407,9 +404,10 @@
                 return alert(`Please answer all questions. You have answered ${answered} out of ${totalQuestions}.`);
             }
 
-            btn.innerText = "Sending Securely to Office...";
+            btn.innerText = "Sending securely...";
             btn.disabled = true;
 
+            // Build the PDF Email Body
             let pdfHtml = `
                 <div style="font-family: Arial, sans-serif; color: #333; padding: 10px;">
                     <h1 style="color: #0033A0;">Caliche's Pop In Inspection</h1>
@@ -430,14 +428,12 @@
 
             if (uploadedPhotos.length > 0) {
                 pdfHtml += `
-                <div style="margin-bottom: 20px; page-break-inside: avoid;">
+                <div style="margin-bottom: 20px;">
                     <h3 style="color: #0033A0;">Cleanliness Photo Verification:</h3>
                     <div style="text-align: center;">`;
-                
                 uploadedPhotos.forEach(photoData => {
-                    pdfHtml += `<img src="${photoData}" style="max-width: 250px; max-height: 250px; border: 1px solid #ccc; border-radius: 8px; margin: 5px; display: inline-block;">`;
+                    pdfHtml += `<img src="${photoData}" style="max-width: 200px; max-height: 200px; border: 1px solid #ccc; border-radius: 8px; margin: 5px; display: inline-block;">`;
                 });
-                
                 pdfHtml += `</div></div>`;
             }
 
@@ -465,33 +461,32 @@
             
             document.getElementById('hiddenReportHtml').value = pdfHtml;
 
-            // Prepare the payload for Google
+            // Safely package data
             const formData = new FormData(form);
 
-            // STEP 1: Securely send the email FIRST
+            // Step 1: Send the email
             fetch(G_URL, {
                 method: 'POST',
                 body: formData,
                 mode: 'no-cors' 
             }).then(() => {
                 
-                // STEP 2: The email was successful! Change the button color.
-                btn.innerText = "✅ REPORT SENT TO OFFICE!";
+                // Step 2: The email was successful. Transform the button for Tap 2!
+                btn.disabled = false;
                 btn.style.backgroundColor = "var(--pass-green)";
+                btn.innerText = "✅ SENT! TAP HERE TO PRINT / SAVE PDF";
                 
-                // STEP 3: The Native Apple Print Bypass
-                setTimeout(() => {
-                    alert("Success! The office received the report.\n\nTo save a copy to your phone, we will now open the print screen. \n\n(On iPhone: Tap the 'Share' square at the top of the print screen to save it).");
-                    
-                    window.print(); // Triggers the flawless native Apple menu
-                    
-                    location.reload(); // Resets the form for the next user
-                }, 800);
+                // When they tap the button the second time, it opens the print window flawlessly!
+                btn.onclick = function(e) {
+                    e.preventDefault();
+                    window.print(); // Opens native Apple Print/Save menu
+                    setTimeout(() => location.reload(), 2000); // Resets form after saving
+                };
 
             }).catch((err) => {
                 alert("Connection Error. Please check your internet and try again.");
                 btn.disabled = false;
-                btn.innerText = "🚀 SUBMIT, EMAIL & SAVE";
+                btn.innerText = "🚀 SUBMIT TO OFFICE";
             });
         }
     </script>
