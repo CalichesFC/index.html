@@ -102,6 +102,7 @@
             border: none; padding: 20px; font-size: 18px; font-weight: bold;
             border-radius: 12px; cursor: pointer; margin-bottom: 60px;
             box-shadow: 0 4px 10px rgba(233, 30, 99, 0.3);
+            transition: 0.3s;
         }
         .save-btn:disabled { background-color: #ccc; cursor: not-allowed; box-shadow: none; }
     </style>
@@ -163,7 +164,7 @@
                 <input type="hidden" id="hiddenReportHtml" name="ReportHTML">
             </div>
 
-            <button type="button" id="submitBtn" class="save-btn" onclick="submitAudit()">🚀 SUBMIT, EMAIL & DOWNLOAD</button>
+            <button type="button" id="submitBtn" class="save-btn" onclick="submitAudit()">🚀 SUBMIT TO OFFICE</button>
         </form>
     </div>
 
@@ -297,7 +298,6 @@
             let files = event.target.files;
             if(!files || files.length === 0) return;
 
-            // THE BOUNCER: Increased limit to 8
             if (files.length > 8) {
                 alert("To keep the app fast and prevent crashes, please select a maximum of 8 photos.");
                 event.target.value = ''; 
@@ -316,7 +316,6 @@
                         let canvas = document.createElement('canvas');
                         let ctx = canvas.getContext('2d');
                         
-                        // AGGRESSIVE COMPRESSION: Shrunk down to 600px to save massive amounts of memory
                         let maxWidth = 600;
                         let scaleSize = maxWidth / img.width;
                         if(scaleSize > 1) scaleSize = 1;
@@ -325,13 +324,12 @@
                         canvas.height = img.height * scaleSize;
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-                        // AGGRESSIVE COMPRESSION: Quality lowered to 0.5
                         let compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
                         uploadedPhotos.push(compressedBase64); 
 
                         let previewImg = document.createElement('img');
                         previewImg.src = compressedBase64;
-                        previewImg.style.width = '80px'; // Made the preview slightly smaller to fit 8 better
+                        previewImg.style.width = '80px';
                         previewImg.style.height = '80px';
                         previewImg.style.borderRadius = '8px';
                         previewImg.style.border = '1px solid #ccc';
@@ -398,7 +396,7 @@
                 return alert(`Please answer all questions. You have answered ${answered} out of ${totalQuestions}.`);
             }
 
-            btn.innerText = "Processing Data...";
+            btn.innerText = "1/2: Sending Email securely...";
             btn.disabled = true;
 
             let pdfHtml = `
@@ -456,46 +454,73 @@
             
             document.getElementById('hiddenReportHtml').value = pdfHtml;
 
-            const formData = new URLSearchParams(new FormData(form));
+            const formData = new FormData(form);
 
-            let locName = document.getElementById('loc').value.replace(/[^a-z0-9]/gi, '_');
-            let dateVal = document.getElementById('dt').value;
-            let fileName = `Caliches_PopIn_${locName}_${dateVal}.pdf`;
+            // STEP 1: Securely send the email FIRST
+            fetch(G_URL, {
+                method: 'POST',
+                body: formData,
+                mode: 'no-cors' 
+            }).then(() => {
+                
+                // STEP 2: Email was successful! Now build the PDF Blob safely.
+                btn.innerText = "2/2: Building your PDF...";
 
-            let tempDiv = document.createElement('div');
-            tempDiv.innerHTML = pdfHtml;
+                let locName = document.getElementById('loc').value.replace(/[^a-z0-9]/gi, '_');
+                let dateVal = document.getElementById('dt').value;
+                let fileName = `Caliches_PopIn_${locName}_${dateVal}.pdf`;
 
-            let opt = {
-                margin:       0.5,
-                filename:     fileName,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 1, useCORS: true }, 
-                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-            };
+                let tempDiv = document.createElement('div');
+                tempDiv.innerHTML = pdfHtml;
 
-            try {
-                // STEP 1: Secretly shoot the email request to Google in the background
-                fetch(G_URL, {
-                    method: 'POST',
-                    body: formData,
-                    mode: 'no-cors' 
-                });
+                let opt = {
+                    margin:       0.5,
+                    filename:     fileName,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 1, useCORS: true }, 
+                    jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+                };
 
-                // STEP 2: Immediately trigger the PDF download
-                btn.innerText = "Downloading PDF...";
-                html2pdf().set(opt).from(tempDiv).save().then(() => {
-                    alert("Success! Report emailed to the office and downloaded.");
-                    location.reload(); 
-                }).catch(err => {
-                    alert("Success! The email was sent. (Your device blocked the local download).");
+                // Create the PDF in memory (does not trigger Apple's download blocker yet)
+                html2pdf().set(opt).from(tempDiv).output('blob').then(function(pdfBlob) {
+                    let blobUrl = URL.createObjectURL(pdfBlob);
+
+                    // THE TRICK: Transform the submit button into a physical download link
+                    btn.disabled = false;
+                    btn.style.backgroundColor = "var(--pass-green)"; // Turns it Green
+                    btn.innerText = "✅ REPORT SENT. TAP HERE TO SAVE PDF";
+                    
+                    // Replace the "Submit" function with a "Download" function
+                    btn.onclick = function(e) {
+                        e.preventDefault();
+                        let link = document.createElement('a');
+                        link.href = blobUrl;
+                        link.download = fileName;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    };
+
+                    // Try to auto-download for non-Apple users
+                    let autoLink = document.createElement('a');
+                    autoLink.href = blobUrl;
+                    autoLink.download = fileName;
+                    document.body.appendChild(autoLink);
+                    autoLink.click();
+                    document.body.removeChild(autoLink);
+
+                    alert("Success! The office received the report. If your phone didn't automatically save the PDF, please tap the green button at the bottom of the form.");
+                
+                }).catch(function(err) {
+                    alert("Email sent to the office! (Note: Your phone blocked the local PDF build due to memory limits, but the office received it!)");
                     location.reload();
                 });
 
-            } catch (err) {
-                alert("Connection Error. Please try submitting again.");
+            }).catch((err) => {
+                alert("Connection Error. Please check your internet and try again.");
                 btn.disabled = false;
-                btn.innerText = "🚀 SUBMIT, EMAIL & DOWNLOAD";
-            }
+                btn.innerText = "🚀 SUBMIT TO OFFICE";
+            });
         }
     </script>
 </body>
