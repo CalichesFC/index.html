@@ -273,7 +273,7 @@
                 if (group.cat === "Cleanliness") {
                     html += `
                     <div style="margin-top: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 2px dashed #ddd; text-align: center;">
-                        <p style="margin: 0 0 10px 0; font-weight: bold; color: var(--caliches-blue);">📸 Attach Cleanliness Photos (Optional)</p>
+                        <p style="margin: 0 0 10px 0; font-weight: bold; color: var(--caliches-blue);">📸 Attach Cleanliness Photos (Max 8)</p>
                         <input type="file" id="cleanImage" accept="image/*" multiple onchange="compressAndPreview(event)" style="margin-bottom: 10px; width: 100%;">
                         <div id="imgPreviewContainer" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 10px;"></div>
                     </div>`;
@@ -297,6 +297,13 @@
             let files = event.target.files;
             if(!files || files.length === 0) return;
 
+            // THE BOUNCER: Increased limit to 8
+            if (files.length > 8) {
+                alert("To keep the app fast and prevent crashes, please select a maximum of 8 photos.");
+                event.target.value = ''; 
+                return; 
+            }
+
             let previewContainer = document.getElementById('imgPreviewContainer');
             previewContainer.innerHTML = ''; 
             uploadedPhotos = []; 
@@ -309,7 +316,8 @@
                         let canvas = document.createElement('canvas');
                         let ctx = canvas.getContext('2d');
                         
-                        let maxWidth = 800;
+                        // AGGRESSIVE COMPRESSION: Shrunk down to 600px to save massive amounts of memory
+                        let maxWidth = 600;
                         let scaleSize = maxWidth / img.width;
                         if(scaleSize > 1) scaleSize = 1;
 
@@ -317,13 +325,14 @@
                         canvas.height = img.height * scaleSize;
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-                        let compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+                        // AGGRESSIVE COMPRESSION: Quality lowered to 0.5
+                        let compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
                         uploadedPhotos.push(compressedBase64); 
 
                         let previewImg = document.createElement('img');
                         previewImg.src = compressedBase64;
-                        previewImg.style.width = '100px';
-                        previewImg.style.height = '100px';
+                        previewImg.style.width = '80px'; // Made the preview slightly smaller to fit 8 better
+                        previewImg.style.height = '80px';
                         previewImg.style.borderRadius = '8px';
                         previewImg.style.border = '1px solid #ccc';
                         previewImg.style.objectFit = 'cover';
@@ -372,7 +381,7 @@
             }
         }
 
-        async function submitAudit() {
+        function submitAudit() {
             const btn = document.getElementById('submitBtn');
             const form = document.getElementById('auditForm');
             
@@ -389,7 +398,7 @@
                 return alert(`Please answer all questions. You have answered ${answered} out of ${totalQuestions}.`);
             }
 
-            btn.innerText = "1/2: Sending Email securely...";
+            btn.innerText = "Processing Data...";
             btn.disabled = true;
 
             let pdfHtml = `
@@ -417,7 +426,7 @@
                     <div style="text-align: center;">`;
                 
                 uploadedPhotos.forEach(photoData => {
-                    pdfHtml += `<img src="${photoData}" style="max-width: 300px; max-height: 300px; border: 1px solid #ccc; border-radius: 8px; margin: 5px; display: inline-block;">`;
+                    pdfHtml += `<img src="${photoData}" style="max-width: 250px; max-height: 250px; border: 1px solid #ccc; border-radius: 8px; margin: 5px; display: inline-block;">`;
                 });
                 
                 pdfHtml += `</div></div>`;
@@ -447,43 +456,43 @@
             
             document.getElementById('hiddenReportHtml').value = pdfHtml;
 
-            // FIX 1: Use raw FormData. This handles heavy photo payloads flawlessly without crashing.
-            const formData = new FormData(form);
+            const formData = new URLSearchParams(new FormData(form));
+
+            let locName = document.getElementById('loc').value.replace(/[^a-z0-9]/gi, '_');
+            let dateVal = document.getElementById('dt').value;
+            let fileName = `Caliches_PopIn_${locName}_${dateVal}.pdf`;
+
+            let tempDiv = document.createElement('div');
+            tempDiv.innerHTML = pdfHtml;
+
+            let opt = {
+                margin:       0.5,
+                filename:     fileName,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 1, useCORS: true }, 
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
 
             try {
-                // STEP 1: Email it to Google first!
-                await fetch(G_URL, {
+                // STEP 1: Secretly shoot the email request to Google in the background
+                fetch(G_URL, {
                     method: 'POST',
                     body: formData,
                     mode: 'no-cors' 
                 });
 
-                // STEP 2: The email was successful! Now try to download it locally.
-                btn.innerText = "2/2: Email Sent! Building PDF...";
-                
-                let locName = document.getElementById('loc').value.replace(/[^a-z0-9]/gi, '_');
-                let dateVal = document.getElementById('dt').value;
-                let fileName = `Caliches_PopIn_${locName}_${dateVal}.pdf`;
-
-                let opt = {
-                    margin:       0.5,
-                    filename:     fileName,
-                    image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2 },
-                    jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-                };
-
-                html2pdf().set(opt).from(pdfHtml).save().then(() => {
-                    alert("Success! The report was EMAILED to the office and DOWNLOADED to your device.");
+                // STEP 2: Immediately trigger the PDF download
+                btn.innerText = "Downloading PDF...";
+                html2pdf().set(opt).from(tempDiv).save().then(() => {
+                    alert("Success! Report emailed to the office and downloaded.");
                     location.reload(); 
                 }).catch(err => {
-                    // FIX 2: If the phone strictly blocks the download, the user is alerted, but they know the email still worked.
-                    alert("Success! The email was sent to the office. (Note: Your phone blocked the local download, but the office received it!)");
+                    alert("Success! The email was sent. (Your device blocked the local download).");
                     location.reload();
                 });
 
             } catch (err) {
-                alert("Connection error! The report failed to send. Please check your internet.");
+                alert("Connection Error. Please try submitting again.");
                 btn.disabled = false;
                 btn.innerText = "🚀 SUBMIT, EMAIL & DOWNLOAD";
             }
