@@ -250,6 +250,7 @@
             
             questions.forEach(group => {
                 html += `<div class="category"><h2>${group.cat}</h2>`;
+                
                 group.q.forEach(text => {
                     html += `
                     <div class="question">
@@ -265,6 +266,18 @@
                     </div>`;
                     qIdx++;
                 });
+
+                // ONLY ADD THE IMAGE UPLOADER TO THE CLEANLINESS SECTION
+                if (group.cat === "Cleanliness") {
+                    html += `
+                    <div style="margin-top: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 2px dashed #ddd; text-align: center;">
+                        <p style="margin: 0 0 10px 0; font-weight: bold; color: var(--caliches-blue);">📸 Attach Cleanliness Photo (Optional)</p>
+                        <input type="file" id="cleanImage" accept="image/*" onchange="compressAndPreview(event)" style="margin-bottom: 10px; width: 100%;">
+                        <img id="imgPreview" style="max-width: 100%; max-height: 250px; display: none; margin: 0 auto; border-radius: 8px; border: 1px solid #ccc;">
+                        <input type="hidden" id="hiddenImageBase64" name="CleanlinessPhoto">
+                    </div>`;
+                }
+
                 html += `</div>`;
             });
             
@@ -278,6 +291,40 @@
             
             totalQuestions = qIdx - 1;
         };
+
+        // IMAGE COMPRESSOR FUNCTION
+        // Shrinks large phone photos so they can be emailed instantly without crashing
+        function compressAndPreview(event) {
+            let file = event.target.files[0];
+            if(!file) return;
+
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                let img = new Image();
+                img.onload = function() {
+                    let canvas = document.createElement('canvas');
+                    let ctx = canvas.getContext('2d');
+                    
+                    // Compress image down to a maximum width of 800 pixels
+                    let maxWidth = 800;
+                    let scaleSize = maxWidth / img.width;
+                    if(scaleSize > 1) scaleSize = 1;
+
+                    canvas.width = img.width * scaleSize;
+                    canvas.height = img.height * scaleSize;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    // Convert to a compressed JPG string
+                    let compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+
+                    document.getElementById('imgPreview').src = compressedBase64;
+                    document.getElementById('imgPreview').style.display = 'block';
+                    document.getElementById('hiddenImageBase64').value = compressedBase64;
+                }
+                img.src = e.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
 
         function calc() {
             let totalScore = 0;
@@ -353,7 +400,19 @@
                     <div style="background-color: #f4f4f9; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                         <h2 style="color: #E91E63; margin: 0;">Final Score: ${document.getElementById('pct').innerText}% (${document.getElementById('st').innerText})</h2>
                         <p style="margin-bottom: 0;"><strong>Overall Comments:</strong> ${document.getElementById('overallComments').value || "None"}</p>
-                    </div>
+                    </div>`;
+
+            // EMBED THE PHOTO INTO THE PDF IF ONE WAS UPLOADED
+            let photoData = document.getElementById('hiddenImageBase64').value;
+            if (photoData) {
+                pdfHtml += `
+                <div style="margin-bottom: 20px; page-break-inside: avoid;">
+                    <h3 style="color: #0033A0;">Cleanliness Photo Verification:</h3>
+                    <img src="${photoData}" style="max-width: 500px; max-height: 400px; border: 1px solid #ccc; border-radius: 8px;">
+                </div>`;
+            }
+
+            pdfHtml += `
                     <table border="1" cellpadding="8" style="border-collapse: collapse; width: 100%; font-size: 14px;">
                         <tr style="background-color: #0033A0; color: white;">
                             <th style="text-align: left;">Category / Question</th>
