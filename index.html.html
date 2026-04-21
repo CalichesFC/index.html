@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Caliche's Pop In Inspection</title>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
     <style>
         :root {
             --caliches-blue: #0033A0;
@@ -105,6 +103,16 @@
             transition: 0.3s;
         }
         .save-btn:disabled { background-color: #ccc; cursor: not-allowed; box-shadow: none; }
+
+        /* NATIVE APPLE PRINT SETTINGS */
+        @media print {
+            body { background-color: white !important; }
+            .save-btn, #cleanImage, p.photo-text { display: none !important; }
+            .header { position: static !important; padding: 10px !important; }
+            .container { margin: 0 !important; box-shadow: none !important; max-width: 100% !important; }
+            .category { box-shadow: none !important; border-top: 4px solid var(--caliches-pink) !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
     </style>
 </head>
 <body>
@@ -164,7 +172,7 @@
                 <input type="hidden" id="hiddenReportHtml" name="ReportHTML">
             </div>
 
-            <button type="button" id="submitBtn" class="save-btn" onclick="submitAudit()">🚀 SUBMIT TO OFFICE</button>
+            <button type="button" id="submitBtn" class="save-btn" onclick="submitAudit()">🚀 SUBMIT, EMAIL & SAVE</button>
         </form>
     </div>
 
@@ -274,7 +282,7 @@
                 if (group.cat === "Cleanliness") {
                     html += `
                     <div style="margin-top: 15px; padding: 15px; background: #fafafa; border-radius: 8px; border: 2px dashed #ddd; text-align: center;">
-                        <p style="margin: 0 0 10px 0; font-weight: bold; color: var(--caliches-blue);">📸 Attach Cleanliness Photos (Max 8)</p>
+                        <p class="photo-text" style="margin: 0 0 10px 0; font-weight: bold; color: var(--caliches-blue);">📸 Attach Cleanliness Photos (Max 8)</p>
                         <input type="file" id="cleanImage" accept="image/*" multiple onchange="compressAndPreview(event)" style="margin-bottom: 10px; width: 100%;">
                         <div id="imgPreviewContainer" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 10px;"></div>
                     </div>`;
@@ -299,7 +307,7 @@
             if(!files || files.length === 0) return;
 
             if (files.length > 8) {
-                alert("To keep the app fast and prevent crashes, please select a maximum of 8 photos.");
+                alert("To keep the app fast, please select a maximum of 8 photos.");
                 event.target.value = ''; 
                 return; 
             }
@@ -316,7 +324,9 @@
                         let canvas = document.createElement('canvas');
                         let ctx = canvas.getContext('2d');
                         
-                        let maxWidth = 600;
+                        // THE GOOGLE BYPASS: Extremely aggressive shrink (300px width)
+                        // This guarantees 8 photos will fit securely under Google's strict 256KB data limit!
+                        let maxWidth = 300;
                         let scaleSize = maxWidth / img.width;
                         if(scaleSize > 1) scaleSize = 1;
 
@@ -324,7 +334,8 @@
                         canvas.height = img.height * scaleSize;
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-                        let compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
+                        // THE GOOGLE BYPASS: Aggressive compression quality (0.4)
+                        let compressedBase64 = canvas.toDataURL('image/jpeg', 0.4);
                         uploadedPhotos.push(compressedBase64); 
 
                         let previewImg = document.createElement('img');
@@ -396,11 +407,11 @@
                 return alert(`Please answer all questions. You have answered ${answered} out of ${totalQuestions}.`);
             }
 
-            btn.innerText = "1/2: Sending Email securely...";
+            btn.innerText = "Sending Securely to Office...";
             btn.disabled = true;
 
             let pdfHtml = `
-                <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
+                <div style="font-family: Arial, sans-serif; color: #333; padding: 10px;">
                     <h1 style="color: #0033A0;">Caliche's Pop In Inspection</h1>
                     <table style="width: 100%; margin-bottom: 20px;">
                         <tr>
@@ -454,6 +465,7 @@
             
             document.getElementById('hiddenReportHtml').value = pdfHtml;
 
+            // Prepare the payload for Google
             const formData = new FormData(form);
 
             // STEP 1: Securely send the email FIRST
@@ -463,63 +475,23 @@
                 mode: 'no-cors' 
             }).then(() => {
                 
-                // STEP 2: Email was successful! Now build the PDF Blob safely.
-                btn.innerText = "2/2: Building your PDF...";
-
-                let locName = document.getElementById('loc').value.replace(/[^a-z0-9]/gi, '_');
-                let dateVal = document.getElementById('dt').value;
-                let fileName = `Caliches_PopIn_${locName}_${dateVal}.pdf`;
-
-                let tempDiv = document.createElement('div');
-                tempDiv.innerHTML = pdfHtml;
-
-                let opt = {
-                    margin:       0.5,
-                    filename:     fileName,
-                    image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 1, useCORS: true }, 
-                    jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-                };
-
-                // Create the PDF in memory (does not trigger Apple's download blocker yet)
-                html2pdf().set(opt).from(tempDiv).output('blob').then(function(pdfBlob) {
-                    let blobUrl = URL.createObjectURL(pdfBlob);
-
-                    // THE TRICK: Transform the submit button into a physical download link
-                    btn.disabled = false;
-                    btn.style.backgroundColor = "var(--pass-green)"; // Turns it Green
-                    btn.innerText = "✅ REPORT SENT. TAP HERE TO SAVE PDF";
-                    
-                    // Replace the "Submit" function with a "Download" function
-                    btn.onclick = function(e) {
-                        e.preventDefault();
-                        let link = document.createElement('a');
-                        link.href = blobUrl;
-                        link.download = fileName;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                    };
-
-                    // Try to auto-download for non-Apple users
-                    let autoLink = document.createElement('a');
-                    autoLink.href = blobUrl;
-                    autoLink.download = fileName;
-                    document.body.appendChild(autoLink);
-                    autoLink.click();
-                    document.body.removeChild(autoLink);
-
-                    alert("Success! The office received the report. If your phone didn't automatically save the PDF, please tap the green button at the bottom of the form.");
+                // STEP 2: The email was successful! Change the button color.
+                btn.innerText = "✅ REPORT SENT TO OFFICE!";
+                btn.style.backgroundColor = "var(--pass-green)";
                 
-                }).catch(function(err) {
-                    alert("Email sent to the office! (Note: Your phone blocked the local PDF build due to memory limits, but the office received it!)");
-                    location.reload();
-                });
+                // STEP 3: The Native Apple Print Bypass
+                setTimeout(() => {
+                    alert("Success! The office received the report.\n\nTo save a copy to your phone, we will now open the print screen. \n\n(On iPhone: Tap the 'Share' square at the top of the print screen to save it).");
+                    
+                    window.print(); // Triggers the flawless native Apple menu
+                    
+                    location.reload(); // Resets the form for the next user
+                }, 800);
 
             }).catch((err) => {
                 alert("Connection Error. Please check your internet and try again.");
                 btn.disabled = false;
-                btn.innerText = "🚀 SUBMIT TO OFFICE";
+                btn.innerText = "🚀 SUBMIT, EMAIL & SAVE";
             });
         }
     </script>
