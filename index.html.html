@@ -82,6 +82,18 @@
             background-color: #f9f9f9;
         }
 
+        /* --- TRAINING BANNER STYLES --- */
+        #training-banner {
+            background-color: #ffd700;
+            color: #333;
+            padding: 15px;
+            margin: 0 0 20px 0;
+            border-radius: 8px;
+            font-weight: bold;
+            border: 2px solid #e6c200;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
         /* --- FORM CONTAINERS --- */
         .app-view { display: none; } 
 
@@ -98,6 +110,7 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         .header.pink-theme { background-color: var(--caliches-pink); }
+        .header.green-theme { background-color: #28a745; }
         
         .logo-img { 
             max-height: 80px; width: auto; display: block; 
@@ -166,6 +179,7 @@
             box-shadow: 0 4px 10px rgba(197, 58, 116, 0.3); transition: 0.3s;
         }
         .save-btn.blue-btn { background-color: var(--caliches-blue); box-shadow: 0 4px 10px rgba(74, 104, 177, 0.3); }
+        .save-btn.green-btn { background-color: #28a745; box-shadow: 0 4px 10px rgba(40, 167, 69, 0.3); }
         .save-btn:disabled { background-color: #ccc; cursor: not-allowed; box-shadow: none; }
 
         @media print {
@@ -180,18 +194,17 @@
 </head>
 <body>
 
-    <!-- ==========================================
-         1. SPLASH SCREEN
-         ========================================== -->
     <div id="splash-screen">
         <img src="splash-logo.png" alt="Caliche's Logo" class="splash-logo" onerror="this.style.display='none'">
     </div>
 
-    <!-- ==========================================
-         2. MAIN MENU (LANDING PAGE)
-         ========================================== -->
     <div id="main-menu" class="app-view">
         <img src="splash-logo.png" alt="Caliche's Logo" style="max-height: 120px; margin-bottom: 20px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2));" onerror="this.style.display='none'">
+        
+        <div id="training-banner">
+            💡 WEEKLY FOCUS: <span id="tip-text">Cleanliness, Friendliness, Speed, and Quality!</span>
+        </div>
+
         <h1 class="menu-title">Operations Hub</h1>
         
         <button class="menu-btn" onclick="openForm('popInView')">
@@ -201,11 +214,12 @@
         <button class="menu-btn pink" onclick="openForm('driverView')">
             🚚 Vehicle & Trailer Check-Out
         </button>
+
+        <button class="menu-btn" style="border-color: #28a745; color: #28a745;" onclick="openForm('shortageView')">
+            📦 Report Shortages
+        </button>
     </div>
 
-    <!-- ==========================================
-         3. POP-IN INSPECTION VIEW
-         ========================================== -->
     <div id="popInView" class="app-view">
         <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
         
@@ -269,9 +283,6 @@
         </div>
     </div>
 
-    <!-- ==========================================
-         4. DRIVER CHECKLIST VIEW
-         ========================================== -->
     <div id="driverView" class="app-view">
         <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
 
@@ -353,9 +364,57 @@
         </div>
     </div>
 
-    <!-- ==========================================
-         5. JAVASCRIPT LOGIC
-         ========================================== -->
+    <div id="shortageView" class="app-view">
+        <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
+
+        <div class="header green-theme">
+            <p>STORE SHORTAGE REPORT</p>
+        </div>
+
+        <div class="container">
+            <form id="shortageForm">
+                <div class="info-group">
+                    <div class="full-width">
+                        <label>Select Store:</label>
+                        <select name="Store" required>
+                            <option value="" disabled selected>Select Store...</option>
+                            <option>Roadrunner</option><option>Valley</option><option>Lenox</option>
+                            <option>Alamogordo</option><option>Roswell</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Date:</label>
+                        <input type="date" id="shortageDt" name="OrderDate" required>
+                    </div>
+                    <div>
+                        <label>Manager Name:</label>
+                        <input type="text" name="ManagerName" placeholder="Your Name" required>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <h2>Item Requests</h2>
+                    <label>Item Name:</label>
+                    <input type="text" name="Item1" placeholder="e.g., Seasonal Fruit, Cups">
+                    <label>Quantity:</label>
+                    <input type="text" name="Qty1" placeholder="e.g., 5 cases">
+                    
+                    <label style="margin-top:15px;">Item Name (2):</label>
+                    <input type="text" name="Item2" placeholder="Item name">
+                    <label>Quantity:</label>
+                    <input type="text" name="Qty2" placeholder="Quantity">
+                </div>
+
+                <div class="category">
+                    <h2>Urgency / Notes</h2>
+                    <textarea name="Notes" rows="3" placeholder="Is this needed urgently? Any special instructions?" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box;"></textarea>
+                </div>
+
+                <button type="button" class="save-btn green-btn" onclick="submitShortage()">🚀 SUBMIT SHORTAGE REPORT</button>
+            </form>
+        </div>
+    </div>
+
     <script>
         // =========================================================
         // GOOGLE SCRIPT URLs
@@ -364,7 +423,7 @@
         // POP-IN FORM LINK 
         const G_URL = 'https://script.google.com/macros/s/AKfycbzDrLR4bBx0J3B0cFhjEFqrfDQnkAA-zdZRy85Bb_Ppjick5IoJmudUt_HgKZmhDBlNcw/exec';
         
-        // DRIVER CHECKLIST LINK 
+        // DRIVER CHECKLIST & SHORTAGE FORM LINK 
         const DRIVER_G_URL = 'https://script.google.com/macros/s/AKfycbylAjdnIkSVQoyv1kB2dNQvqUr2Xs518bR-ahk_KU6T6mfIp-tZfEWQGXuzuzREM3G1/exec';
         
         // =========================================================
@@ -387,6 +446,7 @@
             let formattedDate = `${yyyy}-${mm}-${dd}`;
             document.getElementById('dt').value = formattedDate;
             document.getElementById('driverDt').value = formattedDate;
+            document.getElementById('shortageDt').value = formattedDate;
         });
 
         function openMenu() {
@@ -723,6 +783,42 @@
                 alert("Connection Error. Please check your internet and try again.");
                 btn.disabled = false;
                 btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST";
+            });
+        }
+
+        // --- SHORTAGE FORM LOGIC (Testing Mode) ---
+        function submitShortage() {
+            const btn = document.querySelector('#shortageView .save-btn');
+            const form = document.getElementById('shortageForm');
+            
+            if(!form.querySelector('select[name="Store"]').value || !form.querySelector('input[name="ManagerName"]').value) {
+                return alert("Please select a store and enter your name!");
+            }
+
+            btn.innerText = "Sending Shortage Report...";
+            btn.disabled = true;
+
+            const formData = new FormData(form);
+            
+            // This order data is sent via the DRIVER_G_URL
+            // Ensure your Apps Script for this URL is configured to send to your test email
+            fetch(DRIVER_G_URL, {
+                method: 'POST',
+                body: formData,
+                mode: 'no-cors' 
+            }).then(() => {
+                btn.innerText = "✅ REPORT SUBMITTED!";
+                setTimeout(() => {
+                    form.reset();
+                    document.getElementById('shortageDt').valueAsDate = new Date(); 
+                    btn.disabled = false;
+                    btn.innerText = "🚀 SUBMIT SHORTAGE REPORT";
+                    openMenu();
+                }, 2000);
+            }).catch((err) => {
+                alert("Connection Error. Please check your internet and try again.");
+                btn.disabled = false;
+                btn.innerText = "🚀 SUBMIT SHORTAGE REPORT";
             });
         }
     </script>
