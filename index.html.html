@@ -194,13 +194,20 @@
 </head>
 <body>
 
+    <!-- ==========================================
+         1. SPLASH SCREEN
+         ========================================== -->
     <div id="splash-screen">
-        <img src="splash-logo.png" alt="Caliche's Logo" class="splash-logo" onerror="this.style.display='none'">
+        <img src="splash-logo.png" alt="Caliche's Logo" class="splash-logo">
     </div>
 
+    <!-- ==========================================
+         2. MAIN MENU (LANDING PAGE)
+         ========================================== -->
     <div id="main-menu" class="app-view">
-        <img src="splash-logo.png" alt="Caliche's Logo" style="max-height: 120px; margin-bottom: 20px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2));" onerror="this.style.display='none'">
+        <img src="splash-logo.png" alt="Caliche's Logo" style="max-height: 120px; margin-bottom: 20px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2));">
         
+        <!-- TRAINING BANNER -->
         <div id="training-banner">
             💡 WEEKLY FOCUS: <span id="tip-text">Cleanliness, Friendliness, Speed, and Quality!</span>
         </div>
@@ -220,11 +227,14 @@
         </button>
     </div>
 
+    <!-- ==========================================
+         3. POP-IN INSPECTION VIEW
+         ========================================== -->
     <div id="popInView" class="app-view">
         <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
         
         <div class="header">
-            <img src="popin-logo.png" alt="Pop-In Logo" class="logo-img" onerror="this.style.display='none'">
+            <img src="popin-logo.png" alt="Pop-In Logo" class="logo-img">
             <p>STORE "POP IN" FORM</p>
         </div>
 
@@ -283,11 +293,14 @@
         </div>
     </div>
 
+    <!-- ==========================================
+         4. DRIVER CHECKLIST VIEW
+         ========================================== -->
     <div id="driverView" class="app-view">
         <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
 
         <div class="header pink-theme">
-            <img src="driver-logo.png" alt="Driver Logo" class="logo-img" onerror="this.style.display='none'">
+            <img src="driver-logo.png" alt="Driver Logo" class="logo-img">
             <p>VEHICLE & TRAILER CHECK-OUT</p>
         </div>
 
@@ -364,6 +377,9 @@
         </div>
     </div>
 
+    <!-- ==========================================
+         5. STORE SHORTAGE REPORT VIEW
+         ========================================== -->
     <div id="shortageView" class="app-view">
         <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
 
@@ -415,6 +431,9 @@
         </div>
     </div>
 
+    <!-- ==========================================
+         6. JAVASCRIPT LOGIC
+         ========================================== -->
     <script>
         // =========================================================
         // GOOGLE SCRIPT URLs
@@ -786,7 +805,7 @@
             });
         }
 
-        // --- SHORTAGE FORM LOGIC (Testing Mode) ---
+        // --- SHORTAGE FORM LOGIC ---
         function submitShortage() {
             const btn = document.querySelector('#shortageView .save-btn');
             const form = document.getElementById('shortageForm');
@@ -800,8 +819,6 @@
 
             const formData = new FormData(form);
             
-            // This order data is sent via the DRIVER_G_URL
-            // Ensure your Apps Script for this URL is configured to send to your test email
             fetch(DRIVER_G_URL, {
                 method: 'POST',
                 body: formData,
