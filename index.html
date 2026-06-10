@@ -55,7 +55,7 @@
         }
         .menu-title {
             color: var(--caliches-blue);
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             font-size: 24px;
         }
         .menu-btn {
@@ -82,16 +82,60 @@
             background-color: #f9f9f9;
         }
 
-        /* --- TRAINING BANNER STYLES --- */
-        #training-banner {
-            background-color: #ffd700;
-            color: #333;
-            padding: 15px;
-            margin: 0 0 20px 0;
-            border-radius: 8px;
+        /* --- ICE CREAM CONE BANNER STYLES --- */
+        #ice-cream-banner {
+            margin: 0 auto 30px auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            filter: drop-shadow(0px 6px 10px rgba(0,0,0,0.15));
+            animation: floatBanner 3s ease-in-out infinite;
+        }
+        @keyframes floatBanner {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        .scoop {
+            background: radial-gradient(circle at 30% 30%, #ff8a9f, var(--caliches-pink));
+            color: white;
+            padding: 35px 20px 20px 20px;
+            border-radius: 80px 80px 20px 20px;
+            text-align: center;
+            width: 85%;
+            max-width: 350px;
+            position: relative;
+            z-index: 2;
+            border: 4px solid white;
+            box-shadow: inset -5px -5px 15px rgba(0,0,0,0.1);
+        }
+        .focus-title {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0.9;
+            display: block;
+            margin-bottom: 5px;
             font-weight: bold;
-            border: 2px solid #e6c200;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+        #tip-text {
+            font-size: 20px;
+            font-weight: 900;
+            line-height: 1.3;
+            display: block;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+        }
+        .cone {
+            width: 140px;
+            height: 110px;
+            background-color: #e2a76f;
+            background-image: 
+                linear-gradient(45deg, rgba(0,0,0,0.1) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.1) 75%, rgba(0,0,0,0.1)), 
+                linear-gradient(-45deg, rgba(0,0,0,0.1) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.1) 75%, rgba(0,0,0,0.1));
+            background-size: 20px 20px;
+            clip-path: polygon(0 0, 100% 0, 50% 100%);
+            margin-top: -10px;
+            z-index: 1;
         }
 
         /* --- FORM CONTAINERS --- */
@@ -205,11 +249,15 @@
          2. MAIN MENU (LANDING PAGE)
          ========================================== -->
     <div id="main-menu" class="app-view">
-        <img src="splash-logo.png" alt="Caliche's Logo" style="max-height: 120px; margin-bottom: 20px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2));">
+        <img src="splash-logo.png" alt="Caliche's Logo" style="max-height: 120px; margin-bottom: 25px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2));">
         
-        <!-- TRAINING BANNER -->
-        <div id="training-banner">
-            💡 WEEKLY FOCUS: <span id="tip-text">Cleanliness, Friendliness, Speed, and Quality!</span>
+        <!-- NEW FLOATING ICE CREAM CONE BANNER -->
+        <div id="ice-cream-banner">
+            <div class="scoop">
+                <span class="focus-title">💡 Weekly Focus</span>
+                <span id="tip-text">Cleanliness, Friendliness, Speed, & Quality!</span>
+            </div>
+            <div class="cone"></div>
         </div>
 
         <h1 class="menu-title">Operations Hub</h1>
@@ -819,6 +867,8 @@
 
             const formData = new FormData(form);
             
+            // This order data is sent via the DRIVER_G_URL
+            // Ensure your Apps Script for this URL is configured to send to your test email
             fetch(DRIVER_G_URL, {
                 method: 'POST',
                 body: formData,
