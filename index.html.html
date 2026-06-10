@@ -180,10 +180,16 @@
 </head>
 <body>
 
+    <!-- ==========================================
+         1. SPLASH SCREEN
+         ========================================== -->
     <div id="splash-screen">
         <img src="splash-logo.png" alt="Caliche's Logo" class="splash-logo" onerror="this.style.display='none'">
     </div>
 
+    <!-- ==========================================
+         2. MAIN MENU (LANDING PAGE)
+         ========================================== -->
     <div id="main-menu" class="app-view">
         <img src="splash-logo.png" alt="Caliche's Logo" style="max-height: 120px; margin-bottom: 20px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2));" onerror="this.style.display='none'">
         <h1 class="menu-title">Operations Hub</h1>
@@ -197,6 +203,9 @@
         </button>
     </div>
 
+    <!-- ==========================================
+         3. POP-IN INSPECTION VIEW
+         ========================================== -->
     <div id="popInView" class="app-view">
         <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
         
@@ -260,6 +269,9 @@
         </div>
     </div>
 
+    <!-- ==========================================
+         4. DRIVER CHECKLIST VIEW
+         ========================================== -->
     <div id="driverView" class="app-view">
         <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
 
@@ -341,14 +353,19 @@
         </div>
     </div>
 
+    <!-- ==========================================
+         5. JAVASCRIPT LOGIC
+         ========================================== -->
     <script>
         // =========================================================
-        // IMPORTANT: PASTE YOUR GOOGLE SCRIPT URL BETWEEN THE QUOTES
+        // GOOGLE SCRIPT URLs (MAPPED TO YOUR LINKS)
         // =========================================================
         
-        const G_URL = 'PASTE_YOUR_LINK_HERE';
+        // POP-IN FORM LINK 
+        const G_URL = 'https://script.google.com/macros/s/AKfycbzDrLR4bBx0J3B0cFhjEFqrfDQnkAA-zdZRy85Bb_Ppjick5IoJmudUt_HgKZmhDBlNcw/exec';
         
-        const DRIVER_G_URL = 'PASTE_YOUR_LINK_HERE';
+        // DRIVER CHECKLIST LINK 
+        const DRIVER_G_URL = 'https://script.google.com/macros/s/AKfycbylAjdnIkSVQoyv1kB2dNQvqUr2Xs518bR-ahk_KU6T6mfIp-tZfEWQGXuzuzREM3G1/exec';
         
         // =========================================================
 
@@ -589,10 +606,6 @@
                 return alert(`Please answer all questions. You have answered ${answered} out of ${totalQuestions}.`);
             }
 
-            if(G_URL === 'PASTE_YOUR_LINK_HERE') {
-                return alert("Hold up! You forgot to paste your Google Script URL at the bottom of the code.");
-            }
-
             btn.innerText = "Sending securely...";
             btn.disabled = true;
 
@@ -682,10 +695,6 @@
             
             if(!document.getElementById('vehicle').value || !document.getElementById('signature').value) {
                 return alert("Please select a vehicle and sign the form!");
-            }
-
-            if(DRIVER_G_URL === 'PASTE_YOUR_LINK_HERE') {
-                return alert("Hold up! You forgot to paste your Google Script URL at the bottom of the code.");
             }
 
             btn.innerText = "Sending to Office...";
