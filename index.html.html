@@ -2,498 +2,226 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Caliche's Pop In Inspection</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caliche's Operations & Inspections</title>
+    
+    <!-- CSS STYLES -->
     <style>
-        :root {
-            --caliches-blue: #0033A0;
-            --caliches-pink: #E91E63;
-            --light-gray: #f4f4f9;
-            --white: #ffffff;
-            --pass-green: #28a745;
-            --fail-red: #dc3545;
-            --na-gray: #9e9e9e;
-        }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--light-gray);
-            margin: 0; padding: 0; color: #333;
-        }
-        .header {
-            background-color: var(--caliches-blue);
-            color: var(--white);
-            text-align: center;
-            padding: 20px 10px;
-            position: sticky;
-            top: 0; z-index: 100;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .logo-img { 
-            max-height: 80px; 
-            width: auto; 
-            display: block; 
-            margin: 0 auto 10px auto;
-            filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2));
-        }
-        .header p { margin: 0; font-size: 14px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
-        .container { max-width: 700px; margin: 15px auto; padding: 0 15px; }
-        
-        .info-group {
-            background: var(--white); padding: 15px; border-radius: 12px;
-            margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
-        }
-        .info-group .full-width { grid-column: span 2; }
-        .info-group label { display: block; font-weight: bold; margin-bottom: 5px; color: var(--caliches-blue); font-size: 13px; }
-        .info-group input, .info-group select, .info-group textarea {
-            width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;
-            box-sizing: border-box; font-size: 15px; background: #fafafa;
-        }
-        
-        .category {
-            background: var(--white); border-radius: 12px; padding: 15px;
-            margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            border-top: 6px solid var(--caliches-pink);
-        }
-        .category h2 { margin: 0 0 15px 0; color: var(--caliches-blue); font-size: 20px; border-bottom: 2px solid #eee; padding-bottom: 8px;}
-        
-        .question { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #f0f0f0; }
-        .question:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-        .question p { margin: 0 0 10px 0; font-weight: 600; line-height: 1.3; font-size: 15px; }
-        
-        .rating-group { display: flex; justify-content: space-between; gap: 4px; }
-        .rating-group input[type="radio"] { display: none; }
-        .rating-group label {
-            flex: 1; text-align: center; padding: 12px 0;
-            background-color: #eee; border-radius: 6px;
-            font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s;
-        }
-        
-        .rating-group input[value="0"]:checked + label { background-color: var(--na-gray); color: white; }
-        .rating-group input[value="1"]:checked + label, 
-        .rating-group input[value="2"]:checked + label { background-color: var(--fail-red); color: white; }
-        .rating-group input[value="3"]:checked + label,
-        .rating-group input[value="4"]:checked + label,
-        .rating-group input[value="5"]:checked + label { background-color: var(--caliches-blue); color: white; }
-
-        .note-input {
-            width: 100%; margin-top: 8px; padding: 8px;
-            border: 1px solid #eee; border-radius: 6px;
-            font-size: 13px; box-sizing: border-box; background: #fafafa;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
         }
 
-        .photo-btn {
-            background: #e0e0e0; color: #333; padding: 6px 12px; border-radius: 6px; 
-            font-size: 12px; cursor: pointer; display: inline-block; font-weight: bold;
-            margin-top: 8px; border: 1px solid #ccc;
+        /* Tab Navigation Styles */
+        .nav-tabs {
+            display: flex;
+            background-color: #333;
+            overflow: hidden;
         }
 
-        .results {
-            background: var(--caliches-blue); color: white;
-            padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 30px;
-        }
-        .score-display { font-size: 24px; font-weight: bold; }
-        .status {
-            font-size: 16px; font-weight: bold; padding: 8px 25px;
-            border-radius: 20px; display: inline-block; margin-top: 10px;
-        }
-        .status.pass { background-color: var(--pass-green); }
-        .status.fail { background-color: var(--fail-red); }
-        
-        .save-btn {
-            width: 100%; background-color: var(--caliches-pink); color: white;
-            border: none; padding: 20px; font-size: 18px; font-weight: bold;
-            border-radius: 12px; cursor: pointer; margin-bottom: 60px;
-            box-shadow: 0 4px 10px rgba(233, 30, 99, 0.3);
+        .tab-btn {
+            flex: 1;
+            background-color: #333;
+            color: white;
+            padding: 15px 0;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
             transition: 0.3s;
         }
-        .save-btn:disabled { background-color: #ccc; cursor: not-allowed; box-shadow: none; }
 
-        @media print {
-            body { background-color: white !important; }
-            .save-btn, .photo-btn { display: none !important; }
-            .header { position: static !important; padding: 10px !important; }
-            .container { margin: 0 !important; box-shadow: none !important; max-width: 100% !important; }
-            .category { box-shadow: none !important; border-top: 4px solid var(--caliches-pink) !important; }
-            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        .tab-btn:hover {
+            background-color: #555;
+        }
+
+        .tab-btn.active {
+            background-color: #0056b3; /* Brand highlight color */
+        }
+
+        /* Form Containers */
+        .form-container {
+            padding: 20px;
+            max-width: 600px;
+            margin: auto;
+        }
+
+        h2 {
+            color: #333;
+            text-align: center;
+        }
+
+        .section-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        input[type="text"], select, input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box; 
+        }
+
+        input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2); /* Easier to tap on mobile */
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-buttons button {
+            flex: 1;
+            padding: 15px;
+            background-color: #0056b3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .action-buttons button:hover {
+            background-color: #004494;
         }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <img src="logo.png" alt="Caliche's Logo" class="logo-img">
-        <p>STORE "POP IN" FORM</p>
+    <!-- Tabbed Navigation -->
+    <div class="nav-tabs">
+        <button class="tab-btn active" onclick="switchForm(event, 'popInForm')">Pop-In Inspection</button>
+        <button class="tab-btn" onclick="switchForm(event, 'vehicleForm')">Vehicle & Trailer</button>
     </div>
 
-    <div class="container">
-        <form id="auditForm">
-            <div class="info-group">
-                <div>
-                    <label>Location:</label>
-                    <select id="loc" name="Location" required>
-                        <option value="" disabled selected>Select Location</option>
-                        <option>Roadrunner</option><option>Valley</option><option>Lenox</option>
-                        <option>Alamogordo</option><option>Roswell</option><option>Scoopy</option>
-                        <option>Poochi</option><option>Caliche's Cruiser</option>
-                    </select>
-                </div>
-                <div>
-                    <label>Date:</label>
-                    <input type="date" id="dt" name="Date" required>
-                </div>
-                <div>
-                    <label>Shift Time:</label>
-                    <select id="shiftTime" name="ShiftTime">
-                        <option>Day</option><option>Night</option>
-                    </select>
-                </div>
-                <div>
-                    <label>Shift Leader:</label>
-                    <input type="text" id="sldr" name="ShiftLeader" placeholder="Name" required>
-                </div>
-                <div class="full-width">
-                    <label>Conducted By:</label>
-                    <input type="text" id="conductor" name="ConductedBy" placeholder="Your Name" required>
-                </div>
-            </div>
+    <!-- FORM 1: Pop-In Inspection -->
+    <div id="popInForm" class="form-container" style="display: block;">
+        <h2>Pop-In Inspection</h2>
+        <form id="inspection-form">
+            <label for="location">Location:</label>
+            <select id="location" name="location">
+                <option value="las-cruces">Las Cruces</option>
+                <option value="roswell">Roswell</option>
+            </select>
 
-            <div id="questionsContainer"></div>
-
-            <div class="category">
-                <h2>Overall Comments & Requests</h2>
-                <textarea id="overallComments" name="OverallComments" rows="4" placeholder="Summarize the pop in, shout out good behavior, or note major issues..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; box-sizing: border-box;"></textarea>
-            </div>
-            
-            <div class="results">
-                <div class="score-display">Total Points: <span id="ts">0</span> / <span id="maxPts">0</span></div>
-                <div style="font-size: 36px; font-weight: 900; margin: 10px 0;"><span id="pct">0</span>%</div>
-                <div id="st" class="status" style="background-color: #555;">Pending</div>
+            <div class="section-card">
+                <h3>The 4 Number 1s</h3>
                 
-                <input type="hidden" id="finalScore" name="TotalScore">
-                <input type="hidden" id="finalPct" name="Percentage">
-                <input type="hidden" id="finalStatus" name="Status">
-                <input type="hidden" id="hiddenReportHtml" name="ReportHTML">
+                <label>Cleanliness:</label>
+                <select name="cleanliness" required>
+                    <option value="pass">Pass</option>
+                    <option value="fail">Fail</option>
+                </select>
+                
+                <label for="cleanliness-photo">Upload Cleanliness Photo:</label>
+                <input type="file" id="cleanliness-photo" name="cleanliness-photo" accept="image/*" capture="environment">
+
+                <label>Friendliness:</label>
+                <select name="friendliness" required>
+                    <option value="pass">Pass</option>
+                    <option value="fail">Fail</option>
+                </select>
+
+                <label>Speed:</label>
+                <select name="speed" required>
+                    <option value="pass">Pass</option>
+                    <option value="fail">Fail</option>
+                </select>
+
+                <label>Quality:</label>
+                <select name="quality" required>
+                    <option value="pass">Pass</option>
+                    <option value="fail">Fail</option>
+                </select>
             </div>
 
-            <button type="button" id="submitBtn" class="save-btn" onclick="submitAudit()">🚀 SUBMIT TO OFFICE</button>
+            <div class="action-buttons">
+                <button type="button" onclick="generatePDF('inspection-form')">Save as PDF</button>
+                <button type="button" onclick="emailReport('inspection-form')">Email to Office</button>
+            </div>
         </form>
     </div>
 
+    <!-- FORM 2: Vehicle & Trailer Check-Out -->
+    <div id="vehicleForm" class="form-container" style="display: none;">
+        <h2>Vehicle & Trailer Check-Out</h2>
+        <form id="trailer-form">
+            <label for="unit">Mobile Unit:</label>
+            <select id="unit" name="unit">
+                <option value="treat-trailer">28' Treat Trailer</option>
+                <option value="sundae-cart">Sundae Cart</option>
+            </select>
+
+            <div class="section-card">
+                <h3>Pre-Trip Checklist</h3>
+                
+                <label>
+                    <input type="checkbox" name="hitch"> Hitch & Safety Chains Secured
+                </label>
+                <label>
+                    <input type="checkbox" name="tires"> Tire Pressure & Tread Checked
+                </label>
+                <label>
+                    <input type="checkbox" name="propane"> Propane Tanks Secured & Valves Closed
+                </label>
+                <label>
+                    <input type="checkbox" name="interior"> Interior Clean & Prepped
+                </label>
+            </div>
+
+            <div class="action-buttons">
+                <button type="button" onclick="generatePDF('trailer-form')">Save as PDF</button>
+                <button type="button" onclick="emailReport('trailer-form')">Email to Office</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
     <script>
-        const G_URL = 'https://script.google.com/macros/s/AKfycbw83dV7F5nc40KZcck62BM5Oqya0JKv4RTrEO5Ad1EpwRzSVKjI0XOAs_9twOwzB_dFDA/exec';
-
-        const questions = [
-            {
-                cat: "Team Member Performance", 
-                q: [
-                    "Moving with a purpose, motivated to work, positive attitude",
-                    "All team members are following dress code",
-                    "Teamwork is being conducted",
-                    "Multitasking when possible",
-                    "Respecting the no talking when windows are open policy",
-                    "Backups are being done in a timely manner",
-                    "During busy hours everyone is staying composed and collected",
-                    "Register runners are small talking with customers",
-                    "Everyone is listening to the orders being called out",
-                    "Register runners providing excellent customer service",
-                    "Everyone is lending a hand to get out lines faster",
-                    "Team members are handing out items correctly"
-                ]
-            },
-            {
-                cat: "Shift Leader Performance", 
-                q: [
-                    "Moving with a purpose, motivated, positive attitude",
-                    "Constantly lending a helping hand",
-                    "Ensuring duties are performed efficiently to standard",
-                    "Always staying composed and collected",
-                    "Communicating and providing good direction to team",
-                    "Promoting a positive and healthy work environment",
-                    "Displaying good judgment",
-                    "Coaching team members and helping train new staff",
-                    "Ensuring compliance with company health/safety policies",
-                    "Shift is organized and is on or ahead of schedule",
-                    "Can influence the team's efforts through leadership",
-                    "Easily adapts to changing conditions and delegates",
-                    "Monitoring that machine runner is performing to standard"
-                ]
-            },
-            {
-                cat: "Cleanliness", 
-                q: [
-                    "Stations are being wiped down after use",
-                    "Glove protocol is being followed",
-                    "Dirty dishes are being pre-rinsed and tape taken off",
-                    "Sani buckets are being changed when dirty (or every 2 hrs)",
-                    "Spills or messes on floors are being addressed",
-                    "Exterior front counters are being wiped down",
-                    "Middle sink in dish area is maintained clean and free of dishes",
-                    "Machine area is clean and being wiped down",
-                    "Hands are being washed",
-                    "Malt collars are attended to after orders/before leaving area",
-                    "Caliche and shake machines attended to after orders",
-                    "Team members are wearing clean aprons",
-                    "Quick spiffs are being maintained",
-                    "Item makers clean off dirty items before placing on handout counter"
-                ]
-            },
-            {
-                cat: "Quality", 
-                q: [
-                    "Machine runner's custard is high quality and fresh",
-                    "All fruits are fresh to taste",
-                    "All backups in walk-in rotated correctly (labels face center)",
-                    "Hot dogs are hot and plump, not cold or old",
-                    "Coleslaw is made correctly",
-                    "Tostadas are fresh to taste",
-                    "Enough hot dog buns are being defrosted",
-                    "Hot fudge warmers are set to 140 degrees (F)",
-                    "Caramel warmers are set to 100 degrees (F)",
-                    "Machine runner is keeping up with melts",
-                    "Items are being scooped properly",
-                    "Caliches and shakes are being blended properly"
-                ]
+        // Function to switch between forms
+        function switchForm(event, formId) {
+            // Hide all form containers
+            const forms = document.getElementsByClassName("form-container");
+            for (let i = 0; i < forms.length; i++) {
+                forms[i].style.display = "none";
             }
-        ];
 
-        let totalQuestions = 0;
-        // NEW: This object tracks photos for EVERY specific question!
-        let questionPhotos = {}; 
+            // Remove the "active" class from all tab buttons
+            const tabs = document.getElementsByClassName("tab-btn");
+            for (let i = 0; i < tabs.length; i++) {
+                tabs[i].className = tabs[i].className.replace(" active", "");
+            }
 
-        window.onload = function() {
-            let html = "";
-            let qIdx = 1;
-            
-            questions.forEach(group => {
-                html += `<div class="category"><h2>${group.cat}</h2>`;
-                
-                group.q.forEach(text => {
-                    questionPhotos[qIdx] = []; // Prepare an empty array for this question's photos
-
-                    html += `
-                    <div class="question">
-                        <p>${text}</p>
-                        <div class="rating-group">
-                            <input type="radio" name="q${qIdx}" id="q${qIdx}-0" value="0" onchange="calc()"><label for="q${qIdx}-0">N/A</label>`;
-                            for(let i=1; i<=5; i++) {
-                                html += `<input type="radio" name="q${qIdx}" id="q${qIdx}-${i}" value="${i}" onchange="calc()"><label for="q${qIdx}-${i}">${i}</label>`;
-                            }
-                    html += `
-                        </div>
-                        <input type="text" id="note${qIdx}" name="note${qIdx}" class="note-input" placeholder="Add specific feedback...">
-                        
-                        <div>
-                            <label class="photo-btn">
-                                📸 Attach Photos
-                                <input type="file" accept="image/*" multiple onchange="compressAndPreview(event, ${qIdx})" style="display: none;">
-                            </label>
-                            <div id="imgPreviewContainer${qIdx}" style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px;"></div>
-                        </div>
-                    </div>`;
-                    qIdx++;
-                });
-
-                html += `</div>`;
-            });
-            
-            document.getElementById('questionsContainer').innerHTML = html;
-            
-            let today = new Date();
-            let yyyy = today.getFullYear();
-            let mm = String(today.getMonth() + 1).padStart(2, '0');
-            let dd = String(today.getDate()).padStart(2, '0');
-            document.getElementById('dt').value = `${yyyy}-${mm}-${dd}`;
-            
-            totalQuestions = qIdx - 1;
-        };
-
-        // UPDATED: Now receives the specific Question ID (qId) so it knows where to put the photo
-        function compressAndPreview(event, qId) {
-            let files = event.target.files;
-            if(!files || files.length === 0) return;
-
-            let previewContainer = document.getElementById(`imgPreviewContainer${qId}`);
-
-            Array.from(files).forEach(file => {
-                let reader = new FileReader();
-                reader.onload = function(e) {
-                    let img = new Image();
-                    img.onload = function() {
-                        let canvas = document.createElement('canvas');
-                        let ctx = canvas.getContext('2d');
-                        
-                        // Aggressive compression to prevent Apple crashes with unlimited uploads
-                        let maxWidth = 300;
-                        let scaleSize = maxWidth / img.width;
-                        if(scaleSize > 1) scaleSize = 1;
-
-                        canvas.width = img.width * scaleSize;
-                        canvas.height = img.height * scaleSize;
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                        let compressedBase64 = canvas.toDataURL('image/jpeg', 0.4);
-                        
-                        // Save the photo specifically to this question's bank
-                        questionPhotos[qId].push(compressedBase64); 
-
-                        // Show preview on screen under that specific question
-                        let previewImg = document.createElement('img');
-                        previewImg.src = compressedBase64;
-                        previewImg.style.width = '60px';
-                        previewImg.style.height = '60px';
-                        previewImg.style.borderRadius = '6px';
-                        previewImg.style.border = '1px solid #ccc';
-                        previewImg.style.objectFit = 'cover';
-                        previewContainer.appendChild(previewImg);
-                    }
-                    img.src = e.target.result;
-                }
-                reader.readAsDataURL(file);
-            });
+            // Show the selected form and highlight its tab button
+            document.getElementById(formId).style.display = "block";
+            event.currentTarget.className += " active";
         }
 
-        function calc() {
-            let totalScore = 0;
-            let questionsCounted = 0;
-            let answered = 0;
-
-            for(let i=1; i<=totalQuestions; i++) {
-                let sel = document.querySelector(`input[name="q${i}"]:checked`);
-                if(sel) { 
-                    answered++;
-                    let val = parseInt(sel.value);
-                    if(val > 0) { 
-                        totalScore += val;
-                        questionsCounted++;
-                    }
-                }
-            }
-
-            let maxPossible = questionsCounted * 5;
-            let p = maxPossible === 0 ? 0 : Math.round((totalScore / maxPossible) * 100);
-
-            document.getElementById('ts').innerText = totalScore;
-            document.getElementById('maxPts').innerText = maxPossible;
-            document.getElementById('finalScore').value = totalScore;
-            
-            document.getElementById('pct').innerText = p;
-            document.getElementById('finalPct').value = p + "%";
-            
-            let badge = document.getElementById('st');
-            
-            if(answered === totalQuestions) {
-                let stat = p >= 85 ? "EXCELLENT" : (p >= 75 ? "MEETS STANDARD" : "NEEDS IMPROVEMENT");
-                badge.innerText = stat;
-                document.getElementById('finalStatus').value = stat;
-                badge.className = p >= 75 ? "status pass" : "status fail";
-            }
+        // Placeholder functions for PDF/Email logic
+        function generatePDF(formId) {
+            alert("Triggering PDF export for: " + formId + "\n(Integration needed for live PDF creation)");
         }
 
-        function submitAudit() {
-            const btn = document.getElementById('submitBtn');
-            const form = document.getElementById('auditForm');
-            
-            if(!document.getElementById('loc').value || !document.getElementById('sldr').value || !document.getElementById('conductor').value) {
-                return alert("Please fill out Location, Shift Leader, and Conducted By!");
-            }
-            
-            let answered = 0;
-            for(let i=1; i<=totalQuestions; i++) {
-                if(document.querySelector(`input[name="q${i}"]:checked`)) answered++;
-            }
-            
-            if(answered < totalQuestions) {
-                return alert(`Please answer all questions. You have answered ${answered} out of ${totalQuestions}.`);
-            }
-
-            btn.innerText = "Sending securely...";
-            btn.disabled = true;
-
-            let pdfHtml = `
-                <div style="font-family: Arial, sans-serif; color: #333; padding: 10px; max-width: 800px; margin: 0 auto;">
-                    <h1 style="color: #0033A0;">Caliche's Pop In Inspection</h1>
-                    <table style="width: 100%; margin-bottom: 20px;">
-                        <tr>
-                            <td><strong>Location:</strong> ${document.getElementById('loc').value}</td>
-                            <td><strong>Date:</strong> ${document.getElementById('dt').value}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Conducted By:</strong> ${document.getElementById('conductor').value}</td>
-                            <td><strong>Shift Leader:</strong> ${document.getElementById('sldr').value} (${document.getElementById('shiftTime').value})</td>
-                        </tr>
-                    </table>
-                    <div style="background-color: #f4f4f9; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                        <h2 style="color: #E91E63; margin: 0;">Final Score: ${document.getElementById('pct').innerText}% (${document.getElementById('st').innerText})</h2>
-                        <p style="margin-bottom: 0;"><strong>Overall Comments:</strong> ${document.getElementById('overallComments').value || "None"}</p>
-                    </div>
-                    <table border="1" cellpadding="8" style="border-collapse: collapse; width: 100%; font-size: 14px;">
-                        <tr style="background-color: #0033A0; color: white;">
-                            <th style="text-align: left;">Category / Question</th>
-                            <th style="width: 60px;">Score</th>
-                            <th>Notes</th>
-                        </tr>`;
-
-            let loopIdx = 1;
-            questions.forEach(group => {
-                pdfHtml += `<tr style="background-color: #e0e0e0;"><td colspan="3"><strong>${group.cat}</strong></td></tr>`;
-                
-                group.q.forEach(text => {
-                    let sel = document.querySelector(`input[name="q${loopIdx}"]:checked`);
-                    let note = document.getElementById(`note${loopIdx}`).value;
-                    let score = sel ? sel.value : "N/A";
-                    if(score === "0") score = "N/A";
-                    
-                    // NEW: Inject the specific photos for this question directly into the table row!
-                    let qPhotos = questionPhotos[loopIdx];
-                    let photoHtml = "";
-                    if (qPhotos && qPhotos.length > 0) {
-                        photoHtml = `<div style="margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap;">`;
-                        qPhotos.forEach(pData => {
-                            photoHtml += `<img src="${pData}" style="max-height: 100px; border-radius: 6px; border: 1px solid #ccc;">`;
-                        });
-                        photoHtml += `</div>`;
-                    }
-
-                    pdfHtml += `<tr>
-                        <td>${text} ${photoHtml}</td>
-                        <td style="text-align: center; font-weight: bold; vertical-align: top;">${score}</td>
-                        <td style="vertical-align: top;">${note}</td>
-                    </tr>`;
-                    loopIdx++;
-                });
-            });
-            pdfHtml += `</table></div>`;
-            
-            document.getElementById('hiddenReportHtml').value = pdfHtml;
-
-            const formData = new FormData(form);
-
-            fetch(G_URL, {
-                method: 'POST',
-                body: formData,
-                mode: 'no-cors' 
-            }).then(() => {
-                
-                btn.disabled = false;
-                btn.style.backgroundColor = "var(--pass-green)";
-                btn.innerText = "✅ SENT! TAP HERE TO PRINT / SAVE PDF";
-                
-                btn.onclick = function(e) {
-                    e.preventDefault();
-                    document.body.innerHTML = pdfHtml;
-                    setTimeout(() => {
-                        window.print();
-                        setTimeout(() => location.reload(), 2000); 
-                    }, 500);
-                };
-
-            }).catch((err) => {
-                alert("Connection Error. Please check your internet and try again.");
-                btn.disabled = false;
-                btn.innerText = "🚀 SUBMIT TO OFFICE";
-            });
+        function emailReport(formId) {
+            alert("Packaging " + formId + " data for email...\n(Integration needed for live email sending)");
         }
     </script>
 </body>
