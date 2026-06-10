@@ -47,7 +47,7 @@
 
         /* --- MAIN MENU STYLES --- */
         #main-menu {
-            display: none; /* Hidden until splash finishes */
+            display: none; 
             padding: 20px;
             max-width: 500px;
             margin: 40px auto;
@@ -83,7 +83,7 @@
         }
 
         /* --- FORM CONTAINERS --- */
-        .app-view { display: none; } /* Used to hide forms */
+        .app-view { display: none; } 
 
         .back-btn {
             background: #333; color: white; border: none;
@@ -180,19 +180,11 @@
 </head>
 <body>
 
-    <!-- ==========================================
-         1. SPLASH SCREEN
-         ========================================== -->
     <div id="splash-screen">
-        <!-- Main generic logo for the opening -->
         <img src="splash-logo.png" alt="Caliche's Logo" class="splash-logo" onerror="this.style.display='none'">
     </div>
 
-    <!-- ==========================================
-         2. MAIN MENU (LANDING PAGE)
-         ========================================== -->
     <div id="main-menu" class="app-view">
-        <!-- Uses the splash logo again, or you can use a different one -->
         <img src="splash-logo.png" alt="Caliche's Logo" style="max-height: 120px; margin-bottom: 20px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2));" onerror="this.style.display='none'">
         <h1 class="menu-title">Operations Hub</h1>
         
@@ -205,14 +197,10 @@
         </button>
     </div>
 
-    <!-- ==========================================
-         3. POP-IN INSPECTION VIEW
-         ========================================== -->
     <div id="popInView" class="app-view">
         <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
         
         <div class="header">
-            <!-- SPECIFIC LOGO FOR POP-IN FORM -->
             <img src="popin-logo.png" alt="Pop-In Logo" class="logo-img" onerror="this.style.display='none'">
             <p>STORE "POP IN" FORM</p>
         </div>
@@ -272,14 +260,10 @@
         </div>
     </div>
 
-    <!-- ==========================================
-         4. DRIVER CHECKLIST VIEW
-         ========================================== -->
     <div id="driverView" class="app-view">
         <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
 
         <div class="header pink-theme">
-            <!-- SPECIFIC LOGO FOR DRIVER FORM -->
             <img src="driver-logo.png" alt="Driver Logo" class="logo-img" onerror="this.style.display='none'">
             <p>VEHICLE & TRAILER CHECK-OUT</p>
         </div>
@@ -357,30 +341,28 @@
         </div>
     </div>
 
-    <!-- ==========================================
-         5. JAVASCRIPT LOGIC
-         ========================================== -->
     <script>
-        // --- GOOGLE SCRIPT URLs ---
-        // Pop-In App Script (Your original one)
-        const G_URL = 'https://script.google.com/macros/s/AKfycbw83dV7F5nc40KZcck62BM5Oqya0JKv4RTrEO5Ad1EpwRzSVKjI0XOAs_9twOwzB_dFDA/exec';
+        // =========================================================
+        // IMPORTANT: PASTE YOUR GOOGLE SCRIPT URL BETWEEN THE QUOTES
+        // =========================================================
         
-        // Driver App Script (You will need to replace this after setting up the new script)
-        const DRIVER_G_URL = 'PASTE_YOUR_NEW_WEB_APP_URL_HERE';
+        const G_URL = 'PASTE_YOUR_LINK_HERE';
+        
+        const DRIVER_G_URL = 'PASTE_YOUR_LINK_HERE';
+        
+        // =========================================================
 
         // --- NAVIGATION & ANIMATION LOGIC ---
         window.addEventListener('load', function() {
-            // Wait 2.5 seconds, fade out splash, show main menu
             setTimeout(function() {
                 const splash = document.getElementById('splash-screen');
                 splash.style.opacity = '0';
                 setTimeout(() => {
                     splash.style.display = 'none';
                     openMenu();
-                }, 600); // Wait for the fade transition to finish
+                }, 600); 
             }, 2500);
             
-            // Set Dates automatically on load
             let today = new Date();
             let yyyy = today.getFullYear();
             let mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -391,27 +373,22 @@
         });
 
         function openMenu() {
-            // Hide all forms
             const views = document.getElementsByClassName("app-view");
             for (let i = 0; i < views.length; i++) {
                 views[i].style.display = "none";
             }
-            // Show main menu
             document.getElementById('main-menu').style.display = "block";
             window.scrollTo(0, 0);
         }
 
         function openForm(formId) {
-            // Hide all forms/menus
             const views = document.getElementsByClassName("app-view");
             for (let i = 0; i < views.length; i++) {
                 views[i].style.display = "none";
             }
-            // Show selected form
             document.getElementById(formId).style.display = "block";
             window.scrollTo(0, 0);
         }
-
 
         // --- POP-IN FORM LOGIC ---
         const questions = [
@@ -491,7 +468,6 @@
         let totalQuestions = 0;
         let questionPhotos = {}; 
 
-        // Generate questions immediately on load
         (function generatePopInQuestions() {
             let html = "";
             let qIdx = 1;
@@ -613,6 +589,10 @@
                 return alert(`Please answer all questions. You have answered ${answered} out of ${totalQuestions}.`);
             }
 
+            if(G_URL === 'PASTE_YOUR_LINK_HERE') {
+                return alert("Hold up! You forgot to paste your Google Script URL at the bottom of the code.");
+            }
+
             btn.innerText = "Sending securely...";
             btn.disabled = true;
 
@@ -704,6 +684,10 @@
                 return alert("Please select a vehicle and sign the form!");
             }
 
+            if(DRIVER_G_URL === 'PASTE_YOUR_LINK_HERE') {
+                return alert("Hold up! You forgot to paste your Google Script URL at the bottom of the code.");
+            }
+
             btn.innerText = "Sending to Office...";
             btn.disabled = true;
 
@@ -723,7 +707,7 @@
                     document.getElementById('driverDt').valueAsDate = new Date(); 
                     btn.style.backgroundColor = "var(--caliches-blue)";
                     btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST";
-                    openMenu(); // Go back to main menu automatically
+                    openMenu(); 
                 }, 3000);
 
             }).catch((err) => {
