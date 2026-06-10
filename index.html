@@ -82,9 +82,9 @@
             background-color: #f9f9f9;
         }
 
-        /* --- ICE CREAM CONE BANNER STYLES --- */
-        #ice-cream-banner {
-            margin: 0 auto 30px auto;
+        /* --- CALICHE'S LOGO BANNER STYLES --- */
+        #custard-banner {
+            margin: 30px auto 40px auto;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -95,19 +95,50 @@
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-8px); }
         }
-        .scoop {
-            background: radial-gradient(circle at 30% 30%, #ff8a9f, var(--caliches-pink));
-            color: white;
-            padding: 35px 20px 20px 20px;
-            border-radius: 80px 80px 20px 20px;
+        
+        /* The main white scoop with blue border */
+        .custard-scoop {
+            background: #ffffff;
+            color: #1072b8; /* Caliche's Logo Blue */
+            padding: 35px 20px 25px 20px;
+            border-radius: 120px 120px 30px 30px;
             text-align: center;
             width: 85%;
             max-width: 350px;
             position: relative;
-            z-index: 2;
-            border: 4px solid white;
-            box-shadow: inset -5px -5px 15px rgba(0,0,0,0.1);
+            z-index: 3;
+            border: 6px solid #1072b8;
         }
+
+        /* The puffy "cloud" scallops at the bottom left and right */
+        .custard-scoop::before, .custard-scoop::after {
+            content: "";
+            position: absolute;
+            bottom: -15px;
+            width: 70px;
+            height: 50px;
+            background: #ffffff;
+            border: 6px solid #1072b8;
+            border-radius: 50%;
+            z-index: -1;
+        }
+        .custard-scoop::before { left: -15px; }
+        .custard-scoop::after { right: -15px; }
+        
+        /* The puffy scallop in the bottom middle */
+        .custard-scoop-bottom {
+            position: absolute;
+            bottom: -22px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 50px;
+            background: #ffffff;
+            border: 6px solid #1072b8;
+            border-radius: 50%;
+            z-index: -1;
+        }
+
         .focus-title {
             font-size: 13px;
             text-transform: uppercase;
@@ -116,26 +147,45 @@
             display: block;
             margin-bottom: 5px;
             font-weight: bold;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
         #tip-text {
-            font-size: 20px;
+            font-size: 19px;
             font-weight: 900;
             line-height: 1.3;
             display: block;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.2);
         }
-        .cone {
-            width: 140px;
-            height: 110px;
-            background-color: #e2a76f;
-            background-image: 
-                linear-gradient(45deg, rgba(0,0,0,0.1) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.1) 75%, rgba(0,0,0,0.1)), 
-                linear-gradient(-45deg, rgba(0,0,0,0.1) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.1) 75%, rgba(0,0,0,0.1));
-            background-size: 20px 20px;
-            clip-path: polygon(0 0, 100% 0, 50% 100%);
-            margin-top: -10px;
+
+        /* The yellow flat-bottom cone wrapper */
+        .cone-wrapper {
+            position: relative;
+            margin-top: -15px;
             z-index: 1;
+            width: 142px;
+            height: 126px;
+            display: flex;
+            justify-content: center;
+        }
+        /* The brown outline of the cone */
+        .waffle-cone-border {
+            position: absolute;
+            width: 142px;
+            height: 126px;
+            background-color: #594121; /* Brown edge */
+            clip-path: polygon(0 0, 100% 0, 80% 100%, 20% 100%);
+        }
+        /* The inner yellow cone with waffle grid */
+        .waffle-cone {
+            position: absolute;
+            top: 0;
+            width: 130px;
+            height: 120px;
+            background-color: #eadd54; /* Yellow base */
+            /* Crosshatch waffle pattern */
+            background-image: 
+                linear-gradient(45deg, rgba(90, 65, 33, 0.3) 25%, transparent 25%, transparent 75%, rgba(90, 65, 33, 0.3) 75%, rgba(90, 65, 33, 0.3)), 
+                linear-gradient(-45deg, rgba(90, 65, 33, 0.3) 25%, transparent 25%, transparent 75%, rgba(90, 65, 33, 0.3) 75%, rgba(90, 65, 33, 0.3));
+            background-size: 18px 18px;
+            clip-path: polygon(0 0, 100% 0, 80% 100%, 20% 100%);
         }
 
         /* --- FORM CONTAINERS --- */
@@ -238,26 +288,23 @@
 </head>
 <body>
 
-    <!-- ==========================================
-         1. SPLASH SCREEN
-         ========================================== -->
     <div id="splash-screen">
         <img src="splash-logo.png" alt="Caliche's Logo" class="splash-logo">
     </div>
 
-    <!-- ==========================================
-         2. MAIN MENU (LANDING PAGE)
-         ========================================== -->
     <div id="main-menu" class="app-view">
-        <img src="splash-logo.png" alt="Caliche's Logo" style="max-height: 120px; margin-bottom: 25px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2));">
+        <img src="splash-logo.png" alt="Caliche's Logo" style="max-height: 120px; margin-bottom: 20px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2));">
         
-        <!-- NEW FLOATING ICE CREAM CONE BANNER -->
-        <div id="ice-cream-banner">
-            <div class="scoop">
+        <div id="custard-banner">
+            <div class="custard-scoop">
+                <div class="custard-scoop-bottom"></div>
                 <span class="focus-title">💡 Weekly Focus</span>
                 <span id="tip-text">Cleanliness, Friendliness, Speed, & Quality!</span>
             </div>
-            <div class="cone"></div>
+            <div class="cone-wrapper">
+                <div class="waffle-cone-border"></div>
+                <div class="waffle-cone"></div>
+            </div>
         </div>
 
         <h1 class="menu-title">Operations Hub</h1>
@@ -275,9 +322,6 @@
         </button>
     </div>
 
-    <!-- ==========================================
-         3. POP-IN INSPECTION VIEW
-         ========================================== -->
     <div id="popInView" class="app-view">
         <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
         
@@ -341,9 +385,6 @@
         </div>
     </div>
 
-    <!-- ==========================================
-         4. DRIVER CHECKLIST VIEW
-         ========================================== -->
     <div id="driverView" class="app-view">
         <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
 
@@ -425,9 +466,6 @@
         </div>
     </div>
 
-    <!-- ==========================================
-         5. STORE SHORTAGE REPORT VIEW
-         ========================================== -->
     <div id="shortageView" class="app-view">
         <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
 
@@ -479,9 +517,6 @@
         </div>
     </div>
 
-    <!-- ==========================================
-         6. JAVASCRIPT LOGIC
-         ========================================== -->
     <script>
         // =========================================================
         // GOOGLE SCRIPT URLs
