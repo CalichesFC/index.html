@@ -21,55 +21,90 @@
             margin: 0; padding: 0; color: #333;
         }
 
-        /* --- TAB NAVIGATION STYLES --- */
-        .nav-tabs {
+        /* --- SPLASH SCREEN ANIMATION --- */
+        #splash-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--caliches-blue);
             display: flex;
-            background-color: #222;
-            position: sticky;
-            top: 0;
-            z-index: 200;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.6s ease-out;
         }
-        .tab-btn {
-            flex: 1;
-            background-color: #222;
-            color: white;
-            padding: 15px 0;
-            border: none;
-            outline: none;
-            cursor: pointer;
-            font-size: 15px;
-            font-weight: bold;
-            transition: 0.3s;
+        .splash-logo {
+            max-width: 250px;
+            width: 80%;
+            animation: pulse 1.5s infinite;
+            filter: drop-shadow(0px 4px 10px rgba(0,0,0,0.3));
         }
-        .tab-btn.active {
-            background-color: var(--caliches-blue); 
-        }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.9; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.9; }
         }
 
-        /* --- FORM STYLES --- */
-        .header {
-            background-color: var(--caliches-blue);
-            color: var(--white);
+        /* --- MAIN MENU STYLES --- */
+        #main-menu {
+            display: none; /* Hidden until splash finishes */
+            padding: 20px;
+            max-width: 500px;
+            margin: 40px auto;
             text-align: center;
-            padding: 20px 10px;
+        }
+        .menu-title {
+            color: var(--caliches-blue);
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+        .menu-btn {
+            display: block;
+            width: 100%;
+            background-color: var(--white);
+            color: var(--caliches-blue);
+            padding: 30px 20px;
+            margin-bottom: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            border: 2px solid var(--caliches-blue);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .menu-btn.pink {
+            color: var(--caliches-pink);
+            border-color: var(--caliches-pink);
+        }
+        .menu-btn:active {
+            transform: scale(0.98);
+            background-color: #f9f9f9;
+        }
+
+        /* --- FORM CONTAINERS --- */
+        .app-view { display: none; } /* Used to hide forms */
+
+        .back-btn {
+            background: #333; color: white; border: none;
+            padding: 12px 20px; font-size: 14px; font-weight: bold;
+            width: 100%; text-align: left; cursor: pointer;
+        }
+
+        /* --- STANDARD FORM STYLES --- */
+        .header {
+            background-color: var(--caliches-blue); color: var(--white);
+            text-align: center; padding: 20px 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        .header.pink-theme {
-            background-color: var(--caliches-pink);
-        }
+        .header.pink-theme { background-color: var(--caliches-pink); }
+        
         .logo-img { 
-            max-height: 80px; 
-            width: auto; 
-            display: block; 
-            margin: 0 auto 10px auto;
-            filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2));
+            max-height: 80px; width: auto; display: block; 
+            margin: 0 auto 10px auto; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2));
         }
         .header p { margin: 0; font-size: 14px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
+        
         .container { max-width: 700px; margin: 15px auto; padding: 0 15px; }
         
         .info-group {
@@ -99,9 +134,7 @@
             display: flex; align-items: center; margin-bottom: 15px;
             font-size: 15px; font-weight: 500;
         }
-        .checkbox-item input[type="checkbox"] {
-            margin-right: 15px; transform: scale(1.5);
-        }
+        .checkbox-item input[type="checkbox"] { margin-right: 15px; transform: scale(1.5); }
 
         .rating-group { display: flex; justify-content: space-between; gap: 4px; }
         .rating-group input[type="radio"] { display: none; }
@@ -110,7 +143,6 @@
             background-color: #eee; border-radius: 6px;
             font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s;
         }
-        
         .rating-group input[value="0"]:checked + label { background-color: var(--na-gray); color: white; }
         .rating-group input[value="1"]:checked + label, 
         .rating-group input[value="2"]:checked + label { background-color: var(--fail-red); color: white; }
@@ -118,27 +150,12 @@
         .rating-group input[value="4"]:checked + label,
         .rating-group input[value="5"]:checked + label { background-color: var(--caliches-blue); color: white; }
 
-        .note-input {
-            width: 100%; margin-top: 8px; padding: 8px;
-            border: 1px solid #eee; border-radius: 6px;
-            font-size: 13px; box-sizing: border-box; background: #fafafa;
-        }
+        .note-input { width: 100%; margin-top: 8px; padding: 8px; border: 1px solid #eee; border-radius: 6px; font-size: 13px; box-sizing: border-box; background: #fafafa; }
+        .photo-btn { background: #e0e0e0; color: #333; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; display: inline-block; font-weight: bold; margin-top: 8px; border: 1px solid #ccc; }
 
-        .photo-btn {
-            background: #e0e0e0; color: #333; padding: 6px 12px; border-radius: 6px; 
-            font-size: 12px; cursor: pointer; display: inline-block; font-weight: bold;
-            margin-top: 8px; border: 1px solid #ccc;
-        }
-
-        .results {
-            background: var(--caliches-blue); color: white;
-            padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 30px;
-        }
+        .results { background: var(--caliches-blue); color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 30px; }
         .score-display { font-size: 24px; font-weight: bold; }
-        .status {
-            font-size: 16px; font-weight: bold; padding: 8px 25px;
-            border-radius: 20px; display: inline-block; margin-top: 10px;
-        }
+        .status { font-size: 16px; font-weight: bold; padding: 8px 25px; border-radius: 20px; display: inline-block; margin-top: 10px; }
         .status.pass { background-color: var(--pass-green); }
         .status.fail { background-color: var(--fail-red); }
         
@@ -146,20 +163,14 @@
             width: 100%; background-color: var(--caliches-pink); color: white;
             border: none; padding: 20px; font-size: 18px; font-weight: bold;
             border-radius: 12px; cursor: pointer; margin-bottom: 60px;
-            box-shadow: 0 4px 10px rgba(197, 58, 116, 0.3);
-            transition: 0.3s;
+            box-shadow: 0 4px 10px rgba(197, 58, 116, 0.3); transition: 0.3s;
         }
-        .save-btn.blue-btn {
-            background-color: var(--caliches-blue);
-            box-shadow: 0 4px 10px rgba(74, 104, 177, 0.3);
-        }
-        .save-btn:hover { background-color: #a32f5f; }
-        .save-btn.blue-btn:hover { background-color: #3b538e; }
+        .save-btn.blue-btn { background-color: var(--caliches-blue); box-shadow: 0 4px 10px rgba(74, 104, 177, 0.3); }
         .save-btn:disabled { background-color: #ccc; cursor: not-allowed; box-shadow: none; }
 
         @media print {
             body { background-color: white !important; }
-            .nav-tabs, .save-btn, .photo-btn { display: none !important; }
+            #splash-screen, #main-menu, .back-btn, .save-btn, .photo-btn { display: none !important; }
             .header { position: static !important; padding: 10px !important; }
             .container { margin: 0 !important; box-shadow: none !important; max-width: 100% !important; }
             .category { box-shadow: none !important; border-top: 4px solid var(--caliches-pink) !important; }
@@ -169,18 +180,40 @@
 </head>
 <body>
 
-    <!-- Tabbed Navigation -->
-    <div class="nav-tabs">
-        <button class="tab-btn active" onclick="switchTab(event, 'popInTab')">Pop-In Inspection</button>
-        <button class="tab-btn" onclick="switchTab(event, 'driverTab')">Driver Checklist</button>
+    <!-- ==========================================
+         1. SPLASH SCREEN
+         ========================================== -->
+    <div id="splash-screen">
+        <!-- Main generic logo for the opening -->
+        <img src="splash-logo.png" alt="Caliche's Logo" class="splash-logo" onerror="this.style.display='none'">
     </div>
 
     <!-- ==========================================
-         TAB 1: POP-IN INSPECTION
+         2. MAIN MENU (LANDING PAGE)
          ========================================== -->
-    <div id="popInTab" class="tab-content active">
+    <div id="main-menu" class="app-view">
+        <!-- Uses the splash logo again, or you can use a different one -->
+        <img src="splash-logo.png" alt="Caliche's Logo" style="max-height: 120px; margin-bottom: 20px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2));" onerror="this.style.display='none'">
+        <h1 class="menu-title">Operations Hub</h1>
+        
+        <button class="menu-btn" onclick="openForm('popInView')">
+            📋 Store Pop-In Inspection
+        </button>
+        
+        <button class="menu-btn pink" onclick="openForm('driverView')">
+            🚚 Vehicle & Trailer Check-Out
+        </button>
+    </div>
+
+    <!-- ==========================================
+         3. POP-IN INSPECTION VIEW
+         ========================================== -->
+    <div id="popInView" class="app-view">
+        <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
+        
         <div class="header">
-            <img src="Catering-logo.PNG" alt="Caliche's Logo" class="logo-img" onerror="this.style.display='none'">
+            <!-- SPECIFIC LOGO FOR POP-IN FORM -->
+            <img src="popin-logo.png" alt="Pop-In Logo" class="logo-img" onerror="this.style.display='none'">
             <p>STORE "POP IN" FORM</p>
         </div>
 
@@ -240,24 +273,19 @@
     </div>
 
     <!-- ==========================================
-         TAB 2: DRIVER CHECKLIST (NEW FORMAT)
+         4. DRIVER CHECKLIST VIEW
          ========================================== -->
-    <div id="driverTab" class="tab-content">
+    <div id="driverView" class="app-view">
+        <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
+
         <div class="header pink-theme">
-            <img src="Catering-logo.PNG" alt="Caliche's Logo" class="logo-img" onerror="this.style.display='none'">
+            <!-- SPECIFIC LOGO FOR DRIVER FORM -->
+            <img src="driver-logo.png" alt="Driver Logo" class="logo-img" onerror="this.style.display='none'">
             <p>VEHICLE & TRAILER CHECK-OUT</p>
         </div>
 
         <div class="container">
-            <!-- IMPORTANT: PUT YOUR EMAIL IN THE ACTION URL BELOW -->
-            <form action="https://formsubmit.co/PUT-YOUR-EMAIL-HERE@EXAMPLE.COM" method="POST" enctype="multipart/form-data">
-                
-                <!-- FormSubmit Configuration -->
-                <input type="hidden" name="_subject" value="New Trailer Check-Out Form Submitted!">
-                <input type="hidden" name="_captcha" value="false">
-                <!-- IMPORTANT: Update this redirect to match your actual GitHub pages URL where this file lives -->
-                <input type="hidden" name="_next" value="https://calichesfc.github.io/DriversChecklist/index.html">
-
+            <form id="driverForm">
                 <div class="info-group">
                     <div>
                         <label for="vehicle">Select Truck:</label>
@@ -297,22 +325,22 @@
 
                 <div class="category">
                     <h2>Safety & Mechanical</h2>
-                    <div class="checkbox-item"><input type="checkbox" id="tires" name="tires" required> <label for="tires">Tire pressure and tread checked (Truck & Trailer)</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="lights" name="lights" required> <label for="lights">Headlights, brake lights, and turn signals working</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="hitch" name="hitch"> <label for="hitch">Hitch pinned, chains crossed, electrical connected (If towing)</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="tires" name="tires" value="Yes"> <label for="tires">Tire pressure and tread checked (Truck & Trailer)</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="lights" name="lights" value="Yes"> <label for="lights">Headlights, brake lights, and turn signals working</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="hitch" name="hitch" value="Yes"> <label for="hitch">Hitch pinned, chains crossed, electrical connected (If towing)</label></div>
                 </div>
 
                 <div class="category">
                     <h2>Interior & Equipment</h2>
-                    <div class="checkbox-item"><input type="checkbox" id="fridge" name="fridge"> <label for="fridge">Refrigeration/Freezer doors securely latched</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="ingredients" name="ingredients"> <label for="ingredients">Custard mix, toppings, and dispensers secured</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="safety_gear" name="safety_gear" required> <label for="safety_gear">Fire extinguisher and First Aid kit present</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="fridge" name="fridge" value="Yes"> <label for="fridge">Refrigeration/Freezer doors securely latched</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="ingredients" name="ingredients" value="Yes"> <label for="ingredients">Custard mix, toppings, and dispensers secured</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="safety_gear" name="safety_gear" value="Yes"> <label for="safety_gear">Fire extinguisher and First Aid kit present</label></div>
                 </div>
 
                 <div class="category">
                     <h2>Presentation & Brand Standards</h2>
-                    <div class="checkbox-item"><input type="checkbox" id="cab" name="cab" required> <label for="cab">Cab is clean, floors clear, and trash removed</label></div>
-                    <div class="checkbox-item"><input type="checkbox" id="bed" name="bed" required> <label for="bed">Truck bed is organized and equipment is secured</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="cab" name="cab" value="Yes"> <label for="cab">Cab is clean, floors clear, and trash removed</label></div>
+                    <div class="checkbox-item"><input type="checkbox" id="bed" name="bed" value="Yes"> <label for="bed">Truck bed is organized and equipment is secured</label></div>
                 </div>
 
                 <div class="category">
@@ -320,39 +348,72 @@
                     <label style="color: var(--caliches-blue); font-size: 14px;">Damage Report (if any):</label>
                     <textarea id="damage" name="damage" rows="3" placeholder="Describe any new dents, scratches, or missing equipment..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box;"></textarea>
 
-                    <label style="color: var(--caliches-blue); font-size: 14px; margin-top: 15px;">Upload Photos (Hitch, Tires, Damage, etc.):</label>
-                    <input type="file" id="photos" name="photos" accept="image/*" multiple style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; background: white;">
-
                     <label style="color: var(--caliches-blue); font-size: 14px; margin-top: 15px;">Shift Leader Signature:</label>
                     <input type="text" id="signature" name="signature" placeholder="Type your full name" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box;">
                 </div>
 
-                <button type="submit" class="save-btn blue-btn">🚀 SUBMIT DRIVER CHECKLIST</button>
+                <button type="button" id="submitDriverBtn" class="save-btn blue-btn" onclick="submitDriverForm()">🚀 SUBMIT DRIVER CHECKLIST</button>
             </form>
         </div>
     </div>
 
     <!-- ==========================================
-         JAVASCRIPT LOGIC
+         5. JAVASCRIPT LOGIC
          ========================================== -->
     <script>
-        // --- TAB SWITCHING LOGIC ---
-        function switchTab(evt, tabId) {
-            let tabContents = document.getElementsByClassName("tab-content");
-            for (let i = 0; i < tabContents.length; i++) {
-                tabContents[i].classList.remove("active");
+        // --- GOOGLE SCRIPT URLs ---
+        // Pop-In App Script (Your original one)
+        const G_URL = 'https://script.google.com/macros/s/AKfycbw83dV7F5nc40KZcck62BM5Oqya0JKv4RTrEO5Ad1EpwRzSVKjI0XOAs_9twOwzB_dFDA/exec';
+        
+        // Driver App Script (You will need to replace this after setting up the new script)
+        const DRIVER_G_URL = 'PASTE_YOUR_NEW_WEB_APP_URL_HERE';
+
+        // --- NAVIGATION & ANIMATION LOGIC ---
+        window.addEventListener('load', function() {
+            // Wait 2.5 seconds, fade out splash, show main menu
+            setTimeout(function() {
+                const splash = document.getElementById('splash-screen');
+                splash.style.opacity = '0';
+                setTimeout(() => {
+                    splash.style.display = 'none';
+                    openMenu();
+                }, 600); // Wait for the fade transition to finish
+            }, 2500);
+            
+            // Set Dates automatically on load
+            let today = new Date();
+            let yyyy = today.getFullYear();
+            let mm = String(today.getMonth() + 1).padStart(2, '0');
+            let dd = String(today.getDate()).padStart(2, '0');
+            let formattedDate = `${yyyy}-${mm}-${dd}`;
+            document.getElementById('dt').value = formattedDate;
+            document.getElementById('driverDt').value = formattedDate;
+        });
+
+        function openMenu() {
+            // Hide all forms
+            const views = document.getElementsByClassName("app-view");
+            for (let i = 0; i < views.length; i++) {
+                views[i].style.display = "none";
             }
-            let tabBtns = document.getElementsByClassName("tab-btn");
-            for (let i = 0; i < tabBtns.length; i++) {
-                tabBtns[i].classList.remove("active");
-            }
-            document.getElementById(tabId).classList.add("active");
-            evt.currentTarget.classList.add("active");
+            // Show main menu
+            document.getElementById('main-menu').style.display = "block";
+            window.scrollTo(0, 0);
         }
 
-        // --- POP-IN FORM LOGIC ---
-        const G_URL = 'https://script.google.com/macros/s/AKfycbw83dV7F5nc40KZcck62BM5Oqya0JKv4RTrEO5Ad1EpwRzSVKjI0XOAs_9twOwzB_dFDA/exec';
+        function openForm(formId) {
+            // Hide all forms/menus
+            const views = document.getElementsByClassName("app-view");
+            for (let i = 0; i < views.length; i++) {
+                views[i].style.display = "none";
+            }
+            // Show selected form
+            document.getElementById(formId).style.display = "block";
+            window.scrollTo(0, 0);
+        }
 
+
+        // --- POP-IN FORM LOGIC ---
         const questions = [
             {
                 cat: "Team Member Performance", 
@@ -430,17 +491,15 @@
         let totalQuestions = 0;
         let questionPhotos = {}; 
 
-        window.onload = function() {
-            // Generate Pop-In Questions
+        // Generate questions immediately on load
+        (function generatePopInQuestions() {
             let html = "";
             let qIdx = 1;
             
             questions.forEach(group => {
                 html += `<div class="category"><h2>${group.cat}</h2>`;
-                
                 group.q.forEach(text => {
                     questionPhotos[qIdx] = []; 
-
                     html += `
                     <div class="question">
                         <p>${text}</p>
@@ -452,7 +511,6 @@
                     html += `
                         </div>
                         <input type="text" id="note${qIdx}" name="note${qIdx}" class="note-input" placeholder="Add specific feedback...">
-                        
                         <div>
                             <label class="photo-btn">
                                 📸 Attach Photos
@@ -463,29 +521,15 @@
                     </div>`;
                     qIdx++;
                 });
-
                 html += `</div>`;
             });
-            
             document.getElementById('questionsContainer').innerHTML = html;
-            
-            // Set Dates for BOTH forms automatically
-            let today = new Date();
-            let yyyy = today.getFullYear();
-            let mm = String(today.getMonth() + 1).padStart(2, '0');
-            let dd = String(today.getDate()).padStart(2, '0');
-            let formattedDate = `${yyyy}-${mm}-${dd}`;
-            
-            document.getElementById('dt').value = formattedDate;
-            document.getElementById('driverDt').value = formattedDate;
-            
             totalQuestions = qIdx - 1;
-        };
+        })();
 
         function compressAndPreview(event, qId) {
             let files = event.target.files;
             if(!files || files.length === 0) return;
-
             let previewContainer = document.getElementById(`imgPreviewContainer${qId}`);
 
             Array.from(files).forEach(file => {
@@ -495,7 +539,6 @@
                     img.onload = function() {
                         let canvas = document.createElement('canvas');
                         let ctx = canvas.getContext('2d');
-                        
                         let maxWidth = 300;
                         let scaleSize = maxWidth / img.width;
                         if(scaleSize > 1) scaleSize = 1;
@@ -505,7 +548,6 @@
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
                         let compressedBase64 = canvas.toDataURL('image/jpeg', 0.4);
-                        
                         questionPhotos[qId].push(compressedBase64); 
 
                         let previewImg = document.createElement('img');
@@ -533,10 +575,7 @@
                 if(sel) { 
                     answered++;
                     let val = parseInt(sel.value);
-                    if(val > 0) { 
-                        totalScore += val;
-                        questionsCounted++;
-                    }
+                    if(val > 0) { totalScore += val; questionsCounted++; }
                 }
             }
 
@@ -546,12 +585,10 @@
             document.getElementById('ts').innerText = totalScore;
             document.getElementById('maxPts').innerText = maxPossible;
             document.getElementById('finalScore').value = totalScore;
-            
             document.getElementById('pct').innerText = p;
             document.getElementById('finalPct').value = p + "%";
             
             let badge = document.getElementById('st');
-            
             if(answered === totalQuestions) {
                 let stat = p >= 85 ? "EXCELLENT" : (p >= 75 ? "MEETS STANDARD" : "NEEDS IMPROVEMENT");
                 badge.innerText = stat;
@@ -572,7 +609,6 @@
             for(let i=1; i<=totalQuestions; i++) {
                 if(document.querySelector(`input[name="q${i}"]:checked`)) answered++;
             }
-            
             if(answered < totalQuestions) {
                 return alert(`Please answer all questions. You have answered ${answered} out of ${totalQuestions}.`);
             }
@@ -607,7 +643,6 @@
             let loopIdx = 1;
             questions.forEach(group => {
                 pdfHtml += `<tr style="background-color: #e0e0e0;"><td colspan="3"><strong>${group.cat}</strong></td></tr>`;
-                
                 group.q.forEach(text => {
                     let sel = document.querySelector(`input[name="q${loopIdx}"]:checked`);
                     let note = document.getElementById(`note${loopIdx}`).value;
@@ -635,7 +670,6 @@
             pdfHtml += `</table></div>`;
             
             document.getElementById('hiddenReportHtml').value = pdfHtml;
-
             const formData = new FormData(form);
 
             fetch(G_URL, {
@@ -643,11 +677,9 @@
                 body: formData,
                 mode: 'no-cors' 
             }).then(() => {
-                
                 btn.disabled = false;
                 btn.style.backgroundColor = "var(--pass-green)";
                 btn.innerText = "✅ SENT! TAP HERE TO PRINT / SAVE PDF";
-                
                 btn.onclick = function(e) {
                     e.preventDefault();
                     document.body.innerHTML = pdfHtml;
@@ -656,11 +688,48 @@
                         setTimeout(() => location.reload(), 2000); 
                     }, 500);
                 };
-
             }).catch((err) => {
                 alert("Connection Error. Please check your internet and try again.");
                 btn.disabled = false;
                 btn.innerText = "🚀 SUBMIT POP-IN TO OFFICE";
+            });
+        }
+
+        // --- DRIVER FORM LOGIC ---
+        function submitDriverForm() {
+            const btn = document.getElementById('submitDriverBtn');
+            const form = document.getElementById('driverForm');
+            
+            if(!document.getElementById('vehicle').value || !document.getElementById('signature').value) {
+                return alert("Please select a vehicle and sign the form!");
+            }
+
+            btn.innerText = "Sending to Office...";
+            btn.disabled = true;
+
+            const formData = new FormData(form);
+
+            fetch(DRIVER_G_URL, {
+                method: 'POST',
+                body: formData,
+                mode: 'no-cors' 
+            }).then(() => {
+                btn.disabled = false;
+                btn.style.backgroundColor = "var(--pass-green)";
+                btn.innerText = "✅ LOGGED SECURELY!";
+                
+                setTimeout(() => {
+                    form.reset();
+                    document.getElementById('driverDt').valueAsDate = new Date(); 
+                    btn.style.backgroundColor = "var(--caliches-blue)";
+                    btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST";
+                    openMenu(); // Go back to main menu automatically
+                }, 3000);
+
+            }).catch((err) => {
+                alert("Connection Error. Please check your internet and try again.");
+                btn.disabled = false;
+                btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST";
             });
         }
     </script>
