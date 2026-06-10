@@ -82,44 +82,47 @@
             background-color: #f9f9f9;
         }
 
-        /* --- EXACT IMAGE CONE BANNER STYLES --- */
-        #custard-banner {
-            margin: 10px auto 30px auto;
+        /* --- EXACT IMAGE CONE BANNER STYLES (RESPONSIVE) --- */
+        #banner-wrapper {
             position: relative;
-            width: 230px;
-            height: 330px; /* Sized to fit the dimensions of your uploaded image */
-            background-image: url('caliches-cone.png');
-            background-size: contain;
-            background-position: center top;
-            background-repeat: no-repeat;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            padding-top: 85px; /* Pushes the text down precisely into the center of the white scoop */
-            box-sizing: border-box;
-            filter: drop-shadow(0px 8px 12px rgba(0,0,0,0.15));
+            margin: 10px auto 30px auto;
+            width: 65%; /* Scales down nicely on mobile */
+            max-width: 240px; /* Prevents it from getting too huge on desktop */
             animation: floatBanner 3.5s ease-in-out infinite;
+            filter: drop-shadow(0px 8px 12px rgba(0,0,0,0.15));
         }
         @keyframes floatBanner {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
         }
+        .cone-bg-img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .cone-text-container {
+            position: absolute;
+            top: 36%; /* Perfectly targets the center of the scoop */
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%; /* Keeps text constrained within the scoop borders */
+            text-align: center;
+        }
         .focus-title {
-            color: #1072b8; /* Matches the blue line in your image */
-            font-size: 13px;
+            color: #1072b8; /* Caliche's Blue */
+            font-size: clamp(10px, 3vw, 13px); /* Shrinks slightly on small phones */
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
             font-weight: 900;
-            margin-bottom: 6px;
+            display: block;
+            margin-bottom: 4px;
         }
         #tip-text {
-            color: var(--caliches-pink); /* Caliche's pink for high contrast inside the white scoop */
-            font-size: 18px;
+            color: var(--caliches-pink); 
+            font-size: clamp(14px, 4vw, 18px); /* Responsive font scaling */
             font-weight: 900;
-            line-height: 1.2;
-            width: 170px;
-            text-align: center;
+            line-height: 1.1;
+            display: block;
         }
 
         /* --- FORM CONTAINERS --- */
@@ -229,9 +232,12 @@
     <div id="main-menu" class="app-view">
         <img src="splash-logo.png" alt="Caliche's Logo" style="max-height: 120px; margin-bottom: 10px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2));">
         
-        <div id="custard-banner">
-            <span class="focus-title">💡 Focus</span>
-            <span id="tip-text">Cleanliness, Friendliness, Speed, & Quality!</span>
+        <div id="banner-wrapper">
+            <img src="caliches-cone.png" alt="Focus Cone" class="cone-bg-img">
+            <div class="cone-text-container">
+                <span class="focus-title">💡 Focus</span>
+                <span id="tip-text">Cleanliness, Friendliness, Speed, & Quality!</span>
+            </div>
         </div>
 
         <h1 class="menu-title">Operations Hub</h1>
@@ -829,8 +835,6 @@
 
             const formData = new FormData(form);
             
-            // This order data is sent via the DRIVER_G_URL
-            // Ensure your Apps Script for this URL is configured to send to your test email
             fetch(DRIVER_G_URL, {
                 method: 'POST',
                 body: formData,
