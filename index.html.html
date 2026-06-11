@@ -25,81 +25,60 @@
 
         /* --- SPLASH SCREEN ANIMATION --- */
         #splash-screen {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-color: var(--caliches-blue);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            transition: opacity 0.6s ease-out;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--caliches-blue); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 9999; transition: opacity 0.6s ease-out;
         }
-        .splash-logo {
-            max-width: 250px;
-            width: 80%;
-            animation: pulse 1.5s infinite;
-            filter: drop-shadow(0px 4px 10px rgba(0,0,0,0.3));
+        .splash-logo { max-width: 250px; width: 80%; animation: pulse 1.5s infinite; filter: drop-shadow(0px 4px 10px rgba(0,0,0,0.3)); }
+        @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.9; } 50% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.9; } }
+
+        /* --- NEON PAGE TRANSITION LOADER --- */
+        #neon-loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(17, 17, 17, 0.95); 
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 10000; opacity: 0; transition: opacity 0.3s ease-in-out;
         }
-        @keyframes pulse {
-            0% { transform: scale(0.95); opacity: 0.9; }
-            50% { transform: scale(1.05); opacity: 1; }
-            100% { transform: scale(0.95); opacity: 0.9; }
+        .neon-spinner {
+            width: 70px; height: 70px;
+            border: 4px solid transparent;
+            border-top: 4px solid var(--caliches-pink);
+            border-bottom: 4px solid var(--caliches-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            box-shadow: 0 0 20px var(--caliches-pink), inset 0 0 20px var(--caliches-blue);
+        }
+        .neon-text {
+            margin-top: 20px; font-weight: 900; font-size: 16px; letter-spacing: 3px;
+            color: #fff; text-transform: uppercase;
+            text-shadow: 0 0 5px var(--caliches-pink), 0 0 15px var(--caliches-blue);
+            animation: pulse-neon 1.5s ease-in-out infinite alternate;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes pulse-neon {
+            0% { text-shadow: 0 0 5px var(--caliches-pink), 0 0 15px var(--caliches-pink); }
+            100% { text-shadow: 0 0 5px var(--caliches-blue), 0 0 20px var(--caliches-blue); }
         }
 
         /* --- MAIN MENU STYLES --- */
-        #main-menu {
-            display: none; 
-            padding: 20px;
-            max-width: 500px;
-            margin: 10px auto 40px auto;
-            text-align: center;
-        }
-        .menu-title {
-            color: var(--caliches-blue);
-            margin-bottom: 25px;
-            font-size: 28px;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
+        #main-menu { display: none; padding: 20px; max-width: 500px; margin: 10px auto 40px auto; text-align: center; }
+        .menu-title { color: var(--caliches-blue); margin-bottom: 25px; font-size: 28px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
         .menu-btn {
-            display: block;
-            width: 100%;
-            background-color: var(--white);
-            color: var(--caliches-blue);
-            padding: 25px 20px;
-            margin-bottom: 15px;
-            font-size: 18px;
-            font-weight: bold;
-            border: 2px solid var(--caliches-blue);
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            cursor: pointer;
-            transition: 0.3s;
+            display: block; width: 100%; background-color: var(--white); color: var(--caliches-blue);
+            padding: 25px 20px; margin-bottom: 15px; font-size: 18px; font-weight: bold;
+            border: 2px solid var(--caliches-blue); border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor: pointer; transition: 0.3s;
         }
         .menu-btn.pink { color: var(--caliches-pink); border-color: var(--caliches-pink); }
         .menu-btn.green { color: var(--pass-green); border-color: var(--pass-green); }
         .menu-btn.orange { color: var(--maint-orange); border-color: var(--maint-orange); }
         .menu-btn.red { color: var(--damage-red); border-color: var(--damage-red); }
-        
-        .menu-btn:active {
-            transform: scale(0.98);
-            background-color: #f9f9f9;
-        }
+        .menu-btn:active { transform: scale(0.98); background-color: #f9f9f9; }
 
         /* --- INTERACTIVE 10-SECOND SLIDER --- */
         .slider-wrapper {
-            position: relative;
-            width: 100%;
-            max-width: 350px;
-            height: 250px;
-            margin: 15px auto 30px auto;
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0px 8px 15px rgba(0,0,0,0.1);
-            border: 3px solid var(--caliches-blue);
-            background-color: var(--white);
+            position: relative; width: 100%; max-width: 350px; height: 250px; margin: 15px auto 30px auto;
+            border-radius: 16px; overflow: hidden; box-shadow: 0px 8px 15px rgba(0,0,0,0.1);
+            border: 3px solid var(--caliches-blue); background-color: var(--white);
         }
         .slides { display: flex; width: 200%; height: 100%; transition: transform 0.5s ease-in-out; }
         .slide { width: 50%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
@@ -108,58 +87,38 @@
         .text-slide { background-color: var(--caliches-pink); color: white; text-align: center; }
         .focus-title { font-size: 16px; text-transform: uppercase; letter-spacing: 2px; font-weight: 900; color: #ffd700; margin-bottom: 15px; }
         .focus-text { font-size: 24px; font-weight: 900; line-height: 1.3; }
-
         .arrow {
-            position: absolute; top: 50%; transform: translateY(-50%);
-            background: rgba(255, 255, 255, 0.9); border: none; color: var(--caliches-blue);
-            font-size: 24px; font-weight: bold; width: 40px; height: 40px;
-            border-radius: 50%; cursor: pointer; z-index: 10;
-            display: flex; justify-content: center; align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255, 255, 255, 0.9); border: none; color: var(--caliches-blue);
+            font-size: 24px; font-weight: bold; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; z-index: 10;
+            display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
         .arrow:active { transform: translateY(-50%) scale(0.9); }
-        .prev-arrow { left: 10px; }
-        .next-arrow { right: 10px; }
+        .prev-arrow { left: 10px; } .next-arrow { right: 10px; }
 
-        /* --- FORM LAYOUTS & CONTAINERS --- */
+        /* --- GLOBAL FORM STYLES --- */
         .app-view { display: none; } 
-
         .back-btn { background: #333; color: white; border: none; padding: 12px 20px; font-size: 14px; font-weight: bold; width: 100%; text-align: left; cursor: pointer; }
-
         .header { background-color: var(--caliches-blue); color: var(--white); text-align: center; padding: 20px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .header.pink-theme { background-color: var(--caliches-pink); }
-        .header.green-theme { background-color: var(--pass-green); }
-        .header.orange-theme { background-color: var(--maint-orange); }
-        .header.red-theme { background-color: var(--damage-red); }
-        
-        .logo-img { max-height: 80px; width: auto; display: block; margin: 0 auto 10px auto; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2)); }
+        .logo-img { max-height: 80px; width: auto; display: block; margin: 0 auto 0 auto; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2)); }
         .header p { margin: 0; font-size: 14px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
-        
         .container { max-width: 700px; margin: 15px auto; padding: 0 15px; }
         
         .info-group { background: var(--white); padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .info-group .full-width { grid-column: span 2; }
-        .form-label { display: block; font-weight: bold; margin-bottom: 6px; color: var(--caliches-blue); font-size: 14px; }
+        .form-label { display: block; font-weight: bold; margin-bottom: 6px; color: #333; font-size: 14px; }
         .form-spacer { margin-bottom: 15px; }
 
-        .info-group input, .info-group select, .info-group textarea,
-        .category input[type="text"], .category input[type="number"], .category select, .category textarea {
+        .info-group input, .info-group select, .info-group textarea, .category input[type="text"], .category input[type="number"], .category select, .category textarea {
             width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 15px; background: #fafafa; font-family: inherit;
         }
         
-        .category { background: var(--white); border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-top: 6px solid var(--caliches-pink); }
-        .category.green-top { border-top-color: var(--pass-green); }
-        .category.orange-top { border-top-color: var(--maint-orange); }
-        .category.red-top { border-top-color: var(--damage-red); }
-        .category h2 { margin: 0 0 15px 0; color: var(--caliches-blue); font-size: 20px; border-bottom: 2px solid #eee; padding-bottom: 8px;}
-        
+        .category { background: var(--white); border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .category h2 { margin: 0 0 15px 0; font-size: 20px; border-bottom: 2px solid #eee; padding-bottom: 8px;}
         .question { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #f0f0f0; }
         .question:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
         .question p { margin: 0 0 10px 0; font-weight: 600; line-height: 1.3; font-size: 15px; }
-        
         .checkbox-item { display: flex; align-items: center; margin-bottom: 15px; font-size: 15px; font-weight: 500; }
         .checkbox-item input[type="checkbox"] { margin-right: 15px; transform: scale(1.5); }
-
         .rating-group { display: flex; justify-content: space-between; gap: 4px; }
         .rating-group input[type="radio"] { display: none; }
         .rating-group label { flex: 1; text-align: center; padding: 12px 0; background-color: #eee; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s; }
@@ -170,12 +129,7 @@
         .note-input { width: 100%; margin-top: 8px; padding: 8px; border: 1px solid #eee; border-radius: 6px; font-size: 13px; box-sizing: border-box; background: #fafafa; }
         .photo-btn { background: #e0e0e0; color: #333; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; display: inline-block; font-weight: bold; margin-top: 8px; border: 1px solid #ccc; }
 
-        .results { background: var(--caliches-blue); color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 30px; }
-        .score-display { font-size: 24px; font-weight: bold; }
-        .status { font-size: 16px; font-weight: bold; padding: 8px 25px; border-radius: 20px; display: inline-block; margin-top: 10px; }
-        .status.pass { background-color: var(--pass-green); }
-        .status.fail { background-color: var(--fail-red); }
-        
+        /* BUTTONS */
         .save-btn { width: 100%; background-color: var(--caliches-pink); color: white; border: none; padding: 20px; font-size: 18px; font-weight: bold; border-radius: 12px; cursor: pointer; margin-bottom: 60px; box-shadow: 0 4px 10px rgba(197, 58, 116, 0.3); transition: 0.3s; }
         .save-btn.blue-btn { background-color: var(--caliches-blue); box-shadow: 0 4px 10px rgba(74, 104, 177, 0.3); }
         .save-btn.green-btn { background-color: var(--pass-green); box-shadow: 0 4px 10px rgba(40, 167, 69, 0.3); }
@@ -183,24 +137,48 @@
         .save-btn.red-btn { background-color: var(--damage-red); box-shadow: 0 4px 10px rgba(231, 76, 60, 0.3); }
         .save-btn:disabled { background-color: #ccc; cursor: not-allowed; box-shadow: none; }
 
-        @media print {
-            body { background-color: white !important; }
-            #splash-screen, #main-menu, .back-btn, .save-btn, .photo-btn { display: none !important; }
-            .header { position: static !important; padding: 10px !important; }
-            .container { margin: 0 !important; box-shadow: none !important; max-width: 100% !important; }
-            .category { box-shadow: none !important; border-top: 4px solid var(--caliches-pink) !important; }
-            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-        }
+        /* =========================================
+           UNIQUE FORM THEMES & IDENTITIES 
+           ========================================= */
+        #popInView .header { background-color: var(--caliches-blue); }
+        #popInView .category { border-top: 6px solid var(--caliches-blue); }
+        #popInView .category h2 { color: var(--caliches-blue); }
+        
+        #driverView .header { background-color: var(--caliches-pink); }
+        #driverView .info-group { border: 2px solid var(--caliches-pink); background-color: #fffafb; }
+        #driverView .category { border-radius: 0; border-bottom: 3px dashed var(--caliches-pink); box-shadow: none; margin-bottom: 0; padding: 20px 15px; }
+        #driverView .category:last-of-type { border-bottom: none; margin-bottom: 20px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
+        #driverView .category h2 { color: var(--caliches-pink); border-bottom: none; text-transform: uppercase; font-size: 16px; letter-spacing: 1px; }
+
+        #shortageView .header { background-color: var(--pass-green); }
+        #shortageView .category { border-left: 8px solid var(--pass-green); border-radius: 4px 12px 12px 4px; }
+        #shortageView .category h2 { color: var(--pass-green); }
+
+        #maintenanceView .header { background: repeating-linear-gradient(45deg, var(--maint-orange), var(--maint-orange) 15px, #d35400 15px, #d35400 30px); }
+        #maintenanceView .category { border-top: 6px solid #333; box-shadow: 0px 4px 0px var(--maint-orange); border-radius: 4px; }
+        #maintenanceView .category h2 { color: var(--maint-orange); font-weight: 900; }
+
+        #damageView { background-color: #fceceb; min-height: 100vh; padding-bottom: 20px;}
+        #damageView .header { background-color: var(--damage-red); }
+        #damageView .info-group { border: 2px solid var(--damage-red); }
+        #damageView .category { border: 2px solid var(--damage-red); border-top: 8px solid var(--damage-red); }
+        #damageView .category h2 { color: var(--damage-red); font-weight: 900; }
+
+        @media print { body { background-color: white !important; } #splash-screen, #main-menu, .back-btn, .save-btn, .photo-btn { display: none !important; } .header { position: static !important; padding: 10px !important; } .container { margin: 0 !important; box-shadow: none !important; max-width: 100% !important; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }
     </style>
 </head>
 <body>
+
+    <div id="neon-loader">
+        <div class="neon-spinner"></div>
+        <div class="neon-text">Loading</div>
+    </div>
 
     <div id="splash-screen">
         <img src="splash-logo.png" alt="Caliche's Logo" class="splash-logo" onerror="this.style.display='none'; this.insertAdjacentHTML('afterend', '<h1 style=\'color:white; font-size:40px;\'>Caliche\'s</h1>');">
     </div>
 
     <div id="main-menu" class="app-view">
-        
         <img src="splash-logo.png" alt="Caliche's Logo" style="max-height: 220px; width: auto; margin-bottom: 20px; filter: drop-shadow(0px 6px 12px rgba(0,0,0,0.25));" onerror="this.style.display='none'">
         <h1 class="menu-title">Operations Hub</h1>
 
@@ -223,8 +201,8 @@
     <div id="popInView" class="app-view">
         <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
         <div class="header">
-            <img src="popin-logo.png" alt="Pop-In Logo" class="logo-img" onerror="this.style.display='none'">
-            <p>STORE "POP IN" FORM</p>
+            <img src="splash-logo.png" alt="Main Logo" class="logo-img" onerror="this.style.display='none'">
+            <p style="margin-top: 10px;">STORE "POP IN" FORM</p>
         </div>
         <div class="container">
             <form id="auditForm">
@@ -251,10 +229,10 @@
                     <textarea id="overallComments" name="OverallComments" rows="4" placeholder="Summarize the pop in, shout out good behavior, or note major issues..."></textarea>
                 </div>
                 
-                <div class="results">
+                <div class="results" style="background: var(--caliches-blue); color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 30px;">
                     <div class="score-display">Total Points: <span id="ts">0</span> / <span id="maxPts">0</span></div>
                     <div style="font-size: 36px; font-weight: 900; margin: 10px 0;"><span id="pct">0</span>%</div>
-                    <div id="st" class="status" style="background-color: #555;">Pending</div>
+                    <div id="st" class="status" style="background-color: #555; padding: 8px 25px; border-radius: 20px; font-weight: bold;">Pending</div>
                     
                     <input type="hidden" id="finalScore" name="TotalScore">
                     <input type="hidden" id="finalPct" name="Percentage">
@@ -270,8 +248,8 @@
     <div id="driverView" class="app-view">
         <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
         <div class="header pink-theme">
-            <img src="driver-logo.png" alt="Driver Logo" class="logo-img" onerror="this.style.display='none'">
-            <p>VEHICLE & TRAILER CHECK-OUT</p>
+            <img src="catering-logo.png" alt="Catering Logo" class="logo-img" onerror="this.src='splash-logo.png'">
+            <p style="margin-top: 10px;">VEHICLE & TRAILER CHECK-OUT</p>
         </div>
         <div class="container">
             <form id="driverForm">
@@ -330,7 +308,11 @@
 
     <div id="shortageView" class="app-view">
         <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
-        <div class="header green-theme"><p style="font-size: 18px; margin: 0; font-weight: bold; text-transform: uppercase;">STORE SHORTAGE REPORT</p></div>
+        <div class="header green-theme">
+            <img src="splash-logo.png" alt="Main Logo" class="logo-img" onerror="this.style.display='none'">
+            <h1 style="font-size: 40px; margin: 10px 0;">📦</h1>
+            <p style="font-size: 18px; margin: 0; font-weight: bold; text-transform: uppercase;">STORE SHORTAGE REPORT</p>
+        </div>
         <div class="container">
             <form id="shortageForm">
                 <div class="info-group">
@@ -367,7 +349,11 @@
 
     <div id="maintenanceView" class="app-view">
         <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
-        <div class="header orange-theme"><p style="font-size: 18px; margin: 0; font-weight: bold; text-transform: uppercase;">REQUIRED MAINTENANCE</p></div>
+        <div class="header orange-theme">
+            <img src="splash-logo.png" alt="Main Logo" class="logo-img" onerror="this.style.display='none'">
+            <h1 style="font-size: 40px; margin: 10px 0;">🔧</h1>
+            <p style="font-size: 18px; margin: 0; font-weight: bold; text-transform: uppercase;">REQUIRED MAINTENANCE</p>
+        </div>
         <div class="container">
             <form id="maintenanceForm">
                 <div class="info-group">
@@ -402,7 +388,6 @@
                         <label class="form-label">Description of Problem:</label>
                         <textarea name="IssueDescription" rows="4" placeholder="What exactly is broken or acting up?" required></textarea>
                     </div>
-                    
                     <div class="form-spacer" style="margin-top: 20px;">
                         <label class="form-label">Photo of the Issue:</label>
                         <label class="photo-btn">📸 Attach Photo
@@ -420,7 +405,11 @@
 
     <div id="damageView" class="app-view">
         <button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button>
-        <div class="header red-theme"><p style="font-size: 18px; margin: 0; font-weight: bold; text-transform: uppercase;">VEHICLE / TRAILER DAMAGE</p></div>
+        <div class="header red-theme">
+            <img src="catering-logo.png" alt="Catering Logo" class="logo-img" onerror="this.src='splash-logo.png'">
+            <h1 style="font-size: 40px; margin: 10px 0;">⚠️</h1>
+            <p style="font-size: 18px; margin: 0; font-weight: bold; text-transform: uppercase;">VEHICLE / TRAILER DAMAGE</p>
+        </div>
         <div class="container">
             <form id="damageForm">
                 <div class="info-group">
@@ -446,7 +435,6 @@
                         <label class="form-label">Description of Damage:</label>
                         <textarea name="DamageDescription" rows="4" placeholder="Describe the damage in detail (e.g., dent on rear left bumper)..." required></textarea>
                     </div>
-                    
                     <div class="form-spacer" style="margin-top: 20px;">
                         <label class="form-label">Photo of the Damage:</label>
                         <label class="photo-btn" style="background-color: #fceceb; border-color: var(--damage-red); color: var(--damage-red);">📸 Attach Damage Photos
@@ -467,9 +455,7 @@
         const G_URL = 'https://script.google.com/macros/s/AKfycbyYCPt4E9W-ipTLIP1ycS8vzCo-FArzPSUxW8zbmnoXGHGmtoJGoRTSJjx-JkQykJBY8g/exec';
 
         // --- CORE NAVIGATION & AUTOMATION SLIDER ---
-        let currentSlide = 0;
-        let slideTimer;
-
+        let currentSlide = 0; let slideTimer;
         function updateSlider() { document.getElementById('slider-track').style.transform = `translateX(-${currentSlide * 50}%)`; }
         function moveSlide(direction) { currentSlide = (currentSlide + direction + 2) % 2; updateSlider(); resetTimer(); }
         function resetTimer() { clearInterval(slideTimer); slideTimer = setInterval(() => moveSlide(1), 10000); }
@@ -481,17 +467,38 @@
             }, 1500);
             
             let today = new Date().toISOString().split('T')[0];
-            document.getElementById('dt').value = today;
-            document.getElementById('driverDt').value = today;
-            document.getElementById('shortageDt').value = today;
-            document.getElementById('maintDt').value = today;
+            document.getElementById('dt').value = today; document.getElementById('driverDt').value = today;
+            document.getElementById('shortageDt').value = today; document.getElementById('maintDt').value = today;
             document.getElementById('damageDt').value = today;
         });
 
-        function openMenu() { document.querySelectorAll(".app-view").forEach(v => v.style.display = "none"); document.getElementById('main-menu').style.display = "block"; window.scrollTo(0, 0); }
-        function openForm(formId) { document.querySelectorAll(".app-view").forEach(v => v.style.display = "none"); document.getElementById(formId).style.display = "block"; window.scrollTo(0, 0); }
+        // --- NEON TRANSITION LOGIC ---
+        function triggerTransition(callback) {
+            const loader = document.getElementById('neon-loader');
+            loader.style.display = 'flex';
+            setTimeout(() => { loader.style.opacity = '1'; }, 10);
+            setTimeout(() => {
+                callback();
+                window.scrollTo(0, 0);
+                loader.style.opacity = '0';
+                setTimeout(() => { loader.style.display = 'none'; }, 300);
+            }, 400); 
+        }
 
-        // --- PDF BRANDING HEADER GENERATOR ---
+        function openMenu() { 
+            triggerTransition(() => {
+                document.querySelectorAll(".app-view").forEach(v => v.style.display = "none"); 
+                document.getElementById('main-menu').style.display = "block";
+            });
+        }
+        
+        function openForm(formId) { 
+            triggerTransition(() => {
+                document.querySelectorAll(".app-view").forEach(v => v.style.display = "none"); 
+                document.getElementById(formId).style.display = "block";
+            });
+        }
+
         function getBrandHeader(title, color) {
             return `
             <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 800px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 10px; padding: 40px; background-color: #ffffff;">
@@ -504,7 +511,6 @@
             `;
         }
 
-        // --- FULL UNTRUNCATED POP-IN QUESTION REGISTRY ---
         const questions = [
             { cat: "Team Member Performance", q: ["Moving with a purpose, motivated to work, positive attitude", "All team members are following dress code", "Teamwork is being conducted", "Multitasking when possible", "Respecting the no talking when windows are open policy", "Backups are being done in a timely manner", "During busy hours everyone is staying composed and collected", "Register runners are small talking with customers", "Everyone is listening to the orders being called out", "Register runners providing excellent customer service", "Everyone is lending a hand to get out lines faster", "Team members are handing out items correctly"] },
             { cat: "Shift Leader Performance", q: ["Moving with a purpose, motivated, positive attitude", "Constantly lending a helping hand", "Ensuring duties are performed efficiently to standard", "Always staying composed and collected", "Communicating and providing good direction to team", "Promoting a positive and healthy work environment", "Displaying good judgment", "Coaching team members and helping train new staff", "Ensuring compliance with company health/safety policies", "Shift is organized and is on or ahead of schedule", "Can influence the team's efforts through leadership", "Easily adapts to changing conditions and delegates", "Monitoring that machine runner is performing to standard"] },
@@ -512,12 +518,8 @@
             { cat: "Quality", q: ["Machine runner's custard is high quality and fresh", "All fruits are fresh to taste", "All backups in walk-in rotated correctly (labels face center)", "Hot dogs are hot and plump, not cold or old", "Coleslaw is made correctly", "Tostadas are fresh to taste", "Enough hot dog buns are being defrosted", "Hot fudge warmers are set to 140 degrees (F)", "Caramel warmers are set to 100 degrees (F)", "Machine runner is keeping up with melts", "Items are being scooped properly", "Caliches and shakes are being blended properly"] }
         ];
 
-        let totalQuestions = 0;
-        let questionPhotos = {}; 
-
-        // New photo arrays for the new forms
-        let maintPhotos = [];
-        let damagePhotos = [];
+        let totalQuestions = 0; let questionPhotos = {}; 
+        let maintPhotos = []; let damagePhotos = [];
 
         (function generatePopInQuestions() {
             let html = ""; let qIdx = 1;
@@ -525,35 +527,26 @@
                 html += `<div class="category"><h2>${group.cat}</h2>`;
                 group.q.forEach(text => {
                     questionPhotos[qIdx] = []; 
-                    html += `
-                    <div class="question"><p>${text}</p><div class="rating-group">
-                        <input type="radio" name="q${qIdx}" id="q${qIdx}-0" value="0" onchange="calc()"><label for="q${qIdx}-0">N/A</label>`;
-                        for(let i=1; i<=5; i++) { html += `<input type="radio" name="q${qIdx}" id="q${qIdx}-${i}" value="${i}" onchange="calc()"><label for="q${qIdx}-${i}">${i}</label>`; }
+                    html += `<div class="question"><p>${text}</p><div class="rating-group"><input type="radio" name="q${qIdx}" id="q${qIdx}-0" value="0" onchange="calc()"><label for="q${qIdx}-0">N/A</label>`;
+                    for(let i=1; i<=5; i++) { html += `<input type="radio" name="q${qIdx}" id="q${qIdx}-${i}" value="${i}" onchange="calc()"><label for="q${qIdx}-${i}">${i}</label>`; }
                     html += `</div><input type="text" id="note${qIdx}" name="note${qIdx}" class="note-input" placeholder="Add specific feedback...">
                     <div><label class="photo-btn">📸 Attach Photos<input type="file" accept="image/*" multiple onchange="compressAndPreview(event, ${qIdx})" style="display: none;"></label>
-                    <div id="imgPreviewContainer${qIdx}" style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px;"></div></div></div>`;
-                    qIdx++;
+                    <div id="imgPreviewContainer${qIdx}" style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px;"></div></div></div>`; qIdx++;
                 }); html += `</div>`;
             });
-            document.getElementById('questionsContainer').innerHTML = html;
-            totalQuestions = qIdx - 1;
+            document.getElementById('questionsContainer').innerHTML = html; totalQuestions = qIdx - 1;
         })();
 
-        // Pop-in Photo Compressor
         function compressAndPreview(event, qId) {
             let files = event.target.files; if(!files || files.length === 0) return;
             let previewContainer = document.getElementById(`imgPreviewContainer${qId}`);
             Array.from(files).forEach(file => {
                 let reader = new FileReader();
                 reader.onload = function(e) {
-                    let img = new Image();
-                    img.onload = function() {
-                        let canvas = document.createElement('canvas'); let ctx = canvas.getContext('2d');
-                        let scaleSize = Math.min(300 / img.width, 1);
-                        canvas.width = img.width * scaleSize; canvas.height = img.height * scaleSize;
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        let compressedBase64 = canvas.toDataURL('image/jpeg', 0.4);
-                        questionPhotos[qId].push(compressedBase64); 
+                    let img = new Image(); img.onload = function() {
+                        let canvas = document.createElement('canvas'); let ctx = canvas.getContext('2d'); let scaleSize = Math.min(300 / img.width, 1);
+                        canvas.width = img.width * scaleSize; canvas.height = img.height * scaleSize; ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        let compressedBase64 = canvas.toDataURL('image/jpeg', 0.4); questionPhotos[qId].push(compressedBase64); 
                         let previewImg = document.createElement('img'); previewImg.src = compressedBase64;
                         previewImg.style.width = '60px'; previewImg.style.height = '60px'; previewImg.style.borderRadius = '6px'; previewImg.style.border = '1px solid #ccc'; previewImg.style.objectFit = 'cover';
                         previewContainer.appendChild(previewImg);
@@ -564,21 +557,16 @@
             });
         }
 
-        // Global Photo Compressor (For Maintenance & Damage)
         function compressToGlobal(event, previewId, targetArray) {
             let files = event.target.files; if(!files || files.length === 0) return;
             let previewContainer = document.getElementById(previewId);
             Array.from(files).forEach(file => {
                 let reader = new FileReader();
                 reader.onload = function(e) {
-                    let img = new Image();
-                    img.onload = function() {
-                        let canvas = document.createElement('canvas'); let ctx = canvas.getContext('2d');
-                        let scaleSize = Math.min(400 / img.width, 1); // Slightly larger for detail
-                        canvas.width = img.width * scaleSize; canvas.height = img.height * scaleSize;
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        let compressedBase64 = canvas.toDataURL('image/jpeg', 0.4);
-                        targetArray.push(compressedBase64); 
+                    let img = new Image(); img.onload = function() {
+                        let canvas = document.createElement('canvas'); let ctx = canvas.getContext('2d'); let scaleSize = Math.min(400 / img.width, 1);
+                        canvas.width = img.width * scaleSize; canvas.height = img.height * scaleSize; ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        let compressedBase64 = canvas.toDataURL('image/jpeg', 0.4); targetArray.push(compressedBase64); 
                         let previewImg = document.createElement('img'); previewImg.src = compressedBase64;
                         previewImg.style.height = '80px'; previewImg.style.borderRadius = '6px'; previewImg.style.border = '1px solid #ccc';
                         previewContainer.appendChild(previewImg);
@@ -591,12 +579,8 @@
 
         function calc() {
             let totalScore = 0; let questionsCounted = 0; let answered = 0;
-            for(let i=1; i<=totalQuestions; i++) {
-                let sel = document.querySelector(`input[name="q${i}"]:checked`);
-                if(sel) { answered++; let val = parseInt(sel.value); if(val > 0) { totalScore += val; questionsCounted++; } }
-            }
-            let maxPossible = questionsCounted * 5;
-            let p = maxPossible === 0 ? 0 : Math.round((totalScore / maxPossible) * 100);
+            for(let i=1; i<=totalQuestions; i++) { let sel = document.querySelector(`input[name="q${i}"]:checked`); if(sel) { answered++; let val = parseInt(sel.value); if(val > 0) { totalScore += val; questionsCounted++; } } }
+            let maxPossible = questionsCounted * 5; let p = maxPossible === 0 ? 0 : Math.round((totalScore / maxPossible) * 100);
             document.getElementById('ts').innerText = totalScore; document.getElementById('maxPts').innerText = maxPossible; document.getElementById('finalScore').value = totalScore;
             document.getElementById('pct').innerText = p; document.getElementById('finalPct').value = p + "%";
             let badge = document.getElementById('st');
@@ -606,14 +590,13 @@
             }
         }
 
-        // --- FORM SUBMISSIONS ---
         function submitAudit() {
             const btn = document.getElementById('submitBtn'); const form = document.getElementById('auditForm');
             if(!document.getElementById('loc').value || !document.getElementById('sldr').value || !document.getElementById('conductor').value) { return alert("Please fill out Location, Shift Leader, and Conducted By!"); }
             let answered = 0; for(let i=1; i<=totalQuestions; i++) { if(document.querySelector(`input[name="q${i}"]:checked`)) answered++; }
             if(answered < totalQuestions) { return alert(`Please answer all questions. You have answered ${answered} out of ${totalQuestions}.`); }
-
             btn.innerText = "Generating Professional PDF..."; btn.disabled = true;
+
             let pdfHtml = getBrandHeader("Store Pop-In Inspection", "#4a68b1");
             pdfHtml += `<table style="width: 100%; margin-bottom: 20px; font-family: 'Helvetica Neue', sans-serif;"><tr><td style="padding: 8px;"><strong>Location:</strong> ${document.getElementById('loc').value}</td><td style="padding: 8px;"><strong>Date:</strong> ${document.getElementById('dt').value}</td></tr><tr><td style="padding: 8px;"><strong>Conducted By:</strong> ${document.getElementById('conductor').value}</td><td style="padding: 8px;"><strong>Shift Leader:</strong> ${document.getElementById('sldr').value} (${document.getElementById('shiftTime').value})</td></tr></table><div style="background-color: #f0f4f8; padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: center;"><h2 style="color: #4a68b1; margin: 0; font-size: 28px;">Final Score: ${document.getElementById('pct').innerText}%</h2><h3 style="color: #555; margin: 5px 0 15px 0;">Status: ${document.getElementById('st').innerText}</h3><p style="margin-bottom: 0; text-align: left; padding-top: 15px; border-top: 1px solid #ddd;"><strong>Overall Comments:</strong> ${document.getElementById('overallComments').value || "None"}</p></div><table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 14px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;"><tr style="background-color: #4a68b1; color: white;"><th style="text-align: left;">Category / Question</th><th style="width: 60px; text-align: center;">Score</th><th>Notes & Photos</th></tr>`;
             let loopIdx = 1;
@@ -627,10 +610,8 @@
                 });
             });
             pdfHtml += `</table></div>`; document.getElementById('popInReportHtml').value = pdfHtml;
-
             fetch(G_URL, { method: 'POST', body: new FormData(form), mode: 'no-cors' }).then(() => {
-                btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ SENT! (TAP TO PRINT)";
-                btn.onclick = function(e) { e.preventDefault(); document.body.innerHTML = pdfHtml; setTimeout(() => { window.print(); location.reload(); }, 500); };
+                btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ SENT! (TAP TO PRINT)"; btn.onclick = function(e) { e.preventDefault(); document.body.innerHTML = pdfHtml; setTimeout(() => { window.print(); location.reload(); }, 500); };
             }).catch(() => { alert("Connection Error. Check internet."); btn.disabled = false; btn.innerText = "🚀 SUBMIT POP-IN TO OFFICE"; });
         }
 
@@ -638,20 +619,14 @@
             const btn = document.getElementById('submitDriverBtn'); const form = document.getElementById('driverForm');
             if(!document.getElementById('vehicle').value || !document.getElementById('signature').value) { return alert("Please select a vehicle and sign the form!"); }
             btn.innerText = "Generating Professional PDF..."; btn.disabled = true;
-
             let pdfHtml = getBrandHeader("Vehicle & Trailer Check-Out", "#c53a74");
             pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`;
             new FormData(form).forEach((value, key) => {
-                if (key !== "ReportHTML" && value.trim() !== "") {
-                    let cleanKey = key.replace(/_/g, ' ').toUpperCase();
-                    pdfHtml += `<tr><td style="background-color: #f9f9f9; font-weight: bold; color: #c53a74; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`;
-                }
+                if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/_/g, ' ').toUpperCase(); pdfHtml += `<tr><td style="background-color: #f9f9f9; font-weight: bold; color: #c53a74; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; }
             });
             pdfHtml += `</table></div>`; document.getElementById('driverReportHtml').value = pdfHtml;
-
             fetch(G_URL, { method: 'POST', body: new FormData(form), mode: 'no-cors' }).then(() => {
-                btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ LOG SECURED AND SENT!";
-                setTimeout(() => { form.reset(); btn.style.backgroundColor = "var(--caliches-pink)"; btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST"; openMenu(); }, 3000);
+                btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ LOG SECURED AND SENT!"; setTimeout(() => { form.reset(); btn.style.backgroundColor = "var(--caliches-pink)"; btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST"; openMenu(); }, 3000);
             }).catch(() => { alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST"; });
         }
 
@@ -659,20 +634,14 @@
             const btn = document.getElementById('submitShortageBtn'); const form = document.getElementById('shortageForm');
             if(!form.querySelector('select[name="Store"]').value || !form.querySelector('input[name="ManagerName"]').value) { return alert("Please select a store and enter your name!"); }
             btn.innerText = "Generating Professional PDF..."; btn.disabled = true;
-
             let pdfHtml = getBrandHeader("Store Shortage Report", "#28a745");
             pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`;
             new FormData(form).forEach((value, key) => {
-                if (key !== "ReportHTML" && value.trim() !== "") {
-                    let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase();
-                    pdfHtml += `<tr><td style="background-color: #f4fbf5; font-weight: bold; color: #28a745; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`;
-                }
+                if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(); pdfHtml += `<tr><td style="background-color: #f4fbf5; font-weight: bold; color: #28a745; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; }
             });
             pdfHtml += `</table></div>`; document.getElementById('shortageReportHtml').value = pdfHtml;
-
             fetch(G_URL, { method: 'POST', body: new FormData(form), mode: 'no-cors' }).then(() => {
-                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ REPORT SUBMITTED & PDF SENT!";
-                setTimeout(() => { form.reset(); btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "🚀 SUBMIT SHORTAGE REPORT"; openMenu(); }, 3000);
+                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ REPORT SUBMITTED & PDF SENT!"; setTimeout(() => { form.reset(); btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "🚀 SUBMIT SHORTAGE REPORT"; openMenu(); }, 3000);
             }).catch(() => { alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT SHORTAGE REPORT"; });
         }
 
@@ -680,27 +649,18 @@
             const btn = document.getElementById('submitMaintBtn'); const form = document.getElementById('maintenanceForm');
             if(!form.querySelector('input[name="MaintenanceItem"]').value || !form.querySelector('input[name="ReporterName"]').value) { return alert("Please fill out the required fields!"); }
             btn.innerText = "Generating Professional PDF..."; btn.disabled = true;
-
             let pdfHtml = getBrandHeader("Required Maintenance", "#e67e22");
             pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`;
             new FormData(form).forEach((value, key) => {
-                if (key !== "ReportHTML" && value.trim() !== "") {
-                    let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase();
-                    pdfHtml += `<tr><td style="background-color: #fdf3e8; font-weight: bold; color: #e67e22; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`;
-                }
+                if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(); pdfHtml += `<tr><td style="background-color: #fdf3e8; font-weight: bold; color: #e67e22; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; }
             });
-            
-            // Append Photos if they exist
             if (maintPhotos.length > 0) {
                 pdfHtml += `<tr><td style="background-color: #fdf3e8; font-weight: bold; color: #e67e22; width: 40%;">ATTACHED PHOTOS</td><td style="color: #333;"><div style="display:flex; gap:10px; flex-wrap:wrap;">`;
-                maintPhotos.forEach(p => { pdfHtml += `<img src="${p}" style="max-height: 150px; border-radius: 8px; border: 1px solid #ccc;">`; });
-                pdfHtml += `</div></td></tr>`;
+                maintPhotos.forEach(p => { pdfHtml += `<img src="${p}" style="max-height: 150px; border-radius: 8px; border: 1px solid #ccc;">`; }); pdfHtml += `</div></td></tr>`;
             }
             pdfHtml += `</table></div>`; document.getElementById('maintenanceReportHtml').value = pdfHtml;
-
             fetch(G_URL, { method: 'POST', body: new FormData(form), mode: 'no-cors' }).then(() => {
-                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ MAINTENANCE REPORT SENT!";
-                setTimeout(() => { form.reset(); maintPhotos = []; document.getElementById('maintPrev').innerHTML = ''; btn.disabled = false; btn.style.backgroundColor = "#e67e22"; btn.innerText = "🚀 SUBMIT MAINTENANCE REQUEST"; openMenu(); }, 3000);
+                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ MAINTENANCE REPORT SENT!"; setTimeout(() => { form.reset(); maintPhotos = []; document.getElementById('maintPrev').innerHTML = ''; btn.disabled = false; btn.style.backgroundColor = "#e67e22"; btn.innerText = "🚀 SUBMIT MAINTENANCE REQUEST"; openMenu(); }, 3000);
             }).catch(() => { alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT MAINTENANCE REQUEST"; });
         }
 
@@ -708,27 +668,18 @@
             const btn = document.getElementById('submitDamageBtn'); const form = document.getElementById('damageForm');
             if(!form.querySelector('select[name="DamageAsset"]').value || !form.querySelector('input[name="ReporterName"]').value) { return alert("Please select an asset and enter your name!"); }
             btn.innerText = "Generating Professional PDF..."; btn.disabled = true;
-
             let pdfHtml = getBrandHeader("Vehicle & Trailer Damage", "#e74c3c");
             pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`;
             new FormData(form).forEach((value, key) => {
-                if (key !== "ReportHTML" && value.trim() !== "") {
-                    let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase();
-                    pdfHtml += `<tr><td style="background-color: #fceceb; font-weight: bold; color: #e74c3c; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`;
-                }
+                if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(); pdfHtml += `<tr><td style="background-color: #fceceb; font-weight: bold; color: #e74c3c; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; }
             });
-
-            // Append Photos if they exist
             if (damagePhotos.length > 0) {
                 pdfHtml += `<tr><td style="background-color: #fceceb; font-weight: bold; color: #e74c3c; width: 40%;">DAMAGE PHOTOS</td><td style="color: #333;"><div style="display:flex; gap:10px; flex-wrap:wrap;">`;
-                damagePhotos.forEach(p => { pdfHtml += `<img src="${p}" style="max-height: 150px; border-radius: 8px; border: 1px solid #ccc;">`; });
-                pdfHtml += `</div></td></tr>`;
+                damagePhotos.forEach(p => { pdfHtml += `<img src="${p}" style="max-height: 150px; border-radius: 8px; border: 1px solid #ccc;">`; }); pdfHtml += `</div></td></tr>`;
             }
             pdfHtml += `</table></div>`; document.getElementById('damageReportHtml').value = pdfHtml;
-
             fetch(G_URL, { method: 'POST', body: new FormData(form), mode: 'no-cors' }).then(() => {
-                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ DAMAGE REPORT SENT!";
-                setTimeout(() => { form.reset(); damagePhotos = []; document.getElementById('damagePrev').innerHTML = ''; btn.disabled = false; btn.style.backgroundColor = "#e74c3c"; btn.innerText = "🚀 SUBMIT DAMAGE REPORT"; openMenu(); }, 3000);
+                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ DAMAGE REPORT SENT!"; setTimeout(() => { form.reset(); damagePhotos = []; document.getElementById('damagePrev').innerHTML = ''; btn.disabled = false; btn.style.backgroundColor = "#e74c3c"; btn.innerText = "🚀 SUBMIT DAMAGE REPORT"; openMenu(); }, 3000);
             }).catch(() => { alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT DAMAGE REPORT"; });
         }
     </script>
