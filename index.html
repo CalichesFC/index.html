@@ -94,7 +94,6 @@
         .save-btn.green-btn { background-color: var(--pass-green); box-shadow: 0 4px 10px rgba(40, 167, 69, 0.3); }
         .save-btn.orange-btn { background-color: var(--maint-orange); box-shadow: 0 4px 10px rgba(230, 126, 34, 0.3); }
         .save-btn.red-btn { background-color: var(--damage-red); box-shadow: 0 4px 10px rgba(231, 76, 60, 0.3); }
-        .save-btn:disabled { background-color: #ccc; cursor: not-allowed; box-shadow: none; }
 
         /* THEMES */
         #popInView .header { background-color: var(--caliches-blue); } #popInView .category { border-top: 6px solid var(--caliches-blue); } #popInView .category h2 { color: var(--caliches-blue); }
@@ -103,15 +102,16 @@
         #maintenanceView .header { background: repeating-linear-gradient(45deg, var(--maint-orange), var(--maint-orange) 15px, #d35400 15px, #d35400 30px); } #maintenanceView .category { border-top: 6px solid #333; box-shadow: 0px 4px 0px var(--maint-orange); border-radius: 4px; } #maintenanceView .category h2 { color: var(--maint-orange); font-weight: 900; }
         #damageView { background-color: #fceceb; min-height: 100vh; padding-bottom: 20px;} #damageView .header { background-color: var(--damage-red); } #damageView .info-group { border: 2px solid var(--damage-red); } #damageView .category { border: 2px solid var(--damage-red); border-top: 8px solid var(--damage-red); } #damageView .category h2 { color: var(--damage-red); font-weight: 900; }
 
-        /* DASHBOARD STYLES */
+        /* --- COMPACT MANAGER DASHBOARD STYLES --- */
         .dash-nav { display: flex; overflow-x: auto; gap: 10px; padding: 10px; background: white; margin-bottom: 15px; border-radius: 8px; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .dash-tab { background: #eee; border: none; padding: 10px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; font-size: 14px; color: #555; transition: 0.2s;}
+        .dash-tab { background: #eee; border: none; padding: 10px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; font-size: 13px; color: #555; transition: 0.2s;}
         .dash-tab.active { background: var(--caliches-blue); color: white; }
-        .table-container { overflow-x: auto; background: white; border-radius: 12px; padding: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .data-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
-        .data-table th { background: #f0f4f8; padding: 12px; border-bottom: 2px solid #ddd; color: var(--caliches-blue); }
-        .data-table td { padding: 10px 12px; border-bottom: 1px solid #eee; }
-        .data-table tr:hover { background-color: #f9f9f9; }
+        .table-wrapper { width: 100%; max-height: 500px; overflow: auto; background: white; border-radius: 12px; border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; white-space: nowrap; }
+        .data-table th { background: var(--caliches-blue); color: white; padding: 12px 15px; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid #333; font-weight: bold; letter-spacing: 0.5px;}
+        .data-table td { padding: 10px 15px; border-bottom: 1px solid #eee; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+        .data-table tr:nth-child(even) { background-color: #f9f9f9; }
+        .data-table tr:hover { background-color: #f0f4f8; }
     </style>
 </head>
 <body>
@@ -166,7 +166,7 @@
             <p style="font-size: 18px; margin: 0; font-weight: bold; text-transform: uppercase;">Manager Dashboard</p>
         </div>
         <div class="container" style="max-width: 1000px;">
-            <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Select a report feed to view the 15 most recent submissions:</p>
+            <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Select a report feed to view recent submissions:</p>
             <div class="dash-nav">
                 <button class="dash-tab active" onclick="fetchDashboard('Pop-Ins', this)">Pop-Ins</button>
                 <button class="dash-tab" onclick="fetchDashboard('Shortages', this)">Shortages</button>
@@ -174,7 +174,7 @@
                 <button class="dash-tab" onclick="fetchDashboard('Maintenance Logs', this)">Maintenance</button>
                 <button class="dash-tab" onclick="fetchDashboard('Damage Reports', this)">Damage</button>
             </div>
-            <div class="table-container" id="dashboardResults">
+            <div id="dashboardResults">
                 <p style="text-align: center; padding: 30px; color: #888;">Fetching live data from servers...</p>
             </div>
         </div>
@@ -188,7 +188,8 @@
 
     <script>
         // --- MASTER GOOGLE APPS SCRIPT URL ---
-        const G_URL = 'https://script.google.com/macros/s/AKfycbzBHQkUBIfCEKS8YGBDXninOUxVIwJjetCWTmH68IPlvBh_t4Yb0zfCzxvfLdh7xT8j6w/exec';
+        // PASTE YOUR /exec URL BELOW
+        const G_URL = 'PASTE_YOUR_EXEC_URL_HERE';
 
         let currentSlide = 0; let slideTimer;
         let currentUser = { name: "", role: "" };
@@ -257,16 +258,16 @@
             fetch(G_URL, {method: 'POST', body: fd})
             .then(res => res.json()).then(data => {
                 if(data.result === "success") {
-                    if(data.rows.length === 0) { results.innerHTML = "<p style='padding:20px;'>No data found.</p>"; return; }
-                    let html = `<table class="data-table"><tr>`;
-                    data.headers.forEach((h, i) => { if(i < 8) html += `<th>${h}</th>`; }); // Max 8 columns
-                    html += `</tr>`;
+                    if(data.rows.length === 0) { results.innerHTML = "<p style='padding:20px;'>No data found yet. Please submit a form.</p>"; return; }
+                    let html = `<div class="table-wrapper"><table class="data-table"><thead><tr>`;
+                    data.headers.forEach((h, i) => { if(i < 8) html += `<th>${h}</th>`; }); // Caps at 8 columns so it doesn't break mobile viewing
+                    html += `</tr></thead><tbody>`;
                     data.rows.forEach(row => {
                         html += `<tr>`;
                         row.forEach((cell, i) => { if(i < 8) html += `<td>${cell}</td>`; });
                         html += `</tr>`;
                     });
-                    html += `</table>`;
+                    html += `</tbody></table></div>`;
                     results.innerHTML = html;
                 } else { results.innerHTML = `<p style='color:red;'>Error loading data.</p>`; }
             }).catch(err => { results.innerHTML = `<p style='color:red;'>Connection Error.</p>`; });
