@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Caliche's Operations Hub</title>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
         :root {
             --caliches-blue: #4a68b1;
@@ -227,6 +229,12 @@
         // --- MASTER GOOGLE APPS SCRIPT URL ---
         const G_URL = 'https://script.google.com/macros/s/AKfycbw0z_w9hpfqKoll4XTi2sQk7NXyrix0PEMwiyzT816iY2OFCOZOVSowcmuUxIzXdQn0eg/exec';
 
+        // --- SUPABASE CLIENT SETUP ---
+        const { createClient } = window.supabase;
+        const supabaseUrl = 'https://ikgbihwkqhsfahnswfbz.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
+        const supabaseClient = createClient(supabaseUrl, supabaseKey);
+
         let currentSlide = 0; let slideTimer;
         let currentUser = { name: "", role: "" };
         let currentDashTab = "Pop-Ins"; 
@@ -265,11 +273,10 @@
             const btn = document.getElementById('loginBtn'); const form = document.getElementById('loginForm'); const errorMsg = document.getElementById('loginError');
             if(!form.username.value || !form.password.value) { errorMsg.innerText = "Please enter both fields."; errorMsg.style.display = "block"; return; }
             btn.innerText = "Verifying..."; btn.disabled = true; errorMsg.style.display = "none";
-            const formData = new FormData(form);
 
-            fetch(G_URL, { method: 'POST', body: formData })
-            .then(res => res.json()).then(data => {
-                if(data.result === "success") {
+            supabaseClient.from('users').select('*').eq('username', form.username.value).eq('password', form.password.value).single()
+            .then(({ data, error }) => {
+                if(data && !error) {
                     currentUser.name = data.name; currentUser.role = data.role;
                     localStorage.setItem('calichesUser', JSON.stringify(currentUser));
                     document.getElementById('greetingName').innerText = "Hello, " + data.name;
@@ -287,11 +294,12 @@
             const btn = document.getElementById('registerBtn'); const form = document.getElementById('registerForm'); const errorMsg = document.getElementById('registerError');
             if(!form.name.value || !form.username.value || !form.password.value) { errorMsg.innerText = "Please fill all fields."; errorMsg.style.display = "block"; return; }
             btn.innerText = "Creating Account..."; btn.disabled = true; errorMsg.style.display = "none";
-            const formData = new FormData(form);
+            
+            let insertObj = { name: form.name.value, username: form.username.value, password: form.password.value, role: 'Staff' };
 
-            fetch(G_URL, { method: 'POST', body: formData })
-            .then(res => res.json()).then(data => {
-                if(data.result === "success") {
+            supabaseClient.from('users').insert([insertObj]).select().single()
+            .then(({ data, error }) => {
+                if(data && !error) {
                     currentUser.name = data.name; currentUser.role = data.role;
                     localStorage.setItem('calichesUser', JSON.stringify(currentUser));
                     document.getElementById('greetingName').innerText = "Hello, " + data.name;
@@ -300,7 +308,7 @@
                     triggerTransition(() => { document.getElementById('login-view').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; resetTimer(); });
                     btn.innerText = "CREATE ACCOUNT"; btn.disabled = false; form.reset();
                 } else {
-                    errorMsg.innerText = data.message || "Error creating account."; errorMsg.style.display = "block"; btn.innerText = "CREATE ACCOUNT"; btn.disabled = false;
+                    errorMsg.innerText = "Error creating account. Username may be taken."; errorMsg.style.display = "block"; btn.innerText = "CREATE ACCOUNT"; btn.disabled = false;
                 }
             }).catch(err => { errorMsg.innerText = "Connection error."; errorMsg.style.display = "block"; btn.innerText = "CREATE ACCOUNT"; btn.disabled = false; });
         }
@@ -308,10 +316,10 @@
         function recoverPin() {
             let uname = prompt("Forgot PIN? Enter your Username below to alert Issac:");
             if (uname) {
-                let fd = new FormData(); fd.append("action", "forgotPassword"); fd.append("username", uname);
-                fetch(G_URL, {method: 'POST', body: fd}).then(res => res.json()).then(data => {
-                    if(data.result === "success") alert("Issac has been notified and will clear your account so you can register again.");
-                    else alert("Username not found in system.");
+                supabaseClient.from('pin_recovery_requests').insert([{ username: uname }])
+                .then(({ error }) => {
+                    if(!error) alert("Issac has been notified and will clear your account so you can register again.");
+                    else alert("Network error. Try again.");
                 }).catch(err => alert("Network error. Try again."));
             }
         }
@@ -346,11 +354,18 @@
             results.innerHTML = `<p style="text-align: center; padding: 30px; color: #888;">Fetching latest ${tabName} data...</p>`;
             document.getElementById('dashboardFilterDiv').style.display = 'flex'; 
             
-            let fd = new FormData(); fd.append("action", "fetchDashboard"); fd.append("tabName", tabName); fd.append("days", document.getElementById('dashDateFilter').value);
+            const tableMap = { 'Pop-Ins': 'pop_ins', 'Shortages': 'shortages', 'Driver Logs': 'driver_logs', 'Maintenance Logs': 'maintenance_logs', 'Damage Reports': 'damage_reports' };
+            const daysLimit = parseInt(document.getElementById('dashDateFilter').value);
             
-            fetch(G_URL, {method: 'POST', body: fd})
-            .then(res => res.json()).then(data => {
-                if(data.result === "success") {
+            supabaseClient.from(tableMap[tabName]).select('*').order('id', { ascending: false }).limit(daysLimit === 999 ? 50 : 100)
+            .then(({ data: supaData, error }) => {
+                if(!error) {
+                    let data = { result: "success", headers: [], rows: [] };
+                    if(supaData && supaData.length > 0) {
+                        data.headers = Object.keys(supaData[0]).filter(k => k !== 'id');
+                        data.rows = supaData.map(obj => [obj.id, ...data.headers.map(h => obj[h])]);
+                    }
+
                     if(data.rows.length === 0) { results.innerHTML = "<p style='padding:20px;'>No data found for this time period.</p>"; return; }
                     let html = `<div class="table-wrapper"><table class="data-table"><thead><tr>`;
                     
@@ -392,11 +407,11 @@
 
         function updateItemStatus(tabName, rowIndex) {
             let newStatus = document.getElementById(`status-${rowIndex}`).value;
-            let fd = new FormData();
-            fd.append("action", "updateStatus"); fd.append("tabName", tabName); fd.append("rowIndex", rowIndex); fd.append("newStatus", newStatus);
-            fetch(G_URL, {method: 'POST', body: fd})
-            .then(res => res.json()).then(data => {
-                if(data.result === "success") { alert("Status successfully changed to: " + newStatus); } 
+            const tableMap = { 'Maintenance Logs': 'maintenance_logs', 'Damage Reports': 'damage_reports' };
+            
+            supabaseClient.from(tableMap[tabName]).update({ Status: newStatus }).eq('id', rowIndex)
+            .then(({ error }) => {
+                if(!error) { alert("Status successfully changed to: " + newStatus); } 
                 else { alert("Error updating status."); }
             }).catch(err => { alert("Connection Error."); });
         }
@@ -408,12 +423,12 @@
             const results = document.getElementById('dashboardResults');
             results.innerHTML = `<p style="text-align: center; padding: 30px; color: #888;">Loading Staff Database...</p>`;
             
-            let fd = new FormData(); fd.append("action", "fetchUsers");
-            fetch(G_URL, {method: 'POST', body: fd})
-            .then(res => res.json()).then(data => {
-                if(data.result === "success") {
+            supabaseClient.from('users').select('*').order('id')
+            .then(({ data, error }) => {
+                if(!error && data) {
+                    let mappedUsers = data.map(u => ({ name: u.name, username: u.username, role: u.role, row: u.id }));
                     let html = `<div class="table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Role / Level</th><th>Action</th></tr></thead><tbody>`;
-                    data.users.forEach(u => {
+                    mappedUsers.forEach(u => {
                         html += `<tr>
                             <td style="font-weight:bold;">${u.name}</td>
                             <td style="color:var(--na-gray);">${u.username}</td>
@@ -436,17 +451,17 @@
 
         function updateRole(rowIndex) {
             let newRole = document.getElementById(`role-select-${rowIndex}`).value;
-            let fd = new FormData(); fd.append("action", "updateRole"); fd.append("rowIndex", rowIndex); fd.append("newRole", newRole);
-            fetch(G_URL, {method: 'POST', body: fd}).then(res => res.json()).then(data => {
-                if(data.result === "success") { alert("User role instantly updated to " + newRole + "!"); } else { alert("Error updating user."); }
+            supabaseClient.from('users').update({ role: newRole }).eq('id', rowIndex)
+            .then(({ error }) => {
+                if(!error) { alert("User role instantly updated to " + newRole + "!"); } else { alert("Error updating user."); }
             }).catch(err => { alert("Connection Error."); });
         }
 
         function deleteUser(rowIndex) {
             if(!confirm("Are you sure you want to permanently delete this user?")) return;
-            let fd = new FormData(); fd.append("action", "deleteUser"); fd.append("rowIndex", rowIndex);
-            fetch(G_URL, {method: 'POST', body: fd}).then(res => res.json()).then(data => {
-                if(data.result === "success") { alert("User successfully deleted."); fetchUsers(document.querySelector('.dash-tab.active')); } 
+            supabaseClient.from('users').delete().eq('id', rowIndex)
+            .then(({ error }) => {
+                if(!error) { alert("User successfully deleted."); fetchUsers(document.querySelector('.dash-tab.active')); } 
                 else { alert("Error deleting user."); }
             }).catch(err => { alert("Connection Error."); });
         }
@@ -474,11 +489,132 @@
 
         function calc() { let totalScore = 0; let questionsCounted = 0; let answered = 0; for(let i=1; i<=totalQuestions; i++) { let sel = document.querySelector(`input[name="q${i}"]:checked`); if(sel) { answered++; let val = parseInt(sel.value); if(val > 0) { totalScore += val; questionsCounted++; } } } let maxPossible = questionsCounted * 5; let p = maxPossible === 0 ? 0 : Math.round((totalScore / maxPossible) * 100); document.getElementById('ts').innerText = totalScore; document.getElementById('maxPts').innerText = maxPossible; document.getElementById('finalScore').value = totalScore; document.getElementById('pct').innerText = p; document.getElementById('finalPct').value = p + "%"; let badge = document.getElementById('st'); if(answered === totalQuestions) { let stat = p >= 85 ? "EXCELLENT" : (p >= 75 ? "MEETS STANDARD" : "NEEDS IMPROVEMENT"); badge.innerText = stat; document.getElementById('finalStatus').value = stat; badge.className = p >= 75 ? "status pass" : "status fail"; } }
 
-        function submitAudit() { const btn = document.getElementById('submitBtn'); const form = document.getElementById('auditForm'); if(!document.getElementById('loc').value || !document.getElementById('sldr').value || !document.getElementById('conductor').value) { return alert("Please fill out Location, Shift Leader, and Conducted By!"); } let answered = 0; for(let i=1; i<=totalQuestions; i++) { if(document.querySelector(`input[name="q${i}"]:checked`)) answered++; } if(answered < totalQuestions) { return alert(`Please answer all questions. You have answered ${answered} out of ${totalQuestions}.`); } btn.innerText = "Generating Professional PDF..."; btn.disabled = true; let pdfHtml = getBrandHeader("Store Pop-In Inspection", "#4a68b1"); pdfHtml += `<table style="width: 100%; margin-bottom: 20px; font-family: 'Helvetica Neue', sans-serif;"><tr><td style="padding: 8px;"><strong>Location:</strong> ${document.getElementById('loc').value}</td><td style="padding: 8px;"><strong>Date:</strong> ${document.getElementById('dt').value}</td></tr><tr><td style="padding: 8px;"><strong>Conducted By:</strong> ${document.getElementById('conductor').value}</td><td style="padding: 8px;"><strong>Shift Leader:</strong> ${document.getElementById('sldr').value} (${document.getElementById('shiftTime').value})</td></tr></table><div style="background-color: #f0f4f8; padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: center;"><h2 style="color: #4a68b1; margin: 0; font-size: 28px;">Final Score: ${document.getElementById('pct').innerText}%</h2><h3 style="color: #555; margin: 5px 0 15px 0;">Status: ${document.getElementById('st').innerText}</h3><p style="margin-bottom: 0; text-align: left; padding-top: 15px; border-top: 1px solid #ddd;"><strong>Overall Comments:</strong> ${document.getElementById('overallComments').value || "None"}</p></div><table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 14px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;"><tr style="background-color: #4a68b1; color: white;"><th style="text-align: left;">Category / Question</th><th style="width: 60px; text-align: center;">Score</th><th>Notes & Photos</th></tr>`; let loopIdx = 1; questions.forEach(group => { pdfHtml += `<tr style="background-color: #f9f9f9;"><td colspan="3" style="font-size: 16px; color: #333;"><strong>${group.cat}</strong></td></tr>`; group.q.forEach(text => { let sel = document.querySelector(`input[name="q${loopIdx}"]:checked`); let note = document.getElementById(`note${loopIdx}`).value; let score = sel ? sel.value : "N/A"; if(score === "0") score = "N/A"; let qPhotos = questionPhotos[loopIdx]; let photoHtml = ""; if (qPhotos && qPhotos.length > 0) { photoHtml = `<div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">`; qPhotos.forEach(pData => { photoHtml += `<img src="${pData}" style="max-height: 120px; border-radius: 8px; border: 1px solid #bbb;">`; }); photoHtml += `</div>`; } pdfHtml += `<tr><td style="line-height: 1.4;">${text}</td><td style="text-align: center; font-weight: bold; font-size: 16px;">${score}</td><td style="color: #555;">${note} <br> ${photoHtml}</td></tr>`; loopIdx++; }); }); pdfHtml += `</table></div>`; document.getElementById('popInReportHtml').value = pdfHtml; fetch(G_URL, { method: 'POST', body: new FormData(form), mode: 'no-cors' }).then(() => { btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ SENT! (TAP TO PRINT)"; btn.onclick = function(e) { e.preventDefault(); document.body.innerHTML = pdfHtml; setTimeout(() => { window.print(); location.reload(); }, 500); }; }).catch(() => { alert("Connection Error. Check internet."); btn.disabled = false; btn.innerText = "🚀 SUBMIT POP-IN TO OFFICE"; }); }
-        function submitDriverForm() { const btn = document.getElementById('submitDriverBtn'); const form = document.getElementById('driverForm'); if(!document.getElementById('vehicle').value || !document.getElementById('signature').value) { return alert("Please select a vehicle and sign the form!"); } btn.innerText = "Generating Professional PDF..."; btn.disabled = true; let pdfHtml = getBrandHeader("Vehicle & Trailer Check-Out", "#c53a74"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/_/g, ' ').toUpperCase(); pdfHtml += `<tr><td style="background-color: #f9f9f9; font-weight: bold; color: #c53a74; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); pdfHtml += `</table></div>`; document.getElementById('driverReportHtml').value = pdfHtml; fetch(G_URL, { method: 'POST', body: new FormData(form), mode: 'no-cors' }).then(() => { btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ LOG SECURED AND SENT!"; setTimeout(() => { form.reset(); btn.style.backgroundColor = "var(--caliches-pink)"; btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST"; openMenu(); }, 3000); }).catch(() => { alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST"; }); }
-        function submitShortage() { const btn = document.getElementById('submitShortageBtn'); const form = document.getElementById('shortageForm'); if(!form.querySelector('select[name="Store"]').value || !form.querySelector('input[name="ManagerName"]').value) { return alert("Please select a store and enter your name!"); } btn.innerText = "Generating Professional PDF..."; btn.disabled = true; let pdfHtml = getBrandHeader("Store Shortage Report", "#28a745"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(); pdfHtml += `<tr><td style="background-color: #f4fbf5; font-weight: bold; color: #28a745; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); pdfHtml += `</table></div>`; document.getElementById('shortageReportHtml').value = pdfHtml; fetch(G_URL, { method: 'POST', body: new FormData(form), mode: 'no-cors' }).then(() => { btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ REPORT SUBMITTED & PDF SENT!"; setTimeout(() => { form.reset(); btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "🚀 SUBMIT SHORTAGE REPORT"; openMenu(); }, 3000); }).catch(() => { alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT SHORTAGE REPORT"; }); }
-        function submitMaintenance() { const btn = document.getElementById('submitMaintBtn'); const form = document.getElementById('maintenanceForm'); if(!form.querySelector('input[name="MaintenanceItem"]').value || !form.querySelector('input[name="ReporterName"]').value) { return alert("Please fill out the required fields!"); } btn.innerText = "Generating Professional PDF..."; btn.disabled = true; let pdfHtml = getBrandHeader("Required Maintenance", "#e67e22"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(); pdfHtml += `<tr><td style="background-color: #fdf3e8; font-weight: bold; color: #e67e22; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); if (maintPhotos.length > 0) { pdfHtml += `<tr><td style="background-color: #fdf3e8; font-weight: bold; color: #e67e22; width: 40%;">ATTACHED PHOTOS</td><td style="color: #333;"><div style="display:flex; gap:10px; flex-wrap:wrap;">`; maintPhotos.forEach(p => { pdfHtml += `<img src="${p}" style="max-height: 150px; border-radius: 8px; border: 1px solid #ccc;">`; }); pdfHtml += `</div></td></tr>`; } pdfHtml += `</table></div>`; document.getElementById('maintenanceReportHtml').value = pdfHtml; fetch(G_URL, { method: 'POST', body: new FormData(form), mode: 'no-cors' }).then(() => { btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ MAINTENANCE REPORT SENT!"; setTimeout(() => { form.reset(); maintPhotos = []; document.getElementById('maintPrev').innerHTML = ''; btn.disabled = false; btn.style.backgroundColor = "#e67e22"; btn.innerText = "🚀 SUBMIT MAINTENANCE REQUEST"; openMenu(); }, 3000); }).catch(() => { alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT MAINTENANCE REQUEST"; }); }
-        function submitDamage() { const btn = document.getElementById('submitDamageBtn'); const form = document.getElementById('damageForm'); if(!form.querySelector('select[name="DamageAsset"]').value || !form.querySelector('input[name="ReporterName"]').value) { return alert("Please select an asset and enter your name!"); } btn.innerText = "Generating Professional PDF..."; btn.disabled = true; let pdfHtml = getBrandHeader("Vehicle & Trailer Damage", "#e74c3c"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(); pdfHtml += `<tr><td style="background-color: #fceceb; font-weight: bold; color: #e74c3c; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); if (damagePhotos.length > 0) { pdfHtml += `<tr><td style="background-color: #fceceb; font-weight: bold; color: #e74c3c; width: 40%;">DAMAGE PHOTOS</td><td style="color: #333;"><div style="display:flex; gap:10px; flex-wrap:wrap;">`; damagePhotos.forEach(p => { pdfHtml += `<img src="${p}" style="max-height: 150px; border-radius: 8px; border: 1px solid #ccc;">`; }); pdfHtml += `</div></td></tr>`; } pdfHtml += `</table></div>`; document.getElementById('damageReportHtml').value = pdfHtml; fetch(G_URL, { method: 'POST', body: new FormData(form), mode: 'no-cors' }).then(() => { btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ DAMAGE REPORT SENT!"; setTimeout(() => { form.reset(); damagePhotos = []; document.getElementById('damagePrev').innerHTML = ''; btn.disabled = false; btn.style.backgroundColor = "#e74c3c"; btn.innerText = "🚀 SUBMIT DAMAGE REPORT"; openMenu(); }, 3000); }).catch(() => { alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT DAMAGE REPORT"; }); }
+        function submitAudit() { 
+            const btn = document.getElementById('submitBtn'); const form = document.getElementById('auditForm'); 
+            if(!document.getElementById('loc').value || !document.getElementById('sldr').value || !document.getElementById('conductor').value) { return alert("Please fill out Location, Shift Leader, and Conducted By!"); } 
+            let answered = 0; for(let i=1; i<=totalQuestions; i++) { if(document.querySelector(`input[name="q${i}"]:checked`)) answered++; } 
+            if(answered < totalQuestions) { return alert(`Please answer all questions. You have answered ${answered} out of ${totalQuestions}.`); } 
+            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true; 
+            
+            let pdfHtml = getBrandHeader("Store Pop-In Inspection", "#4a68b1"); 
+            pdfHtml += `<table style="width: 100%; margin-bottom: 20px; font-family: 'Helvetica Neue', sans-serif;"><tr><td style="padding: 8px;"><strong>Location:</strong> ${document.getElementById('loc').value}</td><td style="padding: 8px;"><strong>Date:</strong> ${document.getElementById('dt').value}</td></tr><tr><td style="padding: 8px;"><strong>Conducted By:</strong> ${document.getElementById('conductor').value}</td><td style="padding: 8px;"><strong>Shift Leader:</strong> ${document.getElementById('sldr').value} (${document.getElementById('shiftTime').value})</td></tr></table><div style="background-color: #f0f4f8; padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: center;"><h2 style="color: #4a68b1; margin: 0; font-size: 28px;">Final Score: ${document.getElementById('pct').innerText}%</h2><h3 style="color: #555; margin: 5px 0 15px 0;">Status: ${document.getElementById('st').innerText}</h3><p style="margin-bottom: 0; text-align: left; padding-top: 15px; border-top: 1px solid #ddd;"><strong>Overall Comments:</strong> ${document.getElementById('overallComments').value || "None"}</p></div><table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 14px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;"><tr style="background-color: #4a68b1; color: white;"><th style="text-align: left;">Category / Question</th><th style="width: 60px; text-align: center;">Score</th><th>Notes & Photos</th></tr>`; 
+            let loopIdx = 1; questions.forEach(group => { pdfHtml += `<tr style="background-color: #f9f9f9;"><td colspan="3" style="font-size: 16px; color: #333;"><strong>${group.cat}</strong></td></tr>`; group.q.forEach(text => { let sel = document.querySelector(`input[name="q${loopIdx}"]:checked`); let note = document.getElementById(`note${loopIdx}`).value; let score = sel ? sel.value : "N/A"; if(score === "0") score = "N/A"; let qPhotos = questionPhotos[loopIdx]; let photoHtml = ""; if (qPhotos && qPhotos.length > 0) { photoHtml = `<div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">`; qPhotos.forEach(pData => { photoHtml += `<img src="${pData}" style="max-height: 120px; border-radius: 8px; border: 1px solid #bbb;">`; }); photoHtml += `</div>`; } pdfHtml += `<tr><td style="line-height: 1.4;">${text}</td><td style="text-align: center; font-weight: bold; font-size: 16px;">${score}</td><td style="color: #555;">${note} <br> ${photoHtml}</td></tr>`; loopIdx++; }); }); pdfHtml += `</table></div>`; 
+            document.getElementById('popInReportHtml').value = pdfHtml; 
+            
+            // 1. Send to Google Apps Script to generate PDF and Email
+            fetch(G_URL, { method: 'POST', body: new FormData(form) })
+            .then(res => res.json())
+            .then(googleData => {
+                // 2. Prepare data for Supabase
+                let insertObj = Object.fromEntries(new FormData(form).entries());
+                delete insertObj.ReportHTML; // Do not save massive HTML string to Supabase
+                insertObj.PDF_Archive = googleData.pdfUrl || "PDF Failed to Generate";
+                
+                // 3. Save to Supabase
+                return supabaseClient.from('pop_ins').insert([insertObj]);
+            })
+            .then(({ error }) => {
+                if(error) throw error;
+                btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ SENT! (TAP TO PRINT)"; 
+                btn.onclick = function(e) { e.preventDefault(); document.body.innerHTML = pdfHtml; setTimeout(() => { window.print(); location.reload(); }, 500); };
+            }).catch((err) => {
+                console.error(err); alert("Connection Error. Check internet."); btn.disabled = false; btn.innerText = "🚀 SUBMIT POP-IN TO OFFICE";
+            });
+        }
+
+        function submitDriverForm() { 
+            const btn = document.getElementById('submitDriverBtn'); const form = document.getElementById('driverForm'); 
+            if(!document.getElementById('vehicle').value || !document.getElementById('signature').value) { return alert("Please select a vehicle and sign the form!"); } 
+            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true; 
+            let pdfHtml = getBrandHeader("Vehicle & Trailer Check-Out", "#c53a74"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/_/g, ' ').toUpperCase(); pdfHtml += `<tr><td style="background-color: #f9f9f9; font-weight: bold; color: #c53a74; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); pdfHtml += `</table></div>`; document.getElementById('driverReportHtml').value = pdfHtml; 
+            
+            fetch(G_URL, { method: 'POST', body: new FormData(form) })
+            .then(res => res.json())
+            .then(googleData => {
+                let insertObj = Object.fromEntries(new FormData(form).entries());
+                delete insertObj.ReportHTML; 
+                insertObj.PDF_Archive = googleData.pdfUrl || "PDF Failed to Generate";
+                return supabaseClient.from('driver_logs').insert([insertObj]);
+            })
+            .then(({ error }) => {
+                if(error) throw error;
+                btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ LOG SECURED AND SENT!"; 
+                setTimeout(() => { form.reset(); btn.style.backgroundColor = "var(--caliches-pink)"; btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST"; openMenu(); }, 3000);
+            }).catch(() => {
+                alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST";
+            });
+        }
+
+        function submitShortage() { 
+            const btn = document.getElementById('submitShortageBtn'); const form = document.getElementById('shortageForm'); 
+            if(!form.querySelector('select[name="Store"]').value || !form.querySelector('input[name="ManagerName"]').value) { return alert("Please select a store and enter your name!"); } 
+            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true; 
+            let pdfHtml = getBrandHeader("Store Shortage Report", "#28a745"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(); pdfHtml += `<tr><td style="background-color: #f4fbf5; font-weight: bold; color: #28a745; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); pdfHtml += `</table></div>`; document.getElementById('shortageReportHtml').value = pdfHtml; 
+            
+            fetch(G_URL, { method: 'POST', body: new FormData(form) })
+            .then(res => res.json())
+            .then(googleData => {
+                let insertObj = Object.fromEntries(new FormData(form).entries());
+                delete insertObj.ReportHTML; 
+                insertObj.PDF_Archive = googleData.pdfUrl || "PDF Failed to Generate";
+                return supabaseClient.from('shortages').insert([insertObj]);
+            })
+            .then(({ error }) => {
+                if(error) throw error;
+                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ REPORT SUBMITTED & PDF SENT!"; 
+                setTimeout(() => { form.reset(); btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "🚀 SUBMIT SHORTAGE REPORT"; openMenu(); }, 3000);
+            }).catch(() => {
+                alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT SHORTAGE REPORT";
+            });
+        }
+
+        function submitMaintenance() { 
+            const btn = document.getElementById('submitMaintBtn'); const form = document.getElementById('maintenanceForm'); 
+            if(!form.querySelector('input[name="MaintenanceItem"]').value || !form.querySelector('input[name="ReporterName"]').value) { return alert("Please fill out the required fields!"); } 
+            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true; 
+            let pdfHtml = getBrandHeader("Required Maintenance", "#e67e22"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(); pdfHtml += `<tr><td style="background-color: #fdf3e8; font-weight: bold; color: #e67e22; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); if (maintPhotos.length > 0) { pdfHtml += `<tr><td style="background-color: #fdf3e8; font-weight: bold; color: #e67e22; width: 40%;">ATTACHED PHOTOS</td><td style="color: #333;"><div style="display:flex; gap:10px; flex-wrap:wrap;">`; maintPhotos.forEach(p => { pdfHtml += `<img src="${p}" style="max-height: 150px; border-radius: 8px; border: 1px solid #ccc;">`; }); pdfHtml += `</div></td></tr>`; } pdfHtml += `</table></div>`; document.getElementById('maintenanceReportHtml').value = pdfHtml; 
+            
+            fetch(G_URL, { method: 'POST', body: new FormData(form) })
+            .then(res => res.json())
+            .then(googleData => {
+                let insertObj = Object.fromEntries(new FormData(form).entries());
+                delete insertObj.ReportHTML; 
+                insertObj.PDF_Archive = googleData.pdfUrl || "PDF Failed to Generate";
+                insertObj.Status = "Pending"; 
+                return supabaseClient.from('maintenance_logs').insert([insertObj]);
+            })
+            .then(({ error }) => {
+                if(error) throw error;
+                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ MAINTENANCE REPORT SENT!"; 
+                setTimeout(() => { form.reset(); maintPhotos = []; document.getElementById('maintPrev').innerHTML = ''; btn.disabled = false; btn.style.backgroundColor = "#e67e22"; btn.innerText = "🚀 SUBMIT MAINTENANCE REQUEST"; openMenu(); }, 3000);
+            }).catch(() => {
+                alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT MAINTENANCE REQUEST";
+            });
+        }
+
+        function submitDamage() { 
+            const btn = document.getElementById('submitDamageBtn'); const form = document.getElementById('damageForm'); 
+            if(!form.querySelector('select[name="DamageAsset"]').value || !form.querySelector('input[name="ReporterName"]').value) { return alert("Please select an asset and enter your name!"); } 
+            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true; 
+            let pdfHtml = getBrandHeader("Vehicle & Trailer Damage", "#e74c3c"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(); pdfHtml += `<tr><td style="background-color: #fceceb; font-weight: bold; color: #e74c3c; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); if (damagePhotos.length > 0) { pdfHtml += `<tr><td style="background-color: #fceceb; font-weight: bold; color: #e74c3c; width: 40%;">DAMAGE PHOTOS</td><td style="color: #333;"><div style="display:flex; gap:10px; flex-wrap:wrap;">`; damagePhotos.forEach(p => { pdfHtml += `<img src="${p}" style="max-height: 150px; border-radius: 8px; border: 1px solid #ccc;">`; }); pdfHtml += `</div></td></tr>`; } pdfHtml += `</table></div>`; document.getElementById('damageReportHtml').value = pdfHtml; 
+            
+            fetch(G_URL, { method: 'POST', body: new FormData(form) })
+            .then(res => res.json())
+            .then(googleData => {
+                let insertObj = Object.fromEntries(new FormData(form).entries());
+                delete insertObj.ReportHTML; 
+                insertObj.PDF_Archive = googleData.pdfUrl || "PDF Failed to Generate";
+                insertObj.Status = "Pending"; 
+                return supabaseClient.from('damage_reports').insert([insertObj]);
+            })
+            .then(({ error }) => {
+                if(error) throw error;
+                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ DAMAGE REPORT SENT!"; 
+                setTimeout(() => { form.reset(); damagePhotos = []; document.getElementById('damagePrev').innerHTML = ''; btn.disabled = false; btn.style.backgroundColor = "#e74c3c"; btn.innerText = "🚀 SUBMIT DAMAGE REPORT"; openMenu(); }, 3000);
+            }).catch(() => {
+                alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT DAMAGE REPORT";
+            });
+        }
     </script>
 </body>
 </html>
