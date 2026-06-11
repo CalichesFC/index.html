@@ -102,10 +102,12 @@
         #maintenanceView .header { background: repeating-linear-gradient(45deg, var(--maint-orange), var(--maint-orange) 15px, #d35400 15px, #d35400 30px); } #maintenanceView .category { border-top: 6px solid #333; box-shadow: 0px 4px 0px var(--maint-orange); border-radius: 4px; } #maintenanceView .category h2 { color: var(--maint-orange); font-weight: 900; }
         #damageView { background-color: #fceceb; min-height: 100vh; padding-bottom: 20px;} #damageView .header { background-color: var(--damage-red); } #damageView .info-group { border: 2px solid var(--damage-red); } #damageView .category { border: 2px solid var(--damage-red); border-top: 8px solid var(--damage-red); } #damageView .category h2 { color: var(--damage-red); font-weight: 900; }
 
-        /* --- COMPACT MANAGER DASHBOARD STYLES --- */
+        /* DASHBOARD STYLES */
         .dash-nav { display: flex; overflow-x: auto; gap: 10px; padding: 10px; background: white; margin-bottom: 15px; border-radius: 8px; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         .dash-tab { background: #eee; border: none; padding: 10px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; font-size: 13px; color: #555; transition: 0.2s;}
         .dash-tab.active { background: var(--caliches-blue); color: white; }
+        .filter-box { background: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; text-align: left; display: flex; align-items: center; gap: 10px; }
+        .filter-select { padding: 8px; border-radius: 6px; border: 1px solid #ddd; background: #fafafa; font-size: 14px; font-weight: bold; color: #333; cursor: pointer; outline: none; }
         .table-wrapper { width: 100%; max-height: 500px; overflow: auto; background: white; border-radius: 12px; border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .data-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; white-space: nowrap; }
         .data-table th { background: var(--caliches-blue); color: white; padding: 12px 15px; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid #333; font-weight: bold; letter-spacing: 0.5px;}
@@ -167,6 +169,7 @@
         </div>
         <div class="container" style="max-width: 1000px;">
             <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Select a report feed to view recent submissions:</p>
+            
             <div class="dash-nav">
                 <button class="dash-tab active" onclick="fetchDashboard('Pop-Ins', this)">Pop-Ins</button>
                 <button class="dash-tab" onclick="fetchDashboard('Shortages', this)">Shortages</button>
@@ -174,6 +177,16 @@
                 <button class="dash-tab" onclick="fetchDashboard('Maintenance Logs', this)">Maintenance</button>
                 <button class="dash-tab" onclick="fetchDashboard('Damage Reports', this)">Damage</button>
             </div>
+
+            <div class="filter-box">
+                <label style="font-size: 14px; font-weight: bold; color: var(--caliches-blue);">📅 Filter Date: </label>
+                <select id="dashDateFilter" class="filter-select" onchange="refreshCurrentDashboard()">
+                    <option value="7">Last 7 Days</option>
+                    <option value="30" selected>Last 30 Days</option>
+                    <option value="999">All Time (Max 50 items)</option>
+                </select>
+            </div>
+
             <div id="dashboardResults">
                 <p style="text-align: center; padding: 30px; color: #888;">Fetching live data from servers...</p>
             </div>
@@ -188,11 +201,12 @@
 
     <script>
         // --- MASTER GOOGLE APPS SCRIPT URL ---
-        // PASTE YOUR /exec URL BELOW
+        // PASTE YOUR /exec URL BELOW!
         const G_URL = 'PASTE_YOUR_EXEC_URL_HERE';
 
         let currentSlide = 0; let slideTimer;
         let currentUser = { name: "", role: "" };
+        let currentDashTab = "Pop-Ins"; // Tracks the active tab for the dashboard filter
 
         window.addEventListener('load', function() {
             setTimeout(function() {
@@ -242,25 +256,41 @@
             triggerTransition(() => {
                 document.querySelectorAll(".app-view").forEach(v => v.style.display = "none");
                 document.getElementById('managerView').style.display = "block";
-                fetchDashboard('Pop-Ins', document.querySelector('.dash-tab')); 
+                
+                // Fetch default tab with correct active button
+                let firstTabBtn = document.querySelector('.dash-tab');
+                fetchDashboard('Pop-Ins', firstTabBtn); 
             });
         }
 
-        function fetchDashboard(tabName, btnElement) {
-            document.querySelectorAll('.dash-tab').forEach(b => b.classList.remove('active'));
-            if(btnElement) btnElement.classList.add('active');
+        // Triggered by the Date Dropdown selector
+        function refreshCurrentDashboard() {
+            let activeBtn = document.querySelector('.dash-tab.active');
+            fetchDashboard(currentDashTab, activeBtn);
+        }
+
+        function fetchDashboard(tabName, btnElement = null) {
+            currentDashTab = tabName; // Update active tracker
+            if(btnElement) {
+                document.querySelectorAll('.dash-tab').forEach(b => b.classList.remove('active'));
+                btnElement.classList.add('active');
+            }
             
+            const days = document.getElementById('dashDateFilter').value;
             const results = document.getElementById('dashboardResults');
             results.innerHTML = `<p style="text-align: center; padding: 30px; color: #888;">Fetching latest ${tabName} data...</p>`;
             
-            let fd = new FormData(); fd.append("action", "fetchDashboard"); fd.append("tabName", tabName);
+            let fd = new FormData(); 
+            fd.append("action", "fetchDashboard"); 
+            fd.append("tabName", tabName);
+            fd.append("days", days);
             
             fetch(G_URL, {method: 'POST', body: fd})
             .then(res => res.json()).then(data => {
                 if(data.result === "success") {
-                    if(data.rows.length === 0) { results.innerHTML = "<p style='padding:20px;'>No data found yet. Please submit a form.</p>"; return; }
+                    if(data.rows.length === 0) { results.innerHTML = "<p style='padding:20px;'>No data found for this time period.</p>"; return; }
                     let html = `<div class="table-wrapper"><table class="data-table"><thead><tr>`;
-                    data.headers.forEach((h, i) => { if(i < 8) html += `<th>${h}</th>`; }); // Caps at 8 columns so it doesn't break mobile viewing
+                    data.headers.forEach((h, i) => { if(i < 8) html += `<th>${h}</th>`; });
                     html += `</tr></thead><tbody>`;
                     data.rows.forEach(row => {
                         html += `<tr>`;
