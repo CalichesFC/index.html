@@ -56,7 +56,10 @@
         .menu-title {
             color: var(--caliches-blue);
             margin-bottom: 25px;
-            font-size: 24px;
+            font-size: 28px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         .menu-btn {
             display: block;
@@ -76,6 +79,10 @@
         .menu-btn.pink {
             color: var(--caliches-pink);
             border-color: var(--caliches-pink);
+        }
+        .menu-btn.green {
+            color: var(--pass-green);
+            border-color: var(--pass-green);
         }
         .menu-btn:active {
             transform: scale(0.98);
@@ -239,8 +246,10 @@
 
     <div id="main-menu" class="app-view">
         
-        <img src="splash-logo.png" alt="Caliche's Logo" style="max-height: 180px; width: auto; margin-bottom: 20px; filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.15));">
+        <img src="splash-logo.png" alt="Caliche's Logo" style="max-height: 220px; width: auto; margin-bottom: 20px; filter: drop-shadow(0px 6px 12px rgba(0,0,0,0.25));">
         
+        <h1 class="menu-title">Operations Hub</h1>
+
         <div class="slider-wrapper">
             <button class="arrow prev-arrow" onclick="moveSlide(-1)">&#10094;</button>
             <button class="arrow next-arrow" onclick="moveSlide(1)">&#10095;</button>
@@ -255,12 +264,10 @@
                 </div>
             </div>
         </div>
-
-        <h1 class="menu-title">Operations Hub</h1>
         
-        <button class="menu-btn" onclick="openForm('popInView')">📋 Store Pop-In Inspection</button>
+        <button class="menu-btn blue-btn" onclick="openForm('popInView')">📋 Store Pop-In Inspection</button>
         <button class="menu-btn pink" onclick="openForm('driverView')">🚚 Vehicle & Trailer Check-Out</button>
-        <button class="menu-btn" style="border-color: #28a745; color: #28a745;" onclick="openForm('shortageView')">📦 Report Shortages</button>
+        <button class="menu-btn green" onclick="openForm('shortageView')">📦 Report Shortages</button>
     </div>
 
     <div id="popInView" class="app-view">
@@ -318,7 +325,7 @@
                     <input type="hidden" id="finalScore" name="TotalScore">
                     <input type="hidden" id="finalPct" name="Percentage">
                     <input type="hidden" id="finalStatus" name="Status">
-                    <input type="hidden" id="hiddenReportHtml" name="ReportHTML">
+                    <input type="hidden" id="popInReportHtml" name="ReportHTML">
                 </div>
 
                 <button type="button" id="submitBtn" class="save-btn blue-btn" onclick="submitAudit()">🚀 SUBMIT POP-IN TO OFFICE</button>
@@ -402,6 +409,7 @@
                     <input type="text" id="signature" name="signature" placeholder="Type your full name" required>
                 </div>
 
+                <input type="hidden" id="driverReportHtml" name="ReportHTML">
                 <button type="button" id="submitDriverBtn" class="save-btn pink" onclick="submitDriverForm()">🚀 SUBMIT DRIVER CHECKLIST</button>
             </form>
         </div>
@@ -461,16 +469,16 @@
                     <textarea name="Notes" rows="3" placeholder="Is this needed urgently? Any special instructions?"></textarea>
                 </div>
 
+                <input type="hidden" id="shortageReportHtml" name="ReportHTML">
                 <button type="button" id="submitShortageBtn" class="save-btn green-btn" onclick="submitShortage()">🚀 SUBMIT SHORTAGE REPORT</button>
             </form>
         </div>
     </div>
 
     <script>
-        const G_URL = 'https://script.google.com/macros/s/AKfycbzDrLR4bBx0J3B0cFhjEFqrfDQnkAA-zdZRy85Bb_Ppjick5IoJmudUt_HgKZmhDBlNcw/exec';
-        
-        // Live, verified /exec URL for Driver and Shortage forms
-        const DRIVER_G_URL = 'https://script.google.com/macros/s/AKfycbyYCPt4E9W-ipTLIP1ycS8vzCo-FArzPSUxW8zbmnoXGHGmtoJGoRTSJjx-JkQykJBY8g/exec';
+        // --- MASTER GOOGLE APPS SCRIPT URL ---
+        // PASTE YOUR /exec URL HERE:
+        const G_URL = 'https://script.google.com/macros/s/AKfycbyYCPt4E9W-ipTLIP1ycS8vzCo-FArzPSUxW8zbmnoXGHGmtoJGoRTSJjx-JkQykJBY8g/exec';
 
         // --- CORE NAVIGATION & AUTOMATION SLIDER ---
         let currentSlide = 0;
@@ -518,6 +526,19 @@
             document.querySelectorAll(".app-view").forEach(v => v.style.display = "none");
             document.getElementById(formId).style.display = "block";
             window.scrollTo(0, 0);
+        }
+
+        // --- PDF BRANDING HEADER GENERATOR ---
+        function getBrandHeader(title, color) {
+            return `
+            <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 800px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 10px; padding: 40px; background-color: #ffffff;">
+                <div style="text-align: center; border-bottom: 5px solid ${color}; padding-bottom: 20px; margin-bottom: 30px;">
+                    <h1 style="color: #4a68b1; font-size: 38px; margin: 0; font-weight: 900; text-transform: uppercase; letter-spacing: 2px;">Caliche's</h1>
+                    <h2 style="color: ${color}; font-size: 20px; margin: 5px 0 0 0; letter-spacing: 1px; text-transform: uppercase;">Operations Hub</h2>
+                    <p style="color: #888; font-size: 14px; margin: 15px 0 0 0;"><b>REPORT TYPE:</b> ${title}</p>
+                    <p style="color: #888; font-size: 14px; margin: 5px 0 0 0;"><b>DATE GENERATED:</b> ${new Date().toLocaleString()}</p>
+                </div>
+            `;
         }
 
         // --- FULL UNTRUNCATED POP-IN QUESTION REGISTRY ---
@@ -706,7 +727,7 @@
             }
         }
 
-        // Pop-In Rich PDF Builder System
+        // --- SUBMIT: STORE POP-IN ---
         function submitAudit() {
             const btn = document.getElementById('submitBtn');
             const form = document.getElementById('auditForm');
@@ -723,36 +744,37 @@
                 return alert(`Please answer all questions. You have answered ${answered} out of ${totalQuestions}.`);
             }
 
-            btn.innerText = "Sending securely...";
+            btn.innerText = "Generating Professional PDF...";
             btn.disabled = true;
 
-            let pdfHtml = `
-                <div style="font-family: Arial, sans-serif; color: #333; padding: 10px; max-width: 800px; margin: 0 auto;">
-                    <h1 style="color: #4a68b1;">Caliche's Pop In Inspection</h1>
-                    <table style="width: 100%; margin-bottom: 20px;">
-                        <tr>
-                            <td><strong>Location:</strong> ${document.getElementById('loc').value}</td>
-                            <td><strong>Date:</strong> ${document.getElementById('dt').value}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Conducted By:</strong> ${document.getElementById('conductor').value}</td>
-                            <td><strong>Shift Leader:</strong> ${document.getElementById('sldr').value} (${document.getElementById('shiftTime').value})</td>
-                        </tr>
-                    </table>
-                    <div style="background-color: #f0f4f8; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                        <h2 style="color: #c53a74; margin: 0;">Final Score: ${document.getElementById('pct').innerText}% (${document.getElementById('st').innerText})</h2>
-                        <p style="margin-bottom: 0;"><strong>Overall Comments:</strong> ${document.getElementById('overallComments').value || "None"}</p>
-                    </div>
-                    <table border="1" cellpadding="8" style="border-collapse: collapse; width: 100%; font-size: 14px;">
-                        <tr style="background-color: #4a68b1; color: white;">
-                            <th style="text-align: left;">Category / Question</th>
-                            <th style="width: 60px;">Score</th>
-                            <th>Notes</th>
-                        </tr>`;
+            let pdfHtml = getBrandHeader("Store Pop-In Inspection", "#4a68b1");
+            
+            pdfHtml += `
+                <table style="width: 100%; margin-bottom: 20px; font-family: 'Helvetica Neue', sans-serif;">
+                    <tr>
+                        <td style="padding: 8px;"><strong>Location:</strong> ${document.getElementById('loc').value}</td>
+                        <td style="padding: 8px;"><strong>Date:</strong> ${document.getElementById('dt').value}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px;"><strong>Conducted By:</strong> ${document.getElementById('conductor').value}</td>
+                        <td style="padding: 8px;"><strong>Shift Leader:</strong> ${document.getElementById('sldr').value} (${document.getElementById('shiftTime').value})</td>
+                    </tr>
+                </table>
+                <div style="background-color: #f0f4f8; padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: center;">
+                    <h2 style="color: #4a68b1; margin: 0; font-size: 28px;">Final Score: ${document.getElementById('pct').innerText}%</h2>
+                    <h3 style="color: #555; margin: 5px 0 15px 0;">Status: ${document.getElementById('st').innerText}</h3>
+                    <p style="margin-bottom: 0; text-align: left; padding-top: 15px; border-top: 1px solid #ddd;"><strong>Overall Comments:</strong> ${document.getElementById('overallComments').value || "None"}</p>
+                </div>
+                <table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 14px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">
+                    <tr style="background-color: #4a68b1; color: white;">
+                        <th style="text-align: left;">Category / Question</th>
+                        <th style="width: 60px; text-align: center;">Score</th>
+                        <th>Notes & Photos</th>
+                    </tr>`;
 
             let loopIdx = 1;
             questions.forEach(group => {
-                pdfHtml += `<tr style="background-color: #e0e0e0;"><td colspan="3"><strong>${group.cat}</strong></td></tr>`;
+                pdfHtml += `<tr style="background-color: #f9f9f9;"><td colspan="3" style="font-size: 16px; color: #333;"><strong>${group.cat}</strong></td></tr>`;
                 group.q.forEach(text => {
                     let sel = document.querySelector(`input[name="q${loopIdx}"]:checked`);
                     let note = document.getElementById(`note${loopIdx}`).value;
@@ -762,50 +784,33 @@
                     let qPhotos = questionPhotos[loopIdx];
                     let photoHtml = "";
                     if (qPhotos && qPhotos.length > 0) {
-                        photoHtml = `<div style="margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap;">`;
+                        photoHtml = `<div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">`;
                         qPhotos.forEach(pData => {
-                            photoHtml += `<img src="${pData}" style="max-height: 100px; border-radius: 6px; border: 1px solid #ccc;">`;
+                            photoHtml += `<img src="${pData}" style="max-height: 120px; border-radius: 8px; border: 1px solid #bbb;">`;
                         });
                         photoHtml += `</div>`;
                     }
 
                     pdfHtml += `<tr>
-                        <td>${text} ${photoHtml}</td>
-                        <td style="text-align: center; font-weight: bold; vertical-align: top;">${score}</td>
-                        <td style="vertical-align: top;">${note}</td>
+                        <td style="line-height: 1.4;">${text}</td>
+                        <td style="text-align: center; font-weight: bold; font-size: 16px;">${score}</td>
+                        <td style="color: #555;">${note} ${photoHtml}</td>
                     </tr>`;
                     loopIdx++;
                 });
             });
             pdfHtml += `</table></div>`;
             
-            document.getElementById('hiddenReportHtml').value = pdfHtml;
+            document.getElementById('popInReportHtml').value = pdfHtml;
             const formData = new FormData(form);
 
-            fetch(G_URL, {
-                method: 'POST',
-                body: formData,
-                mode: 'no-cors' 
-            }).then(() => {
-                btn.disabled = false;
-                btn.style.backgroundColor = "var(--pass-green)";
-                btn.innerText = "✅ SENT! TAP HERE TO PRINT / SAVE PDF";
-                btn.onclick = function(e) {
-                    e.preventDefault();
-                    document.body.innerHTML = pdfHtml;
-                    setTimeout(() => {
-                        window.print();
-                        setTimeout(() => location.reload(), 2000); 
-                    }, 500);
-                };
-            }).catch((err) => {
-                alert("Connection Error. Please check your internet and try again.");
-                btn.disabled = false;
-                btn.innerText = "🚀 SUBMIT POP-IN TO OFFICE";
-            });
+            fetch(G_URL, { method: 'POST', body: formData, mode: 'no-cors' }).then(() => {
+                btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ SENT! (TAP TO PRINT)";
+                btn.onclick = function(e) { e.preventDefault(); document.body.innerHTML = pdfHtml; setTimeout(() => { window.print(); location.reload(); }, 500); };
+            }).catch(() => { alert("Connection Error. Check internet."); btn.disabled = false; btn.innerText = "🚀 SUBMIT POP-IN TO OFFICE"; });
         }
 
-        // --- VEHICLE CHECKOUT POST ROUTINE ---
+        // --- SUBMIT: DRIVER CHECKOUT ---
         function submitDriverForm() {
             const btn = document.getElementById('submitDriverBtn');
             const form = document.getElementById('driverForm');
@@ -814,36 +819,32 @@
                 return alert("Please select a vehicle and sign the form!");
             }
 
-            btn.innerText = "Sending to Office...";
+            btn.innerText = "Generating Professional PDF...";
             btn.disabled = true;
 
-            const formData = new FormData(form);
-
-            fetch(DRIVER_G_URL, {
-                method: 'POST',
-                body: formData,
-                mode: 'no-cors' 
-            }).then(() => {
-                btn.disabled = false;
-                btn.style.backgroundColor = "var(--pass-green)";
-                btn.innerText = "✅ LOGGED SECURELY!";
-                
-                setTimeout(() => {
-                    form.reset();
-                    document.getElementById('driverDt').value = new Date().toISOString().split('T')[0]; 
-                    btn.style.backgroundColor = "var(--caliches-pink)";
-                    btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST";
-                    openMenu(); 
-                }, 3000);
-
-            }).catch((err) => {
-                alert("Connection Error. Please check your internet and try again.");
-                btn.disabled = false;
-                btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST";
+            let pdfHtml = getBrandHeader("Vehicle & Trailer Check-Out", "#c53a74");
+            pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`;
+            
+            new FormData(form).forEach((value, key) => {
+                if (key !== "ReportHTML" && value.trim() !== "") {
+                    // Replaces the internal underscore names with clean readable titles for the PDF
+                    let cleanKey = key.replace(/_/g, ' ').toUpperCase();
+                    pdfHtml += `<tr>
+                        <td style="background-color: #f9f9f9; font-weight: bold; color: #c53a74; width: 40%;">${cleanKey}</td>
+                        <td style="color: #333;">${value}</td>
+                    </tr>`;
+                }
             });
+            pdfHtml += `</table></div>`;
+            document.getElementById('driverReportHtml').value = pdfHtml;
+
+            fetch(G_URL, { method: 'POST', body: new FormData(form), mode: 'no-cors' }).then(() => {
+                btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ LOG SECURED AND SENT!";
+                setTimeout(() => { form.reset(); btn.style.backgroundColor = "var(--caliches-pink)"; btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST"; openMenu(); }, 3000);
+            }).catch(() => { alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST"; });
         }
 
-        // --- SHORTAGE REPORT POST ROUTINE ---
+        // --- SUBMIT: SHORTAGE REPORT ---
         function submitShortage() {
             const btn = document.getElementById('submitShortageBtn');
             const form = document.getElementById('shortageForm');
@@ -852,31 +853,28 @@
                 return alert("Please select a store and enter your name!");
             }
 
-            btn.innerText = "Sending Shortage Report...";
+            btn.innerText = "Generating Professional PDF...";
             btn.disabled = true;
 
-            const formData = new FormData(form);
+            let pdfHtml = getBrandHeader("Store Shortage Report", "#28a745");
+            pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`;
             
-            fetch(DRIVER_G_URL, {
-                method: 'POST',
-                body: formData,
-                mode: 'no-cors' 
-            }).then(() => {
-                btn.style.backgroundColor = "var(--pass-green)";
-                btn.innerText = "✅ REPORT SUBMITTED!";
-                setTimeout(() => {
-                    form.reset();
-                    document.getElementById('shortageDt').value = new Date().toISOString().split('T')[0]; 
-                    btn.disabled = false;
-                    btn.style.backgroundColor = "var(--pass-green)";
-                    btn.innerText = "🚀 SUBMIT SHORTAGE REPORT";
-                    openMenu();
-                }, 2000);
-            }).catch((err) => {
-                alert("Connection Error. Please check your internet and try again.");
-                btn.disabled = false;
-                btn.innerText = "🚀 SUBMIT SHORTAGE REPORT";
+            new FormData(form).forEach((value, key) => {
+                if (key !== "ReportHTML" && value.trim() !== "") {
+                    let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase();
+                    pdfHtml += `<tr>
+                        <td style="background-color: #f4fbf5; font-weight: bold; color: #28a745; width: 40%;">${cleanKey}</td>
+                        <td style="color: #333;">${value}</td>
+                    </tr>`;
+                }
             });
+            pdfHtml += `</table></div>`;
+            document.getElementById('shortageReportHtml').value = pdfHtml;
+
+            fetch(G_URL, { method: 'POST', body: new FormData(form), mode: 'no-cors' }).then(() => {
+                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ REPORT SUBMITTED & PDF SENT!";
+                setTimeout(() => { form.reset(); btn.disabled = false; btn.innerText = "🚀 SUBMIT SHORTAGE REPORT"; openMenu(); }, 3000);
+            }).catch(() => { alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT SHORTAGE REPORT"; });
         }
     </script>
 </body>
