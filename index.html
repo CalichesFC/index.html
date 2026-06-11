@@ -188,7 +188,7 @@
 
     <script>
         // --- MASTER GOOGLE APPS SCRIPT URL ---
-        const G_URL = 'PASTE_YOUR_NEW_EXEC_URL_HERE';
+        const G_URL = 'https://script.google.com/macros/s/AKfycbzBHQkUBIfCEKS8YGBDXninOUxVIwJjetCWTmH68IPlvBh_t4Yb0zfCzxvfLdh7xT8j6w/exec';
 
         let currentSlide = 0; let slideTimer;
         let currentUser = { name: "", role: "" };
@@ -241,7 +241,7 @@
             triggerTransition(() => {
                 document.querySelectorAll(".app-view").forEach(v => v.style.display = "none");
                 document.getElementById('managerView').style.display = "block";
-                fetchDashboard('Pop-Ins', document.querySelector('.dash-tab')); // Load default
+                fetchDashboard('Pop-Ins', document.querySelector('.dash-tab')); 
             });
         }
 
@@ -259,7 +259,7 @@
                 if(data.result === "success") {
                     if(data.rows.length === 0) { results.innerHTML = "<p style='padding:20px;'>No data found.</p>"; return; }
                     let html = `<table class="data-table"><tr>`;
-                    data.headers.forEach((h, i) => { if(i < 8) html += `<th>${h}</th>`; }); // Show max 8 columns to keep it clean
+                    data.headers.forEach((h, i) => { if(i < 8) html += `<th>${h}</th>`; }); // Max 8 columns
                     html += `</tr>`;
                     data.rows.forEach(row => {
                         html += `<tr>`;
