@@ -30,17 +30,20 @@
         @keyframes spin { 100% { transform: rotate(360deg); } }
         @keyframes pulse-neon { 0% { text-shadow: 0 0 5px var(--caliches-pink), 0 0 15px var(--caliches-pink); } 100% { text-shadow: 0 0 5px var(--caliches-blue), 0 0 20px var(--caliches-blue); } }
 
-        /* LOGIN SCREEN */
+        /* LOGIN & REGISTRATION SCREEN */
         #login-view { display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: var(--caliches-blue); height: 100vh; padding: 20px; box-sizing: border-box; }
         .login-box { background: white; padding: 35px 25px; border-radius: 16px; width: 100%; max-width: 380px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
-        .forgot-pin { display: inline-block; margin-top: 15px; color: var(--caliches-blue); font-size: 14px; font-weight: bold; text-decoration: underline; cursor: pointer; }
+        .text-link { display: inline-block; margin-top: 15px; color: var(--caliches-blue); font-size: 14px; font-weight: bold; text-decoration: underline; cursor: pointer; }
+        .text-link:hover { color: var(--caliches-pink); }
+        #registerForm { display: none; } /* Hidden by default */
 
         /* MAIN MENU & PROFILE BAR */
         #main-menu { display: none; padding: 20px; max-width: 500px; margin: 0 auto 40px auto; text-align: center; }
         .user-profile-bar { background: white; padding: 15px 20px; border-radius: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 2px solid #eee; }
         .user-greeting { color: var(--caliches-blue); font-weight: 900; font-size: 16px; margin: 0; text-align: left;}
         .user-role { color: var(--na-gray); font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin: 0; text-align: left;}
-        .logout-btn { background: #f8f9fa; color: var(--fail-red); border: 1px solid var(--fail-red); padding: 8px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
+        .logout-btn { background: #f8f9fa; color: var(--fail-red); border: 1px solid var(--fail-red); padding: 8px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; transition: 0.2s;}
+        .logout-btn:active { background: var(--fail-red); color: white; }
         .menu-title { color: var(--caliches-blue); margin-bottom: 25px; font-size: 28px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
         
         .menu-btn { display: block; width: 100%; background-color: var(--white); color: var(--caliches-blue); padding: 25px 20px; margin-bottom: 15px; font-size: 18px; font-weight: bold; border: 2px solid var(--caliches-blue); border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor: pointer; transition: 0.3s; }
@@ -114,6 +117,10 @@
         .data-table td { padding: 10px 15px; border-bottom: 1px solid #eee; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
         .data-table tr:nth-child(even) { background-color: #f9f9f9; }
         .data-table tr:hover { background-color: #f0f4f8; }
+
+        /* USER MANAGEMENT UPDATE DROPDOWN */
+        .role-select { padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-weight: bold; }
+        .update-role-btn { background: var(--pass-green); color: white; border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer;}
     </style>
 </head>
 <body>
@@ -124,16 +131,31 @@
 
     <div id="login-view" class="app-view" style="display: none;">
         <img src="splash-logo.png" alt="Caliche's Logo" style="max-height: 180px; margin-bottom: 30px; filter: drop-shadow(0px 6px 12px rgba(0,0,0,0.3));" onerror="this.style.display='none'">
+        
         <div class="login-box">
-            <h2 style="color: var(--caliches-blue); margin-top: 0; font-size: 24px; text-transform: uppercase;">Staff Login</h2>
             <form id="loginForm">
+                <h2 style="color: var(--caliches-blue); margin-top: 0; font-size: 24px; text-transform: uppercase;">Staff Login</h2>
                 <input type="hidden" name="action" value="login">
                 <input type="text" name="username" placeholder="Username" style="margin-bottom:15px; width:100%; padding:15px; border:2px solid #eee; border-radius:8px; font-size: 16px; background:#fafafa; box-sizing:border-box;" required>
                 <input type="password" name="password" placeholder="PIN / Password" style="margin-bottom:20px; width:100%; padding:15px; border:2px solid #eee; border-radius:8px; font-size: 16px; background:#fafafa; box-sizing:border-box;" required>
                 <button type="button" id="loginBtn" class="save-btn blue-btn" style="margin-bottom:0; padding:18px;" onclick="attemptLogin()">ENTER HUB</button>
+                <p id="loginError" style="color: var(--fail-red); display:none; margin-top:15px; font-weight:bold; font-size: 14px;"></p>
+                <div style="margin-top: 15px; display: flex; justify-content: space-between; padding: 0 10px;">
+                    <span class="text-link" onclick="recoverPin()">Forgot PIN?</span>
+                    <span class="text-link" onclick="toggleRegister()">Create Account</span>
+                </div>
             </form>
-            <p id="loginError" style="color: var(--fail-red); display:none; margin-top:15px; font-weight:bold; font-size: 14px;"></p>
-            <span class="forgot-pin" onclick="recoverPin()">Forgot PIN?</span>
+
+            <form id="registerForm">
+                <h2 style="color: var(--caliches-pink); margin-top: 0; font-size: 24px; text-transform: uppercase;">Create Account</h2>
+                <input type="hidden" name="action" value="register">
+                <input type="text" name="name" placeholder="First & Last Name" style="margin-bottom:15px; width:100%; padding:15px; border:2px solid #eee; border-radius:8px; font-size: 16px; background:#fafafa; box-sizing:border-box;" required>
+                <input type="text" name="username" placeholder="Choose Username" style="margin-bottom:15px; width:100%; padding:15px; border:2px solid #eee; border-radius:8px; font-size: 16px; background:#fafafa; box-sizing:border-box;" required>
+                <input type="password" name="password" placeholder="Create a 4-Digit PIN" style="margin-bottom:20px; width:100%; padding:15px; border:2px solid #eee; border-radius:8px; font-size: 16px; background:#fafafa; box-sizing:border-box;" required>
+                <button type="button" id="registerBtn" class="save-btn pink" style="margin-bottom:0; padding:18px;" onclick="attemptRegister()">CREATE ACCOUNT</button>
+                <p id="registerError" style="color: var(--fail-red); display:none; margin-top:15px; font-weight:bold; font-size: 14px;"></p>
+                <span class="text-link" style="margin-top: 15px; display: block;" onclick="toggleRegister()">Back to Login</span>
+            </form>
         </div>
     </div>
 
@@ -168,22 +190,23 @@
             <p style="font-size: 18px; margin: 0; font-weight: bold; text-transform: uppercase;">Manager Dashboard</p>
         </div>
         <div class="container" style="max-width: 1000px;">
-            <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Select a report feed to view recent submissions:</p>
+            <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Select a feed to view data or manage staff:</p>
             
             <div class="dash-nav">
                 <button class="dash-tab active" onclick="fetchDashboard('Pop-Ins', this)">Pop-Ins</button>
                 <button class="dash-tab" onclick="fetchDashboard('Shortages', this)">Shortages</button>
-                <button class="dash-tab" onclick="fetchDashboard('Driver Logs', this)">Driver Logs</button>
-                <button class="dash-tab" onclick="fetchDashboard('Maintenance Logs', this)">Maintenance</button>
+                <button class="dash-tab" onclick="fetchDashboard('Driver Logs', this)">Driver</button>
+                <button class="dash-tab" onclick="fetchDashboard('Maintenance Logs', this)">Maint.</button>
                 <button class="dash-tab" onclick="fetchDashboard('Damage Reports', this)">Damage</button>
+                <button class="dash-tab" style="background: var(--caliches-pink); color: white;" onclick="fetchUsers(this)">👥 Manage Users</button>
             </div>
 
-            <div class="filter-box">
+            <div class="filter-box" id="dashboardFilterDiv">
                 <label style="font-size: 14px; font-weight: bold; color: var(--caliches-blue);">📅 Filter Date: </label>
                 <select id="dashDateFilter" class="filter-select" onchange="refreshCurrentDashboard()">
                     <option value="7">Last 7 Days</option>
                     <option value="30" selected>Last 30 Days</option>
-                    <option value="999">All Time (Max 50 items)</option>
+                    <option value="999">All Time (Max 50)</option>
                 </select>
             </div>
 
@@ -201,21 +224,53 @@
 
     <script>
         // --- MASTER GOOGLE APPS SCRIPT URL ---
-        const G_URL = 'https://script.google.com/macros/s/AKfycbwBcpwGtgLgY4ZpsHwAwjcHNUppYEmL8O6dIeyd-5UHPv0i2aXDFmk0VLLpVPN7TTOK3g/exec';
+        // PASTE YOUR /exec URL BELOW
+        const G_URL = 'PASTE_YOUR_EXEC_URL_HERE';
 
         let currentSlide = 0; let slideTimer;
         let currentUser = { name: "", role: "" };
         let currentDashTab = "Pop-Ins";
 
         window.addEventListener('load', function() {
-            setTimeout(function() {
-                document.getElementById('splash-screen').style.opacity = '0';
-                setTimeout(() => { document.getElementById('splash-screen').style.display = 'none'; document.getElementById('login-view').style.display = 'flex'; }, 500); 
-            }, 3500);
+            // Check memory for a saved login BEFORE running the splash screen
+            let savedUser = localStorage.getItem('calichesUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                document.getElementById('greetingName').innerText = "Hello, " + currentUser.name;
+                document.getElementById('greetingRole').innerText = "Role: " + currentUser.role;
+                document.getElementById('managerBtn').style.display = (currentUser.role === "Manager" || currentUser.role === "Admin") ? "block" : "none";
+                
+                // Instantly hide splash and show menu
+                document.getElementById('splash-screen').style.display = 'none';
+                document.getElementById('main-menu').style.display = 'block';
+                resetTimer();
+            } else {
+                // If no saved login, run the standard 3-second splash intro
+                setTimeout(function() {
+                    document.getElementById('splash-screen').style.opacity = '0';
+                    setTimeout(() => { document.getElementById('splash-screen').style.display = 'none'; document.getElementById('login-view').style.display = 'flex'; }, 500); 
+                }, 3500);
+            }
+            
             let today = new Date().toISOString().split('T')[0];
             document.getElementById('dt').value = today; document.getElementById('driverDt').value = today;
             document.getElementById('shortageDt').value = today; document.getElementById('maintDt').value = today; document.getElementById('damageDt').value = today;
         });
+
+        // Toggle between Login and Registration forms
+        function toggleRegister() {
+            let loginF = document.getElementById('loginForm');
+            let regF = document.getElementById('registerForm');
+            let errL = document.getElementById('loginError');
+            let errR = document.getElementById('registerError');
+            errL.style.display = "none"; errR.style.display = "none";
+
+            if(loginF.style.display === "none") {
+                loginF.style.display = "block"; regF.style.display = "none";
+            } else {
+                loginF.style.display = "none"; regF.style.display = "block";
+            }
+        }
 
         function attemptLogin() {
             const btn = document.getElementById('loginBtn'); const form = document.getElementById('loginForm'); const errorMsg = document.getElementById('loginError');
@@ -227,6 +282,10 @@
             .then(res => res.json()).then(data => {
                 if(data.result === "success") {
                     currentUser.name = data.name; currentUser.role = data.role;
+                    
+                    // SAVE TO LOCAL STORAGE (Persistent Login)
+                    localStorage.setItem('calichesUser', JSON.stringify(currentUser));
+
                     document.getElementById('greetingName').innerText = "Hello, " + data.name;
                     document.getElementById('greetingRole').innerText = "Role: " + data.role;
                     document.getElementById('managerBtn').style.display = (data.role === "Manager" || data.role === "Admin") ? "block" : "none";
@@ -236,6 +295,31 @@
                     errorMsg.innerText = "Invalid Username or PIN."; errorMsg.style.display = "block"; btn.innerText = "ENTER HUB"; btn.disabled = false;
                 }
             }).catch(err => { errorMsg.innerText = "Connection error."; errorMsg.style.display = "block"; btn.innerText = "ENTER HUB"; btn.disabled = false; });
+        }
+
+        function attemptRegister() {
+            const btn = document.getElementById('registerBtn'); const form = document.getElementById('registerForm'); const errorMsg = document.getElementById('registerError');
+            if(!form.name.value || !form.username.value || !form.password.value) { errorMsg.innerText = "Please fill all fields."; errorMsg.style.display = "block"; return; }
+            btn.innerText = "Creating Account..."; btn.disabled = true; errorMsg.style.display = "none";
+            const formData = new FormData(form);
+
+            fetch(G_URL, { method: 'POST', body: formData })
+            .then(res => res.json()).then(data => {
+                if(data.result === "success") {
+                    currentUser.name = data.name; currentUser.role = data.role;
+                    
+                    // SAVE TO LOCAL STORAGE
+                    localStorage.setItem('calichesUser', JSON.stringify(currentUser));
+
+                    document.getElementById('greetingName').innerText = "Hello, " + data.name;
+                    document.getElementById('greetingRole').innerText = "Role: " + data.role;
+                    document.getElementById('managerBtn').style.display = "none"; // Defaults to Staff
+                    triggerTransition(() => { document.getElementById('login-view').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; resetTimer(); });
+                    btn.innerText = "CREATE ACCOUNT"; btn.disabled = false; form.reset();
+                } else {
+                    errorMsg.innerText = data.message || "Error creating account."; errorMsg.style.display = "block"; btn.innerText = "CREATE ACCOUNT"; btn.disabled = false;
+                }
+            }).catch(err => { errorMsg.innerText = "Connection error."; errorMsg.style.display = "block"; btn.innerText = "CREATE ACCOUNT"; btn.disabled = false; });
         }
 
         function recoverPin() {
@@ -249,7 +333,16 @@
             }
         }
 
-        function logout() { triggerTransition(() => { document.querySelectorAll(".app-view").forEach(v => v.style.display = "none"); document.getElementById('login-view').style.display = "flex"; currentUser = { name: "", role: "" }; clearInterval(slideTimer); }); }
+        function logout() { 
+            triggerTransition(() => { 
+                document.querySelectorAll(".app-view").forEach(v => v.style.display = "none"); 
+                document.getElementById('login-view').style.display = "flex"; 
+                // WIPES LOCAL STORAGE
+                localStorage.removeItem('calichesUser');
+                currentUser = { name: "", role: "" }; 
+                clearInterval(slideTimer); 
+            }); 
+        }
 
         function openDashboard() {
             triggerTransition(() => {
@@ -272,14 +365,14 @@
                 btnElement.classList.add('active');
             }
             
-            const days = document.getElementById('dashDateFilter').value;
             const results = document.getElementById('dashboardResults');
             results.innerHTML = `<p style="text-align: center; padding: 30px; color: #888;">Fetching latest ${tabName} data...</p>`;
+            document.getElementById('dashboardFilterDiv').style.display = 'flex'; // Show filter for standard forms
             
             let fd = new FormData(); 
             fd.append("action", "fetchDashboard"); 
             fd.append("tabName", tabName);
-            fd.append("days", days);
+            fd.append("days", document.getElementById('dashDateFilter').value);
             
             fetch(G_URL, {method: 'POST', body: fd})
             .then(res => res.json()).then(data => {
@@ -297,6 +390,55 @@
                     results.innerHTML = html;
                 } else { results.innerHTML = `<p style='color:red;'>Error loading data.</p>`; }
             }).catch(err => { results.innerHTML = `<p style='color:red;'>Connection Error.</p>`; });
+        }
+
+        // --- NEW: FETCH USERS FOR MANAGER DASHBOARD ---
+        function fetchUsers(btnElement) {
+            currentDashTab = "Users";
+            document.querySelectorAll('.dash-tab').forEach(b => b.classList.remove('active'));
+            btnElement.classList.add('active');
+            document.getElementById('dashboardFilterDiv').style.display = 'none'; // Hide date filter for user management
+            
+            const results = document.getElementById('dashboardResults');
+            results.innerHTML = `<p style="text-align: center; padding: 30px; color: #888;">Loading Staff Database...</p>`;
+            
+            let fd = new FormData(); fd.append("action", "fetchUsers");
+            fetch(G_URL, {method: 'POST', body: fd})
+            .then(res => res.json()).then(data => {
+                if(data.result === "success") {
+                    let html = `<div class="table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Role / Level</th><th>Action</th></tr></thead><tbody>`;
+                    data.users.forEach(u => {
+                        html += `<tr>
+                            <td style="font-weight:bold;">${u.name}</td>
+                            <td style="color:var(--na-gray);">${u.username}</td>
+                            <td>
+                                <select id="role-select-${u.row}" class="role-select">
+                                    <option value="Staff" ${u.role === "Staff" ? "selected" : ""}>Staff</option>
+                                    <option value="Manager" ${u.role === "Manager" ? "selected" : ""}>Manager</option>
+                                </select>
+                            </td>
+                            <td><button class="update-role-btn" onclick="updateRole(${u.row})">Update</button></td>
+                        </tr>`;
+                    });
+                    html += `</tbody></table></div>`;
+                    results.innerHTML = html;
+                } else { results.innerHTML = `<p style='color:red;'>Error loading users.</p>`; }
+            }).catch(err => { results.innerHTML = `<p style='color:red;'>Connection Error.</p>`; });
+        }
+
+        // --- NEW: UPDATE ROLE FROM MANAGER DASHBOARD ---
+        function updateRole(rowIndex) {
+            let newRole = document.getElementById(`role-select-${rowIndex}`).value;
+            let fd = new FormData();
+            fd.append("action", "updateRole");
+            fd.append("rowIndex", rowIndex);
+            fd.append("newRole", newRole);
+
+            fetch(G_URL, {method: 'POST', body: fd})
+            .then(res => res.json()).then(data => {
+                if(data.result === "success") { alert("User role instantly updated to " + newRole + "!"); } 
+                else { alert("Error updating user."); }
+            }).catch(err => { alert("Connection Error."); });
         }
 
         function triggerTransition(callback) { const loader = document.getElementById('neon-loader'); loader.style.display = 'flex'; setTimeout(() => { loader.style.opacity = '1'; }, 10); setTimeout(() => { callback(); window.scrollTo(0, 0); loader.style.opacity = '0'; setTimeout(() => { loader.style.display = 'none'; }, 300); }, 1200); }
