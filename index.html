@@ -201,12 +201,11 @@
 
     <script>
         // --- MASTER GOOGLE APPS SCRIPT URL ---
-        // PASTE YOUR /exec URL BELOW!
-        const G_URL = 'PASTE_YOUR_EXEC_URL_HERE';
+        const G_URL = 'https://script.google.com/macros/s/AKfycbwBcpwGtgLgY4ZpsHwAwjcHNUppYEmL8O6dIeyd-5UHPv0i2aXDFmk0VLLpVPN7TTOK3g/exec';
 
         let currentSlide = 0; let slideTimer;
         let currentUser = { name: "", role: "" };
-        let currentDashTab = "Pop-Ins"; // Tracks the active tab for the dashboard filter
+        let currentDashTab = "Pop-Ins";
 
         window.addEventListener('load', function() {
             setTimeout(function() {
@@ -256,21 +255,18 @@
             triggerTransition(() => {
                 document.querySelectorAll(".app-view").forEach(v => v.style.display = "none");
                 document.getElementById('managerView').style.display = "block";
-                
-                // Fetch default tab with correct active button
                 let firstTabBtn = document.querySelector('.dash-tab');
                 fetchDashboard('Pop-Ins', firstTabBtn); 
             });
         }
 
-        // Triggered by the Date Dropdown selector
         function refreshCurrentDashboard() {
             let activeBtn = document.querySelector('.dash-tab.active');
             fetchDashboard(currentDashTab, activeBtn);
         }
 
         function fetchDashboard(tabName, btnElement = null) {
-            currentDashTab = tabName; // Update active tracker
+            currentDashTab = tabName; 
             if(btnElement) {
                 document.querySelectorAll('.dash-tab').forEach(b => b.classList.remove('active'));
                 btnElement.classList.add('active');
