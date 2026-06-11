@@ -225,7 +225,7 @@
 
     <script>
         // --- MASTER GOOGLE APPS SCRIPT URL ---
-        const G_URL = 'https://script.google.com/macros/s/AKfycbyMX58Ua3R3IOL2y-AyvK7PBFce6y4MvdJ_9bT07uoP9YAP1y1QV9OISZJALLXG4JDxRA/exec';
+        const G_URL = 'https://script.google.com/macros/s/AKfycbyeaxd4-hBQcqZo5HQ4TrXxbfYdxcqFYGr4sZklytiorqbgSKXuRwtNnED7isxGJdiG8w/exec';
 
         let currentSlide = 0; let slideTimer;
         let currentUser = { name: "", role: "" };
@@ -354,15 +354,22 @@
                     if(data.rows.length === 0) { results.innerHTML = "<p style='padding:20px;'>No data found for this time period.</p>"; return; }
                     let html = `<div class="table-wrapper"><table class="data-table"><thead><tr>`;
                     
-                    data.headers.forEach((h, i) => { if(i < 8) html += `<th>${h}</th>`; });
+                    data.headers.forEach((h, i) => { if(i < 10) html += `<th>${h}</th>`; });
                     if(tabName === "Maintenance Logs" || tabName === "Damage Reports") { html += `<th>Action</th>`; }
                     html += `</tr></thead><tbody>`;
                     
                     let statusIndex = data.headers.indexOf("Status");
                     data.rows.forEach(row => {
-                        let rowIndex = row[0]; // Hidden index
+                        let rowIndex = row[0]; 
                         html += `<tr>`;
-                        for(let i=1; i<=Math.min(8, data.headers.length); i++) { html += `<td>${row[i] || ""}</td>`; }
+                        for(let i=1; i<=Math.min(10, data.headers.length); i++) { 
+                            let cellData = row[i] || "";
+                            if (cellData.toString().startsWith("http")) {
+                                html += `<td><a href="${cellData}" target="_blank" style="background:var(--caliches-pink); color:white; padding:5px 10px; border-radius:4px; text-decoration:none; font-weight:bold; display:inline-block;">View PDF</a></td>`;
+                            } else {
+                                html += `<td>${cellData}</td>`; 
+                            }
+                        }
                         
                         if(tabName === "Maintenance Logs" || tabName === "Damage Reports") {
                             let currentStatus = row[statusIndex + 1] || "Pending"; 
