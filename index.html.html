@@ -461,10 +461,11 @@
         function resetTimer() { clearInterval(slideTimer); slideTimer = setInterval(() => moveSlide(1), 10000); }
 
         window.addEventListener('load', function() {
+            // Increased the splash timeout from 1500ms to 3500ms (3.5 seconds)
             setTimeout(function() {
                 document.getElementById('splash-screen').style.opacity = '0';
                 setTimeout(() => { document.getElementById('splash-screen').style.display = 'none'; openMenu(); resetTimer(); }, 500); 
-            }, 1500);
+            }, 3500);
             
             let today = new Date().toISOString().split('T')[0];
             document.getElementById('dt').value = today; document.getElementById('driverDt').value = today;
@@ -477,12 +478,13 @@
             const loader = document.getElementById('neon-loader');
             loader.style.display = 'flex';
             setTimeout(() => { loader.style.opacity = '1'; }, 10);
+            // Increased execution delay from 400ms to 1200ms (1.2 seconds) to build anticipation
             setTimeout(() => {
                 callback();
                 window.scrollTo(0, 0);
                 loader.style.opacity = '0';
                 setTimeout(() => { loader.style.display = 'none'; }, 300);
-            }, 400); 
+            }, 1200); 
         }
 
         function openMenu() { 
