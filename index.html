@@ -6,7 +6,17 @@
     <title>Caliche's Operations Hub</title>
 
     <style>
-        :root { --caliches-blue: #4a68b1; --caliches-pink: #c53a74; --light-gray: #f0f4f8; --white: #ffffff; --pass-green: #28a745; --fail-red: #dc3545; --maint-orange: #e67e22; --damage-red: #e74c3c; --na-gray: #9e9e9e; }
+        :root {
+            --caliches-blue: #4a68b1;
+            --caliches-pink: #c53a74;
+            --light-gray: #f0f4f8;
+            --white: #ffffff;
+            --pass-green: #28a745;
+            --fail-red: #dc3545;
+            --maint-orange: #e67e22;
+            --damage-red: #e74c3c;
+            --na-gray: #9e9e9e;
+        }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--light-gray); margin: 0; padding: 0; color: #333; }
 
         /* SPLASH & NEON LOADER */
@@ -214,8 +224,7 @@
 
     <script>
         // --- MASTER GOOGLE APPS SCRIPT URL ---
-        // PASTE YOUR BRAND NEW /exec URL HERE!
-        const G_URL = 'PASTE_YOUR_EXEC_URL_HERE';
+        const G_URL = 'https://script.google.com/macros/s/AKfycbyMX58Ua3R3IOL2y-AyvK7PBFce6y4MvdJ_9bT07uoP9YAP1y1QV9OISZJALLXG4JDxRA/exec';
 
         let currentSlide = 0; let slideTimer;
         let currentUser = { name: "", role: "" };
