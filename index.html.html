@@ -121,6 +121,7 @@
         .role-select { padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-weight: bold; }
         .update-role-btn { background: var(--pass-green); color: white; border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer;}
         .update-action-btn { background: var(--caliches-blue); color: white; border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer;}
+        .delete-btn { background: var(--fail-red); color: white; border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-left: 5px;}
     </style>
 </head>
 <body>
@@ -353,20 +354,16 @@
                     if(data.rows.length === 0) { results.innerHTML = "<p style='padding:20px;'>No data found for this time period.</p>"; return; }
                     let html = `<div class="table-wrapper"><table class="data-table"><thead><tr>`;
                     
-                    // Render Data Headers
                     data.headers.forEach((h, i) => { if(i < 8) html += `<th>${h}</th>`; });
-                    // Add Action Header if Maintenance or Damage
                     if(tabName === "Maintenance Logs" || tabName === "Damage Reports") { html += `<th>Action</th>`; }
                     html += `</tr></thead><tbody>`;
                     
-                    // Render Rows
                     let statusIndex = data.headers.indexOf("Status");
                     data.rows.forEach(row => {
                         let rowIndex = row[0]; // Hidden index
                         html += `<tr>`;
                         for(let i=1; i<=Math.min(8, data.headers.length); i++) { html += `<td>${row[i] || ""}</td>`; }
                         
-                        // Add Status Tracker Column
                         if(tabName === "Maintenance Logs" || tabName === "Damage Reports") {
                             let currentStatus = row[statusIndex + 1] || "Pending"; 
                             html += `<td>
@@ -410,7 +407,20 @@
                 if(data.result === "success") {
                     let html = `<div class="table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Role / Level</th><th>Action</th></tr></thead><tbody>`;
                     data.users.forEach(u => {
-                        html += `<tr><td style="font-weight:bold;">${u.name}</td><td style="color:var(--na-gray);">${u.username}</td><td><select id="role-select-${u.row}" class="role-select"><option value="Staff" ${u.role === "Staff" ? "selected" : ""}>Staff</option><option value="Manager" ${u.role === "Manager" ? "selected" : ""}>Manager</option></select></td><td><button class="update-role-btn" onclick="updateRole(${u.row})">Update</button></td></tr>`;
+                        html += `<tr>
+                            <td style="font-weight:bold;">${u.name}</td>
+                            <td style="color:var(--na-gray);">${u.username}</td>
+                            <td>
+                                <select id="role-select-${u.row}" class="role-select">
+                                    <option value="Staff" ${u.role === "Staff" ? "selected" : ""}>Staff</option>
+                                    <option value="Manager" ${u.role === "Manager" ? "selected" : ""}>Manager</option>
+                                </select>
+                            </td>
+                            <td>
+                                <button class="update-role-btn" onclick="updateRole(${u.row})">Update</button>
+                                <button class="delete-btn" onclick="deleteUser(${u.row})">Delete</button>
+                            </td>
+                        </tr>`;
                     });
                     html += `</tbody></table></div>`; results.innerHTML = html;
                 } else { results.innerHTML = `<p style='color:red;'>Error loading users.</p>`; }
@@ -422,6 +432,15 @@
             let fd = new FormData(); fd.append("action", "updateRole"); fd.append("rowIndex", rowIndex); fd.append("newRole", newRole);
             fetch(G_URL, {method: 'POST', body: fd}).then(res => res.json()).then(data => {
                 if(data.result === "success") { alert("User role instantly updated to " + newRole + "!"); } else { alert("Error updating user."); }
+            }).catch(err => { alert("Connection Error."); });
+        }
+
+        function deleteUser(rowIndex) {
+            if(!confirm("Are you sure you want to permanently delete this user?")) return;
+            let fd = new FormData(); fd.append("action", "deleteUser"); fd.append("rowIndex", rowIndex);
+            fetch(G_URL, {method: 'POST', body: fd}).then(res => res.json()).then(data => {
+                if(data.result === "success") { alert("User successfully deleted."); fetchUsers(document.querySelector('.dash-tab.active')); } 
+                else { alert("Error deleting user."); }
             }).catch(err => { alert("Connection Error."); });
         }
 
