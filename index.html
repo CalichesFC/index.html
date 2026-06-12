@@ -636,7 +636,7 @@
                 headers.forEach((h,i) => {
                     if(i>=10) return;
                     let cellData = (row[h]!==null&&row[h]!==undefined)?row[h]:'';
-                    if(cellData.toString().startsWith('http')) { html += '<td><a href="' + cellData + '" target="_blank" style="background:var(--caliches-pink);color:white;padding:5px 10px;border-radius:4px;text-decoration:none;font-weight:bold;display:inline-block;">View PDF</a></td>'; }
+                    if(cellData.toString().startsWith('http') || cellData.toString().startsWith('data:')) { html += '<td><a href="' + cellData + '" target="_blank" download="report.pdf" style="background:var(--caliches-pink);color:white;padding:5px 10px;border-radius:4px;text-decoration:none;font-weight:bold;display:inline-block;">View PDF</a></td>'; }
                     else { html += '<td>' + cellData + '</td>'; }
                 });
                 if(tabName==='Maintenance Logs'||tabName==='Damage Reports') {
