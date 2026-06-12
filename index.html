@@ -575,7 +575,8 @@
     // ============================================================
     // NAVIGATION
     // ============================================================
-    function triggerTransition(callback) { const loader = document.getElementById('neon-loader'); loader.style.display = 'flex'; setTimeout(() => { loader.style.opacity = '1'; }, 10); setTimeout(() => { callback(); window.scrollTo(0,0); loader.style.opacity = '0'; setTimeout(() => { loader.style.display = 'none'; }, 300); }, 1200); }
+    function triggerTransition(callback) { callback(); window.scrollTo(0,0); }
+    function triggerLoadingTransition(callback) { const loader = document.getElementById('neon-loader'); loader.style.display = 'flex'; setTimeout(() => { loader.style.opacity = '1'; }, 10); setTimeout(() => { callback(); window.scrollTo(0,0); loader.style.opacity = '0'; setTimeout(() => { loader.style.display = 'none'; }, 300); }, 1200); }
     function openMenu() { triggerTransition(() => { document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none'); document.getElementById('main-menu').style.display = 'block'; }); }
     function openForm(formId) { triggerTransition(() => { document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none'); document.getElementById(formId).style.display = 'block'; }); }
 
@@ -854,7 +855,7 @@
         if(!document.getElementById('loc').value||!document.getElementById('sldr').value||!document.getElementById('conductor').value) { return alert('Please fill out Location, Shift Leader, and Conducted By!'); }
         let answered = 0; for(let i=1;i<=totalQuestions;i++) { if(document.querySelector('input[name="q'+i+'"]:checked')) answered++; }
         if(answered<totalQuestions) { return alert('Please answer all questions. You have answered '+answered+' out of '+totalQuestions+'.'); }
-        btn.innerText = 'Generating PDF...'; btn.disabled = true;
+        btn.innerText = 'Submitting...'; btn.disabled = true;
         let pdfHtml = getBrandHeader('Store Pop-In Inspection','#4a68b1');
         pdfHtml += '<table style="width:100%;margin-bottom:20px;"><tr><td style="padding:8px;"><strong>Location:</strong> '+escHtml(document.getElementById('loc').value)+'</td><td style="padding:8px;"><strong>Date:</strong> '+escHtml(document.getElementById('dt').value)+'</td></tr><tr><td style="padding:8px;"><strong>Conducted By:</strong> '+escHtml(document.getElementById('conductor').value)+'</td><td style="padding:8px;"><strong>Shift Leader:</strong> '+escHtml(document.getElementById('sldr').value)+' ('+escHtml(document.getElementById('shiftTime').value)+')</td></tr></table>';
         pdfHtml += '<div style="background:#f0f4f8;padding:20px;border-radius:8px;margin-bottom:30px;text-align:center;"><h2 style="color:#4a68b1;margin:0;font-size:28px;">Score: '+document.getElementById('pct').innerText+'%</h2><h3 style="color:#555;margin:5px 0 15px 0;">Status: '+document.getElementById('st').innerText+'</h3><p style="margin:0;text-align:left;padding-top:15px;border-top:1px solid #ddd;"><strong>Comments:</strong> '+escHtml(document.getElementById('overallComments').value||'None')+'</p></div>';
@@ -878,7 +879,7 @@
     function submitDriverForm() {
         const btn = document.getElementById('submitDriverBtn'); const form = document.getElementById('driverForm');
         if(!document.getElementById('vehicle').value||!document.getElementById('signature').value) { return alert('Please select a vehicle and sign the form!'); }
-        btn.innerText = 'Generating PDF...'; btn.disabled = true;
+        btn.innerText = 'Submitting...'; btn.disabled = true;
         let pdfHtml = getBrandHeader('Vehicle & Trailer Check-Out','#c53a74');
         pdfHtml += '<table border="1" cellpadding="12" style="border-collapse:collapse;width:100%;font-size:15px;border-color:#ddd;">';
         new FormData(form).forEach((value,key) => { if(key!=='ReportHTML'&&value.toString().trim()!=='') { pdfHtml += '<tr><td style="background:#f9f9f9;font-weight:bold;color:#c53a74;width:40%;">'+key.replace(/_/g,' ').toUpperCase()+'</td><td>'+escHtml(value)+'</td></tr>'; } });
@@ -893,7 +894,7 @@
     function submitShortage() {
         const btn = document.getElementById('submitShortageBtn'); const form = document.getElementById('shortageForm');
         if(!form.querySelector('select[name="Store"]').value||!form.querySelector('input[name="ManagerName"]').value) { return alert('Please select a store and enter your name!'); }
-        btn.innerText = 'Generating PDF...'; btn.disabled = true;
+        btn.innerText = 'Submitting...'; btn.disabled = true;
         let pdfHtml = getBrandHeader('Store Shortage Report','#28a745');
         pdfHtml += '<table border="1" cellpadding="12" style="border-collapse:collapse;width:100%;font-size:15px;border-color:#ddd;">';
         new FormData(form).forEach((value,key) => { if(key!=='ReportHTML'&&value.toString().trim()!=='') { pdfHtml += '<tr><td style="background:#f4fbf5;font-weight:bold;color:#28a745;width:40%;">'+key.replace(/([A-Z])/g,' $1').trim().toUpperCase()+'</td><td>'+escHtml(value)+'</td></tr>'; } });
@@ -908,7 +909,7 @@
     function submitMaintenance() {
         const btn = document.getElementById('submitMaintBtn'); const form = document.getElementById('maintenanceForm');
         if(!form.querySelector('input[name="MaintenanceItem"]').value||!form.querySelector('input[name="ReporterName"]').value) { return alert('Please fill out the required fields!'); }
-        btn.innerText = 'Generating PDF...'; btn.disabled = true;
+        btn.innerText = 'Submitting...'; btn.disabled = true;
         let pdfHtml = getBrandHeader('Required Maintenance','#e67e22');
         pdfHtml += '<table border="1" cellpadding="12" style="border-collapse:collapse;width:100%;font-size:15px;border-color:#ddd;">';
         new FormData(form).forEach((value,key) => { if(key!=='ReportHTML'&&value.toString().trim()!=='') { pdfHtml += '<tr><td style="background:#fdf3e8;font-weight:bold;color:#e67e22;width:40%;">'+key.replace(/([A-Z])/g,' $1').trim().toUpperCase()+'</td><td>'+escHtml(value)+'</td></tr>'; } });
@@ -924,7 +925,7 @@
     function submitDamage() {
         const btn = document.getElementById('submitDamageBtn'); const form = document.getElementById('damageForm');
         if(!form.querySelector('select[name="DamageAsset"]').value||!form.querySelector('input[name="ReporterName"]').value) { return alert('Please select an asset and enter your name!'); }
-        btn.innerText = 'Generating PDF...'; btn.disabled = true;
+        btn.innerText = 'Submitting...'; btn.disabled = true;
         let pdfHtml = getBrandHeader('Vehicle & Trailer Damage','#e74c3c');
         pdfHtml += '<table border="1" cellpadding="12" style="border-collapse:collapse;width:100%;font-size:15px;border-color:#ddd;">';
         new FormData(form).forEach((value,key) => { if(key!=='ReportHTML'&&value.toString().trim()!=='') { pdfHtml += '<tr><td style="background:#fceceb;font-weight:bold;color:#e74c3c;width:40%;">'+key.replace(/([A-Z])/g,' $1').trim().toUpperCase()+'</td><td>'+escHtml(value)+'</td></tr>'; } });
