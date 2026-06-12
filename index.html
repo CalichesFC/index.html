@@ -626,7 +626,7 @@
         .then(({ data: supaData, error }) => {
             if (error) { console.error('[Dashboard] Error:', error); results.innerHTML = '<p style="color:red;padding:20px;">Error (' + error.code + '): ' + error.message + '</p>'; return; }
             if (!supaData || supaData.length === 0) { results.innerHTML = '<p style="padding:20px;">No data found. Submit a form then check this tab.</p>'; return; }
-            let headers = Object.keys(supaData[0]).filter(k => k !== 'id');
+            let headers = Object.keys(supaData[0]).filter(k => k !== 'id'); var _pdfIdx = headers.indexOf('PDF_Archive'); headers = headers.filter(k => k !== 'PDF_Archive').slice(0, 9); if (_pdfIdx !== -1) headers.push('PDF_Archive');
             let html = '<div class="table-wrapper"><table class="data-table"><thead><tr>';
             headers.forEach((h,i) => { if(i<10) html += '<th>' + h + '</th>'; });
             if(tabName==='Maintenance Logs'||tabName==='Damage Reports') html += '<th>Action</th>';
