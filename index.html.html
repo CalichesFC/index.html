@@ -37,7 +37,7 @@
         .login-box { background: white; padding: 35px 25px; border-radius: 16px; width: 100%; max-width: 380px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
         .text-link { display: inline-block; margin-top: 15px; color: var(--caliches-blue); font-size: 14px; font-weight: bold; text-decoration: underline; cursor: pointer; }
         .text-link:hover { color: var(--caliches-pink); }
-        #registerForm { display: none; } 
+        #registerForm { display: none; }
 
         /* MAIN MENU & PROFILE BAR */
         #main-menu { display: none; padding: 20px; max-width: 500px; margin: 0 auto 40px auto; text-align: center; }
@@ -47,7 +47,7 @@
         .logout-btn { background: #f8f9fa; color: var(--fail-red); border: 1px solid var(--fail-red); padding: 8px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; transition: 0.2s;}
         .logout-btn:active { background: var(--fail-red); color: white; }
         .menu-title { color: var(--caliches-blue); margin-bottom: 25px; font-size: 28px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
-        
+
         .menu-btn { display: block; width: 100%; background-color: var(--white); color: var(--caliches-blue); padding: 25px 20px; margin-bottom: 15px; font-size: 18px; font-weight: bold; border: 2px solid var(--caliches-blue); border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor: pointer; transition: 0.3s; }
         .menu-btn.pink { color: var(--caliches-pink); border-color: var(--caliches-pink); }
         .menu-btn.green { color: var(--pass-green); border-color: var(--pass-green); }
@@ -67,19 +67,19 @@
         .prev-arrow { left: 10px; } .next-arrow { right: 10px; }
 
         /* FORMS & LAYOUTS */
-        .app-view { display: none; } 
+        .app-view { display: none; }
         .back-btn { background: #333; color: white; border: none; padding: 12px 20px; font-size: 14px; font-weight: bold; width: 100%; text-align: left; cursor: pointer; }
         .header { background-color: var(--caliches-blue); color: var(--white); text-align: center; padding: 20px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .logo-img { max-height: 80px; width: auto; display: block; margin: 0 auto 0 auto; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2)); }
         .header p { margin: 0; font-size: 14px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
         .container { max-width: 700px; margin: 15px auto; padding: 0 15px; }
-        
+
         .info-group { background: var(--white); padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .info-group .full-width { grid-column: span 2; }
         .form-label { display: block; font-weight: bold; margin-bottom: 6px; color: #333; font-size: 14px; }
         .form-spacer { margin-bottom: 15px; }
         .info-group input, .info-group select, .info-group textarea, .category input[type="text"], .category input[type="number"], .category select, .category textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 15px; background: #fafafa; font-family: inherit; }
-        
+
         .category { background: var(--white); border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .category h2 { margin: 0 0 15px 0; font-size: 20px; border-bottom: 2px solid #eee; padding-bottom: 8px;}
         .question { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #f0f0f0; }
@@ -134,7 +134,7 @@
 
     <div id="login-view" class="app-view" style="display: none;">
         <img src="splash-logo.png" alt="Caliche's Logo" style="max-height: 180px; margin-bottom: 30px; filter: drop-shadow(0px 6px 12px rgba(0,0,0,0.3));" onerror="this.style.display='none'">
-        
+
         <div class="login-box">
             <form id="loginForm">
                 <h2 style="color: var(--caliches-blue); margin-top: 0; font-size: 24px; text-transform: uppercase;">Staff Login</h2>
@@ -176,13 +176,13 @@
                 <div class="slide text-slide"><div class="focus-title">💡 Weekly Focus</div><div class="focus-text">Cleanliness, Friendliness, Speed, & Quality!</div></div>
             </div>
         </div>
-        
+
         <button class="menu-btn blue-btn" onclick="openForm('popInView')">📋 Store Pop-In Inspection</button>
         <button class="menu-btn pink" onclick="openForm('driverView')">🚚 Vehicle & Trailer Check-Out</button>
         <button class="menu-btn green" onclick="openForm('shortageView')">📦 Report Shortages</button>
         <button class="menu-btn orange" onclick="openForm('maintenanceView')">🔧 Required Maintenance</button>
         <button class="menu-btn red" onclick="openForm('damageView')">⚠️ Vehicle / Trailer Damage</button>
-        
+
         <button id="managerBtn" class="menu-btn dark" style="display: none;" onclick="openDashboard()">📊 View Manager Dashboard</button>
     </div>
 
@@ -194,7 +194,7 @@
         </div>
         <div class="container" style="max-width: 1000px;">
             <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Select a feed to view data or manage staff:</p>
-            
+
             <div class="dash-nav">
                 <button class="dash-tab active" onclick="fetchDashboard('Pop-Ins', this)">Pop-Ins</button>
                 <button class="dash-tab" onclick="fetchDashboard('Shortages', this)">Shortages</button>
@@ -237,7 +237,7 @@
 
         let currentSlide = 0; let slideTimer;
         let currentUser = { name: "", role: "" };
-        let currentDashTab = "Pop-Ins"; 
+        let currentDashTab = "Pop-Ins";
 
         window.addEventListener('load', function() {
             let savedUser = localStorage.getItem('calichesUser');
@@ -252,10 +252,10 @@
             } else {
                 setTimeout(function() {
                     document.getElementById('splash-screen').style.opacity = '0';
-                    setTimeout(() => { document.getElementById('splash-screen').style.display = 'none'; document.getElementById('login-view').style.display = 'flex'; }, 500); 
+                    setTimeout(() => { document.getElementById('splash-screen').style.display = 'none'; document.getElementById('login-view').style.display = 'flex'; }, 500);
                 }, 3500);
             }
-            
+
             let today = new Date().toISOString().split('T')[0];
             document.getElementById('dt').value = today; document.getElementById('driverDt').value = today;
             document.getElementById('shortageDt').value = today; document.getElementById('maintDt').value = today; document.getElementById('damageDt').value = today;
@@ -265,52 +265,171 @@
             let loginF = document.getElementById('loginForm'); let regF = document.getElementById('registerForm');
             let errL = document.getElementById('loginError'); let errR = document.getElementById('registerError');
             errL.style.display = "none"; errR.style.display = "none";
-            if(loginF.style.display === "none") { loginF.style.display = "block"; regF.style.display = "none"; } 
+            if(loginF.style.display === "none") { loginF.style.display = "block"; regF.style.display = "none"; }
             else { loginF.style.display = "none"; regF.style.display = "block"; }
         }
 
+        // ============================================================
+        // FIX: attemptLogin — replaced .single() with .limit(1) and
+        //      split error types so RLS blocks don't look like bad PINs.
+        //      Console logs added so you can see the real Supabase response.
+        // ============================================================
         function attemptLogin() {
-            const btn = document.getElementById('loginBtn'); const form = document.getElementById('loginForm'); const errorMsg = document.getElementById('loginError');
-            if(!form.username.value || !form.password.value) { errorMsg.innerText = "Please enter both fields."; errorMsg.style.display = "block"; return; }
-            btn.innerText = "Verifying..."; btn.disabled = true; errorMsg.style.display = "none";
+            const btn = document.getElementById('loginBtn');
+            const form = document.getElementById('loginForm');
+            const errorMsg = document.getElementById('loginError');
 
-            supabaseClient.from('users').select('*').eq('username', form.username.value).eq('password', form.password.value).single()
-            .then(({ data, error }) => {
-                if(data && !error) {
-                    currentUser.name = data.name; currentUser.role = data.role;
+            if (!form.username.value || !form.password.value) {
+                errorMsg.innerText = "Please enter both fields.";
+                errorMsg.style.display = "block";
+                return;
+            }
+
+            btn.innerText = "Verifying...";
+            btn.disabled = true;
+            errorMsg.style.display = "none";
+
+            supabaseClient.from('users')
+                .select('*')
+                .eq('username', form.username.value.trim())
+                .eq('password', form.password.value.trim())
+                .limit(1)
+                .then(({ data, error }) => {
+                    // Open DevTools console to see the raw response if anything goes wrong
+                    console.log('[Login] Supabase response:', { data, error });
+
+                    if (error) {
+                        // A real Supabase error: RLS block (42501), table missing, etc.
+                        console.error('[Login] Supabase error code:', error.code, '| message:', error.message);
+                        errorMsg.innerText = 'Login error (' + error.code + '): ' + error.message;
+                        errorMsg.style.display = "block";
+                        btn.innerText = "ENTER HUB";
+                        btn.disabled = false;
+                        return;
+                    }
+
+                    if (!data || data.length === 0) {
+                        // Query succeeded but no matching row — genuinely wrong credentials
+                        errorMsg.innerText = "Invalid Username or PIN. Please try again.";
+                        errorMsg.style.display = "block";
+                        btn.innerText = "ENTER HUB";
+                        btn.disabled = false;
+                        return;
+                    }
+
+                    // ✅ Success
+                    const user = data[0];
+                    currentUser.name = user.name;
+                    currentUser.role = user.role;
                     localStorage.setItem('calichesUser', JSON.stringify(currentUser));
-                    document.getElementById('greetingName').innerText = "Hello, " + data.name;
-                    document.getElementById('greetingRole').innerText = "Role: " + data.role;
-                    document.getElementById('managerBtn').style.display = (data.role === "Manager" || data.role === "Admin") ? "block" : "none";
-                    triggerTransition(() => { document.getElementById('login-view').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; resetTimer(); });
-                    btn.innerText = "ENTER HUB"; btn.disabled = false; form.reset();
-                } else {
-                    errorMsg.innerText = "Invalid Username or PIN."; errorMsg.style.display = "block"; btn.innerText = "ENTER HUB"; btn.disabled = false;
-                }
-            }).catch(err => { errorMsg.innerText = "Connection error."; errorMsg.style.display = "block"; btn.innerText = "ENTER HUB"; btn.disabled = false; });
+                    document.getElementById('greetingName').innerText = "Hello, " + user.name;
+                    document.getElementById('greetingRole').innerText = "Role: " + user.role;
+                    document.getElementById('managerBtn').style.display = (user.role === "Manager" || user.role === "Admin") ? "block" : "none";
+                    triggerTransition(() => {
+                        document.getElementById('login-view').style.display = 'none';
+                        document.getElementById('main-menu').style.display = 'block';
+                        resetTimer();
+                    });
+                    btn.innerText = "ENTER HUB";
+                    btn.disabled = false;
+                    form.reset();
+                })
+                .catch(err => {
+                    console.error('[Login] Network/unexpected error:', err);
+                    errorMsg.innerText = "Connection error. Check your internet.";
+                    errorMsg.style.display = "block";
+                    btn.innerText = "ENTER HUB";
+                    btn.disabled = false;
+                });
         }
 
+        // ============================================================
+        // FIX: attemptRegister — removed .single() from insert chain,
+        //      added specific error codes so "username taken" only fires
+        //      when it's actually taken (code 23505), not for every error.
+        //      Console logs added for full visibility.
+        // ============================================================
         function attemptRegister() {
-            const btn = document.getElementById('registerBtn'); const form = document.getElementById('registerForm'); const errorMsg = document.getElementById('registerError');
-            if(!form.name.value || !form.username.value || !form.password.value) { errorMsg.innerText = "Please fill all fields."; errorMsg.style.display = "block"; return; }
-            btn.innerText = "Creating Account..."; btn.disabled = true; errorMsg.style.display = "none";
-            
-            let insertObj = { name: form.name.value, username: form.username.value, password: form.password.value, role: 'Staff' };
+            const btn = document.getElementById('registerBtn');
+            const form = document.getElementById('registerForm');
+            const errorMsg = document.getElementById('registerError');
 
-            supabaseClient.from('users').insert([insertObj]).select().single()
-            .then(({ data, error }) => {
-                if(data && !error) {
-                    currentUser.name = data.name; currentUser.role = data.role;
+            if (!form.name.value || !form.username.value || !form.password.value) {
+                errorMsg.innerText = "Please fill all fields.";
+                errorMsg.style.display = "block";
+                return;
+            }
+
+            btn.innerText = "Creating Account...";
+            btn.disabled = true;
+            errorMsg.style.display = "none";
+
+            const insertObj = {
+                name: form.name.value.trim(),
+                username: form.username.value.trim(),
+                password: form.password.value.trim(),
+                role: 'Staff'
+            };
+
+            supabaseClient.from('users')
+                .insert([insertObj])
+                .select()
+                .then(({ data, error }) => {
+                    // Open DevTools console to see the raw response if anything goes wrong
+                    console.log('[Register] Supabase response:', { data, error });
+
+                    if (error) {
+                        console.error('[Register] Supabase error code:', error.code, '| message:', error.message);
+                        if (error.code === '23505') {
+                            // Genuine duplicate username
+                            errorMsg.innerText = "That username is already taken. Please choose another.";
+                        } else if (error.code === '42501') {
+                            // RLS is blocking the insert
+                            errorMsg.innerText = "Access denied by database. Go to Supabase → Table Editor → users → and make sure RLS is turned OFF.";
+                        } else {
+                            // Show the real error so you know what to fix
+                            errorMsg.innerText = 'Registration failed (' + error.code + '): ' + error.message;
+                        }
+                        errorMsg.style.display = "block";
+                        btn.innerText = "CREATE ACCOUNT";
+                        btn.disabled = false;
+                        return;
+                    }
+
+                    if (!data || data.length === 0) {
+                        // Insert appeared to succeed but returned nothing — silent RLS block
+                        console.warn('[Register] Insert returned no data. Likely a silent RLS block.');
+                        errorMsg.innerText = "Registration failed silently. Go to Supabase → Table Editor → users → and verify RLS is OFF.";
+                        errorMsg.style.display = "block";
+                        btn.innerText = "CREATE ACCOUNT";
+                        btn.disabled = false;
+                        return;
+                    }
+
+                    // ✅ Success
+                    const user = data[0];
+                    currentUser.name = user.name;
+                    currentUser.role = user.role;
                     localStorage.setItem('calichesUser', JSON.stringify(currentUser));
-                    document.getElementById('greetingName').innerText = "Hello, " + data.name;
-                    document.getElementById('greetingRole').innerText = "Role: " + data.role;
+                    document.getElementById('greetingName').innerText = "Hello, " + user.name;
+                    document.getElementById('greetingRole').innerText = "Role: " + user.role;
                     document.getElementById('managerBtn').style.display = "none";
-                    triggerTransition(() => { document.getElementById('login-view').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; resetTimer(); });
-                    btn.innerText = "CREATE ACCOUNT"; btn.disabled = false; form.reset();
-                } else {
-                    errorMsg.innerText = "Error creating account. Username may be taken."; errorMsg.style.display = "block"; btn.innerText = "CREATE ACCOUNT"; btn.disabled = false;
-                }
-            }).catch(err => { errorMsg.innerText = "Connection error."; errorMsg.style.display = "block"; btn.innerText = "CREATE ACCOUNT"; btn.disabled = false; });
+                    triggerTransition(() => {
+                        document.getElementById('login-view').style.display = 'none';
+                        document.getElementById('main-menu').style.display = 'block';
+                        resetTimer();
+                    });
+                    btn.innerText = "CREATE ACCOUNT";
+                    btn.disabled = false;
+                    form.reset();
+                })
+                .catch(err => {
+                    console.error('[Register] Network/unexpected error:', err);
+                    errorMsg.innerText = "Connection error. Check your internet.";
+                    errorMsg.style.display = "block";
+                    btn.innerText = "CREATE ACCOUNT";
+                    btn.disabled = false;
+                });
         }
 
         function recoverPin() {
@@ -324,12 +443,12 @@
             }
         }
 
-        function logout() { 
-            triggerTransition(() => { 
-                document.querySelectorAll(".app-view").forEach(v => v.style.display = "none"); 
-                document.getElementById('login-view').style.display = "flex"; 
-                localStorage.removeItem('calichesUser'); currentUser = { name: "", role: "" }; clearInterval(slideTimer); 
-            }); 
+        function logout() {
+            triggerTransition(() => {
+                document.querySelectorAll(".app-view").forEach(v => v.style.display = "none");
+                document.getElementById('login-view').style.display = "flex";
+                localStorage.removeItem('calichesUser'); currentUser = { name: "", role: "" }; clearInterval(slideTimer);
+            });
         }
 
         function openDashboard() {
@@ -337,7 +456,7 @@
                 document.querySelectorAll(".app-view").forEach(v => v.style.display = "none");
                 document.getElementById('managerView').style.display = "block";
                 let firstTabBtn = document.querySelector('.dash-tab');
-                fetchDashboard('Pop-Ins', firstTabBtn); 
+                fetchDashboard('Pop-Ins', firstTabBtn);
             });
         }
 
@@ -347,16 +466,16 @@
         }
 
         function fetchDashboard(tabName, btnElement = null) {
-            currentDashTab = tabName; 
+            currentDashTab = tabName;
             if(btnElement) { document.querySelectorAll('.dash-tab').forEach(b => b.classList.remove('active')); btnElement.classList.add('active'); }
-            
+
             const results = document.getElementById('dashboardResults');
             results.innerHTML = `<p style="text-align: center; padding: 30px; color: #888;">Fetching latest ${tabName} data...</p>`;
-            document.getElementById('dashboardFilterDiv').style.display = 'flex'; 
-            
+            document.getElementById('dashboardFilterDiv').style.display = 'flex';
+
             const tableMap = { 'Pop-Ins': 'pop_ins', 'Shortages': 'shortages', 'Driver Logs': 'driver_logs', 'Maintenance Logs': 'maintenance_logs', 'Damage Reports': 'damage_reports' };
             const daysLimit = parseInt(document.getElementById('dashDateFilter').value);
-            
+
             supabaseClient.from(tableMap[tabName]).select('*').order('id', { ascending: false }).limit(daysLimit === 999 ? 50 : 100)
             .then(({ data: supaData, error }) => {
                 if(!error) {
@@ -368,26 +487,26 @@
 
                     if(data.rows.length === 0) { results.innerHTML = "<p style='padding:20px;'>No data found for this time period.</p>"; return; }
                     let html = `<div class="table-wrapper"><table class="data-table"><thead><tr>`;
-                    
+
                     data.headers.forEach((h, i) => { if(i < 10) html += `<th>${h}</th>`; });
                     if(tabName === "Maintenance Logs" || tabName === "Damage Reports") { html += `<th>Action</th>`; }
                     html += `</tr></thead><tbody>`;
-                    
+
                     let statusIndex = data.headers.indexOf("Status");
                     data.rows.forEach(row => {
-                        let rowIndex = row[0]; 
+                        let rowIndex = row[0];
                         html += `<tr>`;
-                        for(let i=1; i<=Math.min(10, data.headers.length); i++) { 
+                        for(let i=1; i<=Math.min(10, data.headers.length); i++) {
                             let cellData = row[i] || "";
                             if (cellData.toString().startsWith("http")) {
                                 html += `<td><a href="${cellData}" target="_blank" style="background:var(--caliches-pink); color:white; padding:5px 10px; border-radius:4px; text-decoration:none; font-weight:bold; display:inline-block;">View PDF</a></td>`;
                             } else {
-                                html += `<td>${cellData}</td>`; 
+                                html += `<td>${cellData}</td>`;
                             }
                         }
-                        
+
                         if(tabName === "Maintenance Logs" || tabName === "Damage Reports") {
-                            let currentStatus = row[statusIndex + 1] || "Pending"; 
+                            let currentStatus = row[statusIndex + 1] || "Pending";
                             html += `<td>
                                 <select id="status-${rowIndex}" class="role-select">
                                     <option value="Pending" ${currentStatus==='Pending'?'selected':''}>Pending</option>
@@ -408,10 +527,10 @@
         function updateItemStatus(tabName, rowIndex) {
             let newStatus = document.getElementById(`status-${rowIndex}`).value;
             const tableMap = { 'Maintenance Logs': 'maintenance_logs', 'Damage Reports': 'damage_reports' };
-            
+
             supabaseClient.from(tableMap[tabName]).update({ Status: newStatus }).eq('id', rowIndex)
             .then(({ error }) => {
-                if(!error) { alert("Status successfully changed to: " + newStatus); } 
+                if(!error) { alert("Status successfully changed to: " + newStatus); }
                 else { alert("Error updating status."); }
             }).catch(err => { alert("Connection Error."); });
         }
@@ -419,10 +538,10 @@
         function fetchUsers(btnElement) {
             currentDashTab = "Users";
             document.querySelectorAll('.dash-tab').forEach(b => b.classList.remove('active')); btnElement.classList.add('active');
-            document.getElementById('dashboardFilterDiv').style.display = 'none'; 
+            document.getElementById('dashboardFilterDiv').style.display = 'none';
             const results = document.getElementById('dashboardResults');
             results.innerHTML = `<p style="text-align: center; padding: 30px; color: #888;">Loading Staff Database...</p>`;
-            
+
             supabaseClient.from('users').select('*').order('id')
             .then(({ data, error }) => {
                 if(!error && data) {
@@ -461,7 +580,7 @@
             if(!confirm("Are you sure you want to permanently delete this user?")) return;
             supabaseClient.from('users').delete().eq('id', rowIndex)
             .then(({ error }) => {
-                if(!error) { alert("User successfully deleted."); fetchUsers(document.querySelector('.dash-tab.active')); } 
+                if(!error) { alert("User successfully deleted."); fetchUsers(document.querySelector('.dash-tab.active')); }
                 else { alert("Error deleting user."); }
             }).catch(err => { alert("Connection Error."); });
         }
@@ -489,127 +608,123 @@
 
         function calc() { let totalScore = 0; let questionsCounted = 0; let answered = 0; for(let i=1; i<=totalQuestions; i++) { let sel = document.querySelector(`input[name="q${i}"]:checked`); if(sel) { answered++; let val = parseInt(sel.value); if(val > 0) { totalScore += val; questionsCounted++; } } } let maxPossible = questionsCounted * 5; let p = maxPossible === 0 ? 0 : Math.round((totalScore / maxPossible) * 100); document.getElementById('ts').innerText = totalScore; document.getElementById('maxPts').innerText = maxPossible; document.getElementById('finalScore').value = totalScore; document.getElementById('pct').innerText = p; document.getElementById('finalPct').value = p + "%"; let badge = document.getElementById('st'); if(answered === totalQuestions) { let stat = p >= 85 ? "EXCELLENT" : (p >= 75 ? "MEETS STANDARD" : "NEEDS IMPROVEMENT"); badge.innerText = stat; document.getElementById('finalStatus').value = stat; badge.className = p >= 75 ? "status pass" : "status fail"; } }
 
-        function submitAudit() { 
-            const btn = document.getElementById('submitBtn'); const form = document.getElementById('auditForm'); 
-            if(!document.getElementById('loc').value || !document.getElementById('sldr').value || !document.getElementById('conductor').value) { return alert("Please fill out Location, Shift Leader, and Conducted By!"); } 
-            let answered = 0; for(let i=1; i<=totalQuestions; i++) { if(document.querySelector(`input[name="q${i}"]:checked`)) answered++; } 
-            if(answered < totalQuestions) { return alert(`Please answer all questions. You have answered ${answered} out of ${totalQuestions}.`); } 
-            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true; 
-            
-            let pdfHtml = getBrandHeader("Store Pop-In Inspection", "#4a68b1"); 
-            pdfHtml += `<table style="width: 100%; margin-bottom: 20px; font-family: 'Helvetica Neue', sans-serif;"><tr><td style="padding: 8px;"><strong>Location:</strong> ${document.getElementById('loc').value}</td><td style="padding: 8px;"><strong>Date:</strong> ${document.getElementById('dt').value}</td></tr><tr><td style="padding: 8px;"><strong>Conducted By:</strong> ${document.getElementById('conductor').value}</td><td style="padding: 8px;"><strong>Shift Leader:</strong> ${document.getElementById('sldr').value} (${document.getElementById('shiftTime').value})</td></tr></table><div style="background-color: #f0f4f8; padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: center;"><h2 style="color: #4a68b1; margin: 0; font-size: 28px;">Final Score: ${document.getElementById('pct').innerText}%</h2><h3 style="color: #555; margin: 5px 0 15px 0;">Status: ${document.getElementById('st').innerText}</h3><p style="margin-bottom: 0; text-align: left; padding-top: 15px; border-top: 1px solid #ddd;"><strong>Overall Comments:</strong> ${document.getElementById('overallComments').value || "None"}</p></div><table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 14px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;"><tr style="background-color: #4a68b1; color: white;"><th style="text-align: left;">Category / Question</th><th style="width: 60px; text-align: center;">Score</th><th>Notes & Photos</th></tr>`; 
-            let loopIdx = 1; questions.forEach(group => { pdfHtml += `<tr style="background-color: #f9f9f9;"><td colspan="3" style="font-size: 16px; color: #333;"><strong>${group.cat}</strong></td></tr>`; group.q.forEach(text => { let sel = document.querySelector(`input[name="q${loopIdx}"]:checked`); let note = document.getElementById(`note${loopIdx}`).value; let score = sel ? sel.value : "N/A"; if(score === "0") score = "N/A"; let qPhotos = questionPhotos[loopIdx]; let photoHtml = ""; if (qPhotos && qPhotos.length > 0) { photoHtml = `<div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">`; qPhotos.forEach(pData => { photoHtml += `<img src="${pData}" style="max-height: 120px; border-radius: 8px; border: 1px solid #bbb;">`; }); photoHtml += `</div>`; } pdfHtml += `<tr><td style="line-height: 1.4;">${text}</td><td style="text-align: center; font-weight: bold; font-size: 16px;">${score}</td><td style="color: #555;">${note} <br> ${photoHtml}</td></tr>`; loopIdx++; }); }); pdfHtml += `</table></div>`; 
-            document.getElementById('popInReportHtml').value = pdfHtml; 
-            
-            // 1. Send to Google Apps Script to generate PDF and Email
+        function submitAudit() {
+            const btn = document.getElementById('submitBtn'); const form = document.getElementById('auditForm');
+            if(!document.getElementById('loc').value || !document.getElementById('sldr').value || !document.getElementById('conductor').value) { return alert("Please fill out Location, Shift Leader, and Conducted By!"); }
+            let answered = 0; for(let i=1; i<=totalQuestions; i++) { if(document.querySelector(`input[name="q${i}"]:checked`)) answered++; }
+            if(answered < totalQuestions) { return alert(`Please answer all questions. You have answered ${answered} out of ${totalQuestions}.`); }
+            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true;
+
+            let pdfHtml = getBrandHeader("Store Pop-In Inspection", "#4a68b1");
+            pdfHtml += `<table style="width: 100%; margin-bottom: 20px; font-family: 'Helvetica Neue', sans-serif;"><tr><td style="padding: 8px;"><strong>Location:</strong> ${document.getElementById('loc').value}</td><td style="padding: 8px;"><strong>Date:</strong> ${document.getElementById('dt').value}</td></tr><tr><td style="padding: 8px;"><strong>Conducted By:</strong> ${document.getElementById('conductor').value}</td><td style="padding: 8px;"><strong>Shift Leader:</strong> ${document.getElementById('sldr').value} (${document.getElementById('shiftTime').value})</td></tr></table><div style="background-color: #f0f4f8; padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: center;"><h2 style="color: #4a68b1; margin: 0; font-size: 28px;">Final Score: ${document.getElementById('pct').innerText}%</h2><h3 style="color: #555; margin: 5px 0 15px 0;">Status: ${document.getElementById('st').innerText}</h3><p style="margin-bottom: 0; text-align: left; padding-top: 15px; border-top: 1px solid #ddd;"><strong>Overall Comments:</strong> ${document.getElementById('overallComments').value || "None"}</p></div><table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 14px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;"><tr style="background-color: #4a68b1; color: white;"><th style="text-align: left;">Category / Question</th><th style="width: 60px; text-align: center;">Score</th><th>Notes & Photos</th></tr>`;
+            let loopIdx = 1; questions.forEach(group => { pdfHtml += `<tr style="background-color: #f9f9f9;"><td colspan="3" style="font-size: 16px; color: #333;"><strong>${group.cat}</strong></td></tr>`; group.q.forEach(text => { let sel = document.querySelector(`input[name="q${loopIdx}"]:checked`); let note = document.getElementById(`note${loopIdx}`).value; let score = sel ? sel.value : "N/A"; if(score === "0") score = "N/A"; let qPhotos = questionPhotos[loopIdx]; let photoHtml = ""; if (qPhotos && qPhotos.length > 0) { photoHtml = `<div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">`; qPhotos.forEach(pData => { photoHtml += `<img src="${pData}" style="max-height: 120px; border-radius: 8px; border: 1px solid #bbb;">`; }); photoHtml += `</div>`; } pdfHtml += `<tr><td style="line-height: 1.4;">${text}</td><td style="text-align: center; font-weight: bold; font-size: 16px;">${score}</td><td style="color: #555;">${note} <br> ${photoHtml}</td></tr>`; loopIdx++; }); }); pdfHtml += `</table></div>`;
+            document.getElementById('popInReportHtml').value = pdfHtml;
+
             fetch(G_URL, { method: 'POST', body: new FormData(form) })
             .then(res => res.json())
             .then(googleData => {
-                // 2. Prepare data for Supabase
                 let insertObj = Object.fromEntries(new FormData(form).entries());
-                delete insertObj.ReportHTML; // Do not save massive HTML string to Supabase
+                delete insertObj.ReportHTML;
                 insertObj.PDF_Archive = googleData.pdfUrl || "PDF Failed to Generate";
-                
-                // 3. Save to Supabase
                 return supabaseClient.from('pop_ins').insert([insertObj]);
             })
             .then(({ error }) => {
                 if(error) throw error;
-                btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ SENT! (TAP TO PRINT)"; 
+                btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ SENT! (TAP TO PRINT)";
                 btn.onclick = function(e) { e.preventDefault(); document.body.innerHTML = pdfHtml; setTimeout(() => { window.print(); location.reload(); }, 500); };
             }).catch((err) => {
                 console.error(err); alert("Connection Error. Check internet."); btn.disabled = false; btn.innerText = "🚀 SUBMIT POP-IN TO OFFICE";
             });
         }
 
-        function submitDriverForm() { 
-            const btn = document.getElementById('submitDriverBtn'); const form = document.getElementById('driverForm'); 
-            if(!document.getElementById('vehicle').value || !document.getElementById('signature').value) { return alert("Please select a vehicle and sign the form!"); } 
-            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true; 
-            let pdfHtml = getBrandHeader("Vehicle & Trailer Check-Out", "#c53a74"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/_/g, ' ').toUpperCase(); pdfHtml += `<tr><td style="background-color: #f9f9f9; font-weight: bold; color: #c53a74; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); pdfHtml += `</table></div>`; document.getElementById('driverReportHtml').value = pdfHtml; 
-            
+        function submitDriverForm() {
+            const btn = document.getElementById('submitDriverBtn'); const form = document.getElementById('driverForm');
+            if(!document.getElementById('vehicle').value || !document.getElementById('signature').value) { return alert("Please select a vehicle and sign the form!"); }
+            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true;
+            let pdfHtml = getBrandHeader("Vehicle & Trailer Check-Out", "#c53a74"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/_/g, ' ').toUpperCase(); pdfHtml += `<tr><td style="background-color: #f9f9f9; font-weight: bold; color: #c53a74; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); pdfHtml += `</table></div>`; document.getElementById('driverReportHtml').value = pdfHtml;
+
             fetch(G_URL, { method: 'POST', body: new FormData(form) })
             .then(res => res.json())
             .then(googleData => {
                 let insertObj = Object.fromEntries(new FormData(form).entries());
-                delete insertObj.ReportHTML; 
+                delete insertObj.ReportHTML;
                 insertObj.PDF_Archive = googleData.pdfUrl || "PDF Failed to Generate";
                 return supabaseClient.from('driver_logs').insert([insertObj]);
             })
             .then(({ error }) => {
                 if(error) throw error;
-                btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ LOG SECURED AND SENT!"; 
+                btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ LOG SECURED AND SENT!";
                 setTimeout(() => { form.reset(); btn.style.backgroundColor = "var(--caliches-pink)"; btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST"; openMenu(); }, 3000);
             }).catch(() => {
                 alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST";
             });
         }
 
-        function submitShortage() { 
-            const btn = document.getElementById('submitShortageBtn'); const form = document.getElementById('shortageForm'); 
-            if(!form.querySelector('select[name="Store"]').value || !form.querySelector('input[name="ManagerName"]').value) { return alert("Please select a store and enter your name!"); } 
-            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true; 
-            let pdfHtml = getBrandHeader("Store Shortage Report", "#28a745"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(); pdfHtml += `<tr><td style="background-color: #f4fbf5; font-weight: bold; color: #28a745; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); pdfHtml += `</table></div>`; document.getElementById('shortageReportHtml').value = pdfHtml; 
-            
+        function submitShortage() {
+            const btn = document.getElementById('submitShortageBtn'); const form = document.getElementById('shortageForm');
+            if(!form.querySelector('select[name="Store"]').value || !form.querySelector('input[name="ManagerName"]').value) { return alert("Please select a store and enter your name!"); }
+            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true;
+            let pdfHtml = getBrandHeader("Store Shortage Report", "#28a745"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(); pdfHtml += `<tr><td style="background-color: #f4fbf5; font-weight: bold; color: #28a745; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); pdfHtml += `</table></div>`; document.getElementById('shortageReportHtml').value = pdfHtml;
+
             fetch(G_URL, { method: 'POST', body: new FormData(form) })
             .then(res => res.json())
             .then(googleData => {
                 let insertObj = Object.fromEntries(new FormData(form).entries());
-                delete insertObj.ReportHTML; 
+                delete insertObj.ReportHTML;
                 insertObj.PDF_Archive = googleData.pdfUrl || "PDF Failed to Generate";
                 return supabaseClient.from('shortages').insert([insertObj]);
             })
             .then(({ error }) => {
                 if(error) throw error;
-                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ REPORT SUBMITTED & PDF SENT!"; 
+                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ REPORT SUBMITTED & PDF SENT!";
                 setTimeout(() => { form.reset(); btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "🚀 SUBMIT SHORTAGE REPORT"; openMenu(); }, 3000);
             }).catch(() => {
                 alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT SHORTAGE REPORT";
             });
         }
 
-        function submitMaintenance() { 
-            const btn = document.getElementById('submitMaintBtn'); const form = document.getElementById('maintenanceForm'); 
-            if(!form.querySelector('input[name="MaintenanceItem"]').value || !form.querySelector('input[name="ReporterName"]').value) { return alert("Please fill out the required fields!"); } 
-            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true; 
-            let pdfHtml = getBrandHeader("Required Maintenance", "#e67e22"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(); pdfHtml += `<tr><td style="background-color: #fdf3e8; font-weight: bold; color: #e67e22; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); if (maintPhotos.length > 0) { pdfHtml += `<tr><td style="background-color: #fdf3e8; font-weight: bold; color: #e67e22; width: 40%;">ATTACHED PHOTOS</td><td style="color: #333;"><div style="display:flex; gap:10px; flex-wrap:wrap;">`; maintPhotos.forEach(p => { pdfHtml += `<img src="${p}" style="max-height: 150px; border-radius: 8px; border: 1px solid #ccc;">`; }); pdfHtml += `</div></td></tr>`; } pdfHtml += `</table></div>`; document.getElementById('maintenanceReportHtml').value = pdfHtml; 
-            
+        function submitMaintenance() {
+            const btn = document.getElementById('submitMaintBtn'); const form = document.getElementById('maintenanceForm');
+            if(!form.querySelector('input[name="MaintenanceItem"]').value || !form.querySelector('input[name="ReporterName"]').value) { return alert("Please fill out the required fields!"); }
+            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true;
+            let pdfHtml = getBrandHeader("Required Maintenance", "#e67e22"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(); pdfHtml += `<tr><td style="background-color: #fdf3e8; font-weight: bold; color: #e67e22; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); if (maintPhotos.length > 0) { pdfHtml += `<tr><td style="background-color: #fdf3e8; font-weight: bold; color: #e67e22; width: 40%;">ATTACHED PHOTOS</td><td style="color: #333;"><div style="display:flex; gap:10px; flex-wrap:wrap;">`; maintPhotos.forEach(p => { pdfHtml += `<img src="${p}" style="max-height: 150px; border-radius: 8px; border: 1px solid #ccc;">`; }); pdfHtml += `</div></td></tr>`; } pdfHtml += `</table></div>`; document.getElementById('maintenanceReportHtml').value = pdfHtml;
+
             fetch(G_URL, { method: 'POST', body: new FormData(form) })
             .then(res => res.json())
             .then(googleData => {
                 let insertObj = Object.fromEntries(new FormData(form).entries());
-                delete insertObj.ReportHTML; 
+                delete insertObj.ReportHTML;
                 insertObj.PDF_Archive = googleData.pdfUrl || "PDF Failed to Generate";
-                insertObj.Status = "Pending"; 
+                insertObj.Status = "Pending";
                 return supabaseClient.from('maintenance_logs').insert([insertObj]);
             })
             .then(({ error }) => {
                 if(error) throw error;
-                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ MAINTENANCE REPORT SENT!"; 
+                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ MAINTENANCE REPORT SENT!";
                 setTimeout(() => { form.reset(); maintPhotos = []; document.getElementById('maintPrev').innerHTML = ''; btn.disabled = false; btn.style.backgroundColor = "#e67e22"; btn.innerText = "🚀 SUBMIT MAINTENANCE REQUEST"; openMenu(); }, 3000);
             }).catch(() => {
                 alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT MAINTENANCE REQUEST";
             });
         }
 
-        function submitDamage() { 
-            const btn = document.getElementById('submitDamageBtn'); const form = document.getElementById('damageForm'); 
-            if(!form.querySelector('select[name="DamageAsset"]').value || !form.querySelector('input[name="ReporterName"]').value) { return alert("Please select an asset and enter your name!"); } 
-            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true; 
-            let pdfHtml = getBrandHeader("Vehicle & Trailer Damage", "#e74c3c"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(); pdfHtml += `<tr><td style="background-color: #fceceb; font-weight: bold; color: #e74c3c; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); if (damagePhotos.length > 0) { pdfHtml += `<tr><td style="background-color: #fceceb; font-weight: bold; color: #e74c3c; width: 40%;">DAMAGE PHOTOS</td><td style="color: #333;"><div style="display:flex; gap:10px; flex-wrap:wrap;">`; damagePhotos.forEach(p => { pdfHtml += `<img src="${p}" style="max-height: 150px; border-radius: 8px; border: 1px solid #ccc;">`; }); pdfHtml += `</div></td></tr>`; } pdfHtml += `</table></div>`; document.getElementById('damageReportHtml').value = pdfHtml; 
-            
+        function submitDamage() {
+            const btn = document.getElementById('submitDamageBtn'); const form = document.getElementById('damageForm');
+            if(!form.querySelector('select[name="DamageAsset"]').value || !form.querySelector('input[name="ReporterName"]').value) { return alert("Please select an asset and enter your name!"); }
+            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true;
+            let pdfHtml = getBrandHeader("Vehicle & Trailer Damage", "#e74c3c"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(); pdfHtml += `<tr><td style="background-color: #fceceb; font-weight: bold; color: #e74c3c; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); if (damagePhotos.length > 0) { pdfHtml += `<tr><td style="background-color: #fceceb; font-weight: bold; color: #e74c3c; width: 40%;">DAMAGE PHOTOS</td><td style="color: #333;"><div style="display:flex; gap:10px; flex-wrap:wrap;">`; damagePhotos.forEach(p => { pdfHtml += `<img src="${p}" style="max-height: 150px; border-radius: 8px; border: 1px solid #ccc;">`; }); pdfHtml += `</div></td></tr>`; } pdfHtml += `</table></div>`; document.getElementById('damageReportHtml').value = pdfHtml;
+
             fetch(G_URL, { method: 'POST', body: new FormData(form) })
             .then(res => res.json())
             .then(googleData => {
                 let insertObj = Object.fromEntries(new FormData(form).entries());
-                delete insertObj.ReportHTML; 
+                delete insertObj.ReportHTML;
                 insertObj.PDF_Archive = googleData.pdfUrl || "PDF Failed to Generate";
-                insertObj.Status = "Pending"; 
+                insertObj.Status = "Pending";
                 return supabaseClient.from('damage_reports').insert([insertObj]);
             })
             .then(({ error }) => {
                 if(error) throw error;
-                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ DAMAGE REPORT SENT!"; 
+                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ DAMAGE REPORT SENT!";
                 setTimeout(() => { form.reset(); damagePhotos = []; document.getElementById('damagePrev').innerHTML = ''; btn.disabled = false; btn.style.backgroundColor = "#e74c3c"; btn.innerText = "🚀 SUBMIT DAMAGE REPORT"; openMenu(); }, 3000);
             }).catch(() => {
                 alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT DAMAGE REPORT";
