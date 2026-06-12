@@ -1,3 +1,7 @@
+https://raw.githubusercontent.com/CalichesFC/index.html/main/index.html
+→ https://raw.githubusercontent.com/CalichesFC/index.html/main/index.html
+Content-Type: text/plain; charset=utf-8
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -593,16 +597,19 @@
             if (error) { console.error('[Dashboard] Error:', error); results.innerHTML = '<p style="color:red;padding:20px;">Error (' + error.code + '): ' + error.message + '</p>'; return; }
             if (!supaData || supaData.length === 0) { results.innerHTML = '<p style="padding:20px;">No data found. Submit a form then check this tab.</p>'; return; }
             let headers = Object.keys(supaData[0]).filter(k => k !== 'id');
+            let pdfCol = headers.includes('PDF_Archive') ? 'PDF_Archive' : null;
+            let visibleHeaders = headers.filter(h => h !== 'PDF_Archive').slice(0, 9);
+            if (pdfCol) visibleHeaders.push(pdfCol);
             let html = '<div class="table-wrapper"><table class="data-table"><thead><tr>';
-            headers.forEach((h,i) => { if(i<10) html += '<th>' + h + '</th>'; });
+            visibleHeaders.forEach(h => { html += '<th>' + (h==='PDF_Archive'?'Report':h) + '</th>'; });
             if(tabName==='Maintenance Logs'||tabName==='Damage Reports') html += '<th>Action</th>';
             html += '</tr></thead><tbody>';
             supaData.forEach(row => {
                 html += '<tr>';
-                headers.forEach((h,i) => {
-                    if(i>=10) return;
+                visibleHeaders.forEach(h => {
                     let cellData = (row[h]!==null&&row[h]!==undefined)?row[h]:'';
                     if(cellData.toString().startsWith('http')) { html += '<td><a href="' + cellData + '" target="_blank" style="background:var(--caliches-pink);color:white;padding:5px 10px;border-radius:4px;text-decoration:none;font-weight:bold;display:inline-block;">View PDF</a></td>'; }
+                    else if(h==='PDF_Archive') { html += '<td style="color:#c0392b;">PDF Failed</td>'; }
                     else { html += '<td>' + cellData + '</td>'; }
                 });
                 if(tabName==='Maintenance Logs'||tabName==='Damage Reports') {
