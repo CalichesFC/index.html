@@ -1,7 +1,3 @@
-https://raw.githubusercontent.com/CalichesFC/index.html/main/index.html
-→ https://raw.githubusercontent.com/CalichesFC/index.html/main/index.html
-Content-Type: text/plain; charset=utf-8
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -140,6 +136,7 @@ Content-Type: text/plain; charset=utf-8
         <div><p class="user-greeting" id="greetingName">Hello, Staff</p><p class="user-role" id="greetingRole">Role: Unknown</p></div>
         <button class="logout-btn" onclick="logout()">Logout</button>
     </div>
+    <div id="offlineQueueBadge" style="display:none;background:#fdf3e8;color:#854F0B;padding:10px 15px;border-radius:8px;font-weight:bold;font-size:13px;margin-bottom:15px;text-align:center;"></div>
     <img src="splash-logo.png" alt="Caliche's Logo" style="max-height:220px;width:auto;margin-bottom:20px;filter:drop-shadow(0px 6px 12px rgba(0,0,0,0.25));" onerror="this.style.display='none'">
     <h1 class="menu-title">Operations Hub</h1>
     <div class="slider-wrapper">
@@ -287,6 +284,10 @@ Content-Type: text/plain; charset=utf-8
         let today = new Date().toISOString().split('T')[0];
         ['dt','driverDt','shortageDt','maintDt','damageDt'].forEach(id => { let el = document.getElementById(id); if(el) el.value = today; });
 
+        // Offline queue: show badge and try sending any queued reports
+        updateOfflineBadge();
+        processOfflineQueue();
+
         // PWA install prompt
         window.addEventListener('beforeinstallprompt', function(e) {
             e.preventDefault();
@@ -432,6 +433,7 @@ Content-Type: text/plain; charset=utf-8
         .then(({ error }) => { if(error) console.log('[Activity] Log error:', error.message); });
     }
 
+    let activityLogData = [];
     function fetchActivityLog(btnElement) {
         currentDashTab = 'Activity';
         document.querySelectorAll('.dash-tab').forEach(b => b.classList.remove('active'));
@@ -443,15 +445,29 @@ Content-Type: text/plain; charset=utf-8
         .then(({ data, error }) => {
             if (error) { results.innerHTML = '<p style="color:red;padding:20px;">Error (' + error.code + '): ' + error.message + '</p>'; return; }
             if (!data || data.length === 0) { results.innerHTML = '<p style="padding:20px;">No activity recorded yet. Activity is logged on each login.</p>'; return; }
-            let html = '<div class="table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Action</th><th>Time</th></tr></thead><tbody>';
-            data.forEach(row => {
-                let time = row.created_at ? new Date(row.created_at).toLocaleString() : '';
-                let col = row.action === 'login' ? 'var(--pass-green)' : 'var(--caliches-blue)';
-                html += '<tr><td style="font-weight:500;">' + (row.name||'') + '</td><td style="color:var(--na-gray);">' + (row.username||'') + '</td><td><span style="background:' + col + '22;color:' + col + ';padding:3px 10px;border-radius:4px;font-size:12px;font-weight:bold;">' + (row.action||'') + '</span></td><td style="color:var(--na-gray);font-size:12px;">' + time + '</td></tr>';
-            });
-            html += '</tbody></table></div>';
-            results.innerHTML = html;
+            activityLogData = data;
+            results.innerHTML = '<input type="text" id="activitySearch" class="filter-select" style="width:100%;margin-bottom:12px;box-sizing:border-box;" placeholder="Search by name, username, or action..." oninput="renderActivityLog()"><div id="activityLogTable"></div>';
+            renderActivityLog();
         }).catch(err => { results.innerHTML = '<p style="color:red;padding:20px;">Connection Error: ' + err.message + '</p>'; });
+    }
+
+    function renderActivityLog() {
+        let container = document.getElementById('activityLogTable');
+        if (!container) return;
+        let term = (document.getElementById('activitySearch').value || '').toLowerCase().trim();
+        let rows = activityLogData.filter(row => !term ||
+            (row.name||'').toLowerCase().includes(term) ||
+            (row.username||'').toLowerCase().includes(term) ||
+            (row.action||'').toLowerCase().includes(term));
+        if (rows.length === 0) { container.innerHTML = '<p style="padding:20px;">No matching activity found.</p>'; return; }
+        let html = '<div class="table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Action</th><th>Time</th></tr></thead><tbody>';
+        rows.forEach(row => {
+            let time = row.created_at ? new Date(row.created_at).toLocaleString() : '';
+            let col = row.action === 'login' ? 'var(--pass-green)' : 'var(--caliches-blue)';
+            html += '<tr><td style="font-weight:500;">' + (row.name||'') + '</td><td style="color:var(--na-gray);">' + (row.username||'') + '</td><td><span style="background:' + col + '22;color:' + col + ';padding:3px 10px;border-radius:4px;font-size:12px;font-weight:bold;">' + (row.action||'') + '</span></td><td style="color:var(--na-gray);font-size:12px;">' + time + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
     }
 
     // ============================================================
@@ -597,19 +613,16 @@ Content-Type: text/plain; charset=utf-8
             if (error) { console.error('[Dashboard] Error:', error); results.innerHTML = '<p style="color:red;padding:20px;">Error (' + error.code + '): ' + error.message + '</p>'; return; }
             if (!supaData || supaData.length === 0) { results.innerHTML = '<p style="padding:20px;">No data found. Submit a form then check this tab.</p>'; return; }
             let headers = Object.keys(supaData[0]).filter(k => k !== 'id');
-            let pdfCol = headers.includes('PDF_Archive') ? 'PDF_Archive' : null;
-            let visibleHeaders = headers.filter(h => h !== 'PDF_Archive').slice(0, 9);
-            if (pdfCol) visibleHeaders.push(pdfCol);
             let html = '<div class="table-wrapper"><table class="data-table"><thead><tr>';
-            visibleHeaders.forEach(h => { html += '<th>' + (h==='PDF_Archive'?'Report':h) + '</th>'; });
+            headers.forEach((h,i) => { if(i<10) html += '<th>' + h + '</th>'; });
             if(tabName==='Maintenance Logs'||tabName==='Damage Reports') html += '<th>Action</th>';
             html += '</tr></thead><tbody>';
             supaData.forEach(row => {
                 html += '<tr>';
-                visibleHeaders.forEach(h => {
+                headers.forEach((h,i) => {
+                    if(i>=10) return;
                     let cellData = (row[h]!==null&&row[h]!==undefined)?row[h]:'';
                     if(cellData.toString().startsWith('http')) { html += '<td><a href="' + cellData + '" target="_blank" style="background:var(--caliches-pink);color:white;padding:5px 10px;border-radius:4px;text-decoration:none;font-weight:bold;display:inline-block;">View PDF</a></td>'; }
-                    else if(h==='PDF_Archive') { html += '<td style="color:#c0392b;">PDF Failed</td>'; }
                     else { html += '<td>' + cellData + '</td>'; }
                 });
                 if(tabName==='Maintenance Logs'||tabName==='Damage Reports') {
@@ -666,6 +679,73 @@ Content-Type: text/plain; charset=utf-8
     // PDF HEADER HELPER
     // ============================================================
     function getBrandHeader(title, color) { return '<div style="font-family:Helvetica Neue,Helvetica,Arial,sans-serif;max-width:800px;margin:0 auto;border:1px solid #e0e0e0;border-radius:10px;padding:40px;background-color:#ffffff;"><div style="text-align:center;border-bottom:5px solid ' + color + ';padding-bottom:20px;margin-bottom:30px;"><h1 style="color:#4a68b1;font-size:38px;margin:0;font-weight:900;text-transform:uppercase;letter-spacing:2px;">Caliche\'s</h1><h2 style="color:' + color + ';font-size:20px;margin:5px 0 0 0;letter-spacing:1px;text-transform:uppercase;">Operations Hub</h2><p style="color:#888;font-size:14px;margin:15px 0 0 0;"><b>REPORT TYPE:</b> ' + title + '</p><p style="color:#888;font-size:14px;margin:5px 0 0 0;"><b>DATE GENERATED:</b> ' + new Date().toLocaleString() + '</p></div>'; }
+
+    // ============================================================
+    // HTML ESCAPING (for PDF generation)
+    // ============================================================
+    function escHtml(str) {
+        if (str === null || str === undefined) return '';
+        return str.toString().replace(/[&<>"']/g, function(c) {
+            return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+        });
+    }
+
+    // ============================================================
+    // OFFLINE SUBMISSION QUEUE
+    // ============================================================
+    function objToFormData(obj) {
+        let fd = new FormData();
+        Object.keys(obj).forEach(k => fd.append(k, obj[k]));
+        return fd;
+    }
+
+    function queueOfflineSubmission(tableName, form) {
+        let entry = { tableName: tableName, formData: Object.fromEntries(new FormData(form).entries()), queuedAt: new Date().toISOString() };
+        let queue = JSON.parse(localStorage.getItem('calichesOfflineQueue') || '[]');
+        queue.push(entry);
+        localStorage.setItem('calichesOfflineQueue', JSON.stringify(queue));
+        updateOfflineBadge();
+    }
+
+    function updateOfflineBadge() {
+        let badge = document.getElementById('offlineQueueBadge');
+        if (!badge) return;
+        let queue = JSON.parse(localStorage.getItem('calichesOfflineQueue') || '[]');
+        if (queue.length > 0) {
+            badge.style.display = 'block';
+            badge.innerText = '⚠️ ' + queue.length + ' report' + (queue.length>1?'s':'') + ' saved on this device, waiting to send...';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    function processOfflineQueue() {
+        if (!navigator.onLine) return;
+        let queue = JSON.parse(localStorage.getItem('calichesOfflineQueue') || '[]');
+        if (queue.length === 0) return;
+        let remaining = [];
+        let processNext = function(i) {
+            if (i >= queue.length) {
+                localStorage.setItem('calichesOfflineQueue', JSON.stringify(remaining));
+                updateOfflineBadge();
+                return;
+            }
+            let item = queue[i];
+            let fd = objToFormData(item.formData);
+            fetch(G_URL, { method:'POST', body: fd })
+            .then(res => res.json())
+            .then(googleData => {
+                item.formData.PDF_Archive = googleData.pdfUrl || 'PDF Failed to Generate';
+                delete item.formData.ReportHTML; delete item.formData.action;
+                return supabaseClient.from(item.tableName).insert([item.formData]);
+            })
+            .then(() => { processNext(i+1); })
+            .catch(err => { console.log('[Offline Queue] Still failing for', item.tableName, err.message); remaining.push(item); processNext(i+1); });
+        };
+        processNext(0);
+    }
+
+    window.addEventListener('online', processOfflineQueue);
 
     // ============================================================
     // SUPABASE SAVE HELPER
@@ -743,8 +823,28 @@ Content-Type: text/plain; charset=utf-8
     // ============================================================
     // IMAGE COMPRESSION
     // ============================================================
-    function compressAndPreview(event, qId) { let files = event.target.files; if(!files||files.length===0) return; let pc = document.getElementById('imgPreviewContainer'+qId); Array.from(files).forEach(file => { let r = new FileReader(); r.onload = function(e) { let img = new Image(); img.onload = function() { let c = document.createElement('canvas'); let ctx = c.getContext('2d'); let scale = Math.min(300/img.width,1); c.width = img.width*scale; c.height = img.height*scale; ctx.drawImage(img,0,0,c.width,c.height); let b64 = c.toDataURL('image/jpeg',0.4); questionPhotos[qId].push(b64); let pi = document.createElement('img'); pi.src = b64; pi.style.cssText = 'width:60px;height:60px;border-radius:6px;border:1px solid #ccc;object-fit:cover;'; pc.appendChild(pi); }; img.src = e.target.result; }; r.readAsDataURL(file); }); }
-    function compressToGlobal(event, previewId, targetArray) { let files = event.target.files; if(!files||files.length===0) return; let pc = document.getElementById(previewId); Array.from(files).forEach(file => { let r = new FileReader(); r.onload = function(e) { let img = new Image(); img.onload = function() { let c = document.createElement('canvas'); let ctx = c.getContext('2d'); let scale = Math.min(400/img.width,1); c.width = img.width*scale; c.height = img.height*scale; ctx.drawImage(img,0,0,c.width,c.height); let b64 = c.toDataURL('image/jpeg',0.4); targetArray.push(b64); let pi = document.createElement('img'); pi.src = b64; pi.style.cssText = 'height:80px;border-radius:6px;border:1px solid #ccc;'; pc.appendChild(pi); }; img.src = e.target.result; }; r.readAsDataURL(file); }); }
+    function addPhotoPreview(pc, arr, b64, sizeStyle) {
+        let wrap = document.createElement('div');
+        wrap.style.cssText = 'position:relative;display:inline-block;';
+        let pi = document.createElement('img');
+        pi.src = b64;
+        pi.style.cssText = sizeStyle;
+        let rm = document.createElement('span');
+        rm.innerHTML = '&times;';
+        rm.title = 'Remove photo';
+        rm.style.cssText = 'position:absolute;top:-6px;right:-6px;background:#e74c3c;color:white;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold;cursor:pointer;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,0.3);';
+        rm.onclick = function() {
+            let idx = arr.indexOf(b64);
+            if (idx > -1) arr.splice(idx, 1);
+            wrap.remove();
+        };
+        wrap.appendChild(pi);
+        wrap.appendChild(rm);
+        pc.appendChild(wrap);
+    }
+
+    function compressAndPreview(event, qId) { let files = event.target.files; if(!files||files.length===0) return; let pc = document.getElementById('imgPreviewContainer'+qId); Array.from(files).forEach(file => { let r = new FileReader(); r.onload = function(e) { let img = new Image(); img.onload = function() { let c = document.createElement('canvas'); let ctx = c.getContext('2d'); let scale = Math.min(300/img.width,1); c.width = img.width*scale; c.height = img.height*scale; ctx.drawImage(img,0,0,c.width,c.height); let b64 = c.toDataURL('image/jpeg',0.4); questionPhotos[qId].push(b64); addPhotoPreview(pc, questionPhotos[qId], b64, 'width:60px;height:60px;border-radius:6px;border:1px solid #ccc;object-fit:cover;'); }; img.src = e.target.result; }; r.readAsDataURL(file); }); event.target.value = ''; }
+    function compressToGlobal(event, previewId, targetArray) { let files = event.target.files; if(!files||files.length===0) return; let pc = document.getElementById(previewId); Array.from(files).forEach(file => { let r = new FileReader(); r.onload = function(e) { let img = new Image(); img.onload = function() { let c = document.createElement('canvas'); let ctx = c.getContext('2d'); let scale = Math.min(400/img.width,1); c.width = img.width*scale; c.height = img.height*scale; ctx.drawImage(img,0,0,c.width,c.height); let b64 = c.toDataURL('image/jpeg',0.4); targetArray.push(b64); addPhotoPreview(pc, targetArray, b64, 'height:80px;border-radius:6px;border:1px solid #ccc;'); }; img.src = e.target.result; }; r.readAsDataURL(file); }); event.target.value = ''; }
 
     // ============================================================
     // FORM SUBMISSIONS
@@ -756,10 +856,10 @@ Content-Type: text/plain; charset=utf-8
         if(answered<totalQuestions) { return alert('Please answer all questions. You have answered '+answered+' out of '+totalQuestions+'.'); }
         btn.innerText = 'Generating PDF...'; btn.disabled = true;
         let pdfHtml = getBrandHeader('Store Pop-In Inspection','#4a68b1');
-        pdfHtml += '<table style="width:100%;margin-bottom:20px;"><tr><td style="padding:8px;"><strong>Location:</strong> '+document.getElementById('loc').value+'</td><td style="padding:8px;"><strong>Date:</strong> '+document.getElementById('dt').value+'</td></tr><tr><td style="padding:8px;"><strong>Conducted By:</strong> '+document.getElementById('conductor').value+'</td><td style="padding:8px;"><strong>Shift Leader:</strong> '+document.getElementById('sldr').value+' ('+document.getElementById('shiftTime').value+')</td></tr></table>';
-        pdfHtml += '<div style="background:#f0f4f8;padding:20px;border-radius:8px;margin-bottom:30px;text-align:center;"><h2 style="color:#4a68b1;margin:0;font-size:28px;">Score: '+document.getElementById('pct').innerText+'%</h2><h3 style="color:#555;margin:5px 0 15px 0;">Status: '+document.getElementById('st').innerText+'</h3><p style="margin:0;text-align:left;padding-top:15px;border-top:1px solid #ddd;"><strong>Comments:</strong> '+(document.getElementById('overallComments').value||'None')+'</p></div>';
+        pdfHtml += '<table style="width:100%;margin-bottom:20px;"><tr><td style="padding:8px;"><strong>Location:</strong> '+escHtml(document.getElementById('loc').value)+'</td><td style="padding:8px;"><strong>Date:</strong> '+escHtml(document.getElementById('dt').value)+'</td></tr><tr><td style="padding:8px;"><strong>Conducted By:</strong> '+escHtml(document.getElementById('conductor').value)+'</td><td style="padding:8px;"><strong>Shift Leader:</strong> '+escHtml(document.getElementById('sldr').value)+' ('+escHtml(document.getElementById('shiftTime').value)+')</td></tr></table>';
+        pdfHtml += '<div style="background:#f0f4f8;padding:20px;border-radius:8px;margin-bottom:30px;text-align:center;"><h2 style="color:#4a68b1;margin:0;font-size:28px;">Score: '+document.getElementById('pct').innerText+'%</h2><h3 style="color:#555;margin:5px 0 15px 0;">Status: '+document.getElementById('st').innerText+'</h3><p style="margin:0;text-align:left;padding-top:15px;border-top:1px solid #ddd;"><strong>Comments:</strong> '+escHtml(document.getElementById('overallComments').value||'None')+'</p></div>';
         pdfHtml += '<table border="1" cellpadding="12" style="border-collapse:collapse;width:100%;font-size:14px;border-color:#ddd;"><tr style="background:#4a68b1;color:white;"><th style="text-align:left;">Question</th><th style="width:60px;text-align:center;">Score</th><th>Notes</th></tr>';
-        let loopIdx=1; questions.forEach(group => { pdfHtml += '<tr style="background:#f9f9f9;"><td colspan="3"><strong>'+group.cat+'</strong></td></tr>'; group.q.forEach(text => { let sel = document.querySelector('input[name="q'+loopIdx+'"]:checked'); let note = document.getElementById('note'+loopIdx).value; let score = sel?sel.value:'N/A'; if(score==='0') score='N/A'; pdfHtml += '<tr><td>'+text+'</td><td style="text-align:center;font-weight:bold;">'+score+'</td><td>'+note+'</td></tr>'; loopIdx++; }); });
+        let loopIdx=1; questions.forEach(group => { pdfHtml += '<tr style="background:#f9f9f9;"><td colspan="3"><strong>'+escHtml(group.cat)+'</strong></td></tr>'; group.q.forEach(text => { let sel = document.querySelector('input[name="q'+loopIdx+'"]:checked'); let note = document.getElementById('note'+loopIdx).value; let score = sel?sel.value:'N/A'; if(score==='0') score='N/A'; pdfHtml += '<tr><td>'+escHtml(text)+'</td><td style="text-align:center;font-weight:bold;">'+score+'</td><td>'+escHtml(note)+'</td></tr>'; loopIdx++; }); });
         pdfHtml += '</table></div>';
         document.getElementById('popInReportHtml').value = pdfHtml;
         fetch(G_URL, { method:'POST', body:new FormData(form) })
@@ -772,7 +872,7 @@ Content-Type: text/plain; charset=utf-8
                 btn.onclick = function(e) { e.preventDefault(); document.body.innerHTML = pdfHtml; setTimeout(() => { window.print(); location.reload(); }, 500); };
             });
         })
-        .catch(err => { console.error('[Pop-In] GAS error:', err); alert('Could not reach PDF server: '+err.message); btn.disabled=false; btn.innerText='SUBMIT POP-IN TO OFFICE'; });
+        .catch(err => { console.error('[Pop-In] GAS error:', err); queueOfflineSubmission('pop_ins', form); localStorage.removeItem('calichesDraft_popIn'); alert('No connection to the server. Your Pop-In has been saved on this device and will be submitted automatically once you\'re back online.'); btn.disabled=false; btn.style.backgroundColor=''; btn.innerText='SUBMIT POP-IN TO OFFICE'; openMenu(); });
     }
 
     function submitDriverForm() {
@@ -781,13 +881,13 @@ Content-Type: text/plain; charset=utf-8
         btn.innerText = 'Generating PDF...'; btn.disabled = true;
         let pdfHtml = getBrandHeader('Vehicle & Trailer Check-Out','#c53a74');
         pdfHtml += '<table border="1" cellpadding="12" style="border-collapse:collapse;width:100%;font-size:15px;border-color:#ddd;">';
-        new FormData(form).forEach((value,key) => { if(key!=='ReportHTML'&&value.toString().trim()!=='') { pdfHtml += '<tr><td style="background:#f9f9f9;font-weight:bold;color:#c53a74;width:40%;">'+key.replace(/_/g,' ').toUpperCase()+'</td><td>'+value+'</td></tr>'; } });
+        new FormData(form).forEach((value,key) => { if(key!=='ReportHTML'&&value.toString().trim()!=='') { pdfHtml += '<tr><td style="background:#f9f9f9;font-weight:bold;color:#c53a74;width:40%;">'+key.replace(/_/g,' ').toUpperCase()+'</td><td>'+escHtml(value)+'</td></tr>'; } });
         pdfHtml += '</table></div>';
         document.getElementById('driverReportHtml').value = pdfHtml;
         fetch(G_URL, { method:'POST', body:new FormData(form) })
         .then(res => res.json())
         .then(googleData => { console.log('[Driver] GAS:', googleData); saveToSupabase('driver_logs', form, googleData.pdfUrl, () => { btn.disabled=false; btn.style.backgroundColor='var(--pass-green)'; btn.innerText='LOG SECURED AND SENT!'; setTimeout(() => { form.reset(); btn.style.backgroundColor='var(--caliches-pink)'; btn.innerText='SUBMIT DRIVER CHECKLIST'; openMenu(); }, 3000); }); })
-        .catch(err => { console.error('[Driver] GAS error:', err); alert('Could not reach PDF server: '+err.message); btn.disabled=false; btn.innerText='SUBMIT DRIVER CHECKLIST'; });
+        .catch(err => { console.error('[Driver] GAS error:', err); queueOfflineSubmission('driver_logs', form); alert('No connection to the server. This checklist has been saved on this device and will be submitted automatically once you\'re back online.'); btn.disabled=false; btn.style.backgroundColor=''; btn.innerText='SUBMIT DRIVER CHECKLIST'; form.reset(); openMenu(); });
     }
 
     function submitShortage() {
@@ -796,13 +896,13 @@ Content-Type: text/plain; charset=utf-8
         btn.innerText = 'Generating PDF...'; btn.disabled = true;
         let pdfHtml = getBrandHeader('Store Shortage Report','#28a745');
         pdfHtml += '<table border="1" cellpadding="12" style="border-collapse:collapse;width:100%;font-size:15px;border-color:#ddd;">';
-        new FormData(form).forEach((value,key) => { if(key!=='ReportHTML'&&value.toString().trim()!=='') { pdfHtml += '<tr><td style="background:#f4fbf5;font-weight:bold;color:#28a745;width:40%;">'+key.replace(/([A-Z])/g,' $1').trim().toUpperCase()+'</td><td>'+value+'</td></tr>'; } });
+        new FormData(form).forEach((value,key) => { if(key!=='ReportHTML'&&value.toString().trim()!=='') { pdfHtml += '<tr><td style="background:#f4fbf5;font-weight:bold;color:#28a745;width:40%;">'+key.replace(/([A-Z])/g,' $1').trim().toUpperCase()+'</td><td>'+escHtml(value)+'</td></tr>'; } });
         pdfHtml += '</table></div>';
         document.getElementById('shortageReportHtml').value = pdfHtml;
         fetch(G_URL, { method:'POST', body:new FormData(form) })
         .then(res => res.json())
         .then(googleData => { console.log('[Shortage] GAS:', googleData); saveToSupabase('shortages', form, googleData.pdfUrl, () => { btn.disabled=false; btn.style.backgroundColor='var(--pass-green)'; btn.innerText='REPORT SUBMITTED!'; setTimeout(() => { form.reset(); btn.style.backgroundColor='var(--pass-green)'; btn.innerText='SUBMIT SHORTAGE REPORT'; openMenu(); }, 3000); }); })
-        .catch(err => { console.error('[Shortage] GAS error:', err); alert('Could not reach PDF server: '+err.message); btn.disabled=false; btn.innerText='SUBMIT SHORTAGE REPORT'; });
+        .catch(err => { console.error('[Shortage] GAS error:', err); queueOfflineSubmission('shortages', form); alert('No connection to the server. This report has been saved on this device and will be submitted automatically once you\'re back online.'); btn.disabled=false; btn.style.backgroundColor=''; btn.innerText='SUBMIT SHORTAGE REPORT'; form.reset(); openMenu(); });
     }
 
     function submitMaintenance() {
@@ -811,14 +911,14 @@ Content-Type: text/plain; charset=utf-8
         btn.innerText = 'Generating PDF...'; btn.disabled = true;
         let pdfHtml = getBrandHeader('Required Maintenance','#e67e22');
         pdfHtml += '<table border="1" cellpadding="12" style="border-collapse:collapse;width:100%;font-size:15px;border-color:#ddd;">';
-        new FormData(form).forEach((value,key) => { if(key!=='ReportHTML'&&value.toString().trim()!=='') { pdfHtml += '<tr><td style="background:#fdf3e8;font-weight:bold;color:#e67e22;width:40%;">'+key.replace(/([A-Z])/g,' $1').trim().toUpperCase()+'</td><td>'+value+'</td></tr>'; } });
+        new FormData(form).forEach((value,key) => { if(key!=='ReportHTML'&&value.toString().trim()!=='') { pdfHtml += '<tr><td style="background:#fdf3e8;font-weight:bold;color:#e67e22;width:40%;">'+key.replace(/([A-Z])/g,' $1').trim().toUpperCase()+'</td><td>'+escHtml(value)+'</td></tr>'; } });
         if(maintPhotos.length>0) { pdfHtml += '<tr><td style="background:#fdf3e8;font-weight:bold;color:#e67e22;">PHOTOS</td><td><div style="display:flex;gap:10px;flex-wrap:wrap;">'; maintPhotos.forEach(p => { pdfHtml += '<img src="'+p+'" style="max-height:150px;border-radius:8px;border:1px solid #ccc;">'; }); pdfHtml += '</div></td></tr>'; }
         pdfHtml += '</table></div>';
         document.getElementById('maintenanceReportHtml').value = pdfHtml;
         fetch(G_URL, { method:'POST', body:new FormData(form) })
         .then(res => res.json())
         .then(googleData => { console.log('[Maintenance] GAS:', googleData); saveToSupabase('maintenance_logs', form, googleData.pdfUrl, () => { btn.disabled=false; btn.style.backgroundColor='var(--pass-green)'; btn.innerText='MAINTENANCE REPORT SENT!'; setTimeout(() => { form.reset(); maintPhotos=[]; document.getElementById('maintPrev').innerHTML=''; btn.style.backgroundColor='#e67e22'; btn.innerText='SUBMIT MAINTENANCE REQUEST'; openMenu(); }, 3000); }); })
-        .catch(err => { console.error('[Maintenance] GAS error:', err); alert('Could not reach PDF server: '+err.message); btn.disabled=false; btn.innerText='SUBMIT MAINTENANCE REQUEST'; });
+        .catch(err => { console.error('[Maintenance] GAS error:', err); queueOfflineSubmission('maintenance_logs', form); alert('No connection to the server. This request has been saved on this device and will be submitted automatically once you\'re back online.'); btn.disabled=false; btn.style.backgroundColor=''; btn.innerText='SUBMIT MAINTENANCE REQUEST'; form.reset(); maintPhotos=[]; document.getElementById('maintPrev').innerHTML=''; openMenu(); });
     }
 
     function submitDamage() {
@@ -827,14 +927,14 @@ Content-Type: text/plain; charset=utf-8
         btn.innerText = 'Generating PDF...'; btn.disabled = true;
         let pdfHtml = getBrandHeader('Vehicle & Trailer Damage','#e74c3c');
         pdfHtml += '<table border="1" cellpadding="12" style="border-collapse:collapse;width:100%;font-size:15px;border-color:#ddd;">';
-        new FormData(form).forEach((value,key) => { if(key!=='ReportHTML'&&value.toString().trim()!=='') { pdfHtml += '<tr><td style="background:#fceceb;font-weight:bold;color:#e74c3c;width:40%;">'+key.replace(/([A-Z])/g,' $1').trim().toUpperCase()+'</td><td>'+value+'</td></tr>'; } });
+        new FormData(form).forEach((value,key) => { if(key!=='ReportHTML'&&value.toString().trim()!=='') { pdfHtml += '<tr><td style="background:#fceceb;font-weight:bold;color:#e74c3c;width:40%;">'+key.replace(/([A-Z])/g,' $1').trim().toUpperCase()+'</td><td>'+escHtml(value)+'</td></tr>'; } });
         if(damagePhotos.length>0) { pdfHtml += '<tr><td style="background:#fceceb;font-weight:bold;color:#e74c3c;">DAMAGE PHOTOS</td><td><div style="display:flex;gap:10px;flex-wrap:wrap;">'; damagePhotos.forEach(p => { pdfHtml += '<img src="'+p+'" style="max-height:150px;border-radius:8px;border:1px solid #ccc;">'; }); pdfHtml += '</div></td></tr>'; }
         pdfHtml += '</table></div>';
         document.getElementById('damageReportHtml').value = pdfHtml;
         fetch(G_URL, { method:'POST', body:new FormData(form) })
         .then(res => res.json())
         .then(googleData => { console.log('[Damage] GAS:', googleData); saveToSupabase('damage_reports', form, googleData.pdfUrl, () => { btn.disabled=false; btn.style.backgroundColor='var(--pass-green)'; btn.innerText='DAMAGE REPORT SENT!'; setTimeout(() => { form.reset(); damagePhotos=[]; document.getElementById('damagePrev').innerHTML=''; btn.style.backgroundColor='#e74c3c'; btn.innerText='SUBMIT DAMAGE REPORT'; openMenu(); }, 3000); }); })
-        .catch(err => { console.error('[Damage] GAS error:', err); alert('Could not reach PDF server: '+err.message); btn.disabled=false; btn.innerText='SUBMIT DAMAGE REPORT'; });
+        .catch(err => { console.error('[Damage] GAS error:', err); queueOfflineSubmission('damage_reports', form); alert('No connection to the server. This report has been saved on this device and will be submitted automatically once you\'re back online.'); btn.disabled=false; btn.style.backgroundColor=''; btn.innerText='SUBMIT DAMAGE REPORT'; form.reset(); damagePhotos=[]; document.getElementById('damagePrev').innerHTML=''; openMenu(); });
     }
 </script>
 </body>
