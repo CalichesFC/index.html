@@ -636,7 +636,7 @@
                 headers.forEach((h,i) => {
                     if(i>=10) return;
                     let cellData = (row[h]!==null&&row[h]!==undefined)?row[h]:'';
-                    if(cellData.toString().startsWith('http') || cellData.toString().startsWith('data:')) { html += '<td><a href="' + cellData + '" target="_blank" download="report.pdf" style="background:var(--caliches-pink);color:white;padding:5px 10px;border-radius:4px;text-decoration:none;font-weight:bold;display:inline-block;">View PDF</a></td>'; }
+                    if(cellData.toString().startsWith('data:')) { html += '<td><button type="button" data-pdf="' + cellData + '" onclick="(function(d){try{var b=atob(d.split(&#39;,&#39;)[1]);var n=b.length;var u=new Uint8Array(n);for(var i=0;i<n;i++)u[i]=b.charCodeAt(i);var url=URL.createObjectURL(new Blob([u],{type:&#39;application/pdf&#39;}));var w=window.open(url,&#39;_blank&#39;);if(!w){window.location.href=url;}}catch(e){alert(&#39;Unable to open PDF: &#39;+e.message);}})(this.getAttribute(&#39;data-pdf&#39;))" style="background:var(--caliches-pink);color:white;padding:5px 10px;border-radius:4px;border:none;font-weight:bold;display:inline-block;cursor:pointer;">View PDF</button></td>'; } else if(cellData.toString().startsWith('http')) { html += '<td><a href="' + cellData + '" target="_blank" style="background:var(--caliches-pink);color:white;padding:5px 10px;border-radius:4px;text-decoration:none;font-weight:bold;display:inline-block;">View PDF</a></td>'; }
                     else { html += '<td>' + cellData + '</td>'; }
                 });
                 if(tabName==='Maintenance Logs'||tabName==='Damage Reports') {
