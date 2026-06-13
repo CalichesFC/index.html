@@ -3,733 +3,1043 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#4a68b1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Caliche's Hub">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icon-192.png" type="image/png">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <title>Caliche's Operations Hub</title>
-
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
     <style>
-        :root {
-            --caliches-blue: #4a68b1;
-            --caliches-pink: #c53a74;
-            --light-gray: #f0f4f8;
-            --white: #ffffff;
-            --pass-green: #28a745;
-            --fail-red: #dc3545;
-            --maint-orange: #e67e22;
-            --damage-red: #e74c3c;
-            --na-gray: #9e9e9e;
+        :root { --caliches-blue:#4a68b1; --caliches-pink:#c53a74; --light-gray:#f0f4f8; --white:#ffffff; --pass-green:#28a745; --fail-red:#dc3545; --maint-orange:#e67e22; --damage-red:#e74c3c; --na-gray:#9e9e9e; }
+        body { font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; background-color:var(--light-gray); margin:0; padding:0; color:#333; }
+        #splash-screen { position:fixed; top:0; left:0; width:100%; height:100%; background-color:var(--caliches-blue); display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:9999; transition:opacity 0.6s ease-out; }
+        .splash-logo { max-width:250px; width:80%; animation:pulse 1.5s infinite; filter:drop-shadow(0px 4px 10px rgba(0,0,0,0.3)); }
+        @keyframes pulse { 0%{transform:scale(0.95);opacity:0.9} 50%{transform:scale(1.05);opacity:1} 100%{transform:scale(0.95);opacity:0.9} }
+        #neon-loader { position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(17,17,17,0.95); display:none; flex-direction:column; justify-content:center; align-items:center; z-index:10000; opacity:0; transition:opacity 0.3s ease-in-out; }
+        .neon-spinner { width:70px; height:70px; border:4px solid transparent; border-top:4px solid var(--caliches-pink); border-bottom:4px solid var(--caliches-blue); border-radius:50%; animation:spin 1s linear infinite; }
+        .neon-text { margin-top:20px; font-weight:900; font-size:16px; letter-spacing:3px; color:#fff; text-transform:uppercase; }
+        @keyframes spin { 100%{transform:rotate(360deg)} }
+        #login-view { display:flex; flex-direction:column; justify-content:center; align-items:center; background-color:var(--caliches-blue); height:100vh; padding:20px; box-sizing:border-box; }
+        .login-box { background:white; padding:35px 25px; border-radius:16px; width:100%; max-width:380px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.3); }
+        .text-link { display:inline-block; margin-top:15px; color:var(--caliches-blue); font-size:14px; font-weight:bold; text-decoration:underline; cursor:pointer; }
+        #registerForm { display:none; }
+        #main-menu { display:none; padding:20px; max-width:500px; margin:0 auto 40px auto; text-align:center; }
+        .user-profile-bar { background:white; padding:15px 20px; border-radius:12px; margin-bottom:25px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 6px rgba(0,0,0,0.05); border:2px solid #eee; }
+        .user-greeting { color:var(--caliches-blue); font-weight:900; font-size:16px; margin:0; text-align:left; }
+        .user-role { color:var(--na-gray); font-size:12px; font-weight:bold; text-transform:uppercase; letter-spacing:1px; margin:0; text-align:left; }
+        .logout-btn { background:#f8f9fa; color:var(--fail-red); border:1px solid var(--fail-red); padding:8px 15px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px; }
+
+        /* NOTIFICATION BELL & PANEL */
+        .notif-bell-wrap { position: relative; }
+        .notif-bell { position: relative; background: #f8f9fa; border: 1px solid #ddd; border-radius: 50%; width: 38px; height: 38px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .notif-badge { position: absolute; top: -4px; right: -4px; background: var(--fail-red); color: white; font-size: 11px; font-weight: 900; border-radius: 50%; min-width: 18px; height: 18px; line-height: 18px; text-align: center; padding: 0 4px; box-shadow: 0 0 0 2px white; }
+        .notif-panel { display: none; position: absolute; top: 46px; right: -10px; width: min(320px, calc(100vw - 30px)); max-height: min(380px, 70vh); overflow-y: auto; background: white; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); border: 1px solid #eee; z-index: 200; text-align: left; }
+        @media (max-width: 480px) {
+            .user-profile-bar { padding: 12px; }
+            .notif-panel { right: -50px; }
+            .notif-item { font-size: 12px; padding: 10px 12px; }
         }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--light-gray); margin: 0; padding: 0; color: #333; }
-
-        /* SPLASH & NEON LOADER */
-        #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--caliches-blue); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; transition: opacity 0.6s ease-out; }
-        .splash-logo { max-width: 250px; width: 80%; animation: pulse 1.5s infinite; filter: drop-shadow(0px 4px 10px rgba(0,0,0,0.3)); }
-        @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.9; } 50% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.9; } }
-
-        #neon-loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(17, 17, 17, 0.95); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 10000; opacity: 0; transition: opacity 0.3s ease-in-out; }
-        .neon-spinner { width: 70px; height: 70px; border: 4px solid transparent; border-top: 4px solid var(--caliches-pink); border-bottom: 4px solid var(--caliches-blue); border-radius: 50%; animation: spin 1s linear infinite; box-shadow: 0 0 20px var(--caliches-pink), inset 0 0 20px var(--caliches-blue); }
-        .neon-text { margin-top: 20px; font-weight: 900; font-size: 16px; letter-spacing: 3px; color: #fff; text-transform: uppercase; text-shadow: 0 0 5px var(--caliches-pink), 0 0 15px var(--caliches-blue); animation: pulse-neon 1.5s ease-in-out infinite alternate; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-        @keyframes pulse-neon { 0% { text-shadow: 0 0 5px var(--caliches-pink), 0 0 15px var(--caliches-pink); } 100% { text-shadow: 0 0 5px var(--caliches-blue), 0 0 20px var(--caliches-blue); } }
-
-        /* LOGIN & REGISTRATION SCREEN */
-        #login-view { display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: var(--caliches-blue); height: 100vh; padding: 20px; box-sizing: border-box; }
-        .login-box { background: white; padding: 35px 25px; border-radius: 16px; width: 100%; max-width: 380px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
-        .text-link { display: inline-block; margin-top: 15px; color: var(--caliches-blue); font-size: 14px; font-weight: bold; text-decoration: underline; cursor: pointer; }
-        .text-link:hover { color: var(--caliches-pink); }
-        #registerForm { display: none; }
-
-        /* MAIN MENU & PROFILE BAR */
-        #main-menu { display: none; padding: 20px; max-width: 500px; margin: 0 auto 40px auto; text-align: center; }
-        .user-profile-bar { background: white; padding: 15px 20px; border-radius: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 2px solid #eee; }
-        .user-greeting { color: var(--caliches-blue); font-weight: 900; font-size: 16px; margin: 0; text-align: left;}
-        .user-role { color: var(--na-gray); font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin: 0; text-align: left;}
-        .logout-btn { background: #f8f9fa; color: var(--fail-red); border: 1px solid var(--fail-red); padding: 8px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; transition: 0.2s;}
-        .logout-btn:active { background: var(--fail-red); color: white; }
-        .menu-title { color: var(--caliches-blue); margin-bottom: 25px; font-size: 28px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
-
-        .menu-btn { display: block; width: 100%; background-color: var(--white); color: var(--caliches-blue); padding: 25px 20px; margin-bottom: 15px; font-size: 18px; font-weight: bold; border: 2px solid var(--caliches-blue); border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor: pointer; transition: 0.3s; }
-        .menu-btn.pink { color: var(--caliches-pink); border-color: var(--caliches-pink); }
-        .menu-btn.green { color: var(--pass-green); border-color: var(--pass-green); }
-        .menu-btn.orange { color: var(--maint-orange); border-color: var(--maint-orange); }
-        .menu-btn.red { color: var(--damage-red); border-color: var(--damage-red); }
-        .menu-btn.dark { color: white; background-color: #333; border-color: #333; margin-top: 30px;}
-        .menu-btn:active { transform: scale(0.98); background-color: #f9f9f9; }
-
-        /* SLIDER */
-        .slider-wrapper { position: relative; width: 100%; max-width: 350px; height: 250px; margin: 15px auto 30px auto; border-radius: 16px; overflow: hidden; box-shadow: 0px 8px 15px rgba(0,0,0,0.1); border: 3px solid var(--caliches-blue); background-color: var(--white); }
-        .slides { display: flex; width: 200%; height: 100%; transition: transform 0.5s ease-in-out; }
-        .slide { width: 50%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
-        .image-slide { background-color: #f8f9fa; } .slide-img { max-width: 100%; max-height: 100%; object-fit: contain; }
-        .text-slide { background-color: var(--caliches-pink); color: white; text-align: center; }
-        .focus-title { font-size: 16px; text-transform: uppercase; letter-spacing: 2px; font-weight: 900; color: #ffd700; margin-bottom: 15px; } .focus-text { font-size: 24px; font-weight: 900; line-height: 1.3; }
-        .arrow { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255, 255, 255, 0.9); border: none; color: var(--caliches-blue); font-size: 24px; font-weight: bold; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; z-index: 10; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-        .prev-arrow { left: 10px; } .next-arrow { right: 10px; }
-
-        /* FORMS & LAYOUTS */
-        .app-view { display: none; }
-        .back-btn { background: #333; color: white; border: none; padding: 12px 20px; font-size: 14px; font-weight: bold; width: 100%; text-align: left; cursor: pointer; }
-        .header { background-color: var(--caliches-blue); color: var(--white); text-align: center; padding: 20px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .logo-img { max-height: 80px; width: auto; display: block; margin: 0 auto 0 auto; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.2)); }
-        .header p { margin: 0; font-size: 14px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
-        .container { max-width: 700px; margin: 15px auto; padding: 0 15px; }
-
-        .info-group { background: var(--white); padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .info-group .full-width { grid-column: span 2; }
-        .form-label { display: block; font-weight: bold; margin-bottom: 6px; color: #333; font-size: 14px; }
-        .form-spacer { margin-bottom: 15px; }
-        .info-group input, .info-group select, .info-group textarea, .category input[type="text"], .category input[type="number"], .category select, .category textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 15px; background: #fafafa; font-family: inherit; }
-
-        .category { background: var(--white); border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        .category h2 { margin: 0 0 15px 0; font-size: 20px; border-bottom: 2px solid #eee; padding-bottom: 8px;}
-        .question { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #f0f0f0; }
-        .checkbox-item { display: flex; align-items: center; margin-bottom: 15px; font-size: 15px; font-weight: 500; }
-        .checkbox-item input[type="checkbox"] { margin-right: 15px; transform: scale(1.5); }
-        .rating-group { display: flex; justify-content: space-between; gap: 4px; }
-        .rating-group input[type="radio"] { display: none; }
-        .rating-group label { flex: 1; text-align: center; padding: 12px 0; background-color: #eee; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s; }
-        .rating-group input[value="0"]:checked + label { background-color: var(--na-gray); color: white; }
-        .rating-group input[value="1"]:checked + label, .rating-group input[value="2"]:checked + label { background-color: var(--fail-red); color: white; }
-        .rating-group input[value="3"]:checked + label, .rating-group input[value="4"]:checked + label, .rating-group input[value="5"]:checked + label { background-color: var(--caliches-blue); color: white; }
-        .note-input { width: 100%; margin-top: 8px; padding: 8px; border: 1px solid #eee; border-radius: 6px; font-size: 13px; box-sizing: border-box; background: #fafafa; }
-        .photo-btn { background: #e0e0e0; color: #333; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; display: inline-block; font-weight: bold; margin-top: 8px; border: 1px solid #ccc; }
-
-        .save-btn { width: 100%; background-color: var(--caliches-pink); color: white; border: none; padding: 20px; font-size: 18px; font-weight: bold; border-radius: 12px; cursor: pointer; margin-bottom: 60px; box-shadow: 0 4px 10px rgba(197, 58, 116, 0.3); transition: 0.3s; }
-        .save-btn.blue-btn { background-color: var(--caliches-blue); box-shadow: 0 4px 10px rgba(74, 104, 177, 0.3); }
-        .save-btn.green-btn { background-color: var(--pass-green); box-shadow: 0 4px 10px rgba(40, 167, 69, 0.3); }
-        .save-btn.orange-btn { background-color: var(--maint-orange); box-shadow: 0 4px 10px rgba(230, 126, 34, 0.3); }
-        .save-btn.red-btn { background-color: var(--damage-red); box-shadow: 0 4px 10px rgba(231, 76, 60, 0.3); }
-
-        /* THEMES */
-        #popInView .header { background-color: var(--caliches-blue); } #popInView .category { border-top: 6px solid var(--caliches-blue); } #popInView .category h2 { color: var(--caliches-blue); }
-        #driverView .header { background-color: var(--caliches-pink); } #driverView .info-group { border: 2px solid var(--caliches-pink); background-color: #fffafb; } #driverView .category { border-radius: 0; border-bottom: 3px dashed var(--caliches-pink); box-shadow: none; margin-bottom: 0; padding: 20px 15px; } #driverView .category:last-of-type { border-bottom: none; margin-bottom: 20px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); } #driverView .category h2 { color: var(--caliches-pink); border-bottom: none; text-transform: uppercase; font-size: 16px; letter-spacing: 1px; }
-        #shortageView .header { background-color: var(--pass-green); } #shortageView .category { border-left: 8px solid var(--pass-green); border-radius: 4px 12px 12px 4px; } #shortageView .category h2 { color: var(--pass-green); }
-        #maintenanceView .header { background: repeating-linear-gradient(45deg, var(--maint-orange), var(--maint-orange) 15px, #d35400 15px, #d35400 30px); } #maintenanceView .category { border-top: 6px solid #333; box-shadow: 0px 4px 0px var(--maint-orange); border-radius: 4px; } #maintenanceView .category h2 { color: var(--maint-orange); font-weight: 900; }
-        #damageView { background-color: #fceceb; min-height: 100vh; padding-bottom: 20px;} #damageView .header { background-color: var(--damage-red); } #damageView .info-group { border: 2px solid var(--damage-red); } #damageView .category { border: 2px solid var(--damage-red); border-top: 8px solid var(--damage-red); } #damageView .category h2 { color: var(--damage-red); font-weight: 900; }
-
-        /* DASHBOARD STYLES */
-        .dash-nav { display: flex; overflow-x: auto; gap: 10px; padding: 10px; background: white; margin-bottom: 15px; border-radius: 8px; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .dash-tab { background: #eee; border: none; padding: 10px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; font-size: 13px; color: #555; transition: 0.2s;}
-        .dash-tab.active { background: var(--caliches-blue); color: white; }
-        .filter-box { background: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; text-align: left; display: flex; align-items: center; gap: 10px; }
-        .filter-select { padding: 8px; border-radius: 6px; border: 1px solid #ddd; background: #fafafa; font-size: 14px; font-weight: bold; color: #333; cursor: pointer; outline: none; }
-        .table-wrapper { width: 100%; max-height: 500px; overflow: auto; background: white; border-radius: 12px; border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .data-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; white-space: nowrap; }
-        .data-table th { background: var(--caliches-blue); color: white; padding: 12px 15px; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid #333; font-weight: bold; letter-spacing: 0.5px;}
-        .data-table td { padding: 10px 15px; border-bottom: 1px solid #eee; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
-        .data-table tr:nth-child(even) { background-color: #f9f9f9; }
-        .data-table tr:hover { background-color: #f0f4f8; }
-
-        .role-select { padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-weight: bold; }
-        .update-role-btn { background: var(--pass-green); color: white; border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer;}
-        .update-action-btn { background: var(--caliches-blue); color: white; border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer;}
-        .delete-btn { background: var(--fail-red); color: white; border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-left: 5px;}
+        .notif-item { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; font-size: 13px; cursor: pointer; }
+        .notif-item:last-child { border-bottom: none; }
+        .notif-item.unread { background: #eef3fc; }
+        .notif-item .notif-title { font-weight: bold; color: var(--caliches-blue); margin-bottom: 4px; }
+        .notif-item .notif-meta { color: #999; font-size: 11px; margin-top: 6px; }
+        .notif-item a { color: var(--caliches-pink); font-weight: bold; text-decoration: none; }
+        .notif-empty, .notif-loading { padding: 20px; text-align: center; color: #999; font-size: 13px; }
+        .notif-panel-header { padding: 10px 15px; font-weight: 900; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--caliches-blue); border-bottom: 2px solid #eee; background: #fafafa; border-radius: 12px 12px 0 0; }
+        .menu-title { color:var(--caliches-blue); margin-bottom:25px; font-size:28px; font-weight:900; text-transform:uppercase; letter-spacing:1px; }
+        .menu-btn { display:block; width:100%; background-color:var(--white); color:var(--caliches-blue); padding:14px 12px; margin-bottom:10px; font-size:14px; font-weight:bold; border:2px solid var(--caliches-blue); border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05); cursor:pointer; transition:0.3s; }
+        .menu-btn.pink{color:var(--caliches-pink);border-color:var(--caliches-pink)} .menu-btn.green{color:var(--pass-green);border-color:var(--pass-green)} .menu-btn.orange{color:var(--maint-orange);border-color:var(--maint-orange)} .menu-btn.red{color:var(--damage-red);border-color:var(--damage-red)} .menu-btn.dark{color:white;background-color:#333;border-color:#333;margin-top:20px} .menu-btn.purple{color:#7b2d8b;border-color:#7b2d8b} .menu-btn:active{transform:scale(0.98)}
+        .hub-layout { display:flex; gap:12px; align-items:flex-start; text-align:left; }
+        .hub-sidebar { flex:0 0 84px; display:flex; flex-direction:column; align-items:center; gap:16px; position:sticky; top:15px; }
+        .hub-sidebar .hub-logo { width:100%; max-width:84px; height:auto; filter:drop-shadow(0px 4px 8px rgba(0,0,0,0.2)); }
+        .hub-sidebar .hub-mascot { width:100%; max-width:80px; height:auto; filter:drop-shadow(0px 4px 8px rgba(0,0,0,0.15)); }
+        .hub-buttons { flex:1; min-width:0; }
+        @media (max-width:380px) {
+            .hub-layout { flex-direction:column; align-items:center; }
+            .hub-sidebar { flex-direction:row; justify-content:center; gap:20px; position:static; margin-bottom:15px; }
+            .hub-sidebar .hub-logo, .hub-sidebar .hub-mascot { max-width:70px; }
+        }
+        .slider-wrapper { position:relative; width:100%; max-width:350px; height:250px; margin:15px auto 30px auto; border-radius:16px; overflow:hidden; box-shadow:0px 8px 15px rgba(0,0,0,0.1); border:3px solid var(--caliches-blue); background-color:var(--white); }
+        .slides { display:flex; width:500%; height:100%; transition:transform 0.5s ease-in-out; }
+        .slide { width:20%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:20px; box-sizing:border-box; }
+        .image-slide{background-color:#f8f9fa} .slide-img{max-width:100%;max-height:100%;object-fit:contain} .text-slide{background-color:var(--caliches-pink);color:white;text-align:center} .focus-title{font-size:16px;text-transform:uppercase;letter-spacing:2px;font-weight:900;color:#ffd700;margin-bottom:15px} .focus-text{font-size:24px;font-weight:900;line-height:1.3}
+        .quote-slide{background-color:var(--caliches-blue)} .quote-text{font-size:20px;font-weight:900;line-height:1.35;font-style:italic} .quote-author{font-size:13px;text-transform:uppercase;letter-spacing:2px;font-weight:700;color:#ffd700;margin-top:15px}
+        .arrow { position:absolute; top:50%; transform:translateY(-50%); background:rgba(255,255,255,0.9); border:none; color:var(--caliches-blue); font-size:24px; font-weight:bold; width:40px; height:40px; border-radius:50%; cursor:pointer; z-index:10; display:flex; justify-content:center; align-items:center; box-shadow:0 2px 5px rgba(0,0,0,0.3); }
+        .prev-arrow{left:10px} .next-arrow{right:10px}
+        .app-view{display:none} .back-btn{background:#333;color:white;border:none;padding:12px 20px;font-size:14px;font-weight:bold;width:100%;text-align:left;cursor:pointer}
+        .header{background-color:var(--caliches-blue);color:var(--white);text-align:center;padding:20px 10px;box-shadow:0 4px 6px rgba(0,0,0,0.1)} .logo-img{max-height:80px;width:auto;display:block;margin:0 auto;filter:drop-shadow(0px 2px 4px rgba(0,0,0,0.2))} .header p{margin:0;font-size:14px;font-weight:bold;letter-spacing:2px;text-transform:uppercase}
+        .container{max-width:700px;margin:15px auto;padding:0 15px}
+        .info-group{background:var(--white);padding:15px;border-radius:12px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.05);display:grid;grid-template-columns:1fr 1fr;gap:15px} .info-group .full-width{grid-column:span 2}
+        .form-label{display:block;font-weight:bold;margin-bottom:6px;color:#333;font-size:14px} .form-spacer{margin-bottom:15px}
+        .info-group input,.info-group select,.info-group textarea,.category input[type="text"],.category input[type="number"],.category select,.category textarea{width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:15px;background:#fafafa;font-family:inherit}
+        .category{background:var(--white);border-radius:12px;padding:15px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.05)} .category h2{margin:0 0 15px 0;font-size:20px;border-bottom:2px solid #eee;padding-bottom:8px}
+        .question{margin-bottom:20px;padding-bottom:15px;border-bottom:1px solid #f0f0f0}
+        .checkbox-item{display:flex;align-items:center;margin-bottom:15px;font-size:15px;font-weight:500} .checkbox-item input[type="checkbox"]{margin-right:15px;transform:scale(1.5)}
+        .rating-group{display:flex;justify-content:space-between;gap:4px} .rating-group input[type="radio"]{display:none} .rating-group label{flex:1;text-align:center;padding:12px 0;background-color:#eee;border-radius:6px;font-weight:bold;font-size:16px;cursor:pointer;transition:0.2s}
+        .rating-group input[value="0"]:checked+label{background-color:var(--na-gray);color:white} .rating-group input[value="1"]:checked+label,.rating-group input[value="2"]:checked+label{background-color:var(--fail-red);color:white} .rating-group input[value="3"]:checked+label,.rating-group input[value="4"]:checked+label,.rating-group input[value="5"]:checked+label{background-color:var(--caliches-blue);color:white}
+        .note-input{width:100%;margin-top:8px;padding:8px;border:1px solid #eee;border-radius:6px;font-size:13px;box-sizing:border-box;background:#fafafa}
+        .photo-btn{background:#e0e0e0;color:#333;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;display:inline-block;font-weight:bold;margin-top:8px;border:1px solid #ccc}
+        .save-btn{width:100%;background-color:var(--caliches-pink);color:white;border:none;padding:20px;font-size:18px;font-weight:bold;border-radius:12px;cursor:pointer;margin-bottom:60px;box-shadow:0 4px 10px rgba(197,58,116,0.3);transition:0.3s}
+        .save-btn.blue-btn{background-color:var(--caliches-blue);box-shadow:0 4px 10px rgba(74,104,177,0.3)} .save-btn.green-btn{background-color:var(--pass-green)} .save-btn.orange-btn{background-color:var(--maint-orange)} .save-btn.red-btn{background-color:var(--damage-red)}
+        #popInView .header{background-color:var(--caliches-blue)} #popInView .category{border-top:6px solid var(--caliches-blue)} #popInView .category h2{color:var(--caliches-blue)}
+        #driverView .header{background-color:var(--caliches-pink)} #driverView .info-group{border:2px solid var(--caliches-pink);background-color:#fffafb} #driverView .category{border-radius:0;border-bottom:3px dashed var(--caliches-pink);box-shadow:none;margin-bottom:0;padding:20px 15px} #driverView .category:last-of-type{border-bottom:none;margin-bottom:20px;border-radius:0 0 12px 12px;box-shadow:0 4px 8px rgba(0,0,0,0.05)} #driverView .category h2{color:var(--caliches-pink);border-bottom:none;text-transform:uppercase;font-size:16px;letter-spacing:1px}
+        #shortageView .header{background-color:var(--pass-green)} #shortageView .category{border-left:8px solid var(--pass-green);border-radius:4px 12px 12px 4px} #shortageView .category h2{color:var(--pass-green)}
+        #maintenanceView .header{background:repeating-linear-gradient(45deg,var(--maint-orange),var(--maint-orange) 15px,#d35400 15px,#d35400 30px)} #maintenanceView .category{border-top:6px solid #333;box-shadow:0px 4px 0px var(--maint-orange);border-radius:4px} #maintenanceView .category h2{color:var(--maint-orange);font-weight:900}
+        #damageView{background-color:#fceceb;min-height:100vh;padding-bottom:20px} #damageView .header{background-color:var(--damage-red)} #damageView .info-group{border:2px solid var(--damage-red)} #damageView .category{border:2px solid var(--damage-red);border-top:8px solid var(--damage-red)} #damageView .category h2{color:var(--damage-red);font-weight:900}
+        .dash-nav{display:flex;overflow-x:auto;gap:8px;padding:10px;background:white;margin-bottom:15px;border-radius:8px;white-space:nowrap;box-shadow:0 2px 5px rgba(0,0,0,0.05)}
+        .dash-tab{background:#eee;border:none;padding:8px 12px;border-radius:20px;font-weight:bold;cursor:pointer;font-size:12px;color:#555;transition:0.2s} .dash-tab.active{background:var(--caliches-blue);color:white}
+        .filter-box{background:white;padding:10px 15px;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,0.05);margin-bottom:15px;text-align:left;display:flex;align-items:center;gap:10px}
+        .filter-select{padding:8px;border-radius:6px;border:1px solid #ddd;background:#fafafa;font-size:14px;font-weight:bold;color:#333;cursor:pointer;outline:none}
+        .table-wrapper{width:100%;max-height:500px;overflow:auto;background:white;border-radius:12px;border:1px solid #ddd;box-shadow:0 4px 6px rgba(0,0,0,0.05)}
+        .data-table{width:100%;border-collapse:collapse;font-size:12px;text-align:left;white-space:nowrap} .data-table th{background:var(--caliches-blue);color:white;padding:12px 15px;position:sticky;top:0;z-index:10;border-bottom:2px solid #333;font-weight:bold} .data-table td{padding:10px 15px;border-bottom:1px solid #eee;max-width:200px;overflow:hidden;text-overflow:ellipsis} .data-table tr:nth-child(even){background-color:#f9f9f9} .data-table tr:hover{background-color:#f0f4f8}
+        .role-select{padding:5px;border-radius:4px;border:1px solid #ccc;font-weight:bold} .update-role-btn{background:var(--pass-green);color:white;border:none;padding:5px 10px;border-radius:4px;font-weight:bold;cursor:pointer} .update-action-btn{background:var(--caliches-blue);color:white;border:none;padding:5px 10px;border-radius:4px;font-weight:bold;cursor:pointer} .delete-btn{background:var(--fail-red);color:white;border:none;padding:5px 10px;border-radius:4px;font-weight:bold;cursor:pointer;margin-left:5px}
+        /* Progress Bar */
+        #progressBarWrapper{position:sticky;top:0;z-index:100;background:white;padding:12px 15px;border-bottom:2px solid #eee;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+        #progressFill{background:var(--caliches-blue);height:10px;border-radius:99px;width:0%;transition:width 0.4s ease}
+        /* Draft Banner */
+        #draftBanner{display:none;background:#fdf3e8;border-bottom:2px solid #f0a500;padding:12px 15px;align-items:center;justify-content:space-between;gap:10px}
+        .draft-action-btn{padding:7px 14px;border:none;border-radius:6px;font-weight:bold;cursor:pointer;font-size:13px}
+        /* Draft Toast */
+        #draftToast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.82);color:white;padding:10px 22px;border-radius:99px;font-size:14px;font-weight:bold;display:none;z-index:99999;pointer-events:none;white-space:nowrap}
+        /* Modal Overlay */
+        .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:99998;justify-content:center;align-items:center;padding:20px;box-sizing:border-box}
+        .modal-box{background:white;border-radius:16px;padding:30px 25px;width:100%;max-width:380px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.3)}
+        .modal-input{width:100%;padding:14px;border:2px solid #eee;border-radius:8px;font-size:16px;margin-bottom:12px;box-sizing:border-box}
     </style>
 </head>
 <body>
 
-    <div id="neon-loader"><div class="neon-spinner"></div><div class="neon-text">Loading</div></div>
+<div id="neon-loader"><div class="neon-spinner"></div><div class="neon-text">Loading</div></div>
+<div id="splash-screen"><img src="splash-logo.png" alt="Caliche's Logo" class="splash-logo" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<h1 style=\'color:white;font-size:40px;\'>Caliche\'s</h1>');"></div>
 
-    <div id="splash-screen"><img src="splash-logo.png" alt="Caliche's Logo" class="splash-logo" onerror="this.style.display='none'; this.insertAdjacentHTML('afterend', '<h1 style=\'color:white; font-size:40px;\'>Caliche\'s</h1>');"></div>
+<!-- FORGOT PIN MODAL -->
+<div id="forgotPinModal" class="modal-overlay">
+    <div class="modal-box">
+        <h2 style="color:var(--caliches-blue);margin-top:0;font-size:22px;">Forgot PIN?</h2>
+        <p style="color:#666;font-size:14px;margin-bottom:20px;">Enter your username and the email you registered with. We'll send your PIN to that email.</p>
+        <input type="text" id="forgotUsername" class="modal-input" placeholder="Username">
+        <input type="email" id="forgotEmail" class="modal-input" placeholder="Email Address" style="margin-bottom:15px;">
+        <p id="forgotPinError" style="color:var(--fail-red);display:none;font-size:13px;font-weight:bold;margin-bottom:12px;"></p>
+        <button id="forgotPinBtn" class="save-btn blue-btn" style="margin-bottom:12px;padding:15px;" onclick="submitForgotPin()">Send My PIN</button>
+        <span class="text-link" onclick="closeForgotPin()">Cancel</span>
+    </div>
+</div>
 
-    <div id="login-view" class="app-view" style="display: none;">
-        <img src="splash-logo.png" alt="Caliche's Logo" style="max-height: 180px; margin-bottom: 30px; filter: drop-shadow(0px 6px 12px rgba(0,0,0,0.3));" onerror="this.style.display='none'">
+<!-- DRAFT TOAST -->
+<div id="draftToast">💾 Draft saved</div>
 
-        <div class="login-box">
-            <form id="loginForm">
-                <h2 style="color: var(--caliches-blue); margin-top: 0; font-size: 24px; text-transform: uppercase;">Staff Login</h2>
-                <input type="hidden" name="action" value="login">
-                <input type="text" name="username" placeholder="Username" style="margin-bottom:15px; width:100%; padding:15px; border:2px solid #eee; border-radius:8px; font-size: 16px; background:#fafafa; box-sizing:border-box;" required>
-                <input type="password" name="password" placeholder="PIN / Password" style="margin-bottom:20px; width:100%; padding:15px; border:2px solid #eee; border-radius:8px; font-size: 16px; background:#fafafa; box-sizing:border-box;" required>
-                <button type="button" id="loginBtn" class="save-btn blue-btn" style="margin-bottom:0; padding:18px;" onclick="attemptLogin()">ENTER HUB</button>
-                <p id="loginError" style="color: var(--fail-red); display:none; margin-top:15px; font-weight:bold; font-size: 14px;"></p>
-                <div style="margin-top: 15px; display: flex; justify-content: space-between; padding: 0 10px;">
-                    <span class="text-link" onclick="recoverPin()">Forgot PIN?</span>
-                    <span class="text-link" onclick="toggleRegister()">Create Account</span>
+<!-- LOGIN VIEW -->
+<div id="login-view" class="app-view" style="display:none;">
+    <div style="display:flex;align-items:flex-end;justify-content:center;gap:10px;margin-bottom:10px;">
+        <img src="splash-logo.png" alt="Caliche's Logo" style="max-height:180px;margin-bottom:20px;filter:drop-shadow(0px 6px 12px rgba(0,0,0,0.3));" onerror="this.style.display='none'">
+        <img src="cherry-wave.png" alt="Cherry" style="height:130px;margin-bottom:10px;filter:drop-shadow(0px 6px 10px rgba(0,0,0,0.25));" onerror="this.style.display='none'">
+    </div>
+    <div class="login-box">
+        <form id="loginForm">
+            <h2 style="color:var(--caliches-blue);margin-top:0;font-size:24px;text-transform:uppercase;">Staff Login</h2>
+            <input type="hidden" name="action" value="login">
+            <input type="text" name="username" placeholder="Username" style="margin-bottom:15px;width:100%;padding:15px;border:2px solid #eee;border-radius:8px;font-size:16px;background:#fafafa;box-sizing:border-box;" required>
+            <input type="password" name="password" placeholder="PIN / Password" style="margin-bottom:20px;width:100%;padding:15px;border:2px solid #eee;border-radius:8px;font-size:16px;background:#fafafa;box-sizing:border-box;" required>
+            <button type="button" id="loginBtn" class="save-btn blue-btn" style="margin-bottom:0;padding:18px;" onclick="attemptLogin()">ENTER HUB</button>
+            <p id="loginError" style="color:var(--fail-red);display:none;margin-top:15px;font-weight:bold;font-size:14px;"></p>
+            <div style="margin-top:15px;display:flex;justify-content:space-between;padding:0 10px;">
+                <span class="text-link" onclick="openForgotPin()">Forgot PIN?</span>
+                <span class="text-link" onclick="toggleRegister()">Create Account</span>
+            </div>
+        </form>
+        <form id="registerForm">
+            <h2 style="color:var(--caliches-pink);margin-top:0;font-size:24px;text-transform:uppercase;">Create Account</h2>
+            <input type="hidden" name="action" value="register">
+            <input type="text" name="name" placeholder="First &amp; Last Name" style="margin-bottom:12px;width:100%;padding:15px;border:2px solid #eee;border-radius:8px;font-size:16px;background:#fafafa;box-sizing:border-box;" required>
+            <input type="text" name="username" placeholder="Choose Username" style="margin-bottom:12px;width:100%;padding:15px;border:2px solid #eee;border-radius:8px;font-size:16px;background:#fafafa;box-sizing:border-box;" required>
+            <input type="email" name="email" placeholder="Your Email Address" style="margin-bottom:12px;width:100%;padding:15px;border:2px solid #eee;border-radius:8px;font-size:16px;background:#fafafa;box-sizing:border-box;" required>
+            <input type="password" name="password" placeholder="Create a 4-Digit PIN" style="margin-bottom:20px;width:100%;padding:15px;border:2px solid #eee;border-radius:8px;font-size:16px;background:#fafafa;box-sizing:border-box;" required>
+            <button type="button" id="registerBtn" class="save-btn pink" style="margin-bottom:0;padding:18px;" onclick="attemptRegister()">CREATE ACCOUNT</button>
+            <p id="registerError" style="color:var(--fail-red);display:none;margin-top:15px;font-weight:bold;font-size:14px;"></p>
+            <span class="text-link" style="margin-top:15px;display:block;" onclick="toggleRegister()">Back to Login</span>
+        </form>
+    </div>
+</div>
+
+<!-- MAIN MENU -->
+<div id="main-menu" class="app-view">
+    <div class="user-profile-bar">
+        <div><p class="user-greeting" id="greetingName">Hello, Staff</p><p class="user-role" id="greetingRole">Role: Unknown</p></div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div class="notif-bell-wrap" id="notifBellWrap" style="display:none;">
+                    <button class="notif-bell" onclick="toggleNotifPanel()" title="Notifications">🔔<span class="notif-badge" id="notifBadge" style="display:none;">0</span></button>
+                    <div class="notif-panel" id="notifPanel">
+                        <div class="notif-panel-header">Notifications</div>
+                        <div class="notif-loading">Loading...</div>
+                    </div>
                 </div>
-            </form>
-
-            <form id="registerForm">
-                <h2 style="color: var(--caliches-pink); margin-top: 0; font-size: 24px; text-transform: uppercase;">Create Account</h2>
-                <input type="hidden" name="action" value="register">
-                <input type="text" name="name" placeholder="First & Last Name" style="margin-bottom:15px; width:100%; padding:15px; border:2px solid #eee; border-radius:8px; font-size: 16px; background:#fafafa; box-sizing:border-box;" required>
-                <input type="text" name="username" placeholder="Choose Username" style="margin-bottom:15px; width:100%; padding:15px; border:2px solid #eee; border-radius:8px; font-size: 16px; background:#fafafa; box-sizing:border-box;" required>
-                <input type="password" name="password" placeholder="Create a 4-Digit PIN" style="margin-bottom:20px; width:100%; padding:15px; border:2px solid #eee; border-radius:8px; font-size: 16px; background:#fafafa; box-sizing:border-box;" required>
-                <button type="button" id="registerBtn" class="save-btn pink" style="margin-bottom:0; padding:18px;" onclick="attemptRegister()">CREATE ACCOUNT</button>
-                <p id="registerError" style="color: var(--fail-red); display:none; margin-top:15px; font-weight:bold; font-size: 14px;"></p>
-                <span class="text-link" style="margin-top: 15px; display: block;" onclick="toggleRegister()">Back to Login</span>
-            </form>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+    </div>
+    <h1 class="menu-title">Operations Hub</h1>
+    <div class="slider-wrapper">
+        <button class="arrow prev-arrow" onclick="moveSlide(-1)">&#10094;</button>
+        <button class="arrow next-arrow" onclick="moveSlide(1)">&#10095;</button>
+        <div class="slides" id="slider-track">
+            <div class="slide image-slide"><img src="caliches-cone.png" alt="Focus Banner" class="slide-img" onerror="this.style.display='none'"></div>
+            <div class="slide text-slide"><div class="focus-title">&#128161; Weekly Focus</div><div class="focus-text">Cleanliness, Friendliness, Speed, &amp; Quality!</div></div>
+            <div class="slide quote-slide"><div class="quote-text">&ldquo;Quality is not an act, it is a habit.&rdquo;</div><div class="quote-author">&#8212; Aristotle</div></div>
+            <div class="slide quote-slide"><div class="quote-text">&ldquo;The way to get started is to quit talking and begin doing.&rdquo;</div><div class="quote-author">&#8212; Walt Disney</div></div>
+            <div class="slide quote-slide"><div class="quote-text">&ldquo;Great things in business are never done by one person. They're done by a team of people.&rdquo;</div><div class="quote-author">&#8212; Steve Jobs</div></div>
         </div>
     </div>
-
-    <div id="main-menu" class="app-view">
-        <div class="user-profile-bar">
-            <div><p class="user-greeting" id="greetingName">Hello, Staff</p><p class="user-role" id="greetingRole">Role: Unknown</p></div>
-            <button class="logout-btn" onclick="logout()">Logout</button>
+    <div class="hub-layout">
+        <div class="hub-sidebar">
+            <img src="splash-logo.png" alt="Caliche's Logo" class="hub-logo" onerror="this.style.display='none'">
+            <img src="scoopy-hero.png" alt="Scoopy" class="hub-mascot" onerror="this.style.display='none'">
         </div>
-        <img src="splash-logo.png" alt="Caliche's Logo" style="max-height: 220px; width: auto; margin-bottom: 20px; filter: drop-shadow(0px 6px 12px rgba(0,0,0,0.25));" onerror="this.style.display='none'">
-        <h1 class="menu-title">Operations Hub</h1>
-        <div class="slider-wrapper">
-            <button class="arrow prev-arrow" onclick="moveSlide(-1)">&#10094;</button><button class="arrow next-arrow" onclick="moveSlide(1)">&#10095;</button>
-            <div class="slides" id="slider-track">
-                <div class="slide image-slide"><img src="caliches-cone.png" alt="Focus Banner" class="slide-img" onerror="this.style.display='none'"></div>
-                <div class="slide text-slide"><div class="focus-title">💡 Weekly Focus</div><div class="focus-text">Cleanliness, Friendliness, Speed, & Quality!</div></div>
-            </div>
-        </div>
-
-        <button class="menu-btn blue-btn" onclick="openForm('popInView')">📋 Store Pop-In Inspection</button>
-        <button class="menu-btn pink" onclick="openForm('driverView')">🚚 Vehicle & Trailer Check-Out</button>
-        <button class="menu-btn green" onclick="openForm('shortageView')">📦 Report Shortages</button>
-        <button class="menu-btn orange" onclick="openForm('maintenanceView')">🔧 Required Maintenance</button>
-        <button class="menu-btn red" onclick="openForm('damageView')">⚠️ Vehicle / Trailer Damage</button>
-
-        <button id="managerBtn" class="menu-btn dark" style="display: none;" onclick="openDashboard()">📊 View Manager Dashboard</button>
-    </div>
-
-    <div id="managerView" class="app-view">
-        <button class="back-btn" onclick="openMenu()">🔙 Back to Hub Menu</button>
-        <div class="header" style="background: #333;">
-            <h1 style="font-size: 40px; margin: 10px 0;">📊</h1>
-            <p style="font-size: 18px; margin: 0; font-weight: bold; text-transform: uppercase;">Manager Dashboard</p>
-        </div>
-        <div class="container" style="max-width: 1000px;">
-            <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Select a feed to view data or manage staff:</p>
-
-            <div class="dash-nav">
-                <button class="dash-tab active" onclick="fetchDashboard('Pop-Ins', this)">Pop-Ins</button>
-                <button class="dash-tab" onclick="fetchDashboard('Shortages', this)">Shortages</button>
-                <button class="dash-tab" onclick="fetchDashboard('Driver Logs', this)">Driver</button>
-                <button class="dash-tab" onclick="fetchDashboard('Maintenance Logs', this)">Maint.</button>
-                <button class="dash-tab" onclick="fetchDashboard('Damage Reports', this)">Damage</button>
-                <button class="dash-tab" style="background: var(--caliches-pink); color: white;" onclick="fetchUsers(this)">👥 Manage Users</button>
-            </div>
-
-            <div class="filter-box" id="dashboardFilterDiv">
-                <label style="font-size: 14px; font-weight: bold; color: var(--caliches-blue);">📅 Filter Date: </label>
-                <select id="dashDateFilter" class="filter-select" onchange="refreshCurrentDashboard()">
-                    <option value="7">Last 7 Days</option>
-                    <option value="30" selected>Last 30 Days</option>
-                    <option value="999">All Time (Max 50)</option>
-                </select>
-            </div>
-
-            <div id="dashboardResults">
-                <p style="text-align: center; padding: 30px; color: #888;">Fetching live data from servers...</p>
-            </div>
+        <div class="hub-buttons">
+            <button id="btn-popIn" class="menu-btn" onclick="openPopIn()">&#128203; Store Pop-In Inspection</button>
+            <button id="btn-driver" class="menu-btn pink" onclick="openForm('driverView')">&#128666; Vehicle &amp; Trailer Check-Out</button>
+            <button id="btn-shortage" class="menu-btn green" onclick="openForm('shortageView')">&#128230; Report Shortages</button>
+            <button id="btn-maintenance" class="menu-btn orange" onclick="openForm('maintenanceView')">&#128295; Required Maintenance</button>
+            <button id="btn-damage" class="menu-btn red" onclick="openForm('damageView')">&#9888; Vehicle / Trailer Damage</button>
+            <button id="managerBtn" class="menu-btn dark" style="display:none;" onclick="openDashboard()">&#128202; View Manager Dashboard</button>
+            <button id="installBtn" class="menu-btn purple" style="display:none;" onclick="installApp()">&#128242; Install App on Phone</button>
         </div>
     </div>
+    <div style="margin-top:20px;padding:15px;background:white;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.05);border:2px solid #eee;text-align:center;">
+        <p style="margin:0 0 10px 0;font-weight:900;color:var(--caliches-blue);font-size:13px;text-transform:uppercase;letter-spacing:1px;">&#128241; Get The App On Your Phone</p>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://calichesfc.github.io/index.html/" alt="Scan to install Caliche's Hub" style="border-radius:8px;width:160px;height:160px;">
+        <p style="margin:10px 0 0 0;font-size:12px;color:#888;">Scan with your phone camera, then tap "Add to Home Screen"</p>
+    </div>
+    <!-- Future integrations (not yet visible to staff) -->
+    <div id="futureIntegrations" style="display:none;">
+        <button class="menu-btn" onclick="window.open('https://www.jotform.com','_blank')">&#128221; JotForm</button>
+        <button class="menu-btn" onclick="window.open('https://www.pandadoc.com','_blank')">&#128196; PandaDoc</button>
+    </div>
+</div>
 
-    <div id="popInView" class="app-view"><button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button><div class="header"><img src="splash-logo.png" alt="Main Logo" class="logo-img" onerror="this.style.display='none'"><p style="margin-top: 10px;">STORE "POP IN" FORM</p></div><div class="container"><form id="auditForm"><div class="info-group"><div><label class="form-label">Location:</label><select id="loc" name="Location" required><option value="" disabled selected>Select Location</option><option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option><option>Scoopy</option><option>Poochi</option><option>Caliche's Cruiser</option></select></div><div><label class="form-label">Date:</label><input type="date" id="dt" name="Date" required></div><div><label class="form-label">Shift Time:</label><select id="shiftTime" name="ShiftTime"><option>Day</option><option>Night</option></select></div><div><label class="form-label">Shift Leader:</label><input type="text" id="sldr" name="ShiftLeader" placeholder="Name" required></div><div class="full-width"><label class="form-label">Conducted By:</label><input type="text" id="conductor" name="ConductedBy" placeholder="Your Name" required></div></div><div id="questionsContainer"></div><div class="category"><h2>Overall Comments & Requests</h2><textarea id="overallComments" name="OverallComments" rows="4" placeholder="Summarize the pop in, shout out good behavior, or note major issues..."></textarea></div><div class="results" style="background: var(--caliches-blue); color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 30px;"><div class="score-display">Total Points: <span id="ts">0</span> / <span id="maxPts">0</span></div><div style="font-size: 36px; font-weight: 900; margin: 10px 0;"><span id="pct">0</span>%</div><div id="st" class="status" style="background-color: #555; padding: 8px 25px; border-radius: 20px; font-weight: bold;">Pending</div><input type="hidden" id="finalScore" name="TotalScore"><input type="hidden" id="finalPct" name="Percentage"><input type="hidden" id="finalStatus" name="Status"><input type="hidden" id="popInReportHtml" name="ReportHTML"></div><button type="button" id="submitBtn" class="save-btn blue-btn" onclick="submitAudit()">🚀 SUBMIT POP-IN TO OFFICE</button></form></div></div>
-    <div id="driverView" class="app-view"><button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button><div class="header pink-theme"><img src="catering-logo.png" alt="Catering Logo" class="logo-img" onerror="this.src='splash-logo.png'"><p style="margin-top: 10px;">VEHICLE & TRAILER CHECK-OUT</p></div><div class="container"><form id="driverForm"><div class="info-group"><div><label class="form-label" for="vehicle">Select Truck:</label><select id="vehicle" name="vehicle" required><option value="" disabled selected>Choose a truck...</option><option value="2500">2500</option><option value="3500">3500</option><option value="Caliche's Cruiser">Caliche's Cruiser</option></select></div><div><label class="form-label" for="trailer">Select Trailer:</label><select id="trailer" name="trailer" required><option value="" disabled selected>Choose a trailer...</option><option value="Scoopy">Scoopy</option><option value="Poochie">Poochie</option><option value="N/A">N/A (No Trailer)</option></select></div><div class="full-width"><label class="form-label" for="destination">Destination (City/Location):</label><input type="text" id="destination" name="destination" placeholder="e.g., Hatch, Silver City" required></div><div class="full-width"><label class="form-label" for="purpose">Trip Purpose / Event Type:</label><input type="text" id="purpose" name="purpose" placeholder="e.g., Mobile Vending" required></div><div><label class="form-label" for="mileage">Starting Mileage:</label><input type="number" id="mileage" name="mileage" placeholder="Odometer reading" required></div><div><label class="form-label" for="date">Date:</label><input type="date" id="driverDt" name="date" required></div></div><div class="category"><h2>Safety & Mechanical</h2><div class="checkbox-item"><input type="checkbox" name="tires" value="Yes"> <label>Tire pressure and tread checked (Truck & Trailer)</label></div><div class="checkbox-item"><input type="checkbox" name="lights" value="Yes"> <label>Headlights, brake lights, and turn signals working</label></div><div class="checkbox-item"><input type="checkbox" name="hitch" value="Yes"> <label>Hitch pinned, chains crossed, electrical connected</label></div></div><div class="category"><h2>Interior & Equipment</h2><div class="checkbox-item"><input type="checkbox" name="fridge" value="Yes"> <label>Refrigeration/Freezer doors securely latched</label></div><div class="checkbox-item"><input type="checkbox" name="ingredients" value="Yes"> <label>Custard mix, toppings, and dispensers secured</label></div><div class="checkbox-item"><input type="checkbox" name="safety_gear" value="Yes"> <label>Fire extinguisher and First Aid kit present</label></div></div><div class="category"><h2>Damage Report & Sign-Off</h2><label class="form-label">Damage Report (if any):</label><textarea name="damage" rows="3" placeholder="Describe any new dents, scratches, or missing equipment..."></textarea><label class="form-label" style="margin-top: 15px;">Shift Leader Signature:</label><input type="text" id="signature" name="signature" placeholder="Type your full name" required></div><input type="hidden" id="driverReportHtml" name="ReportHTML"><button type="button" id="submitDriverBtn" class="save-btn pink" onclick="submitDriverForm()">🚀 SUBMIT DRIVER CHECKLIST</button></form></div></div>
-    <div id="shortageView" class="app-view"><button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button><div class="header green-theme"><img src="splash-logo.png" alt="Main Logo" class="logo-img" onerror="this.style.display='none'"><h1 style="font-size: 40px; margin: 10px 0;">📦</h1><p style="font-size: 18px; margin: 0; font-weight: bold; text-transform: uppercase;">STORE SHORTAGE REPORT</p></div><div class="container"><form id="shortageForm"><div class="info-group"><div class="full-width"><label class="form-label">Select Store:</label><select name="Store" required><option value="" disabled selected>Select Store...</option><option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option></select></div><div><label class="form-label">Date:</label><input type="date" id="shortageDt" name="OrderDate" required></div><div><label class="form-label">Manager Name:</label><input type="text" name="ManagerName" placeholder="Your Name" required></div></div><div class="category green-top"><h2>Item Requests</h2><div class="form-spacer"><label class="form-label">Item 1 Name:</label><input type="text" name="Item1" placeholder="e.g., Seasonal Fruit, Cups"></div><div class="form-spacer" style="border-bottom: 1px solid #eee; padding-bottom: 20px;"><label class="form-label">Item 1 Quantity:</label><input type="text" name="Qty1" placeholder="e.g., 5 cases"></div><div class="form-spacer" style="margin-top: 20px;"><label class="form-label">Item 2 Name:</label><input type="text" name="Item2" placeholder="Item name"></div><div class="form-spacer"><label class="form-label">Item 2 Quantity:</label><input type="text" name="Qty2" placeholder="Quantity"></div></div><div class="category green-top"><h2>Urgency / Notes</h2><textarea name="Notes" rows="3" placeholder="Is this needed urgently? Any special instructions?"></textarea></div><input type="hidden" id="shortageReportHtml" name="ReportHTML"><button type="button" id="submitShortageBtn" class="save-btn green-btn" onclick="submitShortage()">🚀 SUBMIT SHORTAGE REPORT</button></form></div></div>
-    <div id="maintenanceView" class="app-view"><button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button><div class="header orange-theme"><img src="splash-logo.png" alt="Main Logo" class="logo-img" onerror="this.style.display='none'"><h1 style="font-size: 40px; margin: 10px 0;">🔧</h1><p style="font-size: 18px; margin: 0; font-weight: bold; text-transform: uppercase;">REQUIRED MAINTENANCE</p></div><div class="container"><form id="maintenanceForm"><div class="info-group"><div class="full-width"><label class="form-label">Store Location:</label><select name="Location" required><option value="" disabled selected>Select Store...</option><option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option></select></div><div><label class="form-label">Date:</label><input type="date" id="maintDt" name="ReportDate" required></div><div><label class="form-label">Reported By:</label><input type="text" name="ReporterName" placeholder="Your Name" required></div></div><div class="category orange-top"><h2>Issue Details</h2><div class="form-spacer"><label class="form-label">Equipment / Item Name:</label><input type="text" name="MaintenanceItem" placeholder="e.g., Shake Machine, AC Unit, POS System" required></div><div class="form-spacer"><label class="form-label">Urgency Level:</label><select name="Urgency" required><option value="" disabled selected>Select Urgency...</option><option>Low (Fix when possible)</option><option>Medium (Needs attention soon)</option><option>High (Critical / Safety Issue)</option></select></div><div class="form-spacer"><label class="form-label">Description of Problem:</label><textarea name="IssueDescription" rows="4" placeholder="What exactly is broken or acting up?" required></textarea></div><div class="form-spacer" style="margin-top: 20px;"><label class="form-label">Photo of the Issue:</label><label class="photo-btn">📸 Attach Photo<input type="file" accept="image/*" multiple onchange="compressToGlobal(event, 'maintPrev', maintPhotos)" style="display:none;"></label><div id="maintPrev" style="display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap;"></div></div></div><input type="hidden" id="maintenanceReportHtml" name="ReportHTML"><button type="button" id="submitMaintBtn" class="save-btn orange-btn" onclick="submitMaintenance()">🚀 SUBMIT MAINTENANCE REQUEST</button></form></div></div>
-    <div id="damageView" class="app-view"><button class="back-btn" onclick="openMenu()">🔙 Back to Menu</button><div class="header red-theme"><img src="catering-logo.png" alt="Catering Logo" class="logo-img" onerror="this.src='splash-logo.png'"><h1 style="font-size: 40px; margin: 10px 0;">⚠️</h1><p style="font-size: 18px; margin: 0; font-weight: bold; text-transform: uppercase;">VEHICLE / TRAILER DAMAGE</p></div><div class="container"><form id="damageForm"><div class="info-group"><div class="full-width"><label class="form-label">Select Asset:</label><select name="DamageAsset" required><option value="" disabled selected>Choose Vehicle or Trailer...</option><option>Truck 2500</option><option>Truck 3500</option><option>Caliche's Cruiser</option><option>Scoopy Trailer</option><option>Poochie Trailer</option></select></div><div><label class="form-label">Date of Incident:</label><input type="date" id="damageDt" name="IncidentDate" required></div><div><label class="form-label">Reported By:</label><input type="text" name="ReporterName" placeholder="Your Name" required></div></div><div class="category red-top"><h2>Damage Details</h2><div class="form-spacer"><label class="form-label">What Happened? (Cause):</label><input type="text" name="IncidentCause" placeholder="e.g., Backed into pole, Hit pothole, Unknown" required></div><div class="form-spacer"><label class="form-label">Description of Damage:</label><textarea name="DamageDescription" rows="4" placeholder="Describe the damage in detail (e.g., dent on rear left bumper)..." required></textarea></div><div class="form-spacer" style="margin-top: 20px;"><label class="form-label">Photo of the Damage:</label><label class="photo-btn" style="background-color: #fceceb; border-color: var(--damage-red); color: var(--damage-red);">📸 Attach Damage Photos<input type="file" accept="image/*" multiple onchange="compressToGlobal(event, 'damagePrev', damagePhotos)" style="display:none;"></label><div id="damagePrev" style="display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap;"></div></div></div><input type="hidden" id="damageReportHtml" name="ReportHTML"><button type="button" id="submitDamageBtn" class="save-btn red-btn" onclick="submitDamage()">🚀 SUBMIT DAMAGE REPORT</button></form></div></div>
+<!-- MANAGER DASHBOARD -->
+<div id="managerView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
+    <div class="header" style="background:#333;">
+        <h1 style="font-size:40px;margin:10px 0;">&#128202;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Manager Dashboard</p>
+    </div>
+    <div class="container" style="max-width:1000px;">
+        <div class="dash-nav">
+            <button class="dash-tab active" onclick="fetchDashboard('Pop-Ins',this)">Pop-Ins</button>
+            <button class="dash-tab" onclick="fetchDashboard('Shortages',this)">Shortages</button>
+            <button class="dash-tab" onclick="fetchDashboard('Driver Logs',this)">Driver</button>
+            <button class="dash-tab" onclick="fetchDashboard('Maintenance Logs',this)">Maint.</button>
+            <button class="dash-tab" onclick="fetchDashboard('Damage Reports',this)">Damage</button>
+            <button class="dash-tab" style="background:var(--caliches-pink);color:white;" onclick="fetchUsers(this)">&#128101; Users</button>
+            <button class="dash-tab" style="background:#7b2d8b;color:white;" onclick="fetchActivityLog(this)">&#128196; Activity</button>
+        </div>
+        <div class="filter-box" id="dashboardFilterDiv">
+            <label style="font-size:14px;font-weight:bold;color:var(--caliches-blue);">&#128197; Filter: </label>
+            <select id="dashDateFilter" class="filter-select" onchange="refreshCurrentDashboard()">
+                <option value="7">Last 7 Days</option>
+                <option value="30" selected>Last 30 Days</option>
+                <option value="999">All Time (Max 50)</option>
+            </select>
+        </div>
+        <div id="dashboardResults"><p style="text-align:center;padding:30px;color:#888;">Fetching live data...</p></div>
+    </div>
+</div>
 
-    <script>
-        // --- MASTER GOOGLE APPS SCRIPT URL ---
-        const G_URL = 'https://script.google.com/macros/s/AKfycbw0z_w9hpfqKoll4XTi2sQk7NXyrix0PEMwiyzT816iY2OFCOZOVSowcmuUxIzXdQn0eg/exec';
+<!-- POP-IN VIEW -->
+<div id="popInView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
+    <!-- PROGRESS BAR -->
+    <div id="progressBarWrapper">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+            <span style="font-size:13px;font-weight:bold;color:var(--caliches-blue);">&#128203; Pop-In Progress</span>
+            <span id="progressText" style="font-size:13px;color:#888;">0 / 51 answered</span>
+        </div>
+        <div style="background:#eee;border-radius:99px;height:10px;overflow:hidden;">
+            <div id="progressFill"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px;">
+            <span id="progressPct" style="font-size:12px;color:#888;">0%</span>
+            <span id="hasDraftBadge" style="display:none;font-size:12px;background:#fdf3e8;color:#854F0B;padding:3px 10px;border-radius:99px;font-weight:bold;cursor:pointer;" onclick="showDraftBanner()">&#128193; Draft saved</span>
+        </div>
+    </div>
+    <!-- DRAFT RESUME BANNER -->
+    <div id="draftBanner">
+        <span style="font-size:14px;color:#854F0B;font-weight:bold;">&#128193; You have a saved draft — resume it?</span>
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+            <button class="draft-action-btn" style="background:#e67e22;color:white;" onclick="restoreSavedDraft()">Resume</button>
+            <button class="draft-action-btn" style="background:#eee;color:#333;" onclick="discardDraft()">Discard</button>
+        </div>
+    </div>
+    <div class="header"><img src="splash-logo.png" alt="Main Logo" class="logo-img" onerror="this.style.display='none'"><p style="margin-top:10px;">STORE "POP IN" FORM</p></div>
+    <div class="container">
+        <form id="auditForm">
+            <div class="info-group">
+                <div><label class="form-label">Location:</label><select id="loc" name="Location" required><option value="" disabled selected>Select Location</option><option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option><option>Scoopy</option><option>Poochi</option><option>Caliche's Cruiser</option></select></div>
+                <div><label class="form-label">Date:</label><input type="date" id="dt" name="Date" required></div>
+                <div><label class="form-label">Shift Time:</label><select id="shiftTime" name="ShiftTime"><option>Day</option><option>Night</option></select></div>
+                <div><label class="form-label">Shift Leader:</label><input type="text" id="sldr" name="ShiftLeader" placeholder="Name" required></div>
+                <div class="full-width"><label class="form-label">Conducted By:</label><input type="text" id="conductor" name="ConductedBy" placeholder="Your Name" required></div>
+            </div>
+            <div id="questionsContainer"></div>
+            <div class="category"><h2>Overall Comments</h2><textarea id="overallComments" name="OverallComments" rows="4" placeholder="Summarize the pop in..."></textarea></div>
+            <div style="background:var(--caliches-blue);color:white;padding:20px;border-radius:12px;text-align:center;margin-bottom:30px;">
+                <div>Total Points: <span id="ts">0</span> / <span id="maxPts">0</span></div>
+                <div style="font-size:36px;font-weight:900;margin:10px 0;"><span id="pct">0</span>%</div>
+                <div id="st" style="background-color:#555;padding:8px 25px;border-radius:20px;font-weight:bold;display:inline-block;">Pending</div>
+                <input type="hidden" id="finalScore" name="TotalScore">
+                <input type="hidden" id="finalPct" name="Percentage">
+                <input type="hidden" id="finalStatus" name="Status">
+                <input type="hidden" id="popInReportHtml" name="ReportHTML">
+            </div>
+            <button type="button" id="submitBtn" class="save-btn blue-btn" onclick="submitAudit()">&#128640; SUBMIT POP-IN TO OFFICE</button>
+        </form>
+    </div>
+</div>
 
-        // --- SUPABASE CLIENT SETUP ---
-        const { createClient } = window.supabase;
-        const supabaseUrl = 'https://ikgbihwkqhsfahnswfbz.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
-        const supabaseClient = createClient(supabaseUrl, supabaseKey);
+<!-- DRIVER VIEW -->
+<div id="driverView" class="app-view"><button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button><div class="header pink-theme"><div style="display:flex;align-items:center;justify-content:center;gap:10px;"><img src="catering-logo.png" alt="Catering Logo" class="logo-img" onerror="this.src='splash-logo.png'"><img src="poochie-dog.png" alt="Poochie" style="height:90px;filter:drop-shadow(0px 4px 8px rgba(0,0,0,0.2));" onerror="this.style.display='none'"></div><p style="margin-top:10px;">VEHICLE &amp; TRAILER CHECK-OUT</p></div><div class="container"><form id="driverForm"><div class="info-group"><div><label class="form-label" for="vehicle">Select Truck:</label><select id="vehicle" name="vehicle" required><option value="" disabled selected>Choose a truck...</option><option value="2500">2500</option><option value="3500">3500</option><option value="Caliche's Cruiser">Caliche's Cruiser</option></select></div><div><label class="form-label" for="trailer">Select Trailer:</label><select id="trailer" name="trailer" required><option value="" disabled selected>Choose a trailer...</option><option value="Scoopy">Scoopy</option><option value="Poochie">Poochie</option><option value="N/A">N/A (No Trailer)</option></select></div><div class="full-width"><label class="form-label">Destination:</label><input type="text" id="destination" name="destination" placeholder="e.g., Hatch, Silver City" required></div><div class="full-width"><label class="form-label">Trip Purpose:</label><input type="text" id="purpose" name="purpose" placeholder="e.g., Mobile Vending" required></div><div><label class="form-label">Starting Mileage:</label><input type="number" id="mileage" name="mileage" placeholder="Odometer reading" required></div><div><label class="form-label">Date:</label><input type="date" id="driverDt" name="date" required></div></div><div class="category"><h2>Safety &amp; Mechanical</h2><div class="checkbox-item"><input type="checkbox" name="tires" value="Yes"> <label>Tire pressure and tread checked (Truck &amp; Trailer)</label></div><div class="checkbox-item"><input type="checkbox" name="lights" value="Yes"> <label>Headlights, brake lights, and turn signals working</label></div><div class="checkbox-item"><input type="checkbox" name="hitch" value="Yes"> <label>Hitch pinned, chains crossed, electrical connected</label></div></div><div class="category"><h2>Interior &amp; Equipment</h2><div class="checkbox-item"><input type="checkbox" name="fridge" value="Yes"> <label>Refrigeration/Freezer doors securely latched</label></div><div class="checkbox-item"><input type="checkbox" name="ingredients" value="Yes"> <label>Custard mix, toppings, and dispensers secured</label></div><div class="checkbox-item"><input type="checkbox" name="safety_gear" value="Yes"> <label>Fire extinguisher and First Aid kit present</label></div></div><div class="category"><h2>Damage Report &amp; Sign-Off</h2><label class="form-label">Damage Report (if any):</label><textarea name="damage" rows="3" placeholder="Describe any new dents, scratches..."></textarea><label class="form-label" style="margin-top:15px;">Shift Leader Signature:</label><input type="text" id="signature" name="signature" placeholder="Type your full name" required></div><input type="hidden" id="driverReportHtml" name="ReportHTML"><button type="button" id="submitDriverBtn" class="save-btn pink" onclick="submitDriverForm()">&#128640; SUBMIT DRIVER CHECKLIST</button></form></div></div>
 
-        let currentSlide = 0; let slideTimer;
-        let currentUser = { name: "", role: "" };
-        let currentDashTab = "Pop-Ins";
+<!-- SHORTAGE VIEW -->
+<div id="shortageView" class="app-view"><button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button><div class="header green-theme"><img src="splash-logo.png" alt="Main Logo" class="logo-img" onerror="this.style.display='none'"><h1 style="font-size:40px;margin:10px 0;">&#128230;</h1><p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">STORE SHORTAGE REPORT</p></div><div class="container"><form id="shortageForm"><div class="info-group"><div class="full-width"><label class="form-label">Select Store:</label><select name="Store" required><option value="" disabled selected>Select Store...</option><option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option></select></div><div><label class="form-label">Date:</label><input type="date" id="shortageDt" name="OrderDate" required></div><div><label class="form-label">Manager Name:</label><input type="text" name="ManagerName" placeholder="Your Name" required></div></div><div class="category"><h2>Item Requests</h2><div class="form-spacer"><label class="form-label">Item 1 Name:</label><input type="text" name="Item1" placeholder="e.g., Seasonal Fruit, Cups"></div><div class="form-spacer" style="border-bottom:1px solid #eee;padding-bottom:20px;"><label class="form-label">Item 1 Quantity:</label><input type="text" name="Qty1" placeholder="e.g., 5 cases"></div><div class="form-spacer" style="margin-top:20px;"><label class="form-label">Item 2 Name:</label><input type="text" name="Item2" placeholder="Item name"></div><div class="form-spacer"><label class="form-label">Item 2 Quantity:</label><input type="text" name="Qty2" placeholder="Quantity"></div></div><div class="category"><h2>Urgency / Notes</h2><textarea name="Notes" rows="3" placeholder="Is this needed urgently?"></textarea></div><input type="hidden" id="shortageReportHtml" name="ReportHTML"><button type="button" id="submitShortageBtn" class="save-btn green-btn" onclick="submitShortage()">&#128640; SUBMIT SHORTAGE REPORT</button></form></div></div>
 
-        window.addEventListener('load', function() {
-            let savedUser = localStorage.getItem('calichesUser');
-            if (savedUser) {
-                currentUser = JSON.parse(savedUser);
-                document.getElementById('greetingName').innerText = "Hello, " + currentUser.name;
-                document.getElementById('greetingRole').innerText = "Role: " + currentUser.role;
-                document.getElementById('managerBtn').style.display = (currentUser.role === "Manager" || currentUser.role === "Admin") ? "block" : "none";
-                document.getElementById('splash-screen').style.display = 'none';
-                document.getElementById('main-menu').style.display = 'block';
-                resetTimer();
-            } else {
-                setTimeout(function() {
-                    document.getElementById('splash-screen').style.opacity = '0';
-                    setTimeout(() => { document.getElementById('splash-screen').style.display = 'none'; document.getElementById('login-view').style.display = 'flex'; }, 500);
-                }, 3500);
-            }
+<!-- MAINTENANCE VIEW -->
+<div id="maintenanceView" class="app-view"><button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button><div class="header orange-theme"><img src="splash-logo.png" alt="Main Logo" class="logo-img" onerror="this.style.display='none'"><h1 style="font-size:40px;margin:10px 0;">&#128295;</h1><p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">REQUIRED MAINTENANCE</p></div><div class="container"><form id="maintenanceForm"><div class="info-group"><div class="full-width"><label class="form-label">Store Location:</label><select name="Location" required><option value="" disabled selected>Select Store...</option><option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option></select></div><div><label class="form-label">Date:</label><input type="date" id="maintDt" name="ReportDate" required></div><div><label class="form-label">Reported By:</label><input type="text" name="ReporterName" placeholder="Your Name" required></div></div><div class="category"><h2>Issue Details</h2><div class="form-spacer"><label class="form-label">Equipment / Item Name:</label><input type="text" name="MaintenanceItem" placeholder="e.g., Shake Machine, AC Unit" required></div><div class="form-spacer"><label class="form-label">Urgency Level:</label><select name="Urgency" required><option value="" disabled selected>Select Urgency...</option><option>Low (Fix when possible)</option><option>Medium (Needs attention soon)</option><option>High (Critical / Safety Issue)</option></select></div><div class="form-spacer"><label class="form-label">Description of Problem:</label><textarea name="IssueDescription" rows="4" placeholder="What exactly is broken?" required></textarea></div><div class="form-spacer"><label class="form-label">Photo of the Issue:</label><label class="photo-btn">&#128248; Attach Photo<input type="file" accept="image/*" multiple onchange="compressToGlobal(event,'maintPrev',maintPhotos)" style="display:none;"></label><div id="maintPrev" style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;"></div></div></div><input type="hidden" id="maintenanceReportHtml" name="ReportHTML"><button type="button" id="submitMaintBtn" class="save-btn orange-btn" onclick="submitMaintenance()">&#128640; SUBMIT MAINTENANCE REQUEST</button></form></div></div>
 
-            let today = new Date().toISOString().split('T')[0];
-            document.getElementById('dt').value = today; document.getElementById('driverDt').value = today;
-            document.getElementById('shortageDt').value = today; document.getElementById('maintDt').value = today; document.getElementById('damageDt').value = today;
+<!-- DAMAGE VIEW -->
+<div id="damageView" class="app-view"><button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button><div class="header red-theme"><img src="catering-logo.png" alt="Catering Logo" class="logo-img" onerror="this.src='splash-logo.png'"><h1 style="font-size:40px;margin:10px 0;">&#9888;</h1><p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">VEHICLE / TRAILER DAMAGE</p></div><div class="container"><form id="damageForm"><div class="info-group"><div class="full-width"><label class="form-label">Select Asset:</label><select name="DamageAsset" required><option value="" disabled selected>Choose Vehicle or Trailer...</option><option>Truck 2500</option><option>Truck 3500</option><option>Caliche's Cruiser</option><option>Scoopy Trailer</option><option>Poochie Trailer</option></select></div><div><label class="form-label">Date of Incident:</label><input type="date" id="damageDt" name="IncidentDate" required></div><div><label class="form-label">Reported By:</label><input type="text" name="ReporterName" placeholder="Your Name" required></div></div><div class="category"><h2>Damage Details</h2><div class="form-spacer"><label class="form-label">What Happened? (Cause):</label><input type="text" name="IncidentCause" placeholder="e.g., Backed into pole, Hit pothole" required></div><div class="form-spacer"><label class="form-label">Description of Damage:</label><textarea name="DamageDescription" rows="4" placeholder="Describe the damage in detail..." required></textarea></div><div class="form-spacer"><label class="form-label">Photo of the Damage:</label><label class="photo-btn" style="background-color:#fceceb;border-color:var(--damage-red);color:var(--damage-red);">&#128248; Attach Damage Photos<input type="file" accept="image/*" multiple onchange="compressToGlobal(event,'damagePrev',damagePhotos)" style="display:none;"></label><div id="damagePrev" style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;"></div></div></div><input type="hidden" id="damageReportHtml" name="ReportHTML"><button type="button" id="submitDamageBtn" class="save-btn red-btn" onclick="submitDamage()">&#128640; SUBMIT DAMAGE REPORT</button></form></div></div>
+
+<script>
+    const G_URL = 'https://script.google.com/macros/s/AKfycbw7zND3eu3BFEFEfVYU4pW5cEqBcEhd9mUI_FWPZB02BnI8yEup3yemiynKOaaNEp7dBQ/exec';
+    const { createClient } = window.supabase;
+    const supabaseUrl = 'https://ikgbihwkqhsfahnswfbz.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
+    const supabaseClient = createClient(supabaseUrl, supabaseKey);
+
+    let currentSlide = 0; let slideTimer; let currentUser = { name:'', role:'' }; let currentDashTab = 'Pop-Ins';
+    let deferredInstallPrompt = null;
+    let autoSaveTimer = null;
+    let savedDraftData = null;
+    let questionPhotos = {}; let maintPhotos = []; let damagePhotos = [];
+    let totalQuestions = 0;
+
+    // Form permission keys (used for manager-configurable per-user form visibility)
+    const FORM_KEYS = [
+        { key:'popIn', label:'Pop-In', btnId:'btn-popIn' },
+        { key:'driver', label:'Driver', btnId:'btn-driver' },
+        { key:'shortage', label:'Shortage', btnId:'btn-shortage' },
+        { key:'maintenance', label:'Maint.', btnId:'btn-maintenance' },
+        { key:'damage', label:'Damage', btnId:'btn-damage' }
+    ];
+
+    function applyFormPermissions() {
+        const perms = currentUser.permissions;
+        FORM_KEYS.forEach(f => {
+            const btn = document.getElementById(f.btnId);
+            if (!btn) return;
+            btn.style.display = (!perms || perms.indexOf(f.key) !== -1) ? 'block' : 'none';
+        });
+    }
+
+    // ============================================================
+    // ON LOAD
+    // ============================================================
+    window.addEventListener('load', function() {
+        let savedUser = localStorage.getItem('calichesUser');
+        if (savedUser) {
+            currentUser = JSON.parse(savedUser);
+            document.getElementById('greetingName').innerText = 'Hello, ' + currentUser.name;
+            document.getElementById('greetingRole').innerText = 'Role: ' + currentUser.role;
+            document.getElementById('managerBtn').style.display = (currentUser.role === 'Admin Manager') ? 'block' : 'none';
+            setupNotifications();
+            applyFormPermissions();
+            document.getElementById('splash-screen').style.display = 'none';
+            document.getElementById('main-menu').style.display = 'block';
+            resetTimer();
+        } else {
+            setTimeout(function() {
+                document.getElementById('splash-screen').style.opacity = '0';
+                setTimeout(() => { document.getElementById('splash-screen').style.display = 'none'; document.getElementById('login-view').style.display = 'flex'; }, 500);
+            }, 3500);
+        }
+        let today = new Date().toISOString().split('T')[0];
+        ['dt','driverDt','shortageDt','maintDt','damageDt'].forEach(id => { let el = document.getElementById(id); if(el) el.value = today; });
+
+        // PWA install prompt
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            deferredInstallPrompt = e;
+            document.getElementById('installBtn').style.display = 'block';
+        });
+        window.addEventListener('appinstalled', function() {
+            document.getElementById('installBtn').style.display = 'none';
+            deferredInstallPrompt = null;
         });
 
-        function toggleRegister() {
-            let loginF = document.getElementById('loginForm'); let regF = document.getElementById('registerForm');
-            let errL = document.getElementById('loginError'); let errR = document.getElementById('registerError');
-            errL.style.display = "none"; errR.style.display = "none";
-            if(loginF.style.display === "none") { loginF.style.display = "block"; regF.style.display = "none"; }
-            else { loginF.style.display = "none"; regF.style.display = "block"; }
+        // Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW error:', err));
         }
+    });
 
-        // ============================================================
-        // FIX: attemptLogin — replaced .single() with .limit(1) and
-        //      split error types so RLS blocks don't look like bad PINs.
-        //      Console logs added so you can see the real Supabase response.
-        // ============================================================
-        function attemptLogin() {
-            const btn = document.getElementById('loginBtn');
-            const form = document.getElementById('loginForm');
-            const errorMsg = document.getElementById('loginError');
+    // ============================================================
+    // PROGRESS BAR
+    // ============================================================
+    function updateProgressBar() {
+        let answered = 0;
+        for (let i = 1; i <= totalQuestions; i++) {
+            if (document.querySelector('input[name="q' + i + '"]:checked')) answered++;
+        }
+        let pct = totalQuestions > 0 ? Math.round((answered / totalQuestions) * 100) : 0;
+        document.getElementById('progressText').innerText = answered + ' / ' + totalQuestions + ' answered';
+        document.getElementById('progressPct').innerText = pct + '%';
+        let fill = document.getElementById('progressFill');
+        fill.style.width = pct + '%';
+        fill.style.background = pct === 100 ? 'var(--pass-green)' : pct >= 50 ? 'var(--caliches-blue)' : 'var(--caliches-pink)';
+    }
 
-            if (!form.username.value || !form.password.value) {
-                errorMsg.innerText = "Please enter both fields.";
-                errorMsg.style.display = "block";
-                return;
+    // ============================================================
+    // AUTO-SAVE DRAFTS
+    // ============================================================
+    function scheduleDraftSave() {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(saveDraft, 3000);
+    }
+
+    function saveDraft() {
+        if (!document.getElementById('popInView') || document.getElementById('popInView').style.display === 'none') return;
+        let draft = {
+            savedAt: new Date().toISOString(),
+            location: document.getElementById('loc').value,
+            date: document.getElementById('dt').value,
+            shiftTime: document.getElementById('shiftTime').value,
+            shiftLeader: document.getElementById('sldr').value,
+            conductor: document.getElementById('conductor').value,
+            overallComments: document.getElementById('overallComments').value,
+            ratings: {}, notes: {}
+        };
+        for (let i = 1; i <= totalQuestions; i++) {
+            let sel = document.querySelector('input[name="q' + i + '"]:checked');
+            if (sel) draft.ratings[i] = sel.value;
+            let noteEl = document.getElementById('note' + i);
+            if (noteEl && noteEl.value) draft.notes[i] = noteEl.value;
+        }
+        try {
+            localStorage.setItem('calichesDraft_popIn', JSON.stringify(draft));
+            showDraftToast('Draft saved');
+            document.getElementById('hasDraftBadge').style.display = 'inline-block';
+        } catch(e) { console.log('Draft save failed:', e); }
+    }
+
+    function showDraftToast(msg) {
+        let toast = document.getElementById('draftToast');
+        toast.innerText = msg || 'Draft saved';
+        toast.style.display = 'block';
+        clearTimeout(window.draftToastTimer);
+        window.draftToastTimer = setTimeout(() => { toast.style.display = 'none'; }, 2200);
+    }
+
+    function checkForDraft() {
+        let saved = localStorage.getItem('calichesDraft_popIn');
+        if (!saved) return;
+        try {
+            savedDraftData = JSON.parse(saved);
+            document.getElementById('hasDraftBadge').style.display = 'inline-block';
+            showDraftBanner();
+        } catch(e) { localStorage.removeItem('calichesDraft_popIn'); }
+    }
+
+    function showDraftBanner() {
+        let banner = document.getElementById('draftBanner');
+        banner.style.display = 'flex';
+        banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function restoreSavedDraft() {
+        if (!savedDraftData) return;
+        let d = savedDraftData;
+        document.getElementById('loc').value = d.location || '';
+        document.getElementById('dt').value = d.date || '';
+        document.getElementById('shiftTime').value = d.shiftTime || 'Day';
+        document.getElementById('sldr').value = d.shiftLeader || '';
+        document.getElementById('conductor').value = d.conductor || '';
+        document.getElementById('overallComments').value = d.overallComments || '';
+        for (let i = 1; i <= totalQuestions; i++) {
+            if (d.ratings && d.ratings[i]) {
+                let radio = document.querySelector('input[name="q' + i + '"][value="' + d.ratings[i] + '"]');
+                if (radio) radio.checked = true;
             }
-
-            btn.innerText = "Verifying...";
-            btn.disabled = true;
-            errorMsg.style.display = "none";
-
-            supabaseClient.from('users')
-                .select('*')
-                .eq('username', form.username.value.trim())
-                .eq('password', form.password.value.trim())
-                .limit(1)
-                .then(({ data, error }) => {
-                    // Open DevTools console to see the raw response if anything goes wrong
-                    console.log('[Login] Supabase response:', { data, error });
-
-                    if (error) {
-                        // A real Supabase error: RLS block (42501), table missing, etc.
-                        console.error('[Login] Supabase error code:', error.code, '| message:', error.message);
-                        errorMsg.innerText = 'Login error (' + error.code + '): ' + error.message;
-                        errorMsg.style.display = "block";
-                        btn.innerText = "ENTER HUB";
-                        btn.disabled = false;
-                        return;
-                    }
-
-                    if (!data || data.length === 0) {
-                        // Query succeeded but no matching row — genuinely wrong credentials
-                        errorMsg.innerText = "Invalid Username or PIN. Please try again.";
-                        errorMsg.style.display = "block";
-                        btn.innerText = "ENTER HUB";
-                        btn.disabled = false;
-                        return;
-                    }
-
-                    // ✅ Success
-                    const user = data[0];
-                    currentUser.name = user.name;
-                    currentUser.role = user.role;
-                    localStorage.setItem('calichesUser', JSON.stringify(currentUser));
-                    document.getElementById('greetingName').innerText = "Hello, " + user.name;
-                    document.getElementById('greetingRole').innerText = "Role: " + user.role;
-                    document.getElementById('managerBtn').style.display = (user.role === "Manager" || user.role === "Admin") ? "block" : "none";
-                    triggerTransition(() => {
-                        document.getElementById('login-view').style.display = 'none';
-                        document.getElementById('main-menu').style.display = 'block';
-                        resetTimer();
-                    });
-                    btn.innerText = "ENTER HUB";
-                    btn.disabled = false;
-                    form.reset();
-                })
-                .catch(err => {
-                    console.error('[Login] Network/unexpected error:', err);
-                    errorMsg.innerText = "Connection error. Check your internet.";
-                    errorMsg.style.display = "block";
-                    btn.innerText = "ENTER HUB";
-                    btn.disabled = false;
-                });
-        }
-
-        // ============================================================
-        // FIX: attemptRegister — removed .single() from insert chain,
-        //      added specific error codes so "username taken" only fires
-        //      when it's actually taken (code 23505), not for every error.
-        //      Console logs added for full visibility.
-        // ============================================================
-        function attemptRegister() {
-            const btn = document.getElementById('registerBtn');
-            const form = document.getElementById('registerForm');
-            const errorMsg = document.getElementById('registerError');
-
-            if (!form.name.value || !form.username.value || !form.password.value) {
-                errorMsg.innerText = "Please fill all fields.";
-                errorMsg.style.display = "block";
-                return;
-            }
-
-            btn.innerText = "Creating Account...";
-            btn.disabled = true;
-            errorMsg.style.display = "none";
-
-            const insertObj = {
-                name: form.name.value.trim(),
-                username: form.username.value.trim(),
-                password: form.password.value.trim(),
-                role: 'Staff'
-            };
-
-            supabaseClient.from('users')
-                .insert([insertObj])
-                .select()
-                .then(({ data, error }) => {
-                    // Open DevTools console to see the raw response if anything goes wrong
-                    console.log('[Register] Supabase response:', { data, error });
-
-                    if (error) {
-                        console.error('[Register] Supabase error code:', error.code, '| message:', error.message);
-                        if (error.code === '23505') {
-                            // Genuine duplicate username
-                            errorMsg.innerText = "That username is already taken. Please choose another.";
-                        } else if (error.code === '42501') {
-                            // RLS is blocking the insert
-                            errorMsg.innerText = "Access denied by database. Go to Supabase → Table Editor → users → and make sure RLS is turned OFF.";
-                        } else {
-                            // Show the real error so you know what to fix
-                            errorMsg.innerText = 'Registration failed (' + error.code + '): ' + error.message;
-                        }
-                        errorMsg.style.display = "block";
-                        btn.innerText = "CREATE ACCOUNT";
-                        btn.disabled = false;
-                        return;
-                    }
-
-                    if (!data || data.length === 0) {
-                        // Insert appeared to succeed but returned nothing — silent RLS block
-                        console.warn('[Register] Insert returned no data. Likely a silent RLS block.');
-                        errorMsg.innerText = "Registration failed silently. Go to Supabase → Table Editor → users → and verify RLS is OFF.";
-                        errorMsg.style.display = "block";
-                        btn.innerText = "CREATE ACCOUNT";
-                        btn.disabled = false;
-                        return;
-                    }
-
-                    // ✅ Success
-                    const user = data[0];
-                    currentUser.name = user.name;
-                    currentUser.role = user.role;
-                    localStorage.setItem('calichesUser', JSON.stringify(currentUser));
-                    document.getElementById('greetingName').innerText = "Hello, " + user.name;
-                    document.getElementById('greetingRole').innerText = "Role: " + user.role;
-                    document.getElementById('managerBtn').style.display = "none";
-                    triggerTransition(() => {
-                        document.getElementById('login-view').style.display = 'none';
-                        document.getElementById('main-menu').style.display = 'block';
-                        resetTimer();
-                    });
-                    btn.innerText = "CREATE ACCOUNT";
-                    btn.disabled = false;
-                    form.reset();
-                })
-                .catch(err => {
-                    console.error('[Register] Network/unexpected error:', err);
-                    errorMsg.innerText = "Connection error. Check your internet.";
-                    errorMsg.style.display = "block";
-                    btn.innerText = "CREATE ACCOUNT";
-                    btn.disabled = false;
-                });
-        }
-
-        function recoverPin() {
-            let uname = prompt("Forgot PIN? Enter your Username below to alert Issac:");
-            if (uname) {
-                supabaseClient.from('pin_recovery_requests').insert([{ username: uname }])
-                .then(({ error }) => {
-                    if(!error) alert("Issac has been notified and will clear your account so you can register again.");
-                    else alert("Network error. Try again.");
-                }).catch(err => alert("Network error. Try again."));
+            if (d.notes && d.notes[i]) {
+                let noteEl = document.getElementById('note' + i);
+                if (noteEl) noteEl.value = d.notes[i];
             }
         }
+        document.getElementById('draftBanner').style.display = 'none';
+        calc();
+        showDraftToast('Draft restored!');
+    }
 
-        function logout() {
-            triggerTransition(() => {
-                document.querySelectorAll(".app-view").forEach(v => v.style.display = "none");
-                document.getElementById('login-view').style.display = "flex";
-                localStorage.removeItem('calichesUser'); currentUser = { name: "", role: "" }; clearInterval(slideTimer);
+    function discardDraft() {
+        localStorage.removeItem('calichesDraft_popIn');
+        savedDraftData = null;
+        document.getElementById('draftBanner').style.display = 'none';
+        document.getElementById('hasDraftBadge').style.display = 'none';
+        showDraftToast('Draft discarded');
+    }
+
+    // ============================================================
+    // PWA INSTALL
+    // ============================================================
+    function installApp() {
+        if (!deferredInstallPrompt) {
+            alert('To install on iOS: tap the Share button then "Add to Home Screen".\nOn Android: tap the menu then "Add to Home Screen".');
+            return;
+        }
+        deferredInstallPrompt.prompt();
+        deferredInstallPrompt.userChoice.then(function(choice) {
+            if (choice.outcome === 'accepted') document.getElementById('installBtn').style.display = 'none';
+            deferredInstallPrompt = null;
+        });
+    }
+
+    // ============================================================
+    // ACTIVITY LOGGING
+    // ============================================================
+    function logActivity(username, name, action) {
+        supabaseClient.from('activity_logs').insert([{ username: username, name: name, action: action }])
+        .then(({ error }) => { if(error) console.log('[Activity] Log error:', error.message); });
+    }
+
+    function fetchActivityLog(btnElement) {
+        currentDashTab = 'Activity';
+        document.querySelectorAll('.dash-tab').forEach(b => b.classList.remove('active'));
+        btnElement.classList.add('active');
+        document.getElementById('dashboardFilterDiv').style.display = 'none';
+        const results = document.getElementById('dashboardResults');
+        results.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading activity log...</p>';
+        supabaseClient.from('activity_logs').select('*').order('id', { ascending: false }).limit(150)
+        .then(({ data, error }) => {
+            if (error) { results.innerHTML = '<p style="color:red;padding:20px;">Error (' + error.code + '): ' + error.message + '</p>'; return; }
+            if (!data || data.length === 0) { results.innerHTML = '<p style="padding:20px;">No activity recorded yet. Activity is logged on each login.</p>'; return; }
+            let html = '<div class="table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Action</th><th>Time</th></tr></thead><tbody>';
+            data.forEach(row => {
+                let time = row.created_at ? new Date(row.created_at).toLocaleString() : '';
+                let col = row.action === 'login' ? 'var(--pass-green)' : 'var(--caliches-blue)';
+                html += '<tr><td style="font-weight:500;">' + (row.name||'') + '</td><td style="color:var(--na-gray);">' + (row.username||'') + '</td><td><span style="background:' + col + '22;color:' + col + ';padding:3px 10px;border-radius:4px;font-size:12px;font-weight:bold;">' + (row.action||'') + '</span></td><td style="color:var(--na-gray);font-size:12px;">' + time + '</td></tr>';
             });
-        }
+            html += '</tbody></table></div>';
+            results.innerHTML = html;
+        }).catch(err => { results.innerHTML = '<p style="color:red;padding:20px;">Connection Error: ' + err.message + '</p>'; });
+    }
 
-        function openDashboard() {
-            triggerTransition(() => {
-                document.querySelectorAll(".app-view").forEach(v => v.style.display = "none");
-                document.getElementById('managerView').style.display = "block";
-                let firstTabBtn = document.querySelector('.dash-tab');
-                fetchDashboard('Pop-Ins', firstTabBtn);
-            });
-        }
+    // ============================================================
+    // FORGOT PIN
+    // ============================================================
+    function openForgotPin() {
+        document.getElementById('forgotPinModal').style.display = 'flex';
+        document.getElementById('forgotUsername').value = '';
+        document.getElementById('forgotEmail').value = '';
+        document.getElementById('forgotPinError').style.display = 'none';
+        document.getElementById('forgotPinBtn').innerText = 'Send My PIN';
+        document.getElementById('forgotPinBtn').disabled = false;
+    }
 
-        function refreshCurrentDashboard() {
-            let activeBtn = document.querySelector('.dash-tab.active');
-            fetchDashboard(currentDashTab, activeBtn);
-        }
+    function closeForgotPin() {
+        document.getElementById('forgotPinModal').style.display = 'none';
+    }
 
-        function fetchDashboard(tabName, btnElement = null) {
-            currentDashTab = tabName;
-            if(btnElement) { document.querySelectorAll('.dash-tab').forEach(b => b.classList.remove('active')); btnElement.classList.add('active'); }
-
-            const results = document.getElementById('dashboardResults');
-            results.innerHTML = `<p style="text-align: center; padding: 30px; color: #888;">Fetching latest ${tabName} data...</p>`;
-            document.getElementById('dashboardFilterDiv').style.display = 'flex';
-
-            const tableMap = { 'Pop-Ins': 'pop_ins', 'Shortages': 'shortages', 'Driver Logs': 'driver_logs', 'Maintenance Logs': 'maintenance_logs', 'Damage Reports': 'damage_reports' };
-            const daysLimit = parseInt(document.getElementById('dashDateFilter').value);
-
-            supabaseClient.from(tableMap[tabName]).select('*').order('id', { ascending: false }).limit(daysLimit === 999 ? 50 : 100)
-            .then(({ data: supaData, error }) => {
-                if(!error) {
-                    let data = { result: "success", headers: [], rows: [] };
-                    if(supaData && supaData.length > 0) {
-                        data.headers = Object.keys(supaData[0]).filter(k => k !== 'id');
-                        data.rows = supaData.map(obj => [obj.id, ...data.headers.map(h => obj[h])]);
-                    }
-
-                    if(data.rows.length === 0) { results.innerHTML = "<p style='padding:20px;'>No data found for this time period.</p>"; return; }
-                    let html = `<div class="table-wrapper"><table class="data-table"><thead><tr>`;
-
-                    data.headers.forEach((h, i) => { if(i < 10) html += `<th>${h}</th>`; });
-                    if(tabName === "Maintenance Logs" || tabName === "Damage Reports") { html += `<th>Action</th>`; }
-                    html += `</tr></thead><tbody>`;
-
-                    let statusIndex = data.headers.indexOf("Status");
-                    data.rows.forEach(row => {
-                        let rowIndex = row[0];
-                        html += `<tr>`;
-                        for(let i=1; i<=Math.min(10, data.headers.length); i++) {
-                            let cellData = row[i] || "";
-                            if (cellData.toString().startsWith("http")) {
-                                html += `<td><a href="${cellData}" target="_blank" style="background:var(--caliches-pink); color:white; padding:5px 10px; border-radius:4px; text-decoration:none; font-weight:bold; display:inline-block;">View PDF</a></td>`;
-                            } else {
-                                html += `<td>${cellData}</td>`;
-                            }
-                        }
-
-                        if(tabName === "Maintenance Logs" || tabName === "Damage Reports") {
-                            let currentStatus = row[statusIndex + 1] || "Pending";
-                            html += `<td>
-                                <select id="status-${rowIndex}" class="role-select">
-                                    <option value="Pending" ${currentStatus==='Pending'?'selected':''}>Pending</option>
-                                    <option value="In Progress" ${currentStatus==='In Progress'?'selected':''}>In Progress</option>
-                                    <option value="Resolved" ${currentStatus==='Resolved'?'selected':''}>Resolved</option>
-                                </select>
-                                <button class="update-action-btn" onclick="updateItemStatus('${tabName}', ${rowIndex})">Save</button>
-                            </td>`;
-                        }
-                        html += `</tr>`;
-                    });
-                    html += `</tbody></table></div>`;
-                    results.innerHTML = html;
-                } else { results.innerHTML = `<p style='color:red;'>Error loading data.</p>`; }
-            }).catch(err => { results.innerHTML = `<p style='color:red;'>Connection Error.</p>`; });
-        }
-
-        function updateItemStatus(tabName, rowIndex) {
-            let newStatus = document.getElementById(`status-${rowIndex}`).value;
-            const tableMap = { 'Maintenance Logs': 'maintenance_logs', 'Damage Reports': 'damage_reports' };
-
-            supabaseClient.from(tableMap[tabName]).update({ Status: newStatus }).eq('id', rowIndex)
-            .then(({ error }) => {
-                if(!error) { alert("Status successfully changed to: " + newStatus); }
-                else { alert("Error updating status."); }
-            }).catch(err => { alert("Connection Error."); });
-        }
-
-        function fetchUsers(btnElement) {
-            currentDashTab = "Users";
-            document.querySelectorAll('.dash-tab').forEach(b => b.classList.remove('active')); btnElement.classList.add('active');
-            document.getElementById('dashboardFilterDiv').style.display = 'none';
-            const results = document.getElementById('dashboardResults');
-            results.innerHTML = `<p style="text-align: center; padding: 30px; color: #888;">Loading Staff Database...</p>`;
-
-            supabaseClient.from('users').select('*').order('id')
-            .then(({ data, error }) => {
-                if(!error && data) {
-                    let mappedUsers = data.map(u => ({ name: u.name, username: u.username, role: u.role, row: u.id }));
-                    let html = `<div class="table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Role / Level</th><th>Action</th></tr></thead><tbody>`;
-                    mappedUsers.forEach(u => {
-                        html += `<tr>
-                            <td style="font-weight:bold;">${u.name}</td>
-                            <td style="color:var(--na-gray);">${u.username}</td>
-                            <td>
-                                <select id="role-select-${u.row}" class="role-select">
-                                    <option value="Staff" ${u.role === "Staff" ? "selected" : ""}>Staff</option>
-                                    <option value="Manager" ${u.role === "Manager" ? "selected" : ""}>Manager</option>
-                                </select>
-                            </td>
-                            <td>
-                                <button class="update-role-btn" onclick="updateRole(${u.row})">Update</button>
-                                <button class="delete-btn" onclick="deleteUser(${u.row})">Delete</button>
-                            </td>
-                        </tr>`;
-                    });
-                    html += `</tbody></table></div>`; results.innerHTML = html;
-                } else { results.innerHTML = `<p style='color:red;'>Error loading users.</p>`; }
-            }).catch(err => { results.innerHTML = `<p style='color:red;'>Connection Error.</p>`; });
-        }
-
-        function updateRole(rowIndex) {
-            let newRole = document.getElementById(`role-select-${rowIndex}`).value;
-            supabaseClient.from('users').update({ role: newRole }).eq('id', rowIndex)
-            .then(({ error }) => {
-                if(!error) { alert("User role instantly updated to " + newRole + "!"); } else { alert("Error updating user."); }
-            }).catch(err => { alert("Connection Error."); });
-        }
-
-        function deleteUser(rowIndex) {
-            if(!confirm("Are you sure you want to permanently delete this user?")) return;
-            supabaseClient.from('users').delete().eq('id', rowIndex)
-            .then(({ error }) => {
-                if(!error) { alert("User successfully deleted."); fetchUsers(document.querySelector('.dash-tab.active')); }
-                else { alert("Error deleting user."); }
-            }).catch(err => { alert("Connection Error."); });
-        }
-
-        function triggerTransition(callback) { const loader = document.getElementById('neon-loader'); loader.style.display = 'flex'; setTimeout(() => { loader.style.opacity = '1'; }, 10); setTimeout(() => { callback(); window.scrollTo(0, 0); loader.style.opacity = '0'; setTimeout(() => { loader.style.display = 'none'; }, 300); }, 1200); }
-        function openMenu() { triggerTransition(() => { document.querySelectorAll(".app-view").forEach(v => v.style.display = "none"); document.getElementById('main-menu').style.display = "block"; }); }
-        function openForm(formId) { triggerTransition(() => { document.querySelectorAll(".app-view").forEach(v => v.style.display = "none"); document.getElementById(formId).style.display = "block"; }); }
-
-        function updateSlider() { document.getElementById('slider-track').style.transform = `translateX(-${currentSlide * 50}%)`; }
-        function moveSlide(direction) { currentSlide = (currentSlide + direction + 2) % 2; updateSlider(); resetTimer(); }
-        function resetTimer() { clearInterval(slideTimer); slideTimer = setInterval(() => moveSlide(1), 10000); }
-
-        function getBrandHeader(title, color) { return `<div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 800px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 10px; padding: 40px; background-color: #ffffff;"><div style="text-align: center; border-bottom: 5px solid ${color}; padding-bottom: 20px; margin-bottom: 30px;"><h1 style="color: #4a68b1; font-size: 38px; margin: 0; font-weight: 900; text-transform: uppercase; letter-spacing: 2px;">Caliche's</h1><h2 style="color: ${color}; font-size: 20px; margin: 5px 0 0 0; letter-spacing: 1px; text-transform: uppercase;">Operations Hub</h2><p style="color: #888; font-size: 14px; margin: 15px 0 0 0;"><b>REPORT TYPE:</b> ${title}</p><p style="color: #888; font-size: 14px; margin: 5px 0 0 0;"><b>DATE GENERATED:</b> ${new Date().toLocaleString()}</p></div>`; }
-
-        const questions = [{ cat: "Team Member Performance", q: ["Moving with a purpose, motivated to work, positive attitude", "All team members are following dress code", "Teamwork is being conducted", "Multitasking when possible", "Respecting the no talking when windows are open policy", "Backups are being done in a timely manner", "During busy hours everyone is staying composed and collected", "Register runners are small talking with customers", "Everyone is listening to the orders being called out", "Register runners providing excellent customer service", "Everyone is lending a hand to get out lines faster", "Team members are handing out items correctly"] }, { cat: "Shift Leader Performance", q: ["Moving with a purpose, motivated, positive attitude", "Constantly lending a helping hand", "Ensuring duties are performed efficiently to standard", "Always staying composed and collected", "Communicating and providing good direction to team", "Promoting a positive and healthy work environment", "Displaying good judgment", "Coaching team members and helping train new staff", "Ensuring compliance with company health/safety policies", "Shift is organized and is on or ahead of schedule", "Can influence the team's efforts through leadership", "Easily adapts to changing conditions and delegates", "Monitoring that machine runner is performing to standard"] }, { cat: "Cleanliness", q: ["Stations are being wiped down after use", "Glove protocol is being followed", "Dirty dishes are being pre-rinsed and tape taken off", "Sani buckets are being changed when dirty (or every 2 hrs)", "Spills or messes on floors are being addressed", "Exterior front counters are being wiped down", "Middle sink in dish area is maintained clean and free of dishes", "Machine area is clean and being wiped down", "Hands are being washed", "Malt collars are attended to after orders/before leaving area", "Caliche and shake machines attended to after orders", "Team members are wearing clean aprons", "Quick spiffs are being maintained", "Custard Quality station is maintained to emphasize product integrity"] }, { cat: "Quality", q: ["Machine runner's custard is high quality and fresh", "All fruits are fresh to taste", "All backups in walk-in rotated correctly (labels face center)", "Hot dogs are hot and plump, not cold or old", "Coleslaw is made correctly", "Tostadas are fresh to taste", "Enough hot dog buns are being defrosted", "Hot fudge warmers are set to 140 degrees (F)", "Caramel warmers are set to 100 degrees (F)", "Machine runner is keeping up with melts", "Items are being scooped properly", "Caliches and shakes are being blended properly"] }];
-        let totalQuestions = 0; let questionPhotos = {}; let maintPhotos = []; let damagePhotos = [];
-
-        (function generatePopInQuestions() {
-            let html = ""; let qIdx = 1;
-            questions.forEach(group => { html += `<div class="category"><h2>${group.cat}</h2>`; group.q.forEach(text => { questionPhotos[qIdx] = []; html += `<div class="question"><p>${text}</p><div class="rating-group"><input type="radio" name="q${qIdx}" id="q${qIdx}-0" value="0" onchange="calc()"><label for="q${qIdx}-0">N/A</label>`; for(let i=1; i<=5; i++) { html += `<input type="radio" name="q${qIdx}" id="q${qIdx}-${i}" value="${i}" onchange="calc()"><label for="q${qIdx}-${i}">${i}</label>`; } html += `</div><input type="text" id="note${qIdx}" name="note${qIdx}" class="note-input" placeholder="Add specific feedback..."><div><label class="photo-btn">📸 Attach Photos<input type="file" accept="image/*" multiple onchange="compressAndPreview(event, ${qIdx})" style="display: none;"></label><div id="imgPreviewContainer${qIdx}" style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px;"></div></div></div>`; qIdx++; }); html += `</div>`; }); document.getElementById('questionsContainer').innerHTML = html; totalQuestions = qIdx - 1;
-        })();
-
-        function compressAndPreview(event, qId) { let files = event.target.files; if(!files || files.length === 0) return; let previewContainer = document.getElementById(`imgPreviewContainer${qId}`); Array.from(files).forEach(file => { let reader = new FileReader(); reader.onload = function(e) { let img = new Image(); img.onload = function() { let canvas = document.createElement('canvas'); let ctx = canvas.getContext('2d'); let scaleSize = Math.min(300 / img.width, 1); canvas.width = img.width * scaleSize; canvas.height = img.height * scaleSize; ctx.drawImage(img, 0, 0, canvas.width, canvas.height); let compressedBase64 = canvas.toDataURL('image/jpeg', 0.4); questionPhotos[qId].push(compressedBase64); let previewImg = document.createElement('img'); previewImg.src = compressedBase64; previewImg.style.width = '60px'; previewImg.style.height = '60px'; previewImg.style.borderRadius = '6px'; previewImg.style.border = '1px solid #ccc'; previewImg.style.objectFit = 'cover'; previewContainer.appendChild(previewImg); }; img.src = e.target.result; }; reader.readAsDataURL(file); }); }
-        function compressToGlobal(event, previewId, targetArray) { let files = event.target.files; if(!files || files.length === 0) return; let previewContainer = document.getElementById(previewId); Array.from(files).forEach(file => { let reader = new FileReader(); reader.onload = function(e) { let img = new Image(); img.onload = function() { let canvas = document.createElement('canvas'); let ctx = canvas.getContext('2d'); let scaleSize = Math.min(400 / img.width, 1); canvas.width = img.width * scaleSize; canvas.height = img.height * scaleSize; ctx.drawImage(img, 0, 0, canvas.width, canvas.height); let compressedBase64 = canvas.toDataURL('image/jpeg', 0.4); targetArray.push(compressedBase64); let previewImg = document.createElement('img'); previewImg.src = compressedBase64; previewImg.style.height = '80px'; previewImg.style.borderRadius = '6px'; previewImg.style.border = '1px solid #ccc'; previewContainer.appendChild(previewImg); }; img.src = e.target.result; }; reader.readAsDataURL(file); }); }
-
-        function calc() { let totalScore = 0; let questionsCounted = 0; let answered = 0; for(let i=1; i<=totalQuestions; i++) { let sel = document.querySelector(`input[name="q${i}"]:checked`); if(sel) { answered++; let val = parseInt(sel.value); if(val > 0) { totalScore += val; questionsCounted++; } } } let maxPossible = questionsCounted * 5; let p = maxPossible === 0 ? 0 : Math.round((totalScore / maxPossible) * 100); document.getElementById('ts').innerText = totalScore; document.getElementById('maxPts').innerText = maxPossible; document.getElementById('finalScore').value = totalScore; document.getElementById('pct').innerText = p; document.getElementById('finalPct').value = p + "%"; let badge = document.getElementById('st'); if(answered === totalQuestions) { let stat = p >= 85 ? "EXCELLENT" : (p >= 75 ? "MEETS STANDARD" : "NEEDS IMPROVEMENT"); badge.innerText = stat; document.getElementById('finalStatus').value = stat; badge.className = p >= 75 ? "status pass" : "status fail"; } }
-
-        function submitAudit() {
-            const btn = document.getElementById('submitBtn'); const form = document.getElementById('auditForm');
-            if(!document.getElementById('loc').value || !document.getElementById('sldr').value || !document.getElementById('conductor').value) { return alert("Please fill out Location, Shift Leader, and Conducted By!"); }
-            let answered = 0; for(let i=1; i<=totalQuestions; i++) { if(document.querySelector(`input[name="q${i}"]:checked`)) answered++; }
-            if(answered < totalQuestions) { return alert(`Please answer all questions. You have answered ${answered} out of ${totalQuestions}.`); }
-            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true;
-
-            let pdfHtml = getBrandHeader("Store Pop-In Inspection", "#4a68b1");
-            pdfHtml += `<table style="width: 100%; margin-bottom: 20px; font-family: 'Helvetica Neue', sans-serif;"><tr><td style="padding: 8px;"><strong>Location:</strong> ${document.getElementById('loc').value}</td><td style="padding: 8px;"><strong>Date:</strong> ${document.getElementById('dt').value}</td></tr><tr><td style="padding: 8px;"><strong>Conducted By:</strong> ${document.getElementById('conductor').value}</td><td style="padding: 8px;"><strong>Shift Leader:</strong> ${document.getElementById('sldr').value} (${document.getElementById('shiftTime').value})</td></tr></table><div style="background-color: #f0f4f8; padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: center;"><h2 style="color: #4a68b1; margin: 0; font-size: 28px;">Final Score: ${document.getElementById('pct').innerText}%</h2><h3 style="color: #555; margin: 5px 0 15px 0;">Status: ${document.getElementById('st').innerText}</h3><p style="margin-bottom: 0; text-align: left; padding-top: 15px; border-top: 1px solid #ddd;"><strong>Overall Comments:</strong> ${document.getElementById('overallComments').value || "None"}</p></div><table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 14px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;"><tr style="background-color: #4a68b1; color: white;"><th style="text-align: left;">Category / Question</th><th style="width: 60px; text-align: center;">Score</th><th>Notes & Photos</th></tr>`;
-            let loopIdx = 1; questions.forEach(group => { pdfHtml += `<tr style="background-color: #f9f9f9;"><td colspan="3" style="font-size: 16px; color: #333;"><strong>${group.cat}</strong></td></tr>`; group.q.forEach(text => { let sel = document.querySelector(`input[name="q${loopIdx}"]:checked`); let note = document.getElementById(`note${loopIdx}`).value; let score = sel ? sel.value : "N/A"; if(score === "0") score = "N/A"; let qPhotos = questionPhotos[loopIdx]; let photoHtml = ""; if (qPhotos && qPhotos.length > 0) { photoHtml = `<div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">`; qPhotos.forEach(pData => { photoHtml += `<img src="${pData}" style="max-height: 120px; border-radius: 8px; border: 1px solid #bbb;">`; }); photoHtml += `</div>`; } pdfHtml += `<tr><td style="line-height: 1.4;">${text}</td><td style="text-align: center; font-weight: bold; font-size: 16px;">${score}</td><td style="color: #555;">${note} <br> ${photoHtml}</td></tr>`; loopIdx++; }); }); pdfHtml += `</table></div>`;
-            document.getElementById('popInReportHtml').value = pdfHtml;
-
-            fetch(G_URL, { method: 'POST', body: new FormData(form) })
+    function submitForgotPin() {
+        let username = document.getElementById('forgotUsername').value.trim();
+        let email = document.getElementById('forgotEmail').value.trim();
+        let errorEl = document.getElementById('forgotPinError');
+        let btn = document.getElementById('forgotPinBtn');
+        if (!username || !email) { errorEl.innerText = 'Please fill in both fields.'; errorEl.style.display = 'block'; return; }
+        btn.innerText = 'Sending...'; btn.disabled = true; errorEl.style.display = 'none';
+        supabaseClient.from('users').select('*').eq('username', username).eq('email', email).limit(1)
+        .then(({ data, error }) => {
+            if (error) { errorEl.innerText = 'Error: ' + error.message; errorEl.style.display = 'block'; btn.innerText = 'Send My PIN'; btn.disabled = false; return; }
+            if (!data || data.length === 0) { errorEl.innerText = 'No account found with that username and email. Contact your manager.'; errorEl.style.display = 'block'; btn.innerText = 'Send My PIN'; btn.disabled = false; return; }
+            let user = data[0];
+            let fd = new FormData();
+            fd.append('forgotPassword', 'true');
+            fd.append('name', user.name);
+            fd.append('email', email);
+            fd.append('pin', user.password);
+            fetch(G_URL, { method: 'POST', body: fd })
             .then(res => res.json())
-            .then(googleData => {
-                let insertObj = Object.fromEntries(new FormData(form).entries());
-                delete insertObj.ReportHTML;
-                insertObj.PDF_Archive = googleData.pdfUrl || "PDF Failed to Generate";
-                return supabaseClient.from('pop_ins').insert([insertObj]);
+            .then(() => {
+                closeForgotPin();
+                alert('PIN sent to ' + email + '. Check your inbox (and spam folder).');
             })
-            .then(({ error }) => {
-                if(error) throw error;
-                btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ SENT! (TAP TO PRINT)";
+            .catch(() => { errorEl.innerText = 'Could not send email. Contact your manager.'; errorEl.style.display = 'block'; btn.innerText = 'Send My PIN'; btn.disabled = false; });
+        });
+    }
+
+    // ============================================================
+    // AUTH
+    // ============================================================
+    function toggleRegister() {
+        let lf = document.getElementById('loginForm'); let rf = document.getElementById('registerForm');
+        document.getElementById('loginError').style.display = 'none'; document.getElementById('registerError').style.display = 'none';
+        if (lf.style.display === 'none') { lf.style.display = 'block'; rf.style.display = 'none'; }
+        else { lf.style.display = 'none'; rf.style.display = 'block'; }
+    }
+
+    function attemptLogin() {
+        const btn = document.getElementById('loginBtn'); const form = document.getElementById('loginForm'); const errorMsg = document.getElementById('loginError');
+        if (!form.username.value || !form.password.value) { errorMsg.innerText = 'Please enter both fields.'; errorMsg.style.display = 'block'; return; }
+        btn.innerText = 'Verifying...'; btn.disabled = true; errorMsg.style.display = 'none';
+        supabaseClient.from('users').select('*').eq('username', form.username.value.trim()).eq('password', form.password.value.trim()).limit(1)
+        .then(({ data, error }) => {
+            console.log('[Login] Supabase:', { data, error });
+            if (error) { errorMsg.innerText = 'Login error (' + error.code + '): ' + error.message; errorMsg.style.display = 'block'; btn.innerText = 'ENTER HUB'; btn.disabled = false; return; }
+            if (!data || data.length === 0) { errorMsg.innerText = 'Invalid Username or PIN. Please try again.'; errorMsg.style.display = 'block'; btn.innerText = 'ENTER HUB'; btn.disabled = false; return; }
+            const user = data[0];
+            currentUser.name = user.name; currentUser.role = user.role; currentUser.permissions = user.permissions || null;
+            localStorage.setItem('calichesUser', JSON.stringify(currentUser));
+            logActivity(user.username, user.name, 'login');
+            document.getElementById('greetingName').innerText = 'Hello, ' + user.name;
+            document.getElementById('greetingRole').innerText = 'Role: ' + user.role;
+            document.getElementById('managerBtn').style.display = (user.role === 'Admin Manager') ? 'block' : 'none';
+            setupNotifications();
+            applyFormPermissions();
+            triggerTransition(() => { document.getElementById('login-view').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; resetTimer(); });
+            btn.innerText = 'ENTER HUB'; btn.disabled = false; form.reset();
+        }).catch(err => { errorMsg.innerText = 'Connection error. Check your internet.'; errorMsg.style.display = 'block'; btn.innerText = 'ENTER HUB'; btn.disabled = false; });
+    }
+
+    function attemptRegister() {
+        const btn = document.getElementById('registerBtn'); const form = document.getElementById('registerForm'); const errorMsg = document.getElementById('registerError');
+        if (!form.name.value || !form.username.value || !form.email.value || !form.password.value) { errorMsg.innerText = 'Please fill all fields.'; errorMsg.style.display = 'block'; return; }
+        btn.innerText = 'Creating Account...'; btn.disabled = true; errorMsg.style.display = 'none';
+        supabaseClient.from('users').insert([{ name: form.name.value.trim(), username: form.username.value.trim(), email: form.email.value.trim(), password: form.password.value.trim(), role: 'Blue Apron', permissions: ['popIn','driver','shortage','maintenance','damage'] }]).select()
+        .then(({ data, error }) => {
+            console.log('[Register] Supabase:', { data, error });
+            if (error) { errorMsg.innerText = error.code === '23505' ? 'That username is already taken.' : 'Error (' + error.code + '): ' + error.message; errorMsg.style.display = 'block'; btn.innerText = 'CREATE ACCOUNT'; btn.disabled = false; return; }
+            if (!data || data.length === 0) { errorMsg.innerText = 'Registration failed. Check Supabase grants.'; errorMsg.style.display = 'block'; btn.innerText = 'CREATE ACCOUNT'; btn.disabled = false; return; }
+            const user = data[0];
+            currentUser.name = user.name; currentUser.role = user.role;
+            localStorage.setItem('calichesUser', JSON.stringify(currentUser));
+            document.getElementById('greetingName').innerText = 'Hello, ' + user.name;
+            document.getElementById('greetingRole').innerText = 'Role: ' + user.role;
+            document.getElementById('managerBtn').style.display = 'none';
+            triggerTransition(() => { document.getElementById('login-view').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; resetTimer(); });
+            btn.innerText = 'CREATE ACCOUNT'; btn.disabled = false; form.reset();
+        }).catch(err => { errorMsg.innerText = 'Connection error.'; errorMsg.style.display = 'block'; btn.innerText = 'CREATE ACCOUNT'; btn.disabled = false; });
+    }
+
+    function logout() {
+        triggerTransition(() => {
+            document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
+            document.getElementById('login-view').style.display = 'flex';
+            localStorage.removeItem('calichesUser'); currentUser = { name:'', role:'' }; clearInterval(slideTimer);
+        });
+    }
+
+    // ============================================================
+    // NAVIGATION
+    // ============================================================
+    function triggerTransition(callback) { const loader = document.getElementById('neon-loader'); loader.style.display = 'flex'; setTimeout(() => { loader.style.opacity = '1'; }, 10); setTimeout(() => { callback(); window.scrollTo(0,0); loader.style.opacity = '0'; setTimeout(() => { loader.style.display = 'none'; }, 300); }, 1200); }
+    function openMenu() { triggerTransition(() => { document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none'); document.getElementById('main-menu').style.display = 'block'; }); }
+    function openForm(formId) { triggerTransition(() => { document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none'); document.getElementById(formId).style.display = 'block'; }); }
+
+    function openPopIn() {
+        triggerTransition(() => {
+            document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
+            document.getElementById('popInView').style.display = 'block';
+            setTimeout(checkForDraft, 300);
+        });
+    }
+
+    function openDashboard() {
+        triggerTransition(() => {
+            document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
+            document.getElementById('managerView').style.display = 'block';
+            fetchDashboard('Pop-Ins', document.querySelector('.dash-tab'));
+        });
+    }
+
+    function refreshCurrentDashboard() { fetchDashboard(currentDashTab, document.querySelector('.dash-tab.active')); }
+
+    // ============================================================
+    // DASHBOARD
+    // ============================================================
+    function fetchDashboard(tabName, btnElement) {
+        currentDashTab = tabName;
+        if (btnElement) { document.querySelectorAll('.dash-tab').forEach(b => b.classList.remove('active')); btnElement.classList.add('active'); }
+        const results = document.getElementById('dashboardResults');
+        results.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Fetching ' + tabName + ' data...</p>';
+        document.getElementById('dashboardFilterDiv').style.display = 'flex';
+        const tableMap = { 'Pop-Ins':'pop_ins','Shortages':'shortages','Driver Logs':'driver_logs','Maintenance Logs':'maintenance_logs','Damage Reports':'damage_reports' };
+        const daysLimit = parseInt(document.getElementById('dashDateFilter').value);
+        supabaseClient.from(tableMap[tabName]).select('*').order('id', { ascending: false }).limit(daysLimit === 999 ? 50 : 100)
+        .then(({ data: supaData, error }) => {
+            if (error) { console.error('[Dashboard] Error:', error); results.innerHTML = '<p style="color:red;padding:20px;">Error (' + error.code + '): ' + error.message + '</p>'; return; }
+            if (!supaData || supaData.length === 0) { results.innerHTML = '<p style="padding:20px;">No data found. Submit a form then check this tab.</p>'; return; }
+            let headers = Object.keys(supaData[0]).filter(k => k !== 'id');
+            let html = '<div class="table-wrapper"><table class="data-table"><thead><tr>';
+            headers.forEach((h,i) => { if(i<10) html += '<th>' + h + '</th>'; });
+            if(tabName==='Maintenance Logs'||tabName==='Damage Reports') html += '<th>Action</th>';
+            html += '</tr></thead><tbody>';
+            supaData.forEach(row => {
+                html += '<tr>';
+                headers.forEach((h,i) => {
+                    if(i>=10) return;
+                    let cellData = (row[h]!==null&&row[h]!==undefined)?row[h]:'';
+                    if(cellData.toString().startsWith('http')) { html += '<td><a href="' + cellData + '" target="_blank" style="background:var(--caliches-pink);color:white;padding:5px 10px;border-radius:4px;text-decoration:none;font-weight:bold;display:inline-block;">View PDF</a></td>'; }
+                    else { html += '<td>' + cellData + '</td>'; }
+                });
+                if(tabName==='Maintenance Logs'||tabName==='Damage Reports') {
+                    let st = row['Status']||'Pending';
+                    html += '<td><select id="status-' + row.id + '" class="role-select"><option value="Pending"' + (st==='Pending'?' selected':'') + '>Pending</option><option value="In Progress"' + (st==='In Progress'?' selected':'') + '>In Progress</option><option value="Resolved"' + (st==='Resolved'?' selected':'') + '>Resolved</option></select><button class="update-action-btn" onclick="updateItemStatus(\'' + tabName + '\',' + row.id + ')">Save</button></td>';
+                }
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            results.innerHTML = html;
+        }).catch(err => { results.innerHTML = '<p style="color:red;padding:20px;">Connection Error: ' + err.message + '</p>'; });
+    }
+
+    function updateItemStatus(tabName, rowId) {
+        let newStatus = document.getElementById('status-' + rowId).value;
+        const tableMap = { 'Maintenance Logs':'maintenance_logs','Damage Reports':'damage_reports' };
+        supabaseClient.from(tableMap[tabName]).update({ Status: newStatus }).eq('id', rowId)
+        .then(({ error }) => { if(!error) alert('Status updated to: ' + newStatus); else alert('Error: ' + error.message); });
+    }
+
+    function fetchUsers(btnElement) {
+        currentDashTab = 'Users';
+        document.querySelectorAll('.dash-tab').forEach(b => b.classList.remove('active')); btnElement.classList.add('active');
+        document.getElementById('dashboardFilterDiv').style.display = 'none';
+        const results = document.getElementById('dashboardResults');
+        results.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading Staff Database...</p>';
+        supabaseClient.from('users').select('*').order('id')
+        .then(({ data, error }) => {
+            if (error || !data) { results.innerHTML = '<p style="color:red;">Error: ' + (error?error.message:'no data') + '</p>'; return; }
+            let html = '<div class="table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Forms Allowed</th><th>Action</th></tr></thead><tbody>';
+            data.forEach(u => {
+                let perms = u.permissions || FORM_KEYS.map(f=>f.key);
+                let checks = FORM_KEYS.map(f => '<label style="margin-right:8px;font-size:11px;font-weight:bold;white-space:nowrap;"><input type="checkbox" data-key="' + f.key + '" ' + (perms.indexOf(f.key)!==-1?'checked':'') + ' style="transform:scale(1.2);vertical-align:middle;"> ' + f.label + '</label>').join('');
+                html += '<tr><td style="font-weight:500;">' + u.name + '</td><td style="color:var(--na-gray);">' + u.username + '</td><td style="color:var(--na-gray);">' + (u.email||'—') + '</td><td><select id="role-select-' + u.id + '" class="role-select"><option value="Blue Apron"' + (u.role==='Blue Apron'?' selected':'') + '>Blue Apron</option><option value="Shift Lead"' + (u.role==='Shift Lead'?' selected':'') + '>Shift Lead</option><option value="Manager"' + (u.role==='Manager'?' selected':'') + '>Manager</option><option value="Admin Manager"' + (u.role==='Admin Manager'?' selected':'') + '>Admin Manager</option></select></td><td><div id="perm-' + u.id + '" style="display:flex;flex-wrap:wrap;gap:2px;max-width:260px;">' + checks + '</div></td><td style="white-space:nowrap;"><button class="update-role-btn" onclick="updateRole(' + u.id + ')">Save Role</button><button class="update-action-btn" onclick="updatePermissions(' + u.id + ')" style="margin-left:5px;">Save Forms</button><button class="delete-btn" onclick="deleteUser(' + u.id + ')">Delete</button></td></tr>';
+            });
+            html += '</tbody></table></div>'; results.innerHTML = html;
+        }).catch(() => { results.innerHTML = '<p style="color:red;">Connection Error.</p>'; });
+    }
+
+    function updateRole(id) {
+        let newRole = document.getElementById('role-select-' + id).value;
+        supabaseClient.from('users').update({ role: newRole }).eq('id', id).then(({ error }) => { if(!error) alert('Role updated to ' + newRole + '!'); else alert('Error: ' + error.message); });
+    }
+
+    function updatePermissions(id) {
+        let container = document.getElementById('perm-' + id);
+        if (!container) return;
+        let checked = Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(c => c.dataset.key);
+        supabaseClient.from('users').update({ permissions: checked }).eq('id', id).then(({ error }) => { if(!error) alert('Form access updated!'); else alert('Error: ' + error.message); });
+    }
+
+    function deleteUser(id) {
+        if(!confirm('Are you sure you want to permanently delete this user?')) return;
+        supabaseClient.from('users').delete().eq('id', id).then(({ error }) => { if(!error) { alert('User deleted.'); fetchUsers(document.querySelector('.dash-tab.active')); } else alert('Error: ' + error.message); });
+    }
+
+    // ============================================================
+    // SLIDER
+    // ============================================================
+    const SLIDE_COUNT = 5;
+    function updateSlider() { document.getElementById('slider-track').style.transform = 'translateX(-' + (currentSlide*(100/SLIDE_COUNT)) + '%)'; }
+    function moveSlide(direction) { currentSlide = (currentSlide+direction+SLIDE_COUNT)%SLIDE_COUNT; updateSlider(); resetTimer(); }
+    function resetTimer() { clearInterval(slideTimer); slideTimer = setInterval(() => moveSlide(1), 10000); }
+
+    // ============================================================
+    // PDF HEADER HELPER
+    // ============================================================
+    function getBrandHeader(title, color) { return '<div style="font-family:Helvetica Neue,Helvetica,Arial,sans-serif;max-width:800px;margin:0 auto;border:1px solid #e0e0e0;border-radius:10px;padding:40px;background-color:#ffffff;"><div style="text-align:center;border-bottom:5px solid ' + color + ';padding-bottom:20px;margin-bottom:30px;"><h1 style="color:#4a68b1;font-size:38px;margin:0;font-weight:900;text-transform:uppercase;letter-spacing:2px;">Caliche\'s</h1><h2 style="color:' + color + ';font-size:20px;margin:5px 0 0 0;letter-spacing:1px;text-transform:uppercase;">Operations Hub</h2><p style="color:#888;font-size:14px;margin:15px 0 0 0;"><b>REPORT TYPE:</b> ' + title + '</p><p style="color:#888;font-size:14px;margin:5px 0 0 0;"><b>DATE GENERATED:</b> ' + new Date().toLocaleString() + '</p></div>'; }
+
+    // ============================================================
+    // SUPABASE SAVE HELPER
+    // ============================================================
+    function saveToSupabase(tableName, form, pdfUrl, onSuccess) {
+        let insertObj = Object.fromEntries(new FormData(form).entries());
+        delete insertObj.ReportHTML; delete insertObj.action;
+        insertObj.PDF_Archive = pdfUrl || 'PDF Failed to Generate';
+        console.log('[Supabase] Inserting into ' + tableName + ':', insertObj);
+        supabaseClient.from(tableName).insert([insertObj]).select()
+        .then(({ data, error }) => {
+            console.log('[Supabase] Response from ' + tableName + ':', { data, error });
+            if (error) { console.error('[Supabase] Error:', error.code, error.message); alert('PDF was emailed BUT failed to save to dashboard.\n\nError (' + error.code + '): ' + error.message); return; }
+            onSuccess();
+        }).catch(err => { console.error('[Supabase] Unexpected error:', err); alert('Unexpected error: ' + (err.message||err)); });
+    }
+
+    // ============================================================
+    // POP-IN QUESTIONS GENERATOR
+    // ============================================================
+    const questions = [
+        { cat:'Team Member Performance', q:['Moving with a purpose, motivated to work, positive attitude','All team members are following dress code','Teamwork is being conducted','Multitasking when possible','Respecting the no talking when windows are open policy','Backups are being done in a timely manner','During busy hours everyone is staying composed and collected','Register runners are small talking with customers','Everyone is listening to the orders being called out','Register runners providing excellent customer service','Everyone is lending a hand to get out lines faster','Team members are handing out items correctly'] },
+        { cat:'Shift Leader Performance', q:['Moving with a purpose, motivated, positive attitude','Constantly lending a helping hand','Ensuring duties are performed efficiently to standard','Always staying composed and collected','Communicating and providing good direction to team','Promoting a positive and healthy work environment','Displaying good judgment','Coaching team members and helping train new staff','Ensuring compliance with company health/safety policies','Shift is organized and is on or ahead of schedule','Can influence the team\'s efforts through leadership','Easily adapts to changing conditions and delegates','Monitoring that machine runner is performing to standard'] },
+        { cat:'Cleanliness', q:['Stations are being wiped down after use','Glove protocol is being followed','Dirty dishes are being pre-rinsed and tape taken off','Sani buckets are being changed when dirty (or every 2 hrs)','Spills or messes on floors are being addressed','Exterior front counters are being wiped down','Middle sink in dish area is maintained clean and free of dishes','Machine area is clean and being wiped down','Hands are being washed','Malt collars are attended to after orders/before leaving area','Caliche and shake machines attended to after orders','Team members are wearing clean aprons','Quick spiffs are being maintained','Custard Quality station is maintained to emphasize product integrity'] },
+        { cat:'Quality', q:['Machine runner\'s custard is high quality and fresh','All fruits are fresh to taste','All backups in walk-in rotated correctly (labels face center)','Hot dogs are hot and plump, not cold or old','Coleslaw is made correctly','Tostadas are fresh to taste','Enough hot dog buns are being defrosted','Hot fudge warmers are set to 140 degrees (F)','Caramel warmers are set to 100 degrees (F)','Machine runner is keeping up with melts','Items are being scooped properly','Caliches and shakes are being blended properly'] }
+    ];
+
+    (function generatePopInQuestions() {
+        let html = ''; let qIdx = 1;
+        questions.forEach(group => {
+            html += '<div class="category"><h2>' + group.cat + '</h2>';
+            group.q.forEach(text => {
+                questionPhotos[qIdx] = [];
+                html += '<div class="question"><p>' + text + '</p><div class="rating-group"><input type="radio" name="q' + qIdx + '" id="q' + qIdx + '-0" value="0" onchange="calc()"><label for="q' + qIdx + '-0">N/A</label>';
+                for(let i=1;i<=5;i++) { html += '<input type="radio" name="q' + qIdx + '" id="q' + qIdx + '-' + i + '" value="' + i + '" onchange="calc()"><label for="q' + qIdx + '-' + i + '">' + i + '</label>'; }
+                html += '</div><input type="text" id="note' + qIdx + '" name="note' + qIdx + '" class="note-input" placeholder="Add specific feedback..."><div><label class="photo-btn">&#128248; Attach Photos<input type="file" accept="image/*" multiple onchange="compressAndPreview(event,' + qIdx + ')" style="display:none;"></label><div id="imgPreviewContainer' + qIdx + '" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;"></div></div></div>';
+                qIdx++;
+            });
+            html += '</div>';
+        });
+        document.getElementById('questionsContainer').innerHTML = html;
+        totalQuestions = qIdx - 1;
+
+        // Listen to note input changes for draft auto-save
+        document.getElementById('questionsContainer').addEventListener('input', function(e) {
+            if (e.target.classList.contains('note-input')) scheduleDraftSave();
+        });
+        // Listen to header field changes
+        ['loc','dt','shiftTime','sldr','conductor'].forEach(id => {
+            let el = document.getElementById(id);
+            if (el) el.addEventListener('change', scheduleDraftSave);
+        });
+        document.getElementById('overallComments').addEventListener('input', scheduleDraftSave);
+    })();
+
+    // ============================================================
+    // SCORE CALCULATOR
+    // ============================================================
+    function calc() {
+        let totalScore = 0; let questionsCounted = 0; let answered = 0;
+        for(let i=1;i<=totalQuestions;i++) { let sel = document.querySelector('input[name="q'+i+'"]:checked'); if(sel) { answered++; let val = parseInt(sel.value); if(val>0) { totalScore+=val; questionsCounted++; } } }
+        let maxPossible = questionsCounted*5;
+        let p = maxPossible===0?0:Math.round((totalScore/maxPossible)*100);
+        document.getElementById('ts').innerText = totalScore;
+        document.getElementById('maxPts').innerText = maxPossible;
+        document.getElementById('finalScore').value = totalScore;
+        document.getElementById('pct').innerText = p;
+        document.getElementById('finalPct').value = p + '%';
+        let badge = document.getElementById('st');
+        if(answered===totalQuestions) { let stat = p>=85?'EXCELLENT':(p>=75?'MEETS STANDARD':'NEEDS IMPROVEMENT'); badge.innerText = stat; document.getElementById('finalStatus').value = stat; badge.style.backgroundColor = p>=75?'var(--pass-green)':'var(--fail-red)'; }
+        updateProgressBar();
+        scheduleDraftSave();
+    }
+
+    // ============================================================
+    // IMAGE COMPRESSION
+    // ============================================================
+    function compressAndPreview(event, qId) { let files = event.target.files; if(!files||files.length===0) return; let pc = document.getElementById('imgPreviewContainer'+qId); Array.from(files).forEach(file => { let r = new FileReader(); r.onload = function(e) { let img = new Image(); img.onload = function() { let c = document.createElement('canvas'); let ctx = c.getContext('2d'); let scale = Math.min(300/img.width,1); c.width = img.width*scale; c.height = img.height*scale; ctx.drawImage(img,0,0,c.width,c.height); let b64 = c.toDataURL('image/jpeg',0.4); questionPhotos[qId].push(b64); let pi = document.createElement('img'); pi.src = b64; pi.style.cssText = 'width:60px;height:60px;border-radius:6px;border:1px solid #ccc;object-fit:cover;'; pc.appendChild(pi); }; img.src = e.target.result; }; r.readAsDataURL(file); }); }
+    function compressToGlobal(event, previewId, targetArray) { let files = event.target.files; if(!files||files.length===0) return; let pc = document.getElementById(previewId); Array.from(files).forEach(file => { let r = new FileReader(); r.onload = function(e) { let img = new Image(); img.onload = function() { let c = document.createElement('canvas'); let ctx = c.getContext('2d'); let scale = Math.min(400/img.width,1); c.width = img.width*scale; c.height = img.height*scale; ctx.drawImage(img,0,0,c.width,c.height); let b64 = c.toDataURL('image/jpeg',0.4); targetArray.push(b64); let pi = document.createElement('img'); pi.src = b64; pi.style.cssText = 'height:80px;border-radius:6px;border:1px solid #ccc;'; pc.appendChild(pi); }; img.src = e.target.result; }; r.readAsDataURL(file); }); }
+
+    // ============================================================
+    // FORM SUBMISSIONS
+    // ============================================================
+    function submitAudit() {
+        const btn = document.getElementById('submitBtn'); const form = document.getElementById('auditForm');
+        if(!document.getElementById('loc').value||!document.getElementById('sldr').value||!document.getElementById('conductor').value) { return alert('Please fill out Location, Shift Leader, and Conducted By!'); }
+        let answered = 0; for(let i=1;i<=totalQuestions;i++) { if(document.querySelector('input[name="q'+i+'"]:checked')) answered++; }
+        if(answered<totalQuestions) { return alert('Please answer all questions. You have answered '+answered+' out of '+totalQuestions+'.'); }
+        btn.innerText = 'Generating PDF...'; btn.disabled = true;
+        let pdfHtml = getBrandHeader('Store Pop-In Inspection','#4a68b1');
+        pdfHtml += '<table style="width:100%;margin-bottom:20px;"><tr><td style="padding:8px;"><strong>Location:</strong> '+document.getElementById('loc').value+'</td><td style="padding:8px;"><strong>Date:</strong> '+document.getElementById('dt').value+'</td></tr><tr><td style="padding:8px;"><strong>Conducted By:</strong> '+document.getElementById('conductor').value+'</td><td style="padding:8px;"><strong>Shift Leader:</strong> '+document.getElementById('sldr').value+' ('+document.getElementById('shiftTime').value+')</td></tr></table>';
+        pdfHtml += '<div style="background:#f0f4f8;padding:20px;border-radius:8px;margin-bottom:30px;text-align:center;"><h2 style="color:#4a68b1;margin:0;font-size:28px;">Score: '+document.getElementById('pct').innerText+'%</h2><h3 style="color:#555;margin:5px 0 15px 0;">Status: '+document.getElementById('st').innerText+'</h3><p style="margin:0;text-align:left;padding-top:15px;border-top:1px solid #ddd;"><strong>Comments:</strong> '+(document.getElementById('overallComments').value||'None')+'</p></div>';
+        pdfHtml += '<table border="1" cellpadding="12" style="border-collapse:collapse;width:100%;font-size:14px;border-color:#ddd;"><tr style="background:#4a68b1;color:white;"><th style="text-align:left;">Question</th><th style="width:60px;text-align:center;">Score</th><th>Notes</th></tr>';
+        let loopIdx=1; questions.forEach(group => { pdfHtml += '<tr style="background:#f9f9f9;"><td colspan="3"><strong>'+group.cat+'</strong></td></tr>'; group.q.forEach(text => { let sel = document.querySelector('input[name="q'+loopIdx+'"]:checked'); let note = document.getElementById('note'+loopIdx).value; let score = sel?sel.value:'N/A'; if(score==='0') score='N/A'; pdfHtml += '<tr><td>'+text+'</td><td style="text-align:center;font-weight:bold;">'+score+'</td><td>'+note+'</td></tr>'; loopIdx++; }); });
+        pdfHtml += '</table></div>';
+        document.getElementById('popInReportHtml').value = pdfHtml;
+        fetch(G_URL, { method:'POST', body:new FormData(form) })
+        .then(res => res.json())
+        .then(googleData => {
+            console.log('[Pop-In] GAS:', googleData);
+            saveToSupabase('pop_ins', form, googleData.pdfUrl, () => {
+                localStorage.removeItem('calichesDraft_popIn');
+                btn.disabled = false; btn.style.backgroundColor = 'var(--pass-green)'; btn.innerText = 'SENT! (TAP TO PRINT)';
                 btn.onclick = function(e) { e.preventDefault(); document.body.innerHTML = pdfHtml; setTimeout(() => { window.print(); location.reload(); }, 500); };
-            }).catch((err) => {
-                console.error(err); alert("Connection Error. Check internet."); btn.disabled = false; btn.innerText = "🚀 SUBMIT POP-IN TO OFFICE";
             });
+        })
+        .catch(err => { console.error('[Pop-In] GAS error:', err); alert('Could not reach PDF server: '+err.message); btn.disabled=false; btn.innerText='SUBMIT POP-IN TO OFFICE'; });
+    }
+
+    function submitDriverForm() {
+        const btn = document.getElementById('submitDriverBtn'); const form = document.getElementById('driverForm');
+        if(!document.getElementById('vehicle').value||!document.getElementById('signature').value) { return alert('Please select a vehicle and sign the form!'); }
+        btn.innerText = 'Generating PDF...'; btn.disabled = true;
+        let pdfHtml = getBrandHeader('Vehicle & Trailer Check-Out','#c53a74');
+        pdfHtml += '<table border="1" cellpadding="12" style="border-collapse:collapse;width:100%;font-size:15px;border-color:#ddd;">';
+        new FormData(form).forEach((value,key) => { if(key!=='ReportHTML'&&value.toString().trim()!=='') { pdfHtml += '<tr><td style="background:#f9f9f9;font-weight:bold;color:#c53a74;width:40%;">'+key.replace(/_/g,' ').toUpperCase()+'</td><td>'+value+'</td></tr>'; } });
+        pdfHtml += '</table></div>';
+        document.getElementById('driverReportHtml').value = pdfHtml;
+        fetch(G_URL, { method:'POST', body:new FormData(form) })
+        .then(res => res.json())
+        .then(googleData => { console.log('[Driver] GAS:', googleData); saveToSupabase('driver_logs', form, googleData.pdfUrl, () => { btn.disabled=false; btn.style.backgroundColor='var(--pass-green)'; btn.innerText='LOG SECURED AND SENT!'; setTimeout(() => { form.reset(); btn.style.backgroundColor='var(--caliches-pink)'; btn.innerText='SUBMIT DRIVER CHECKLIST'; openMenu(); }, 3000); }); })
+        .catch(err => { console.error('[Driver] GAS error:', err); alert('Could not reach PDF server: '+err.message); btn.disabled=false; btn.innerText='SUBMIT DRIVER CHECKLIST'; });
+    }
+
+    function submitShortage() {
+        const btn = document.getElementById('submitShortageBtn'); const form = document.getElementById('shortageForm');
+        if(!form.querySelector('select[name="Store"]').value||!form.querySelector('input[name="ManagerName"]').value) { return alert('Please select a store and enter your name!'); }
+        btn.innerText = 'Generating PDF...'; btn.disabled = true;
+        let pdfHtml = getBrandHeader('Store Shortage Report','#28a745');
+        pdfHtml += '<table border="1" cellpadding="12" style="border-collapse:collapse;width:100%;font-size:15px;border-color:#ddd;">';
+        new FormData(form).forEach((value,key) => { if(key!=='ReportHTML'&&value.toString().trim()!=='') { pdfHtml += '<tr><td style="background:#f4fbf5;font-weight:bold;color:#28a745;width:40%;">'+key.replace(/([A-Z])/g,' $1').trim().toUpperCase()+'</td><td>'+value+'</td></tr>'; } });
+        pdfHtml += '</table></div>';
+        document.getElementById('shortageReportHtml').value = pdfHtml;
+        fetch(G_URL, { method:'POST', body:new FormData(form) })
+        .then(res => res.json())
+        .then(googleData => { console.log('[Shortage] GAS:', googleData); saveToSupabase('shortages', form, googleData.pdfUrl, () => { btn.disabled=false; btn.style.backgroundColor='var(--pass-green)'; btn.innerText='REPORT SUBMITTED!'; setTimeout(() => { form.reset(); btn.style.backgroundColor='var(--pass-green)'; btn.innerText='SUBMIT SHORTAGE REPORT'; openMenu(); }, 3000); }); })
+        .catch(err => { console.error('[Shortage] GAS error:', err); alert('Could not reach PDF server: '+err.message); btn.disabled=false; btn.innerText='SUBMIT SHORTAGE REPORT'; });
+    }
+
+    function submitMaintenance() {
+        const btn = document.getElementById('submitMaintBtn'); const form = document.getElementById('maintenanceForm');
+        if(!form.querySelector('input[name="MaintenanceItem"]').value||!form.querySelector('input[name="ReporterName"]').value) { return alert('Please fill out the required fields!'); }
+        btn.innerText = 'Generating PDF...'; btn.disabled = true;
+        let pdfHtml = getBrandHeader('Required Maintenance','#e67e22');
+        pdfHtml += '<table border="1" cellpadding="12" style="border-collapse:collapse;width:100%;font-size:15px;border-color:#ddd;">';
+        new FormData(form).forEach((value,key) => { if(key!=='ReportHTML'&&value.toString().trim()!=='') { pdfHtml += '<tr><td style="background:#fdf3e8;font-weight:bold;color:#e67e22;width:40%;">'+key.replace(/([A-Z])/g,' $1').trim().toUpperCase()+'</td><td>'+value+'</td></tr>'; } });
+        if(maintPhotos.length>0) { pdfHtml += '<tr><td style="background:#fdf3e8;font-weight:bold;color:#e67e22;">PHOTOS</td><td><div style="display:flex;gap:10px;flex-wrap:wrap;">'; maintPhotos.forEach(p => { pdfHtml += '<img src="'+p+'" style="max-height:150px;border-radius:8px;border:1px solid #ccc;">'; }); pdfHtml += '</div></td></tr>'; }
+        pdfHtml += '</table></div>';
+        document.getElementById('maintenanceReportHtml').value = pdfHtml;
+        fetch(G_URL, { method:'POST', body:new FormData(form) })
+        .then(res => res.json())
+        .then(googleData => { console.log('[Maintenance] GAS:', googleData); saveToSupabase('maintenance_logs', form, googleData.pdfUrl, () => { btn.disabled=false; btn.style.backgroundColor='var(--pass-green)'; btn.innerText='MAINTENANCE REPORT SENT!'; setTimeout(() => { form.reset(); maintPhotos=[]; document.getElementById('maintPrev').innerHTML=''; btn.style.backgroundColor='#e67e22'; btn.innerText='SUBMIT MAINTENANCE REQUEST'; openMenu(); }, 3000); }); })
+        .catch(err => { console.error('[Maintenance] GAS error:', err); alert('Could not reach PDF server: '+err.message); btn.disabled=false; btn.innerText='SUBMIT MAINTENANCE REQUEST'; });
+    }
+
+    function submitDamage() {
+        const btn = document.getElementById('submitDamageBtn'); const form = document.getElementById('damageForm');
+        if(!form.querySelector('select[name="DamageAsset"]').value||!form.querySelector('input[name="ReporterName"]').value) { return alert('Please select an asset and enter your name!'); }
+        btn.innerText = 'Generating PDF...'; btn.disabled = true;
+        let pdfHtml = getBrandHeader('Vehicle & Trailer Damage','#e74c3c');
+        pdfHtml += '<table border="1" cellpadding="12" style="border-collapse:collapse;width:100%;font-size:15px;border-color:#ddd;">';
+        new FormData(form).forEach((value,key) => { if(key!=='ReportHTML'&&value.toString().trim()!=='') { pdfHtml += '<tr><td style="background:#fceceb;font-weight:bold;color:#e74c3c;width:40%;">'+key.replace(/([A-Z])/g,' $1').trim().toUpperCase()+'</td><td>'+value+'</td></tr>'; } });
+        if(damagePhotos.length>0) { pdfHtml += '<tr><td style="background:#fceceb;font-weight:bold;color:#e74c3c;">DAMAGE PHOTOS</td><td><div style="display:flex;gap:10px;flex-wrap:wrap;">'; damagePhotos.forEach(p => { pdfHtml += '<img src="'+p+'" style="max-height:150px;border-radius:8px;border:1px solid #ccc;">'; }); pdfHtml += '</div></td></tr>'; }
+        pdfHtml += '</table></div>';
+        document.getElementById('damageReportHtml').value = pdfHtml;
+        fetch(G_URL, { method:'POST', body:new FormData(form) })
+        .then(res => res.json())
+        .then(googleData => { console.log('[Damage] GAS:', googleData); saveToSupabase('damage_reports', form, googleData.pdfUrl, () => { btn.disabled=false; btn.style.backgroundColor='var(--pass-green)'; btn.innerText='DAMAGE REPORT SENT!'; setTimeout(() => { form.reset(); damagePhotos=[]; document.getElementById('damagePrev').innerHTML=''; btn.style.backgroundColor='#e74c3c'; btn.innerText='SUBMIT DAMAGE REPORT'; openMenu(); }, 3000); }); })
+        .catch(err => { console.error('[Damage] GAS error:', err); alert('Could not reach PDF server: '+err.message); btn.disabled=false; btn.innerText='SUBMIT DAMAGE REPORT'; });
+    }
+
+        // ============================================================
+        // IN-APP NOTIFICATIONS (replaces email alerts to managers)
+        // ============================================================
+        let notifPollTimer = null;
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return "";
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
         }
 
-        function submitDriverForm() {
-            const btn = document.getElementById('submitDriverBtn'); const form = document.getElementById('driverForm');
-            if(!document.getElementById('vehicle').value || !document.getElementById('signature').value) { return alert("Please select a vehicle and sign the form!"); }
-            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true;
-            let pdfHtml = getBrandHeader("Vehicle & Trailer Check-Out", "#c53a74"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/_/g, ' ').toUpperCase(); pdfHtml += `<tr><td style="background-color: #f9f9f9; font-weight: bold; color: #c53a74; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); pdfHtml += `</table></div>`; document.getElementById('driverReportHtml').value = pdfHtml;
+        function setupNotifications() {
+            const isManager = (currentUser.role === 'Admin Manager');
+            const wrap = document.getElementById('notifBellWrap');
+            if (!wrap) return;
 
-            fetch(G_URL, { method: 'POST', body: new FormData(form) })
-            .then(res => res.json())
-            .then(googleData => {
-                let insertObj = Object.fromEntries(new FormData(form).entries());
-                delete insertObj.ReportHTML;
-                insertObj.PDF_Archive = googleData.pdfUrl || "PDF Failed to Generate";
-                return supabaseClient.from('driver_logs').insert([insertObj]);
-            })
-            .then(({ error }) => {
-                if(error) throw error;
-                btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ LOG SECURED AND SENT!";
-                setTimeout(() => { form.reset(); btn.style.backgroundColor = "var(--caliches-pink)"; btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST"; openMenu(); }, 3000);
-            }).catch(() => {
-                alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT DRIVER CHECKLIST";
-            });
+            if (!isManager) {
+                wrap.style.display = "none";
+                if (notifPollTimer) { clearInterval(notifPollTimer); notifPollTimer = null; }
+                return;
+            }
+
+            wrap.style.display = "block";
+            fetchNotifications();
+
+            if (notifPollTimer) clearInterval(notifPollTimer);
+            notifPollTimer = setInterval(fetchNotifications, 60000);
         }
 
-        function submitShortage() {
-            const btn = document.getElementById('submitShortageBtn'); const form = document.getElementById('shortageForm');
-            if(!form.querySelector('select[name="Store"]').value || !form.querySelector('input[name="ManagerName"]').value) { return alert("Please select a store and enter your name!"); }
-            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true;
-            let pdfHtml = getBrandHeader("Store Shortage Report", "#28a745"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(); pdfHtml += `<tr><td style="background-color: #f4fbf5; font-weight: bold; color: #28a745; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); pdfHtml += `</table></div>`; document.getElementById('shortageReportHtml').value = pdfHtml;
-
-            fetch(G_URL, { method: 'POST', body: new FormData(form) })
-            .then(res => res.json())
-            .then(googleData => {
-                let insertObj = Object.fromEntries(new FormData(form).entries());
-                delete insertObj.ReportHTML;
-                insertObj.PDF_Archive = googleData.pdfUrl || "PDF Failed to Generate";
-                return supabaseClient.from('shortages').insert([insertObj]);
-            })
-            .then(({ error }) => {
-                if(error) throw error;
-                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ REPORT SUBMITTED & PDF SENT!";
-                setTimeout(() => { form.reset(); btn.disabled = false; btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "🚀 SUBMIT SHORTAGE REPORT"; openMenu(); }, 3000);
-            }).catch(() => {
-                alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT SHORTAGE REPORT";
-            });
+        function fetchNotifications() {
+            supabaseClient.from('notifications')
+                .select('*')
+                .order('id', { ascending: false })
+                .limit(30)
+                .then(({ data, error }) => {
+                    if (error) {
+                        console.error('[Notifications] fetch error:', error);
+                        return;
+                    }
+                    renderNotifications(data || []);
+                })
+                .catch(err => console.error('[Notifications] network error:', err));
         }
 
-        function submitMaintenance() {
-            const btn = document.getElementById('submitMaintBtn'); const form = document.getElementById('maintenanceForm');
-            if(!form.querySelector('input[name="MaintenanceItem"]').value || !form.querySelector('input[name="ReporterName"]').value) { return alert("Please fill out the required fields!"); }
-            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true;
-            let pdfHtml = getBrandHeader("Required Maintenance", "#e67e22"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(); pdfHtml += `<tr><td style="background-color: #fdf3e8; font-weight: bold; color: #e67e22; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); if (maintPhotos.length > 0) { pdfHtml += `<tr><td style="background-color: #fdf3e8; font-weight: bold; color: #e67e22; width: 40%;">ATTACHED PHOTOS</td><td style="color: #333;"><div style="display:flex; gap:10px; flex-wrap:wrap;">`; maintPhotos.forEach(p => { pdfHtml += `<img src="${p}" style="max-height: 150px; border-radius: 8px; border: 1px solid #ccc;">`; }); pdfHtml += `</div></td></tr>`; } pdfHtml += `</table></div>`; document.getElementById('maintenanceReportHtml').value = pdfHtml;
+        function renderNotifications(items) {
+            const panel = document.getElementById('notifPanel');
+            const badge = document.getElementById('notifBadge');
+            if (!panel || !badge) return;
 
-            fetch(G_URL, { method: 'POST', body: new FormData(form) })
-            .then(res => res.json())
-            .then(googleData => {
-                let insertObj = Object.fromEntries(new FormData(form).entries());
-                delete insertObj.ReportHTML;
-                insertObj.PDF_Archive = googleData.pdfUrl || "PDF Failed to Generate";
-                insertObj.Status = "Pending";
-                return supabaseClient.from('maintenance_logs').insert([insertObj]);
-            })
-            .then(({ error }) => {
-                if(error) throw error;
-                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ MAINTENANCE REPORT SENT!";
-                setTimeout(() => { form.reset(); maintPhotos = []; document.getElementById('maintPrev').innerHTML = ''; btn.disabled = false; btn.style.backgroundColor = "#e67e22"; btn.innerText = "🚀 SUBMIT MAINTENANCE REQUEST"; openMenu(); }, 3000);
-            }).catch(() => {
-                alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT MAINTENANCE REQUEST";
-            });
+            const unreadCount = items.filter(n => !n.is_read).length;
+            if (unreadCount > 0) {
+                badge.innerText = unreadCount > 99 ? '99+' : unreadCount;
+                badge.style.display = 'block';
+            } else {
+                badge.style.display = 'none';
+            }
+
+            let html = '<div class="notif-panel-header">Notifications</div>';
+
+            if (!items || items.length === 0) {
+                html += '<div class="notif-empty">No notifications yet.</div>';
+                panel.innerHTML = html;
+                return;
+            }
+
+            html += items.map(n => {
+                const date = n.created_at ? new Date(n.created_at).toLocaleString() : '';
+                const pdfLink = (n.pdf_url && n.pdf_url.indexOf('http') === 0)
+                    ? `<br><a href="${escapeHtml(n.pdf_url)}" target="_blank" onclick="event.stopPropagation();">View PDF</a>`
+                    : '';
+                const meta = [n.location, date].filter(Boolean).map(escapeHtml).join(' \u00b7 ');
+                return `<div class="notif-item ${n.is_read ? '' : 'unread'}" onclick="markNotificationRead(${n.id})">
+                    <div class="notif-title">${escapeHtml(n.title || 'Notification')}</div>
+                    <div>${escapeHtml(n.message || '')}</div>
+                    ${pdfLink}
+                    <div class="notif-meta">${meta}</div>
+                </div>`;
+            }).join('');
+
+            panel.innerHTML = html;
         }
 
-        function submitDamage() {
-            const btn = document.getElementById('submitDamageBtn'); const form = document.getElementById('damageForm');
-            if(!form.querySelector('select[name="DamageAsset"]').value || !form.querySelector('input[name="ReporterName"]').value) { return alert("Please select an asset and enter your name!"); }
-            btn.innerText = "Generating Professional PDF & Routing..."; btn.disabled = true;
-            let pdfHtml = getBrandHeader("Vehicle & Trailer Damage", "#e74c3c"); pdfHtml += `<table border="1" cellpadding="12" style="border-collapse: collapse; width: 100%; font-size: 15px; font-family: 'Helvetica Neue', sans-serif; border-color: #ddd;">`; new FormData(form).forEach((value, key) => { if (key !== "ReportHTML" && value.trim() !== "") { let cleanKey = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase(); pdfHtml += `<tr><td style="background-color: #fceceb; font-weight: bold; color: #e74c3c; width: 40%;">${cleanKey}</td><td style="color: #333;">${value}</td></tr>`; } }); if (damagePhotos.length > 0) { pdfHtml += `<tr><td style="background-color: #fceceb; font-weight: bold; color: #e74c3c; width: 40%;">DAMAGE PHOTOS</td><td style="color: #333;"><div style="display:flex; gap:10px; flex-wrap:wrap;">`; damagePhotos.forEach(p => { pdfHtml += `<img src="${p}" style="max-height: 150px; border-radius: 8px; border: 1px solid #ccc;">`; }); pdfHtml += `</div></td></tr>`; } pdfHtml += `</table></div>`; document.getElementById('damageReportHtml').value = pdfHtml;
-
-            fetch(G_URL, { method: 'POST', body: new FormData(form) })
-            .then(res => res.json())
-            .then(googleData => {
-                let insertObj = Object.fromEntries(new FormData(form).entries());
-                delete insertObj.ReportHTML;
-                insertObj.PDF_Archive = googleData.pdfUrl || "PDF Failed to Generate";
-                insertObj.Status = "Pending";
-                return supabaseClient.from('damage_reports').insert([insertObj]);
-            })
-            .then(({ error }) => {
-                if(error) throw error;
-                btn.style.backgroundColor = "var(--pass-green)"; btn.innerText = "✅ DAMAGE REPORT SENT!";
-                setTimeout(() => { form.reset(); damagePhotos = []; document.getElementById('damagePrev').innerHTML = ''; btn.disabled = false; btn.style.backgroundColor = "#e74c3c"; btn.innerText = "🚀 SUBMIT DAMAGE REPORT"; openMenu(); }, 3000);
-            }).catch(() => {
-                alert("Connection Error."); btn.disabled = false; btn.innerText = "🚀 SUBMIT DAMAGE REPORT";
-            });
+        function toggleNotifPanel() {
+            const panel = document.getElementById('notifPanel');
+            if (!panel) return;
+            const isOpen = panel.style.display === 'block';
+            panel.style.display = isOpen ? 'none' : 'block';
+            if (!isOpen) fetchNotifications();
         }
-    </script>
+
+        function markNotificationRead(id) {
+            supabaseClient.from('notifications').update({ is_read: true }).eq('id', id)
+                .then(({ error }) => {
+                    if (error) console.error('[Notifications] mark read error:', error);
+                    fetchNotifications();
+                })
+                .catch(err => console.error('[Notifications] network error:', err));
+        }
+
+        // Close the notification panel when clicking elsewhere on the page
+        document.addEventListener('click', function(e) {
+            const wrap = document.getElementById('notifBellWrap');
+            const panel = document.getElementById('notifPanel');
+            if (!wrap || !panel) return;
+            if (panel.style.display === 'block' && !wrap.contains(e.target)) {
+                panel.style.display = 'none';
+            }
+        });
+</script>
 </body>
 </html>
