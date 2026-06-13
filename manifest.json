@@ -1,24 +1,25 @@
 {
-"name": "Caliche's Operations Hub",
-"short_name": "Caliche's Hub",
-"description": "Operations management for Caliche's Frozen Custard staff",
-"start_url": "./index.html",
-"display": "standalone",
-"background_color": "#4a68b1",
-"theme_color": "#4a68b1",
-"orientation": "portrait-primary",
-"icons": [
-{
-"src": "caliches-cone.png",
-"sizes": "192x192",
-"type": "image/png",
-"purpose": "any"
-},
-{
-"src": "caliches-cone.png",
-"sizes": "512x512",
-"type": "image/png",
-"purpose": "any"
-}
-]
+  "name": "Caliche's Operations Hub",
+  "short_name": "Caliche's Hub",
+  "description": "Caliche's Frozen Custard team operations app - forms, checklists, and reporting.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f0f4f8",
+  "theme_color": "#4a68b1",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
 }

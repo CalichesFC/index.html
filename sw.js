@@ -1,69 +1,43 @@
-// Caliche's Operations Hub — Service Worker
-// Caches the app shell so it loads even with weak/no signal
+// Caliche's Operations Hub - Service Worker
+// Provides basic offline caching so the app shell loads even with a flaky connection.
 
-const CACHE_NAME = 'caliches-hub-v2';
-const ASSETS = [
+const CACHE_NAME = 'caliches-hub-v1';
+const CORE_ASSETS = [
   './index.html',
-  './splash-logo.png',
-  './catering-logo.png',
-  './caliches-cone.png'
+  './manifest.json',
+  './caliches-cone.png',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
-// Install: cache the app shell
-// Cache each asset individually so a single missing file
-// (e.g. an icon not uploaded yet) doesn't fail the whole install.
-self.addEventListener('install', function(event) {
+self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(function(cache) {
-      return Promise.all(
-        ASSETS.filter(Boolean).map(function(url) {
-          return cache.add(url).catch(function(err) {
-            console.warn('SW: skipping uncacheable asset', url, err);
-          });
-        })
-      );
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS)).catch(() => {})
   );
   self.skipWaiting();
 });
 
-// Activate: clean up old caches
-self.addEventListener('activate', function(event) {
+self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then(function(keys) {
-      return Promise.all(
-        keys.filter(function(key) { return key !== CACHE_NAME; })
-            .map(function(key) { return caches.delete(key); })
-      );
-    })
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    )
   );
   self.clients.claim();
 });
 
-// Fetch: serve from cache, fall back to network
-self.addEventListener('fetch', function(event) {
-  // Skip non-GET and cross-origin requests (Supabase, GAS, CDN)
+// Network-first for everything (so live data/forms always try the network first),
+// falling back to cache when offline.
+self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  if (!event.request.url.startsWith(self.location.origin)) return;
 
   event.respondWith(
-    caches.match(event.request).then(function(cached) {
-      if (cached) return cached;
-      return fetch(event.request).then(function(response) {
-        // Cache successful responses for local assets
-        if (response && response.status === 200 && response.type === 'basic') {
-          var clone = response.clone();
-          caches.open(CACHE_NAME).then(function(cache) {
-            cache.put(event.request, clone);
-          });
-        }
+    fetch(event.request)
+      .then((response) => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
         return response;
-      }).catch(function() {
-        // Offline fallback: return the cached app shell
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
-      });
-    })
+      })
+      .catch(() => caches.match(event.request))
   );
 });
