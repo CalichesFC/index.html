@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#4a68b1">
+    <meta name="theme-color" content="#176bb4">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Caliche's Hub">
@@ -13,7 +13,7 @@
     <title>Caliche's Operations Hub</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --caliches-blue:#4a68b1; --caliches-pink:#c53a74; --light-gray:#f0f4f8; --white:#ffffff; --pass-green:#28a745; --fail-red:#dc3545; --maint-orange:#e67e22; --damage-red:#e74c3c; --na-gray:#9e9e9e; }
+        :root { --caliches-blue:#176bb4; --caliches-pink:#ed3c7e; --caliches-yellow:#eee441; --light-gray:#f0f4f8; --white:#ffffff; --pass-green:#28a745; --fail-red:#dc3545; --maint-orange:#e67e22; --damage-red:#e74c3c; --na-gray:#9e9e9e; }
         body { font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; background-color:var(--light-gray); margin:0; padding:0; color:#333; }
         #splash-screen { position:fixed; top:0; left:0; width:100%; height:100%; background-color:var(--caliches-blue); display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:9999; transition:opacity 0.6s ease-out; }
         .splash-logo { max-width:250px; width:80%; animation:pulse 1.5s infinite; filter:drop-shadow(0px 4px 10px rgba(0,0,0,0.3)); }
@@ -85,7 +85,7 @@
         /* TOP NOTIFICATION BANNER */
         .notif-top-banner { position: fixed; top: -80px; left: 0; right: 0; z-index: 100000; background: var(--caliches-blue); color: white; padding: 14px 20px; font-size: 14px; font-weight: 700; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: top 0.4s ease; cursor: pointer; }
         .notif-top-banner.show { top: 0; }
-        .notif-top-banner .notif-banner-title { color: #ffd700; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; display: block; margin-bottom: 2px; }
+        .notif-top-banner .notif-banner-title { color: var(--caliches-yellow); text-transform: uppercase; letter-spacing: 1px; font-size: 11px; display: block; margin-bottom: 2px; }
 
         /* ANNOUNCEMENT BAR */
         .announcement-bar { display: none; align-items: center; gap: 10px; background: #fff8e1; border: 1px solid #ffe082; border-radius: 10px; padding: 10px 14px; margin: 0 auto 15px auto; max-width: 350px; font-size: 12px; color: #7a5c00; text-align: left; }
@@ -107,8 +107,8 @@
         .slider-wrapper { position:relative; width:100%; max-width:350px; height:250px; margin:15px auto 30px auto; border-radius:16px; overflow:hidden; box-shadow:0px 8px 15px rgba(0,0,0,0.1); border:3px solid var(--caliches-blue); background-color:var(--white); }
         .slides { display:flex; width:500%; height:100%; transition:transform 0.5s ease-in-out; }
         .slide { width:20%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:20px; box-sizing:border-box; }
-        .image-slide{background-color:#f8f9fa} .slide-img{max-width:100%;max-height:100%;object-fit:contain} .text-slide{background-color:var(--caliches-pink);color:white;text-align:center} .focus-title{font-size:16px;text-transform:uppercase;letter-spacing:2px;font-weight:900;color:#ffd700;margin-bottom:15px} .focus-text{font-size:24px;font-weight:900;line-height:1.3}
-        .quote-slide{background-color:var(--caliches-blue)} .quote-text{font-size:20px;font-weight:900;line-height:1.35;font-style:italic} .quote-author{font-size:13px;text-transform:uppercase;letter-spacing:2px;font-weight:700;color:#ffd700;margin-top:15px}
+        .image-slide{background-color:#f8f9fa} .slide-img{max-width:100%;max-height:100%;object-fit:contain} .text-slide{background-color:var(--caliches-pink);color:white;text-align:center} .focus-title{font-size:16px;text-transform:uppercase;letter-spacing:2px;font-weight:900;color:var(--caliches-yellow);margin-bottom:15px} .focus-text{font-size:24px;font-weight:900;line-height:1.3}
+        .quote-slide{background-color:var(--caliches-blue)} .quote-text{font-size:20px;font-weight:900;line-height:1.35;font-style:italic} .quote-author{font-size:13px;text-transform:uppercase;letter-spacing:2px;font-weight:700;color:var(--caliches-yellow);margin-top:15px}
         .arrow { position:absolute; top:50%; transform:translateY(-50%); background:rgba(255,255,255,0.9); border:none; color:var(--caliches-blue); font-size:24px; font-weight:bold; width:40px; height:40px; border-radius:50%; cursor:pointer; z-index:10; display:flex; justify-content:center; align-items:center; box-shadow:0 2px 5px rgba(0,0,0,0.3); }
         .prev-arrow{left:10px} .next-arrow{right:10px}
         .app-view{display:none} .back-btn{background:#333;color:white;border:none;padding:12px 20px;font-size:14px;font-weight:bold;width:100%;text-align:left;cursor:pointer}
