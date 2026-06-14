@@ -887,7 +887,7 @@
     // ACTIVITY LOGGING
     // ============================================================
     function logActivity(username, name, action) {
-        supabaseClient.from('activity_logs').insert([{ username: username, name: name, action: action }])
+        supabaseClient.rpc('app_log_activity', { p_username: username, p_name: name, p_action: action })
         .then(({ error }) => { if(error) console.log('[Activity] Log error:', error.message); });
     }
 
@@ -898,19 +898,22 @@
         document.getElementById('dashboardFilterDiv').style.display = 'none';
         const results = document.getElementById('dashboardResults');
         results.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading activity log...</p>';
-        supabaseClient.from('activity_logs').select('*').order('id', { ascending: false }).limit(150)
-        .then(({ data, error }) => {
-            if (error) { results.innerHTML = '<p style="color:red;padding:20px;">Error (' + error.code + '): ' + error.message + '</p>'; return; }
-            if (!data || data.length === 0) { results.innerHTML = '<p style="padding:20px;">No activity recorded yet. Activity is logged on each login.</p>'; return; }
-            let html = '<div class="table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Action</th><th>Time</th></tr></thead><tbody>';
-            data.forEach(row => {
-                let time = row.created_at ? new Date(row.created_at).toLocaleString() : '';
-                let col = row.action === 'login' ? 'var(--pass-green)' : 'var(--caliches-blue)';
-                html += '<tr><td style="font-weight:500;">' + (row.name||'') + '</td><td style="color:var(--na-gray);">' + (row.username||'') + '</td><td><span style="background:' + col + '22;color:' + col + ';padding:3px 10px;border-radius:4px;font-size:12px;font-weight:bold;">' + (row.action||'') + '</span></td><td style="color:var(--na-gray);font-size:12px;">' + time + '</td></tr>';
-            });
-            html += '</tbody></table></div>';
-            results.innerHTML = html;
-        }).catch(err => { results.innerHTML = '<p style="color:red;padding:20px;">Connection Error: ' + err.message + '</p>'; });
+        withPin(function(pin) {
+            supabaseClient.rpc('app_admin_activity_log', { p_admin_username: currentUser.username, p_admin_password: pin })
+            .then(({ data, error }) => {
+                if (error && error.code === '42501') sessionPin = null;
+                if (error) { results.innerHTML = '<p style="color:red;padding:20px;">Error (' + error.code + '): ' + error.message + '</p>'; return; }
+                if (!data || data.length === 0) { results.innerHTML = '<p style="padding:20px;">No activity recorded yet. Activity is logged on each login.</p>'; return; }
+                let html = '<div class="table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Action</th><th>Time</th></tr></thead><tbody>';
+                data.forEach(row => {
+                    let time = row.created_at ? new Date(row.created_at).toLocaleString() : '';
+                    let col = row.action === 'login' ? 'var(--pass-green)' : 'var(--caliches-blue)';
+                    html += '<tr><td style="font-weight:500;">' + (row.name||'') + '</td><td style="color:var(--na-gray);">' + (row.username||'') + '</td><td><span style="background:' + col + '22;color:' + col + ';padding:3px 10px;border-radius:4px;font-size:12px;font-weight:bold;">' + (row.action||'') + '</span></td><td style="color:var(--na-gray);font-size:12px;">' + time + '</td></tr>';
+                });
+                html += '</tbody></table></div>';
+                results.innerHTML = html;
+            }).catch(err => { results.innerHTML = '<p style="color:red;padding:20px;">Connection Error: ' + err.message + '</p>'; });
+        }, function() { results.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">PIN required to load activity log.</p>'; });
     }
 
     // ============================================================
@@ -1263,6 +1266,7 @@
     // VEHICLE MAINTENANCE TRACKER (mileage-based due dates)
     // ============================================================
     let vmtMileageByVehicle = {};
+    let vmtScheduleById = {};
 
     function fetchVehicleMaintTracker() {
         const container = document.getElementById('vehicleMaintTracker');
@@ -1270,20 +1274,16 @@
         const isManager = (currentUser.role === 'Admin Manager' || currentUser.role === 'Manager');
         const canEdit = (currentUser.role === 'Maintenance' || isManager);
         container.innerHTML = '<p style="text-align:center;padding:10px;color:#888;font-size:13px;">Loading vehicle maintenance...</p>';
-        Promise.all([
-            supabaseClient.from('driver_logs').select('vehicle,mileage').order('id', { ascending: false }).limit(200),
-            supabaseClient.from('vehicle_maintenance_schedule').select('*').order('vehicle', { ascending: true }).order('id', { ascending: true })
-        ]).then(([logsRes, schedRes]) => {
-            if (schedRes.error || !schedRes.data) { container.innerHTML = ''; return; }
-            vmtMileageByVehicle = {};
-            (logsRes.data || []).forEach(row => {
-                const v = row.vehicle;
-                const m = parseFloat(row.mileage);
-                if (!v || isNaN(m)) return;
-                if (!vmtMileageByVehicle[v] || m > vmtMileageByVehicle[v]) vmtMileageByVehicle[v] = m;
-            });
+        withPin(function(pin) {
+        supabaseClient.rpc('app_vehicle_tracker_data', { p_username: currentUser.username, p_password: pin })
+        .then(({ data, error }) => {
+            if (error && error.code === '42501') sessionPin = null;
+            if (error || !data || !data.schedule) { container.innerHTML = ''; return; }
+            vmtMileageByVehicle = data.mileage || {};
+            vmtScheduleById = {};
             const byVehicle = {};
-            schedRes.data.forEach(row => {
+            data.schedule.forEach(row => {
+                vmtScheduleById[row.id] = row;
                 if (!byVehicle[row.vehicle]) byVehicle[row.vehicle] = [];
                 byVehicle[row.vehicle].push(row);
             });
@@ -1317,21 +1317,25 @@
             });
             container.innerHTML = html;
         }).catch(() => { container.innerHTML = ''; });
+        }, function() { container.innerHTML = ''; });
     }
 
     function markServiceDone(scheduleId) {
-        supabaseClient.from('vehicle_maintenance_schedule').select('vehicle,service_type').eq('id', scheduleId).single()
-        .then(({ data, error }) => {
-            if (error || !data) { alert('Error: could not load item.'); return; }
-            const currentMileage = vmtMileageByVehicle[data.vehicle];
-            const defaultMileage = currentMileage != null ? currentMileage : 0;
-            const input = prompt('Mark "' + data.service_type + '" for ' + data.vehicle + ' as serviced at what mileage?', defaultMileage);
-            if (input === null) return;
-            const mileage = parseInt(input, 10);
-            if (isNaN(mileage)) { alert('Please enter a valid mileage.'); return; }
-            const today = new Date().toISOString().split('T')[0];
-            supabaseClient.from('vehicle_maintenance_schedule').update({ last_service_mileage: mileage, last_service_date: today }).eq('id', scheduleId)
-            .then(({ error }) => { if (error) alert('Error: ' + error.message); else fetchVehicleMaintTracker(); });
+        const data = vmtScheduleById[scheduleId];
+        if (!data) { alert('Error: could not load item.'); return; }
+        const currentMileage = vmtMileageByVehicle[data.vehicle];
+        const defaultMileage = currentMileage != null ? currentMileage : 0;
+        const input = prompt('Mark "' + data.service_type + '" for ' + data.vehicle + ' as serviced at what mileage?', defaultMileage);
+        if (input === null) return;
+        const mileage = parseInt(input, 10);
+        if (isNaN(mileage)) { alert('Please enter a valid mileage.'); return; }
+        const today = new Date().toISOString().split('T')[0];
+        withPin(function(pin) {
+            supabaseClient.rpc('app_vehicle_mark_serviced', { p_username: currentUser.username, p_password: pin, p_schedule_id: scheduleId, p_mileage: mileage, p_date: today })
+            .then(({ error }) => {
+                if (error && error.code === '42501') sessionPin = null;
+                if (error) alert('Error: ' + error.message); else fetchVehicleMaintTracker();
+            });
         });
     }
 
@@ -1340,8 +1344,10 @@
         const isManager = (currentUser.role === 'Admin Manager' || currentUser.role === 'Manager');
         const canEditTech = (currentUser.role === 'Maintenance' || isManager);
         container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading maintenance board...</p>';
-        supabaseClient.from('maintenance_logs').select('*').order('priority_rank', { ascending: true }).order('id', { ascending: true })
+        withPin(function(pin) {
+        supabaseClient.rpc('app_maintboard_list', { p_username: currentUser.username, p_password: pin })
         .then(({ data, error }) => {
+            if (error && error.code === '42501') sessionPin = null;
             if (error || !data) { container.innerHTML = '<p style="color:red;">Error loading board: ' + (error ? error.message : 'no data') + '</p>'; return; }
             data = data.filter(row => (row.Status || 'Pending') !== 'Resolved');
             if (!data.length) { container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">No open maintenance tickets. Great job! &#127881;</p>'; return; }
@@ -1392,28 +1398,45 @@
             });
             container.innerHTML = html;
         }).catch(() => { container.innerHTML = '<p style="color:red;">Connection error.</p>'; });
+        }, function() { container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">PIN required to load maintenance board.</p>'; });
     }
 
     function updateMaintStatus(id, status) {
-        supabaseClient.from('maintenance_logs').update({ Status: status }).eq('id', id)
-        .then(({ error }) => { if (error) { alert('Error: ' + error.message); } else { fetchMaintenanceBoard(); } });
+        withPin(function(pin) {
+            supabaseClient.rpc('app_maintboard_update_status', { p_username: currentUser.username, p_password: pin, p_id: id, p_status: status })
+            .then(({ error }) => {
+                if (error && error.code === '42501') sessionPin = null;
+                if (error) { alert('Error: ' + error.message); } else { fetchMaintenanceBoard(); }
+            });
+        });
     }
 
     function updateMaintDeadline(id, value) {
-        supabaseClient.from('maintenance_logs').update({ deadline: value || null }).eq('id', id)
-        .then(({ error }) => { if (error) { alert('Error: ' + error.message); } else { fetchMaintenanceBoard(); } });
+        withPin(function(pin) {
+            supabaseClient.rpc('app_maintboard_update_deadline', { p_username: currentUser.username, p_password: pin, p_id: id, p_deadline: value || null })
+            .then(({ error }) => {
+                if (error && error.code === '42501') sessionPin = null;
+                if (error) { alert('Error: ' + error.message); } else { fetchMaintenanceBoard(); }
+            });
+        });
     }
 
     function saveMaintNote(id, field, textareaId) {
         const val = document.getElementById(textareaId).value;
-        let updateObj = {}; updateObj[field] = val;
-        supabaseClient.from('maintenance_logs').update(updateObj).eq('id', id)
-        .then(({ error }) => { if (error) alert('Error: ' + error.message); else alert('Saved!'); });
+        withPin(function(pin) {
+            supabaseClient.rpc('app_maintboard_save_note', { p_username: currentUser.username, p_password: pin, p_id: id, p_field: field, p_value: val })
+            .then(({ error }) => {
+                if (error && error.code === '42501') sessionPin = null;
+                if (error) alert('Error: ' + error.message); else alert('Saved!');
+            });
+        });
     }
 
     function moveMaintPriority(id, dir) {
-        supabaseClient.from('maintenance_logs').select('id,priority_rank,Status').order('priority_rank', { ascending: true }).order('id', { ascending: true })
+        withPin(function(pin) {
+        supabaseClient.rpc('app_maintboard_list', { p_username: currentUser.username, p_password: pin })
         .then(({ data, error }) => {
+            if (error && error.code === '42501') sessionPin = null;
             if (error || !data) return alert('Error: ' + (error ? error.message : 'no data'));
             data = data.filter(r => (r.Status || 'Pending') !== 'Resolved');
             const idx = data.findIndex(r => r.id === id);
@@ -1422,9 +1445,10 @@
             const a = data[idx], b = data[swapIdx];
             const aRank = a.priority_rank, bRank = b.priority_rank;
             Promise.all([
-                supabaseClient.from('maintenance_logs').update({ priority_rank: bRank }).eq('id', a.id),
-                supabaseClient.from('maintenance_logs').update({ priority_rank: aRank }).eq('id', b.id)
+                supabaseClient.rpc('app_maintboard_set_priority', { p_username: currentUser.username, p_password: pin, p_id: a.id, p_rank: bRank }),
+                supabaseClient.rpc('app_maintboard_set_priority', { p_username: currentUser.username, p_password: pin, p_id: b.id, p_rank: aRank })
             ]).then(() => fetchMaintenanceBoard());
+        });
         });
     }
 
@@ -1442,8 +1466,10 @@
     function fetchMySubmissions() {
         const container = document.getElementById('mySubmissionsResults');
         container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading your submissions...</p>';
-        supabaseClient.from('maintenance_logs').select('*').or('submitted_by.eq.' + currentUser.name + ',ReporterName.eq.' + currentUser.name).order('id', { ascending: false })
+        withPin(function(pin) {
+        supabaseClient.rpc('app_my_maintenance_submissions', { p_username: currentUser.username, p_password: pin })
         .then(({ data, error }) => {
+            if (error && error.code === '42501') sessionPin = null;
             if (error || !data) { container.innerHTML = '<p style="color:red;">Error loading submissions: ' + (error ? error.message : 'no data') + '</p>'; return; }
             if (!data.length) { container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">You have not submitted any maintenance requests yet.</p>'; return; }
             const todayStr = new Date().toISOString().split('T')[0];
@@ -1464,6 +1490,7 @@
             });
             container.innerHTML = html;
         }).catch(() => { container.innerHTML = '<p style="color:red;">Connection error.</p>'; });
+        }, function() { container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">PIN required to load your submissions.</p>'; });
     }
 
     function refreshCurrentDashboard() { fetchDashboard(currentDashTab, document.querySelector('.dash-tab.active')); }
@@ -1478,40 +1505,47 @@
         results.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Fetching ' + tabName + ' data...</p>';
         document.getElementById('dashboardFilterDiv').style.display = 'flex';
         const tableMap = { 'Pop-Ins':'pop_ins','Shortages':'shortages','Driver Logs':'driver_logs','Maintenance Logs':'maintenance_logs','Damage Reports':'damage_reports' };
-        const daysLimit = parseInt(document.getElementById('dashDateFilter').value);
-        supabaseClient.from(tableMap[tabName]).select('*').order('id', { ascending: false }).limit(daysLimit === 999 ? 50 : 100)
-        .then(({ data: supaData, error }) => {
-            if (error) { console.error('[Dashboard] Error:', error); results.innerHTML = '<p style="color:red;padding:20px;">Error (' + error.code + '): ' + error.message + '</p>'; return; }
-            if (!supaData || supaData.length === 0) { results.innerHTML = '<p style="padding:20px;">No data found. Submit a form then check this tab.</p>'; return; }
-            let headers = Object.keys(supaData[0]).filter(k => k !== 'id');
-            let html = '<div class="table-wrapper"><table class="data-table"><thead><tr>';
-            headers.forEach((h,i) => { if(i<10) html += '<th>' + h + '</th>'; });
-            if(tabName==='Maintenance Logs'||tabName==='Damage Reports') html += '<th>Action</th>';
-            html += '</tr></thead><tbody>';
-            supaData.forEach(row => {
-                html += '<tr>';
-                headers.forEach((h,i) => {
-                    if(i>=10) return;
-                    let cellData = (row[h]!==null&&row[h]!==undefined)?row[h]:'';
-                    if(cellData.toString().startsWith('http')) { html += '<td><a href="' + cellData + '" target="_blank" style="background:var(--caliches-pink);color:white;padding:5px 10px;border-radius:4px;text-decoration:none;font-weight:bold;display:inline-block;">View PDF</a></td>'; }
-                    else { html += '<td>' + cellData + '</td>'; }
+        withPin(function(pin) {
+            supabaseClient.rpc('app_admin_dashboard_list', { p_admin_username: currentUser.username, p_admin_password: pin, p_table: tableMap[tabName] })
+            .then(({ data: supaData, error }) => {
+                if (error && error.code === '42501') sessionPin = null;
+                if (error) { console.error('[Dashboard] Error:', error); results.innerHTML = '<p style="color:red;padding:20px;">Error (' + error.code + '): ' + error.message + '</p>'; return; }
+                if (!supaData || supaData.length === 0) { results.innerHTML = '<p style="padding:20px;">No data found. Submit a form then check this tab.</p>'; return; }
+                let headers = Object.keys(supaData[0]).filter(k => k !== 'id');
+                let html = '<div class="table-wrapper"><table class="data-table"><thead><tr>';
+                headers.forEach((h,i) => { if(i<10) html += '<th>' + h + '</th>'; });
+                if(tabName==='Maintenance Logs'||tabName==='Damage Reports') html += '<th>Action</th>';
+                html += '</tr></thead><tbody>';
+                supaData.forEach(row => {
+                    html += '<tr>';
+                    headers.forEach((h,i) => {
+                        if(i>=10) return;
+                        let cellData = (row[h]!==null&&row[h]!==undefined)?row[h]:'';
+                        if(cellData.toString().startsWith('http')) { html += '<td><a href="' + cellData + '" target="_blank" style="background:var(--caliches-pink);color:white;padding:5px 10px;border-radius:4px;text-decoration:none;font-weight:bold;display:inline-block;">View PDF</a></td>'; }
+                        else { html += '<td>' + cellData + '</td>'; }
+                    });
+                    if(tabName==='Maintenance Logs'||tabName==='Damage Reports') {
+                        let st = row['Status']||'Pending';
+                        html += '<td><select id="status-' + row.id + '" class="role-select"><option value="Pending"' + (st==='Pending'?' selected':'') + '>Pending</option><option value="In Progress"' + (st==='In Progress'?' selected':'') + '>In Progress</option><option value="Resolved"' + (st==='Resolved'?' selected':'') + '>Resolved</option></select><button class="update-action-btn" onclick="updateItemStatus(\'' + tabName + '\',' + row.id + ')">Save</button></td>';
+                    }
+                    html += '</tr>';
                 });
-                if(tabName==='Maintenance Logs'||tabName==='Damage Reports') {
-                    let st = row['Status']||'Pending';
-                    html += '<td><select id="status-' + row.id + '" class="role-select"><option value="Pending"' + (st==='Pending'?' selected':'') + '>Pending</option><option value="In Progress"' + (st==='In Progress'?' selected':'') + '>In Progress</option><option value="Resolved"' + (st==='Resolved'?' selected':'') + '>Resolved</option></select><button class="update-action-btn" onclick="updateItemStatus(\'' + tabName + '\',' + row.id + ')">Save</button></td>';
-                }
-                html += '</tr>';
-            });
-            html += '</tbody></table></div>';
-            results.innerHTML = html;
-        }).catch(err => { results.innerHTML = '<p style="color:red;padding:20px;">Connection Error: ' + err.message + '</p>'; });
+                html += '</tbody></table></div>';
+                results.innerHTML = html;
+            }).catch(err => { results.innerHTML = '<p style="color:red;padding:20px;">Connection Error: ' + err.message + '</p>'; });
+        }, function() { results.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">PIN required to load ' + tabName + ' data.</p>'; });
     }
 
     function updateItemStatus(tabName, rowId) {
         let newStatus = document.getElementById('status-' + rowId).value;
         const tableMap = { 'Maintenance Logs':'maintenance_logs','Damage Reports':'damage_reports' };
-        supabaseClient.from(tableMap[tabName]).update({ Status: newStatus }).eq('id', rowId)
-        .then(({ error }) => { if(!error) alert('Status updated to: ' + newStatus); else alert('Error: ' + error.message); });
+        withPin(function(pin) {
+            supabaseClient.rpc('app_admin_dashboard_update_status', { p_admin_username: currentUser.username, p_admin_password: pin, p_table: tableMap[tabName], p_id: rowId, p_status: newStatus })
+            .then(({ error }) => {
+                if (error && error.code === '42501') sessionPin = null;
+                if(!error) alert('Status updated to: ' + newStatus); else alert('Error: ' + error.message);
+            });
+        });
     }
 
     function fetchUsers(btnElement) {
@@ -1678,32 +1712,34 @@
         const msg = document.getElementById('announcementMsg');
         if (!input) return;
         const text = input.value.trim();
-        supabaseClient.from('app_announcement')
-            .update({ message: text, updated_by: currentUser.name, updated_at: new Date().toISOString() })
-            .eq('id', 1)
-            .then(({ error }) => {
-                if (error) { if (msg) msg.innerText = 'Error: ' + error.message; return; }
-                localStorage.removeItem('calichesAnnounceDismissed');
-                if (msg) msg.innerText = 'Announcement posted!';
-                fetchAnnouncement();
-            })
-            .catch(err => console.error('[Announcement] save error:', err));
+        withPin(function(pin) {
+            supabaseClient.rpc('app_manager_update_announcement', { p_username: currentUser.username, p_password: pin, p_message: text })
+                .then(({ error }) => {
+                    if (error && error.code === '42501') sessionPin = null;
+                    if (error) { if (msg) msg.innerText = 'Error: ' + error.message; return; }
+                    localStorage.removeItem('calichesAnnounceDismissed');
+                    if (msg) msg.innerText = 'Announcement posted!';
+                    fetchAnnouncement();
+                })
+                .catch(err => console.error('[Announcement] save error:', err));
+        }, function() { if (msg) msg.innerText = 'PIN required to post announcement.'; });
     }
 
     function clearAnnouncement() {
         const input = document.getElementById('announcementInput');
         const msg = document.getElementById('announcementMsg');
-        supabaseClient.from('app_announcement')
-            .update({ message: '', updated_by: currentUser.name, updated_at: new Date().toISOString() })
-            .eq('id', 1)
-            .then(({ error }) => {
-                if (error) { if (msg) msg.innerText = 'Error: ' + error.message; return; }
-                if (input) input.value = '';
-                localStorage.removeItem('calichesAnnounceDismissed');
-                if (msg) msg.innerText = 'Announcement cleared.';
-                fetchAnnouncement();
-            })
-            .catch(err => console.error('[Announcement] clear error:', err));
+        withPin(function(pin) {
+            supabaseClient.rpc('app_manager_update_announcement', { p_username: currentUser.username, p_password: pin, p_message: '' })
+                .then(({ error }) => {
+                    if (error && error.code === '42501') sessionPin = null;
+                    if (error) { if (msg) msg.innerText = 'Error: ' + error.message; return; }
+                    if (input) input.value = '';
+                    localStorage.removeItem('calichesAnnounceDismissed');
+                    if (msg) msg.innerText = 'Announcement cleared.';
+                    fetchAnnouncement();
+                })
+                .catch(err => console.error('[Announcement] clear error:', err));
+        }, function() { if (msg) msg.innerText = 'PIN required to clear announcement.'; });
     }
 
     // ============================================================
@@ -1719,7 +1755,7 @@
         delete insertObj.ReportHTML; delete insertObj.action;
         insertObj.PDF_Archive = pdfUrl || 'PDF Failed to Generate';
         console.log('[Supabase] Inserting into ' + tableName + ':', insertObj);
-        supabaseClient.from(tableName).insert([insertObj]).select()
+        supabaseClient.rpc('app_form_insert', { p_table: tableName, p_data: insertObj })
         .then(({ data, error }) => {
             console.log('[Supabase] Response from ' + tableName + ':', { data, error });
             if (error) { console.error('[Supabase] Error:', error.code, error.message); alert('PDF was emailed BUT failed to save to dashboard.\n\nError (' + error.code + '): ' + error.message); return; }
@@ -2153,25 +2189,23 @@
         const who = quote.contact_name + (quote.company ? ' (' + quote.company + ')' : '');
         const message = 'Quote #' + quote.order_num + ' for ' + who + ' &mdash; $' + (Number(quote.total) || 0).toFixed(2) + ' &mdash; has been pending ' + daysPending + ' day' + (daysPending === 1 ? '' : 's') + '. Follow up with the customer.';
 
-        supabaseClient.from('notifications').insert({
-            title: 'Quote Follow-up Reminder',
-            message: message,
-            form_type: 'Quote Reminder',
-            pdf_url: quote.pdf_url || null,
-            is_read: false,
-            dismissed: false
-        }).then(({ error: notifError }) => {
-            if (notifError) { alert('Error sending reminder: ' + notifError.message); fetchSalesPipeline(); return; }
-            withPin(function(pin) {
-                return supabaseClient.rpc('app_quote_admin_mark_reminder_sent', { p_admin_username: currentUser.username, p_admin_password: pin, p_id: id })
+        withPin(function(pin) {
+            supabaseClient.rpc('app_admin_notification_insert', {
+                p_admin_username: currentUser.username, p_admin_password: pin,
+                p_title: 'Quote Follow-up Reminder', p_message: message,
+                p_form_type: 'Quote Reminder', p_pdf_url: quote.pdf_url || null
+            }).then(({ error: notifError }) => {
+                if (notifError && notifError.code === '42501') sessionPin = null;
+                if (notifError) { alert('Error sending reminder: ' + notifError.message); fetchSalesPipeline(); return; }
+                supabaseClient.rpc('app_quote_admin_mark_reminder_sent', { p_admin_username: currentUser.username, p_admin_password: pin, p_id: id })
                 .then(({ error }) => {
                     if (error && error.code === '42501') sessionPin = null;
                     if (error) alert('Error: ' + error.message);
                     if (typeof fetchNotifications === 'function') fetchNotifications();
                     fetchSalesPipeline();
                 });
-            }, function() { fetchSalesPipeline(); });
-        }).catch(err => { alert('Error: ' + err.message); fetchSalesPipeline(); });
+            }).catch(err => { alert('Error: ' + err.message); fetchSalesPipeline(); });
+        }, function() { fetchSalesPipeline(); });
     }
 
     function fetchSalesPipeline() {
@@ -2311,8 +2345,10 @@
         });
         filtersDiv.innerHTML = filterHtml;
 
-        supabaseClient.from('shortages').select('*').order('id', { ascending: false }).limit(500)
+        withPin(function(pin) {
+        supabaseClient.rpc('app_manager_shortage_trends', { p_username: currentUser.username, p_password: pin })
         .then(({ data, error }) => {
+            if (error && error.code === '42501') sessionPin = null;
             if (error) { resultsDiv.innerHTML = '<p style="color:#e74c3c;text-align:center;">Error loading shortages: ' + escapeHtml(error.message) + '</p>'; return; }
             if (!data || data.length === 0) {
                 summaryDiv.innerHTML = '';
@@ -2390,6 +2426,7 @@
             resultsDiv.innerHTML = html;
         })
         .catch(err => { resultsDiv.innerHTML = '<p style="color:#e74c3c;text-align:center;">Error: ' + escapeHtml(err.message) + '</p>'; });
+        }, function() { resultsDiv.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">PIN required to load shortage trends.</p>'; });
     }
 
         // ============================================================
@@ -2429,19 +2466,18 @@
         }
 
         function fetchNotifications() {
-            supabaseClient.from('notifications')
-                .select('*')
-                .eq('dismissed', false)
-                .order('id', { ascending: false })
-                .limit(30)
-                .then(({ data, error }) => {
-                    if (error) {
-                        console.error('[Notifications] fetch error:', error);
-                        return;
-                    }
-                    renderNotifications(data || []);
-                })
-                .catch(err => console.error('[Notifications] network error:', err));
+            withPin(function(pin) {
+                supabaseClient.rpc('app_admin_notifications_list', { p_admin_username: currentUser.username, p_admin_password: pin })
+                    .then(({ data, error }) => {
+                        if (error && error.code === '42501') sessionPin = null;
+                        if (error) {
+                            console.error('[Notifications] fetch error:', error);
+                            return;
+                        }
+                        renderNotifications(data || []);
+                    })
+                    .catch(err => console.error('[Notifications] network error:', err));
+            }, function() {});
         }
 
         // ---- Sound: drive-thru style "ding-ding" bell ----
@@ -2562,32 +2598,41 @@
         }
 
         function markNotificationRead(id) {
-            supabaseClient.from('notifications').update({ is_read: true }).eq('id', id)
-                .then(({ error }) => {
-                    if (error) console.error('[Notifications] mark read error:', error);
-                    fetchNotifications();
-                })
-                .catch(err => console.error('[Notifications] network error:', err));
+            withPin(function(pin) {
+                supabaseClient.rpc('app_admin_notification_mark_read', { p_admin_username: currentUser.username, p_admin_password: pin, p_id: id })
+                    .then(({ error }) => {
+                        if (error && error.code === '42501') sessionPin = null;
+                        if (error) console.error('[Notifications] mark read error:', error);
+                        fetchNotifications();
+                    })
+                    .catch(err => console.error('[Notifications] network error:', err));
+            }, function() {});
         }
 
         function dismissNotification(id, event) {
             if (event) event.stopPropagation();
-            supabaseClient.from('notifications').update({ dismissed: true, is_read: true }).eq('id', id)
-                .then(({ error }) => {
-                    if (error) console.error('[Notifications] dismiss error:', error);
-                    fetchNotifications();
-                })
-                .catch(err => console.error('[Notifications] network error:', err));
+            withPin(function(pin) {
+                supabaseClient.rpc('app_admin_notification_dismiss', { p_admin_username: currentUser.username, p_admin_password: pin, p_id: id })
+                    .then(({ error }) => {
+                        if (error && error.code === '42501') sessionPin = null;
+                        if (error) console.error('[Notifications] dismiss error:', error);
+                        fetchNotifications();
+                    })
+                    .catch(err => console.error('[Notifications] network error:', err));
+            }, function() {});
         }
 
         function clearAllNotifications(event) {
             if (event) event.stopPropagation();
-            supabaseClient.from('notifications').update({ dismissed: true, is_read: true }).eq('dismissed', false)
-                .then(({ error }) => {
-                    if (error) console.error('[Notifications] clear all error:', error);
-                    fetchNotifications();
-                })
-                .catch(err => console.error('[Notifications] network error:', err));
+            withPin(function(pin) {
+                supabaseClient.rpc('app_admin_notifications_clear_all', { p_admin_username: currentUser.username, p_admin_password: pin })
+                    .then(({ error }) => {
+                        if (error && error.code === '42501') sessionPin = null;
+                        if (error) console.error('[Notifications] clear all error:', error);
+                        fetchNotifications();
+                    })
+                    .catch(err => console.error('[Notifications] network error:', err));
+            }, function() {});
         }
 
         // Close the notification panel when clicking elsewhere on the page
