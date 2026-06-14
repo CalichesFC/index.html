@@ -75,7 +75,22 @@
         .notif-item .notif-meta { color: #999; font-size: 11px; margin-top: 6px; }
         .notif-item a { color: var(--caliches-pink); font-weight: bold; text-decoration: none; }
         .notif-empty, .notif-loading { padding: 20px; text-align: center; color: #999; font-size: 13px; }
-        .notif-panel-header { padding: 10px 15px; font-weight: 900; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--caliches-blue); border-bottom: 2px solid #eee; background: #fafafa; border-radius: 12px 12px 0 0; }
+        .notif-panel-header { padding: 10px 15px; font-weight: 900; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--caliches-blue); border-bottom: 2px solid #eee; background: #fafafa; border-radius: 12px 12px 0 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .notif-clear-all { background: none; border: none; color: var(--caliches-blue); font-size: 11px; font-weight: 700; text-transform: none; letter-spacing: 0; cursor: pointer; padding: 0; }
+        .notif-clear-all:hover { text-decoration: underline; }
+        .notif-item { position: relative; padding-right: 34px; }
+        .notif-dismiss { position: absolute; top: 8px; right: 6px; background: none; border: none; color: #ccc; font-size: 16px; line-height: 1; cursor: pointer; padding: 4px 6px; }
+        .notif-dismiss:hover { color: var(--fail-red); }
+
+        /* TOP NOTIFICATION BANNER */
+        .notif-top-banner { position: fixed; top: -80px; left: 0; right: 0; z-index: 100000; background: var(--caliches-blue); color: white; padding: 14px 20px; font-size: 14px; font-weight: 700; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: top 0.4s ease; cursor: pointer; }
+        .notif-top-banner.show { top: 0; }
+        .notif-top-banner .notif-banner-title { color: #ffd700; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; display: block; margin-bottom: 2px; }
+
+        /* ANNOUNCEMENT BAR */
+        .announcement-bar { display: none; align-items: center; gap: 10px; background: #fff8e1; border: 1px solid #ffe082; border-radius: 10px; padding: 10px 14px; margin: 0 auto 15px auto; max-width: 350px; font-size: 12px; color: #7a5c00; text-align: left; }
+        .announcement-bar .announce-text { flex: 1; }
+        .announcement-bar .announce-close { background: none; border: none; color: #7a5c00; font-size: 15px; line-height: 1; cursor: pointer; padding: 0 2px; flex-shrink: 0; }
         .menu-title { color:var(--caliches-blue); margin-bottom:25px; font-size:28px; font-weight:900; text-transform:uppercase; letter-spacing:1px; }
         .menu-btn { display:block; width:100%; background-color:var(--white); color:var(--caliches-blue); padding:25px 20px; margin-bottom:15px; font-size:18px; font-weight:bold; border:2px solid var(--caliches-blue); border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05); cursor:pointer; transition:0.3s; }
         .menu-btn.pink{color:var(--caliches-pink);border-color:var(--caliches-pink)} .menu-btn.green{color:var(--pass-green);border-color:var(--pass-green)} .menu-btn.orange{color:var(--maint-orange);border-color:var(--maint-orange)} .menu-btn.red{color:var(--damage-red);border-color:var(--damage-red)} .menu-btn.dark{color:white;background-color:#333;border-color:#333;margin-top:30px} .menu-btn.purple{color:#7b2d8b;border-color:#7b2d8b} .menu-btn:active{transform:scale(0.98)}
@@ -156,6 +171,9 @@
 <div id="neon-loader"><div class="neon-spinner"></div><div class="neon-text">Loading</div></div>
 <div id="splash-screen"><img src="splash-logo.png" alt="Caliche's Logo" class="splash-logo" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<h1 style=\'color:white;font-size:40px;\'>Caliche\'s</h1>');"></div>
 
+<!-- TOP NOTIFICATION BANNER -->
+<div id="notifTopBanner" class="notif-top-banner" onclick="handleTopBannerClick()"></div>
+
 <!-- FORGOT PIN MODAL -->
 <div id="forgotPinModal" class="modal-overlay">
     <div class="modal-box">
@@ -228,6 +246,19 @@
     </div>
 </div>
 
+<!-- ANNOUNCEMENT MODAL -->
+<div id="announcementModal" class="modal-overlay">
+    <div class="modal-box settings-box">
+        <h2 style="color:var(--caliches-blue);margin-top:0;font-size:22px;">&#128227; Announcement</h2>
+        <p style="font-size:13px;color:#666;margin-top:0;">Shown as a small banner to everyone on the main menu until cleared.</p>
+        <textarea id="announcementInput" class="modal-input" rows="3" placeholder="e.g. Early close Friday for inventory" style="width:100%;resize:vertical;margin-bottom:8px;box-sizing:border-box;"></textarea>
+        <button class="settings-btn" style="width:100%;" onclick="saveAnnouncement()">Post Announcement</button>
+        <button class="settings-btn" style="width:100%;margin-top:8px;color:var(--fail-red);" onclick="clearAnnouncement()">Clear Announcement</button>
+        <p id="announcementMsg" class="settings-msg"></p>
+        <span class="text-link" onclick="closeAnnouncementEditor()" style="margin-top:15px;">Close</span>
+    </div>
+</div>
+
 <!-- DRAFT TOAST -->
 <div id="draftToast">💾 Draft saved</div>
 
@@ -276,9 +307,14 @@
                         <div class="notif-loading">Loading...</div>
                     </div>
                 </div>
+                <button id="announceBtn" class="icon-circle-btn" onclick="openAnnouncementEditor()" title="Announcement" style="display:none;">&#128227;</button>
                 <button id="settingsBtn" class="icon-circle-btn" onclick="openSettings()" title="Settings">&#9881;&#65039;</button>
                 <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
+    </div>
+    <div id="announcementBar" class="announcement-bar">
+        <span class="announce-text" id="announcementText"></span>
+        <button class="announce-close" onclick="dismissAnnouncement()" title="Dismiss">&times;</button>
     </div>
     <h1 class="menu-title">Operations Hub</h1>
     <div class="slider-wrapper">
@@ -287,9 +323,9 @@
         <div class="slides" id="slider-track">
             <div class="slide image-slide"><img src="caliches-cone.png" alt="Focus Banner" class="slide-img" onerror="this.style.display='none'"></div>
             <div class="slide text-slide"><div class="focus-title">&#128161; Weekly Focus</div><div class="focus-text">Cleanliness, Friendliness, Speed, &amp; Quality!</div></div>
-            <div class="slide quote-slide"><div class="quote-text">&ldquo;Quality is not an act, it is a habit.&rdquo;</div><div class="quote-author">&#8212; Aristotle</div></div>
-            <div class="slide quote-slide"><div class="quote-text">&ldquo;The way to get started is to quit talking and begin doing.&rdquo;</div><div class="quote-author">&#8212; Walt Disney</div></div>
-            <div class="slide quote-slide"><div class="quote-text">&ldquo;Great things in business are never done by one person. They're done by a team of people.&rdquo;</div><div class="quote-author">&#8212; Steve Jobs</div></div>
+            <div class="slide quote-slide" id="quote-slide-1"><div class="quote-text">&ldquo;Quality is not an act, it is a habit.&rdquo;</div><div class="quote-author">&#8212; Aristotle</div></div>
+            <div class="slide quote-slide" id="quote-slide-2"><div class="quote-text">&ldquo;The way to get started is to quit talking and begin doing.&rdquo;</div><div class="quote-author">&#8212; Walt Disney</div></div>
+            <div class="slide quote-slide" id="quote-slide-3"><div class="quote-text">&ldquo;Great things in business are never done by one person. They're done by a team of people.&rdquo;</div><div class="quote-author">&#8212; Steve Jobs</div></div>
         </div>
     </div>
     <div class="hub-layout">
@@ -516,6 +552,8 @@
             fetchMaintenanceBoard();
         } else {
             document.getElementById('main-menu').style.display = 'block';
+            applyWeeklyQuotes();
+            fetchAnnouncement();
         }
         resetTimer();
     }
@@ -1022,6 +1060,8 @@
         document.getElementById('maintBoardBtn').style.display = (isManager && maintBoardAllowed) ? 'block' : 'none';
         document.getElementById('mySubmissionsBtn').style.display = (role === 'Maintenance') ? 'none' : 'block';
         document.getElementById('developerBtn').style.display = (currentUser.is_developer === true) ? 'block' : 'none';
+        const announceBtn = document.getElementById('announceBtn');
+        if (announceBtn) announceBtn.style.display = isManager ? 'block' : 'none';
         updateBioToggleBtn();
     }
 
@@ -1268,6 +1308,125 @@
     function resetTimer() { clearInterval(slideTimer); slideTimer = setInterval(() => moveSlide(1), 10000); }
 
     // ============================================================
+    // WEEKLY ROTATING LEADERSHIP QUOTES (changes every Monday)
+    // ============================================================
+    const LEADERSHIP_QUOTES = [
+        { text: "Quality is not an act, it is a habit.", author: "Aristotle" },
+        { text: "The way to get started is to quit talking and begin doing.", author: "Walt Disney" },
+        { text: "Great things in business are never done by one person. They're done by a team of people.", author: "Steve Jobs" },
+        { text: "It is not the employer who pays the wages. Employers only handle the money. It is the customer who pays the wages.", author: "Henry Ford" },
+        { text: "Take care of your employees and they will take care of your customers.", author: "Richard Branson" },
+        { text: "The customer's perception is your reality.", author: "Kate Zabriskie" },
+        { text: "Whether you think you can or think you can't, you're right.", author: "Henry Ford" },
+        { text: "Excellence is not a skill, it's an attitude.", author: "Ralph Marston" },
+        { text: "Coming together is a beginning, staying together is progress, and working together is success.", author: "Henry Ford" },
+        { text: "People will forget what you said, people will forget what you did, but people will never forget how you made them feel.", author: "Maya Angelou" },
+        { text: "Do what you do so well that people can't resist telling others about you.", author: "Walt Disney" },
+        { text: "Leadership is not about being in charge. It's about taking care of those in your charge.", author: "Simon Sinek" }
+    ];
+
+    function getISOWeekNumber(d) {
+        const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        const dayNum = date.getUTCDay() || 7;
+        date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+        return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+    }
+
+    function applyWeeklyQuotes() {
+        const week = getISOWeekNumber(new Date());
+        const total = LEADERSHIP_QUOTES.length;
+        for (let i = 0; i < 3; i++) {
+            const q = LEADERSHIP_QUOTES[(week * 3 + i) % total];
+            const slide = document.getElementById('quote-slide-' + (i + 1));
+            if (!slide) continue;
+            const textEl = slide.querySelector('.quote-text');
+            const authorEl = slide.querySelector('.quote-author');
+            if (textEl) textEl.innerHTML = '“' + escapeHtml(q.text) + '”';
+            if (authorEl) authorEl.innerHTML = '— ' + escapeHtml(q.author);
+        }
+    }
+
+    // ============================================================
+    // ANNOUNCEMENT BAR (company news)
+    // ============================================================
+    function fetchAnnouncement() {
+        supabaseClient.from('app_announcement').select('*').eq('id', 1).single()
+            .then(({ data, error }) => {
+                if (error || !data) return;
+                const bar = document.getElementById('announcementBar');
+                const textEl = document.getElementById('announcementText');
+                if (!bar || !textEl) return;
+                const msg = (data.message || '').trim();
+                const dismissedKey = 'calichesAnnounceDismissed';
+                const dismissedMsg = localStorage.getItem(dismissedKey);
+                if (msg && msg !== dismissedMsg) {
+                    textEl.innerText = msg;
+                    bar.style.display = 'flex';
+                } else {
+                    bar.style.display = 'none';
+                }
+                // Prefill editor for managers
+                const input = document.getElementById('announcementInput');
+                if (input) input.value = msg;
+            })
+            .catch(err => console.error('[Announcement] fetch error:', err));
+    }
+
+    function dismissAnnouncement() {
+        const bar = document.getElementById('announcementBar');
+        const textEl = document.getElementById('announcementText');
+        if (textEl) localStorage.setItem('calichesAnnounceDismissed', textEl.innerText);
+        if (bar) bar.style.display = 'none';
+    }
+
+    function openAnnouncementEditor() {
+        const modal = document.getElementById('announcementModal');
+        const msg = document.getElementById('announcementMsg');
+        if (msg) msg.innerText = '';
+        if (modal) modal.style.display = 'flex';
+        fetchAnnouncement();
+    }
+
+    function closeAnnouncementEditor() {
+        const modal = document.getElementById('announcementModal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function saveAnnouncement() {
+        const input = document.getElementById('announcementInput');
+        const msg = document.getElementById('announcementMsg');
+        if (!input) return;
+        const text = input.value.trim();
+        supabaseClient.from('app_announcement')
+            .update({ message: text, updated_by: currentUser.name, updated_at: new Date().toISOString() })
+            .eq('id', 1)
+            .then(({ error }) => {
+                if (error) { if (msg) msg.innerText = 'Error: ' + error.message; return; }
+                localStorage.removeItem('calichesAnnounceDismissed');
+                if (msg) msg.innerText = 'Announcement posted!';
+                fetchAnnouncement();
+            })
+            .catch(err => console.error('[Announcement] save error:', err));
+    }
+
+    function clearAnnouncement() {
+        const input = document.getElementById('announcementInput');
+        const msg = document.getElementById('announcementMsg');
+        supabaseClient.from('app_announcement')
+            .update({ message: '', updated_by: currentUser.name, updated_at: new Date().toISOString() })
+            .eq('id', 1)
+            .then(({ error }) => {
+                if (error) { if (msg) msg.innerText = 'Error: ' + error.message; return; }
+                if (input) input.value = '';
+                localStorage.removeItem('calichesAnnounceDismissed');
+                if (msg) msg.innerText = 'Announcement cleared.';
+                fetchAnnouncement();
+            })
+            .catch(err => console.error('[Announcement] clear error:', err));
+    }
+
+    // ============================================================
     // PDF HEADER HELPER
     // ============================================================
     function getBrandHeader(title, color) { return '<div style="font-family:Helvetica Neue,Helvetica,Arial,sans-serif;max-width:800px;margin:0 auto;border:1px solid #e0e0e0;border-radius:10px;padding:40px;background-color:#ffffff;"><div style="text-align:center;border-bottom:5px solid ' + color + ';padding-bottom:20px;margin-bottom:30px;"><h1 style="color:#4a68b1;font-size:38px;margin:0;font-weight:900;text-transform:uppercase;letter-spacing:2px;">Caliche\'s</h1><h2 style="color:' + color + ';font-size:20px;margin:5px 0 0 0;letter-spacing:1px;text-transform:uppercase;">Operations Hub</h2><p style="color:#888;font-size:14px;margin:15px 0 0 0;"><b>REPORT TYPE:</b> ' + title + '</p><p style="color:#888;font-size:14px;margin:5px 0 0 0;"><b>DATE GENERATED:</b> ' + new Date().toLocaleString() + '</p></div>'; }
@@ -1447,6 +1606,9 @@
         // IN-APP NOTIFICATIONS (replaces email alerts to managers)
         // ============================================================
         let notifPollTimer = null;
+        let lastSeenNotifId = null;
+        let notifBannerTimer = null;
+        let notifBannerLink = null;
 
         function escapeHtml(str) {
             if (str === null || str === undefined) return "";
@@ -1479,6 +1641,7 @@
         function fetchNotifications() {
             supabaseClient.from('notifications')
                 .select('*')
+                .eq('dismissed', false)
                 .order('id', { ascending: false })
                 .limit(30)
                 .then(({ data, error }) => {
@@ -1491,10 +1654,70 @@
                 .catch(err => console.error('[Notifications] network error:', err));
         }
 
+        // ---- Sound: drive-thru style "ding-ding" bell ----
+        function playNotifSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const now = ctx.currentTime;
+                [0, 0.22].forEach((offset) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = 1318.51; // E6 bell tone
+                    gain.gain.setValueAtTime(0.0001, now + offset);
+                    gain.gain.exponentialRampToValueAtTime(0.35, now + offset + 0.01);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.6);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now + offset);
+                    osc.stop(now + offset + 0.6);
+                });
+            } catch (e) { console.error('[Notifications] sound error:', e); }
+        }
+
+        // ---- App icon badge (PWA Badging API) ----
+        function updateAppBadge(count) {
+            if (!('setAppBadge' in navigator)) return;
+            try {
+                if (count > 0) navigator.setAppBadge(count); else navigator.clearAppBadge();
+            } catch (e) { /* ignore unsupported */ }
+        }
+
+        // ---- Top banner ----
+        function showNotifBanner(item) {
+            const banner = document.getElementById('notifTopBanner');
+            if (!banner) return;
+            banner.innerHTML = '<span class="notif-banner-title">New Notification</span>' + escapeHtml(item.title || 'Notification');
+            notifBannerLink = item.id;
+            banner.classList.add('show');
+            if (notifBannerTimer) clearTimeout(notifBannerTimer);
+            notifBannerTimer = setTimeout(() => { banner.classList.remove('show'); }, 6000);
+        }
+
+        function handleTopBannerClick() {
+            const banner = document.getElementById('notifTopBanner');
+            if (banner) banner.classList.remove('show');
+            if (notifBannerTimer) { clearTimeout(notifBannerTimer); notifBannerTimer = null; }
+            toggleNotifPanel();
+        }
+
         function renderNotifications(items) {
             const panel = document.getElementById('notifPanel');
             const badge = document.getElementById('notifBadge');
             if (!panel || !badge) return;
+
+            // Detect newly-arrived notifications (for sound + banner)
+            if (items.length > 0) {
+                const maxId = Math.max.apply(null, items.map(n => n.id));
+                if (lastSeenNotifId === null) {
+                    lastSeenNotifId = maxId;
+                } else if (maxId > lastSeenNotifId) {
+                    const newest = items.filter(n => n.id > lastSeenNotifId).sort((a,b) => b.id - a.id)[0];
+                    playNotifSound();
+                    if (newest) showNotifBanner(newest);
+                    lastSeenNotifId = maxId;
+                }
+            }
 
             const unreadCount = items.filter(n => !n.is_read).length;
             if (unreadCount > 0) {
@@ -1503,8 +1726,11 @@
             } else {
                 badge.style.display = 'none';
             }
+            updateAppBadge(unreadCount);
 
-            let html = '<div class="notif-panel-header">Notifications</div>';
+            let html = '<div class="notif-panel-header"><span>Notifications</span>' +
+                (items && items.length ? '<button class="notif-clear-all" onclick="clearAllNotifications(event)">Clear All</button>' : '') +
+                '</div>';
 
             if (!items || items.length === 0) {
                 html += '<div class="notif-empty">No notifications yet.</div>';
@@ -1519,6 +1745,7 @@
                     : '';
                 const meta = [n.location, date].filter(Boolean).map(escapeHtml).join(' \u00b7 ');
                 return `<div class="notif-item ${n.is_read ? '' : 'unread'}" onclick="markNotificationRead(${n.id})">
+                    <button class="notif-dismiss" title="Clear" onclick="dismissNotification(${n.id}, event)">&times;</button>
                     <div class="notif-title">${escapeHtml(n.title || 'Notification')}</div>
                     <div>${escapeHtml(n.message || '')}</div>
                     ${pdfLink}
@@ -1541,6 +1768,26 @@
             supabaseClient.from('notifications').update({ is_read: true }).eq('id', id)
                 .then(({ error }) => {
                     if (error) console.error('[Notifications] mark read error:', error);
+                    fetchNotifications();
+                })
+                .catch(err => console.error('[Notifications] network error:', err));
+        }
+
+        function dismissNotification(id, event) {
+            if (event) event.stopPropagation();
+            supabaseClient.from('notifications').update({ dismissed: true, is_read: true }).eq('id', id)
+                .then(({ error }) => {
+                    if (error) console.error('[Notifications] dismiss error:', error);
+                    fetchNotifications();
+                })
+                .catch(err => console.error('[Notifications] network error:', err));
+        }
+
+        function clearAllNotifications(event) {
+            if (event) event.stopPropagation();
+            supabaseClient.from('notifications').update({ dismissed: true, is_read: true }).eq('dismissed', false)
+                .then(({ error }) => {
+                    if (error) console.error('[Notifications] clear all error:', error);
                     fetchNotifications();
                 })
                 .catch(err => console.error('[Notifications] network error:', err));
