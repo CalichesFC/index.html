@@ -32,8 +32,31 @@
         .user-role { color:var(--na-gray); font-size:12px; font-weight:bold; text-transform:uppercase; letter-spacing:1px; margin:0; text-align:left; }
         .logout-btn { background:#f8f9fa; color:var(--fail-red); border:1px solid var(--fail-red); padding:8px 15px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px; }
         .icon-circle-btn { background:#f8f9fa; border:1px solid #ddd; border-radius:50%; width:38px; height:38px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-        #globalRefreshBtn { position:fixed; bottom:18px; right:18px; z-index:500; background:var(--caliches-blue); color:white; border:none; width:48px; height:48px; border-radius:50%; font-size:21px; box-shadow:0 4px 10px rgba(0,0,0,0.25); cursor:pointer; display:flex; align-items:center; justify-content:center; }
-        #globalRefreshBtn:active { transform:scale(0.95); }
+
+        /* SETTINGS MODAL */
+        .settings-box { max-width:420px; text-align:left; max-height:85vh; overflow-y:auto; }
+        .settings-section { margin-bottom:18px; padding-bottom:18px; border-bottom:1px solid #eee; }
+        .settings-section:last-child { border-bottom:none; margin-bottom:0; padding-bottom:0; }
+        .settings-section h3 { color:var(--caliches-blue); font-size:14px; text-transform:uppercase; letter-spacing:1px; margin:0 0 10px 0; }
+        .settings-row { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; }
+        .settings-row:last-child { margin-bottom:0; }
+        .settings-row p { margin:0; font-size:13px; color:#666; }
+        .settings-btn { background:#f8f9fa; border:1px solid #ddd; border-radius:8px; padding:10px 14px; font-weight:bold; font-size:13px; cursor:pointer; color:var(--caliches-blue); }
+        .settings-status { font-size:12px; font-weight:bold; padding:4px 10px; border-radius:12px; }
+        .settings-status.on { background:var(--pass-green); color:white; }
+        .settings-status.off { background:#eee; color:#888; }
+        .settings-msg { font-size:12px; font-weight:bold; margin-top:8px; display:none; }
+        .settings-msg.ok { color:var(--pass-green); }
+        .settings-msg.err { color:var(--fail-red); }
+
+        /* TRAINING PORTAL */
+        .training-grid { display:grid; grid-template-columns:1fr 1fr; gap:15px; max-width:600px; margin:0 auto; }
+        .training-card { background:white; border:2px solid #eee; border-radius:12px; padding:20px 15px; text-align:center; cursor:pointer; transition:transform 0.15s, border-color 0.15s; }
+        .training-card:active { transform:scale(0.97); }
+        .training-card .training-icon { font-size:32px; display:block; margin-bottom:8px; }
+        .training-card h3 { margin:0 0 4px 0; color:var(--caliches-blue); font-size:15px; }
+        .training-card p { margin:0; font-size:12px; color:#888; }
+        @media (max-width: 480px) { .training-grid { grid-template-columns:1fr; } }
 
         /* NOTIFICATION BELL & PANEL */
         .notif-bell-wrap { position: relative; }
@@ -133,9 +156,6 @@
 <div id="neon-loader"><div class="neon-spinner"></div><div class="neon-text">Loading</div></div>
 <div id="splash-screen"><img src="splash-logo.png" alt="Caliche's Logo" class="splash-logo" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<h1 style=\'color:white;font-size:40px;\'>Caliche\'s</h1>');"></div>
 
-<!-- GLOBAL REFRESH BUTTON -->
-<button id="globalRefreshBtn" onclick="refreshApp()" title="Refresh App">&#128260;</button>
-
 <!-- FORGOT PIN MODAL -->
 <div id="forgotPinModal" class="modal-overlay">
     <div class="modal-box">
@@ -158,6 +178,53 @@
         <p id="bioLockError" style="color:var(--fail-red);display:none;font-size:13px;font-weight:bold;margin-bottom:12px;"></p>
         <button id="bioUnlockBtn" class="save-btn blue-btn" style="margin-bottom:12px;padding:15px;" onclick="biometricUnlock()">&#128272; Unlock</button>
         <span class="text-link" onclick="biometricFallbackLogout()">Use PIN Instead</span>
+    </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settingsModal" class="modal-overlay">
+    <div class="modal-box settings-box">
+        <h2 style="color:var(--caliches-blue);margin-top:0;font-size:22px;">&#9881;&#65039; Settings</h2>
+
+        <div class="settings-section">
+            <h3>App</h3>
+            <div class="settings-row">
+                <p>Refresh the app and clear its cache. Use this if something looks out of date.</p>
+            </div>
+            <button class="settings-btn" style="width:100%;" onclick="refreshApp()">&#128260; Refresh App</button>
+        </div>
+
+        <div class="settings-section">
+            <h3>Security</h3>
+            <div class="settings-row">
+                <p>Unlock the app with Face ID / Touch ID / Fingerprint on this device.</p>
+                <span id="bioStatusBadge" class="settings-status off">Off</span>
+            </div>
+            <button id="bioToggleBtn" class="settings-btn" style="width:100%;" onclick="toggleBiometric()">Enable Biometric Unlock</button>
+        </div>
+
+        <div class="settings-section">
+            <h3>Change PIN / Password</h3>
+            <input type="password" id="settingsNewPin" class="modal-input" placeholder="New PIN / Password" style="margin-bottom:8px;">
+            <input type="password" id="settingsConfirmPin" class="modal-input" placeholder="Confirm New PIN / Password" style="margin-bottom:8px;">
+            <button class="settings-btn" style="width:100%;" onclick="changePin()">Update PIN</button>
+            <p id="pinMsg" class="settings-msg"></p>
+        </div>
+
+        <div class="settings-section">
+            <h3>Account Info</h3>
+            <input type="text" id="settingsName" class="modal-input" placeholder="Full Name" style="margin-bottom:8px;">
+            <input type="email" id="settingsEmail" class="modal-input" placeholder="Email Address" style="margin-bottom:8px;">
+            <button class="settings-btn" style="width:100%;" onclick="updateAccountInfo()">Save Changes</button>
+            <p id="accountMsg" class="settings-msg"></p>
+        </div>
+
+        <div class="settings-section">
+            <h3>About</h3>
+            <p style="font-size:12px;color:#888;margin:0;">Caliche's Operations Hub &mdash; v<span id="appVersionLabel"></span></p>
+        </div>
+
+        <span class="text-link" onclick="closeSettings()" style="margin-top:15px;">Close</span>
     </div>
 </div>
 
@@ -209,7 +276,7 @@
                         <div class="notif-loading">Loading...</div>
                     </div>
                 </div>
-                <button id="bioToggleBtn" class="icon-circle-btn" onclick="toggleBiometric()" title="Enable Face/Touch ID Unlock">&#128272;</button>
+                <button id="settingsBtn" class="icon-circle-btn" onclick="openSettings()" title="Settings">&#9881;&#65039;</button>
                 <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
     </div>
@@ -239,6 +306,7 @@
     <button id="mySubmissionsBtn" class="menu-btn orange" onclick="openMySubmissions()">&#128203; My Maintenance Submissions</button>
     <button id="maintBoardBtn" class="menu-btn orange" style="display:none;" onclick="openMaintenanceBoard()">&#128295; Maintenance Board</button>
     <button id="managerBtn" class="menu-btn dark" style="display:none;" onclick="openDashboard()">&#128202; View Manager Dashboard</button>
+    <button id="developerBtn" class="menu-btn dark" style="display:none;background:#222;" onclick="openTrainingPortal()">&#128187; Developer: Training Portal</button>
     <button id="installBtn" class="menu-btn purple" style="display:none;" onclick="installApp()">&#128242; Install App on Phone</button>
         </div>
     </div>
@@ -304,6 +372,41 @@
     </div>
     <div class="container" style="max-width:700px;">
         <div id="mySubmissionsResults"><p style="text-align:center;padding:30px;color:#888;">Loading your submissions...</p></div>
+    </div>
+</div>
+
+<!-- TRAINING PORTAL VIEW (DEVELOPER ONLY) -->
+<div id="trainingPortalView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
+    <div class="header" style="background:repeating-linear-gradient(45deg,#222,#222 15px,#444 15px,#444 30px);">
+        <h1 style="font-size:40px;margin:10px 0;">&#128218;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Training Portal</p>
+        <p style="font-size:12px;margin:6px 0 0 0;opacity:0.8;">Developer-only &mdash; under construction</p>
+    </div>
+    <div class="container" style="max-width:700px;">
+        <p style="text-align:center;color:#888;font-size:13px;margin-bottom:20px;">This is a work-in-progress training portal, visible only to your account. Tap a category to start building it out.</p>
+        <div class="training-grid">
+            <div class="training-card" onclick="alert('Coming soon: Onboarding content for new hires.')">
+                <span class="training-icon">&#127881;</span>
+                <h3>Onboarding</h3>
+                <p>New hire guides & checklists</p>
+            </div>
+            <div class="training-card" onclick="alert('Coming soon: Role-specific guides.')">
+                <span class="training-icon">&#127919;</span>
+                <h3>Role Guides</h3>
+                <p>Blue Apron, Shift Lead, Manager</p>
+            </div>
+            <div class="training-card" onclick="alert('Coming soon: Recipes & SOPs.')">
+                <span class="training-icon">&#128221;</span>
+                <h3>Recipes / SOPs</h3>
+                <p>Standard procedures & recipes</p>
+            </div>
+            <div class="training-card" onclick="alert('Coming soon: Quizzes & assessments.')">
+                <span class="training-icon">&#9989;</span>
+                <h3>Quizzes</h3>
+                <p>Knowledge checks & certifications</p>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -377,6 +480,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
+    const APP_VERSION = '1.0';
     let currentSlide = 0; let slideTimer; let currentUser = { name:'', role:'' }; let currentDashTab = 'Pop-Ins';
     let deferredInstallPrompt = null;
     let autoSaveTimer = null;
@@ -681,6 +785,7 @@
             if (!data || data.length === 0) { errorMsg.innerText = 'Invalid Username or PIN. Please try again.'; errorMsg.style.display = 'block'; btn.innerText = 'ENTER HUB'; btn.disabled = false; return; }
             const user = data[0];
             currentUser.name = user.name; currentUser.role = user.role; currentUser.permissions = user.permissions || null; currentUser.maint_board_access = (user.maint_board_access !== false);
+            currentUser.username = user.username; currentUser.email = user.email || ''; currentUser.is_developer = (user.is_developer === true);
             localStorage.setItem('calichesUser', JSON.stringify(currentUser));
             logActivity(user.username, user.name, 'login');
             document.getElementById('greetingName').innerText = 'Hello, ' + user.name;
@@ -713,6 +818,7 @@
             if (!data || data.length === 0) { errorMsg.innerText = 'Registration failed. Check Supabase grants.'; errorMsg.style.display = 'block'; btn.innerText = 'CREATE ACCOUNT'; btn.disabled = false; return; }
             const user = data[0];
             currentUser.name = user.name; currentUser.role = user.role;
+            currentUser.username = user.username; currentUser.email = user.email || ''; currentUser.is_developer = (user.is_developer === true);
             localStorage.setItem('calichesUser', JSON.stringify(currentUser));
             document.getElementById('greetingName').innerText = 'Hello, ' + user.name;
             document.getElementById('greetingRole').innerText = 'Role: ' + user.role;
@@ -734,8 +840,6 @@
     // REFRESH APP
     // ============================================================
     function refreshApp() {
-        const btn = document.getElementById('globalRefreshBtn');
-        if (btn) { btn.style.transform = 'rotate(360deg)'; btn.style.transition = 'transform 0.6s'; }
         if ('caches' in window) {
             caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
                 .then(() => location.reload())
@@ -759,13 +863,17 @@
     }
     function updateBioToggleBtn() {
         const btn = document.getElementById('bioToggleBtn');
+        const badge = document.getElementById('bioStatusBadge');
         if (!btn) return;
-        if (!window.PublicKeyCredential) { btn.style.display = 'none'; return; }
+        if (!window.PublicKeyCredential) {
+            btn.style.display = 'none';
+            if (badge) { badge.innerText = 'Unsupported'; badge.className = 'settings-status off'; }
+            return;
+        }
         const enabled = !!localStorage.getItem('calichesBiometricId');
-        btn.style.display = 'flex';
-        btn.title = enabled ? 'Disable Face/Touch ID Unlock' : 'Enable Face/Touch ID Unlock';
-        btn.style.background = enabled ? 'var(--pass-green)' : '#f8f9fa';
-        btn.style.color = enabled ? 'white' : '#333';
+        btn.style.display = 'block';
+        btn.innerText = enabled ? 'Disable Biometric Unlock' : 'Enable Biometric Unlock';
+        if (badge) { badge.innerText = enabled ? 'On' : 'Off'; badge.className = 'settings-status ' + (enabled ? 'on' : 'off'); }
     }
     function toggleBiometric() {
         let bioId = localStorage.getItem('calichesBiometricId');
@@ -825,6 +933,54 @@
     }
 
     // ============================================================
+    // SETTINGS / ACCOUNT
+    // ============================================================
+    function openSettings() {
+        document.getElementById('settingsName').value = currentUser.name || '';
+        document.getElementById('settingsEmail').value = currentUser.email || '';
+        document.getElementById('settingsNewPin').value = '';
+        document.getElementById('settingsConfirmPin').value = '';
+        document.getElementById('pinMsg').style.display = 'none';
+        document.getElementById('accountMsg').style.display = 'none';
+        document.getElementById('appVersionLabel').innerText = APP_VERSION;
+        updateBioToggleBtn();
+        document.getElementById('settingsModal').style.display = 'flex';
+    }
+    function closeSettings() {
+        document.getElementById('settingsModal').style.display = 'none';
+    }
+    function changePin() {
+        const newPin = document.getElementById('settingsNewPin').value;
+        const confirmPin = document.getElementById('settingsConfirmPin').value;
+        const msg = document.getElementById('pinMsg');
+        msg.style.display = 'none';
+        if (!newPin || !confirmPin) { msg.innerText = 'Please fill both fields.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
+        if (newPin !== confirmPin) { msg.innerText = 'PINs do not match.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
+        if (newPin.length < 4) { msg.innerText = 'PIN must be at least 4 characters.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
+        supabaseClient.from('users').update({ password: newPin }).eq('username', currentUser.username)
+        .then(({ error }) => {
+            if (error) { msg.innerText = 'Error: ' + error.message; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
+            msg.innerText = 'PIN updated successfully!'; msg.className = 'settings-msg ok'; msg.style.display = 'block';
+            document.getElementById('settingsNewPin').value = ''; document.getElementById('settingsConfirmPin').value = '';
+        }).catch(() => { msg.innerText = 'Connection error. Please try again.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; });
+    }
+    function updateAccountInfo() {
+        const name = document.getElementById('settingsName').value.trim();
+        const email = document.getElementById('settingsEmail').value.trim();
+        const msg = document.getElementById('accountMsg');
+        msg.style.display = 'none';
+        if (!name) { msg.innerText = 'Name cannot be empty.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
+        supabaseClient.from('users').update({ name: name, email: email }).eq('username', currentUser.username)
+        .then(({ error }) => {
+            if (error) { msg.innerText = 'Error: ' + error.message; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
+            currentUser.name = name; currentUser.email = email;
+            localStorage.setItem('calichesUser', JSON.stringify(currentUser));
+            document.getElementById('greetingName').innerText = 'Hello, ' + name;
+            msg.innerText = 'Account info updated!'; msg.className = 'settings-msg ok'; msg.style.display = 'block';
+        }).catch(() => { msg.innerText = 'Connection error. Please try again.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; });
+    }
+
+    // ============================================================
     // NAVIGATION
     // ============================================================
     function triggerTransition(callback) { const loader = document.getElementById('neon-loader'); loader.style.display = 'flex'; setTimeout(() => { loader.style.opacity = '1'; }, 10); setTimeout(() => { callback(); window.scrollTo(0,0); loader.style.opacity = '0'; setTimeout(() => { loader.style.display = 'none'; }, 300); }, 1200); }
@@ -847,6 +1003,14 @@
         });
     }
 
+    function openTrainingPortal() {
+        if (currentUser.is_developer !== true) return;
+        triggerTransition(() => {
+            document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
+            document.getElementById('trainingPortalView').style.display = 'block';
+        });
+    }
+
     // ============================================================
     // ROLE-BASED UI / MAINTENANCE BOARD
     // ============================================================
@@ -857,6 +1021,7 @@
         document.getElementById('managerBtn').style.display = (role === 'Admin Manager') ? 'block' : 'none';
         document.getElementById('maintBoardBtn').style.display = (isManager && maintBoardAllowed) ? 'block' : 'none';
         document.getElementById('mySubmissionsBtn').style.display = (role === 'Maintenance') ? 'none' : 'block';
+        document.getElementById('developerBtn').style.display = (currentUser.is_developer === true) ? 'block' : 'none';
         updateBioToggleBtn();
     }
 
