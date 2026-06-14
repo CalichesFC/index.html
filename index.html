@@ -690,7 +690,7 @@
         if (!token) return false;
         document.getElementById('splash-screen').style.display = 'none';
         document.getElementById('quoteAcceptView').style.display = 'flex';
-        supabaseClient.from('quotes').select('*').eq('accept_token', token).maybeSingle()
+        supabaseClient.rpc('app_quote_get_by_token', { p_token: token }).maybeSingle()
             .then(({ data, error }) => {
                 if (error) { console.error('[QuoteAccept] fetch error:', error.message); renderQuoteAccept(null); return; }
                 renderQuoteAccept(data);
@@ -701,7 +701,7 @@
     function acceptQuote(token) {
         const c = document.getElementById('quoteAcceptContent');
         c.style.opacity = '0.6';
-        supabaseClient.from('quotes').update({ status: 'Accepted', accepted_at: new Date().toISOString() }).eq('accept_token', token).select().single()
+        supabaseClient.rpc('app_quote_accept_by_token', { p_token: token }).single()
             .then(({ data, error }) => {
                 c.style.opacity = '1';
                 if (error) { console.error('[QuoteAccept] update error:', error.message); alert('Something went wrong accepting this quote. Please contact us directly.'); return; }
@@ -1934,7 +1934,7 @@
         if (quoteSuggestTimer) clearTimeout(quoteSuggestTimer);
         if (query.length < 2) { box.style.display = 'none'; box.innerHTML = ''; return; }
         quoteSuggestTimer = setTimeout(() => {
-            supabaseClient.from('quotes').select('contact_name,company,contact_phone,contact_email').ilike('contact_name', '%' + query + '%').order('created_at', { ascending: false }).limit(20)
+            supabaseClient.rpc('app_quote_search_contacts', { p_query: query })
             .then(({ data, error }) => {
                 if (error || !data || data.length === 0) { box.style.display = 'none'; box.innerHTML = ''; return; }
                 // De-duplicate by contact name + company
@@ -2070,23 +2070,22 @@
             linkDiv.style.display = 'block';
 
             // Persist quote to Supabase for status tracking / pipeline
-            supabaseClient.from('quotes').insert([{
-                order_num: orderNum,
-                contact_name: contactName,
-                company: company || null,
-                contact_phone: phone || null,
-                contact_email: email || null,
-                event_date: eventDate,
-                event_type: eventType || null,
-                notes: notes || null,
-                line_items: lineItemsArr,
-                subtotal: subtotal,
-                tax: tax,
-                total: total,
-                pdf_url: pdfUrl,
-                status: 'Pending',
-                submitted_by: currentUser.name || null
-            }]).select()
+            supabaseClient.rpc('app_quote_create', {
+                p_order_num: orderNum,
+                p_contact_name: contactName,
+                p_company: company || null,
+                p_contact_phone: phone || null,
+                p_contact_email: email || null,
+                p_event_date: eventDate,
+                p_event_type: eventType || null,
+                p_notes: notes || null,
+                p_line_items: lineItemsArr,
+                p_subtotal: subtotal,
+                p_tax: tax,
+                p_total: total,
+                p_pdf_url: pdfUrl,
+                p_submitted_by: currentUser.name || null
+            })
             .then(({ data, error }) => {
                 if (error) { console.error('[Quote] Supabase insert error:', error.code, error.message); }
                 else {
@@ -2136,10 +2135,13 @@
     }
 
     function updateQuoteStatus(id, status) {
-        const payload = { status: status };
-        if (status === 'Accepted') payload.accepted_at = new Date().toISOString();
-        supabaseClient.from('quotes').update(payload).eq('id', id)
-        .then(({ error }) => { if (error) { alert('Error: ' + error.message); } else { fetchSalesPipeline(); } });
+        withPin(function(pin) {
+            supabaseClient.rpc('app_quote_admin_update_status', { p_admin_username: currentUser.username, p_admin_password: pin, p_id: id, p_status: status })
+            .then(({ error }) => {
+                if (error && error.code === '42501') sessionPin = null;
+                if (error) { alert('Error: ' + error.message); } else { fetchSalesPipeline(); }
+            });
+        });
     }
 
     function sendQuoteReminder(id, btn) {
@@ -2160,12 +2162,15 @@
             dismissed: false
         }).then(({ error: notifError }) => {
             if (notifError) { alert('Error sending reminder: ' + notifError.message); fetchSalesPipeline(); return; }
-            return supabaseClient.from('quotes').update({ reminder_sent: true }).eq('id', id)
-            .then(({ error }) => {
-                if (error) alert('Error: ' + error.message);
-                if (typeof fetchNotifications === 'function') fetchNotifications();
-                fetchSalesPipeline();
-            });
+            withPin(function(pin) {
+                return supabaseClient.rpc('app_quote_admin_mark_reminder_sent', { p_admin_username: currentUser.username, p_admin_password: pin, p_id: id })
+                .then(({ error }) => {
+                    if (error && error.code === '42501') sessionPin = null;
+                    if (error) alert('Error: ' + error.message);
+                    if (typeof fetchNotifications === 'function') fetchNotifications();
+                    fetchSalesPipeline();
+                });
+            }, function() { fetchSalesPipeline(); });
         }).catch(err => { alert('Error: ' + err.message); fetchSalesPipeline(); });
     }
 
@@ -2175,8 +2180,10 @@
         const filtersDiv = document.getElementById('pipelineFilters');
         resultsDiv.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading pipeline...</p>';
 
-        supabaseClient.from('quotes').select('*').order('created_at', { ascending: false })
+        withPin(function(pin) {
+        supabaseClient.rpc('app_quote_admin_list', { p_admin_username: currentUser.username, p_admin_password: pin })
         .then(({ data, error }) => {
+            if (error && error.code === '42501') sessionPin = null;
             if (error) { resultsDiv.innerHTML = '<p style="color:#e74c3c;text-align:center;">Error loading quotes: ' + escapeHtml(error.message) + '</p>'; return; }
             if (!data || data.length === 0) {
                 summaryDiv.innerHTML = '';
@@ -2273,6 +2280,7 @@
             resultsDiv.innerHTML = html;
         })
         .catch(err => { resultsDiv.innerHTML = '<p style="color:#e74c3c;text-align:center;">Error: ' + escapeHtml(err.message) + '</p>'; });
+        }, function() { resultsDiv.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">PIN required to load Sales Pipeline.</p>'; });
     }
 
     // ============================================================
