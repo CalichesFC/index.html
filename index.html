@@ -250,6 +250,19 @@
         </div>
 
         <div class="settings-section">
+            <h3>Privacy &amp; Data</h3>
+            <p style="font-size:12px;color:#888;margin:0 0 8px 0;">What we collect and how it's used.</p>
+            <button class="settings-btn" style="width:100%;" onclick="togglePrivacyPolicy()">View Privacy Policy</button>
+            <div id="privacyPolicyText" style="display:none;font-size:12px;color:#555;line-height:1.5;margin-top:10px;max-height:240px;overflow-y:auto;border:1px solid #eee;border-radius:8px;padding:10px;">
+                <p style="margin-top:0;"><strong>Information we collect:</strong> your name, email address, username, and PIN (used only to verify your identity when logging in), along with your assigned role/location and form permissions.</p>
+                <p><strong>Information you submit:</strong> form entries you create in the app &mdash; pop-in reports, driver checklists, shortage reports, maintenance requests, damage reports, and (for sales staff) customer quotes &mdash; including any photos you attach.</p>
+                <p><strong>Where it's stored:</strong> account and form data is stored in our Supabase database. Photos and generated PDF reports are stored in our company Dropbox and Google Drive. PDF generation is handled by a Google Apps Script we control.</p>
+                <p><strong>How it's used:</strong> solely for internal Caliche's Frozen Custard business operations &mdash; staff login, task tracking, reporting, maintenance scheduling, notifications, and customer quotes. It is not sold or shared with outside parties beyond the service providers above that are necessary to run the app.</p>
+                <p style="margin-bottom:0;"><strong>Your PIN:</strong> is stored so you can log in and is never shown to other staff. Admins can reset it but cannot view it.</p>
+            </div>
+        </div>
+
+        <div class="settings-section">
             <h3>About</h3>
             <p style="font-size:12px;color:#888;margin:0;">Caliche's Operations Hub &mdash; v<span id="appVersionLabel"></span></p>
         </div>
@@ -1128,11 +1141,16 @@
         document.getElementById('pinMsg').style.display = 'none';
         document.getElementById('accountMsg').style.display = 'none';
         document.getElementById('appVersionLabel').innerText = APP_VERSION;
+        document.getElementById('privacyPolicyText').style.display = 'none';
         updateBioToggleBtn();
         document.getElementById('settingsModal').style.display = 'flex';
     }
     function closeSettings() {
         document.getElementById('settingsModal').style.display = 'none';
+    }
+    function togglePrivacyPolicy() {
+        const el = document.getElementById('privacyPolicyText');
+        el.style.display = (el.style.display === 'none') ? 'block' : 'none';
     }
     function changePin() {
         const currentPin = document.getElementById('settingsCurrentPin').value;
