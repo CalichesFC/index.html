@@ -51,8 +51,8 @@
         .notif-empty, .notif-loading { padding: 20px; text-align: center; color: #999; font-size: 13px; }
         .notif-panel-header { padding: 10px 15px; font-weight: 900; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--caliches-blue); border-bottom: 2px solid #eee; background: #fafafa; border-radius: 12px 12px 0 0; }
         .menu-title { color:var(--caliches-blue); margin-bottom:25px; font-size:28px; font-weight:900; text-transform:uppercase; letter-spacing:1px; }
-        .menu-btn { display:block; width:100%; background-color:var(--white); color:var(--caliches-blue); padding:14px 12px; margin-bottom:10px; font-size:14px; font-weight:bold; border:2px solid var(--caliches-blue); border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05); cursor:pointer; transition:0.3s; }
-        .menu-btn.pink{color:var(--caliches-pink);border-color:var(--caliches-pink)} .menu-btn.green{color:var(--pass-green);border-color:var(--pass-green)} .menu-btn.orange{color:var(--maint-orange);border-color:var(--maint-orange)} .menu-btn.red{color:var(--damage-red);border-color:var(--damage-red)} .menu-btn.dark{color:white;background-color:#333;border-color:#333;margin-top:20px} .menu-btn.purple{color:#7b2d8b;border-color:#7b2d8b} .menu-btn:active{transform:scale(0.98)}
+        .menu-btn { display:block; width:100%; background-color:var(--white); color:var(--caliches-blue); padding:25px 20px; margin-bottom:15px; font-size:18px; font-weight:bold; border:2px solid var(--caliches-blue); border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05); cursor:pointer; transition:0.3s; }
+        .menu-btn.pink{color:var(--caliches-pink);border-color:var(--caliches-pink)} .menu-btn.green{color:var(--pass-green);border-color:var(--pass-green)} .menu-btn.orange{color:var(--maint-orange);border-color:var(--maint-orange)} .menu-btn.red{color:var(--damage-red);border-color:var(--damage-red)} .menu-btn.dark{color:white;background-color:#333;border-color:#333;margin-top:30px} .menu-btn.purple{color:#7b2d8b;border-color:#7b2d8b} .menu-btn:active{transform:scale(0.98)}
         .hub-layout { display:flex; gap:12px; align-items:flex-start; text-align:left; }
         .hub-sidebar { flex:0 0 84px; display:flex; flex-direction:column; align-items:center; gap:16px; position:sticky; top:15px; }
         .hub-sidebar .hub-logo { width:100%; max-width:84px; height:auto; filter:drop-shadow(0px 4px 8px rgba(0,0,0,0.2)); }
@@ -198,13 +198,13 @@
             <img src="scoopy-hero.png" alt="Scoopy" class="hub-mascot" onerror="this.style.display='none'">
         </div>
         <div class="hub-buttons">
-            <button id="btn-popIn" class="menu-btn" onclick="openPopIn()">&#128203; Store Pop-In Inspection</button>
-            <button id="btn-driver" class="menu-btn pink" onclick="openForm('driverView')">&#128666; Vehicle &amp; Trailer Check-Out</button>
-            <button id="btn-shortage" class="menu-btn green" onclick="openForm('shortageView')">&#128230; Report Shortages</button>
-            <button id="btn-maintenance" class="menu-btn orange" onclick="openForm('maintenanceView')">&#128295; Required Maintenance</button>
-            <button id="btn-damage" class="menu-btn red" onclick="openForm('damageView')">&#9888; Vehicle / Trailer Damage</button>
-            <button id="managerBtn" class="menu-btn dark" style="display:none;" onclick="openDashboard()">&#128202; View Manager Dashboard</button>
-            <button id="installBtn" class="menu-btn purple" style="display:none;" onclick="installApp()">&#128242; Install App on Phone</button>
+    <button id="btn-popIn" class="menu-btn" onclick="openPopIn()">&#128203; Store Pop-In Inspection</button>
+    <button id="btn-driver" class="menu-btn pink" onclick="openForm('driverView')">&#128666; Vehicle &amp; Trailer Check-Out</button>
+    <button id="btn-shortage" class="menu-btn green" onclick="openForm('shortageView')">&#128230; Report Shortages</button>
+    <button id="btn-maintenance" class="menu-btn orange" onclick="openForm('maintenanceView')">&#128295; Required Maintenance</button>
+    <button id="btn-damage" class="menu-btn red" onclick="openForm('damageView')">&#9888; Vehicle / Trailer Damage</button>
+    <button id="managerBtn" class="menu-btn dark" style="display:none;" onclick="openDashboard()">&#128202; View Manager Dashboard</button>
+    <button id="installBtn" class="menu-btn purple" style="display:none;" onclick="installApp()">&#128242; Install App on Phone</button>
         </div>
     </div>
     <div style="margin-top:20px;padding:15px;background:white;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.05);border:2px solid #eee;text-align:center;">
