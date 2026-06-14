@@ -2080,6 +2080,33 @@
         .then(({ error }) => { if (error) { alert('Error: ' + error.message); } else { fetchSalesPipeline(); } });
     }
 
+    function sendQuoteReminder(id, btn) {
+        const quote = (window._pipelineQuotes || []).find(q => q.id === id);
+        if (!quote) return;
+        if (btn) { btn.disabled = true; btn.innerText = 'Sending...'; }
+
+        const daysPending = quote.created_at ? Math.floor((Date.now() - new Date(quote.created_at)) / 86400000) : 0;
+        const who = quote.contact_name + (quote.company ? ' (' + quote.company + ')' : '');
+        const message = 'Quote #' + quote.order_num + ' for ' + who + ' &mdash; $' + (Number(quote.total) || 0).toFixed(2) + ' &mdash; has been pending ' + daysPending + ' day' + (daysPending === 1 ? '' : 's') + '. Follow up with the customer.';
+
+        supabaseClient.from('notifications').insert({
+            title: 'Quote Follow-up Reminder',
+            message: message,
+            form_type: 'Quote Reminder',
+            pdf_url: quote.pdf_url || null,
+            is_read: false,
+            dismissed: false
+        }).then(({ error: notifError }) => {
+            if (notifError) { alert('Error sending reminder: ' + notifError.message); fetchSalesPipeline(); return; }
+            return supabaseClient.from('quotes').update({ reminder_sent: true }).eq('id', id)
+            .then(({ error }) => {
+                if (error) alert('Error: ' + error.message);
+                if (typeof fetchNotifications === 'function') fetchNotifications();
+                fetchSalesPipeline();
+            });
+        }).catch(err => { alert('Error: ' + err.message); fetchSalesPipeline(); });
+    }
+
     function fetchSalesPipeline() {
         const resultsDiv = document.getElementById('pipelineResults');
         const summaryDiv = document.getElementById('pipelineSummary');
@@ -2097,23 +2124,30 @@
             }
 
             const statusColors = { 'Pending': 'var(--maint-orange)', 'Accepted': 'var(--pass-green)', 'Declined': 'var(--fail-red)', 'Expired': 'var(--na-gray)' };
+            const FOLLOWUP_DAYS = 3;
+            window._pipelineQuotes = data;
 
             // Summary stats
             const counts = {}; const totals = {};
-            let grandTotal = 0, openTotal = 0;
+            let grandTotal = 0, openTotal = 0, followUpCount = 0;
             data.forEach(q => {
                 const st = q.status || 'Pending';
                 const amt = Number(q.total) || 0;
                 counts[st] = (counts[st] || 0) + 1;
                 totals[st] = (totals[st] || 0) + amt;
                 grandTotal += amt;
-                if (st === 'Pending') openTotal += amt;
+                if (st === 'Pending') {
+                    openTotal += amt;
+                    const days = q.created_at ? Math.floor((Date.now() - new Date(q.created_at)) / 86400000) : 0;
+                    if (days >= FOLLOWUP_DAYS) followUpCount++;
+                }
             });
 
             let summaryHtml = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px;">';
             summaryHtml += '<div style="flex:1;min-width:120px;background:#7b2d8b;color:white;border-radius:10px;padding:14px;text-align:center;"><div style="font-size:22px;font-weight:900;">' + data.length + '</div><div style="font-size:12px;text-transform:uppercase;opacity:.9;">Total Quotes</div></div>';
             summaryHtml += '<div style="flex:1;min-width:120px;background:var(--pass-green);color:white;border-radius:10px;padding:14px;text-align:center;"><div style="font-size:22px;font-weight:900;">$' + grandTotal.toFixed(2) + '</div><div style="font-size:12px;text-transform:uppercase;opacity:.9;">Pipeline Value</div></div>';
             summaryHtml += '<div style="flex:1;min-width:120px;background:var(--maint-orange);color:white;border-radius:10px;padding:14px;text-align:center;"><div style="font-size:22px;font-weight:900;">$' + openTotal.toFixed(2) + '</div><div style="font-size:12px;text-transform:uppercase;opacity:.9;">Pending Value</div></div>';
+            summaryHtml += '<div style="flex:1;min-width:120px;background:' + (followUpCount > 0 ? 'var(--fail-red)' : 'var(--na-gray)') + ';color:white;border-radius:10px;padding:14px;text-align:center;"><div style="font-size:22px;font-weight:900;">' + followUpCount + '</div><div style="font-size:12px;text-transform:uppercase;opacity:.9;">Needs Follow-up</div></div>';
             summaryHtml += '</div>';
 
             summaryHtml += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px;justify-content:center;">';
@@ -2147,20 +2181,29 @@
                 const color = statusColors[st] || '#888';
                 const eventDateStr = q.event_date ? new Date(q.event_date + 'T00:00:00').toLocaleDateString() : '&mdash;';
                 const createdStr = q.created_at ? new Date(q.created_at).toLocaleDateString() : '';
+                const daysPending = q.created_at ? Math.floor((Date.now() - new Date(q.created_at)) / 86400000) : 0;
+                const needsFollowUp = (st === 'Pending' && daysPending >= FOLLOWUP_DAYS);
                 html += '<div class="maint-card" style="border-left-color:' + color + ';">';
                 html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;">';
                 html += '<div><div class="maint-card-title">#' + escapeHtml(q.order_num) + ' &mdash; ' + escapeHtml(q.contact_name) + (q.company ? ' (' + escapeHtml(q.company) + ')' : '') + '</div>';
                 html += '<div class="maint-card-meta">Event: ' + eventDateStr + (q.event_type ? ' &bull; ' + escapeHtml(q.event_type) : '') + ' &bull; Submitted ' + createdStr + (q.submitted_by ? ' by ' + escapeHtml(q.submitted_by) : '') + '</div></div>';
+                html += '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">';
                 html += '<div style="background:' + color + ';color:white;border-radius:20px;padding:4px 12px;font-size:11px;font-weight:bold;white-space:nowrap;">' + escapeHtml(st) + '</div>';
+                if (needsFollowUp) html += '<div style="background:var(--fail-red);color:white;border-radius:20px;padding:4px 12px;font-size:11px;font-weight:bold;white-space:nowrap;">&#9200; Follow-up (' + daysPending + 'd)</div>';
+                html += '</div>';
                 html += '</div>';
                 html += '<div style="font-size:20px;font-weight:900;color:var(--caliches-blue);margin:8px 0;">$' + (Number(q.total) || 0).toFixed(2) + '</div>';
                 if (q.accepted_at) html += '<div class="maint-card-meta" style="color:var(--pass-green);font-weight:bold;">&#10003; Accepted on ' + new Date(q.accepted_at).toLocaleDateString() + '</div>';
+                if (q.reminder_sent) html += '<div class="maint-card-meta" style="color:var(--maint-orange);font-weight:bold;">&#128276; Follow-up reminder sent</div>';
                 html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">';
                 if (q.pdf_url) html += '<a href="' + q.pdf_url + '" target="_blank" style="background:#7b2d8b;color:white;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;text-decoration:none;">&#128196; View PDF</a>';
                 if (q.accept_token) html += '<button onclick="copyAcceptLink(\'' + q.accept_token + '\', this)" style="background:var(--caliches-blue);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">&#128279; Copy Accept Link</button>';
                 if (st === 'Pending') {
                     html += '<button onclick="updateQuoteStatus(' + q.id + ', \'Accepted\')" style="background:var(--pass-green);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">Mark Accepted</button>';
                     html += '<button onclick="updateQuoteStatus(' + q.id + ', \'Declined\')" style="background:var(--fail-red);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">Mark Declined</button>';
+                }
+                if (needsFollowUp) {
+                    html += '<button onclick="sendQuoteReminder(' + q.id + ', this)" style="background:var(--maint-orange);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">&#128276; ' + (q.reminder_sent ? 'Send Reminder Again' : 'Send Follow-up Reminder') + '</button>';
                 }
                 html += '</div>';
                 html += '</div>';
