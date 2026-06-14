@@ -343,6 +343,7 @@
     <button id="maintBoardBtn" class="menu-btn orange" style="display:none;" onclick="openMaintenanceBoard()">&#128295; Maintenance Board</button>
     <button id="managerBtn" class="menu-btn dark" style="display:none;" onclick="openDashboard()">&#128202; View Manager Dashboard</button>
     <button id="developerBtn" class="menu-btn dark" style="display:none;background:#222;" onclick="openTrainingPortal()">&#128187; Developer: Training Portal</button>
+    <button id="previewToggleBtn" class="menu-btn dark" style="display:none;background:#555;" onclick="togglePreviewMode()">&#128065; Preview as Staff (Hide Dev Tabs)</button>
     <button id="installBtn" class="menu-btn purple" style="display:none;" onclick="installApp()">&#128242; Install App on Phone</button>
         </div>
     </div>
@@ -533,12 +534,29 @@
         { key:'damage', label:'Damage', btnId:'btn-damage' }
     ];
 
+    function isPreviewMode() { return localStorage.getItem('calichesPreviewMode') === 'on'; }
+
+    function togglePreviewMode() {
+        localStorage.setItem('calichesPreviewMode', isPreviewMode() ? 'off' : 'on');
+        applyRoleUI();
+        applyFormPermissions();
+    }
+
+    function updatePreviewToggleBtn() {
+        const btn = document.getElementById('previewToggleBtn');
+        if (!btn) return;
+        if (currentUser.is_developer !== true) { btn.style.display = 'none'; return; }
+        btn.style.display = 'block';
+        btn.innerText = isPreviewMode() ? '👁️ Exit Preview (Show All Tabs)' : '👁️ Preview as Staff (Hide Dev Tabs)';
+    }
+
     function applyFormPermissions() {
         const perms = currentUser.permissions;
+        const devOverride = currentUser.is_developer === true && !isPreviewMode();
         FORM_KEYS.forEach(f => {
             const btn = document.getElementById(f.btnId);
             if (!btn) return;
-            btn.style.display = (!perms || perms.indexOf(f.key) !== -1) ? 'block' : 'none';
+            btn.style.display = (devOverride || !perms || perms.indexOf(f.key) !== -1) ? 'block' : 'none';
         });
     }
 
@@ -1056,13 +1074,17 @@
         const role = currentUser.role;
         const isManager = (role === 'Admin Manager' || role === 'Manager');
         const maintBoardAllowed = (currentUser.maint_board_access !== false);
-        document.getElementById('managerBtn').style.display = (role === 'Admin Manager') ? 'block' : 'none';
-        document.getElementById('maintBoardBtn').style.display = (isManager && maintBoardAllowed) ? 'block' : 'none';
-        document.getElementById('mySubmissionsBtn').style.display = (role === 'Maintenance') ? 'none' : 'block';
+        const devOverride = currentUser.is_developer === true && !isPreviewMode();
+        document.getElementById('managerBtn').style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
+        document.getElementById('maintBoardBtn').style.display = (devOverride || (isManager && maintBoardAllowed)) ? 'block' : 'none';
+        document.getElementById('mySubmissionsBtn').style.display = (!devOverride && role === 'Maintenance') ? 'none' : 'block';
         document.getElementById('developerBtn').style.display = (currentUser.is_developer === true) ? 'block' : 'none';
         const announceBtn = document.getElementById('announceBtn');
-        if (announceBtn) announceBtn.style.display = isManager ? 'block' : 'none';
+        if (announceBtn) announceBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
+        const futureIntegrations = document.getElementById('futureIntegrations');
+        if (futureIntegrations) futureIntegrations.style.display = devOverride ? 'block' : 'none';
         updateBioToggleBtn();
+        updatePreviewToggleBtn();
     }
 
     function maintBoardBack() {
