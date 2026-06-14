@@ -364,6 +364,7 @@
     <button id="developerBtn" class="menu-btn dark" style="display:none;background:#222;" onclick="openTrainingPortal()">&#128187; Developer: Training Portal</button>
     <button id="quotesBtn" class="menu-btn purple" style="display:none;" onclick="openForm('quotesView')">&#128221; Create Catering Quote</button>
     <button id="salesPipelineBtn" class="menu-btn purple" style="display:none;" onclick="openSalesPipeline()">&#128202; Sales Pipeline</button>
+    <button id="shortageTrendsBtn" class="menu-btn green" style="display:none;" onclick="openShortageTrends()">&#128200; Shortage Trends</button>
     <button id="previewToggleBtn" class="menu-btn dark" style="display:none;background:#555;" onclick="togglePreviewMode()">&#128065; Preview as Staff (Hide Dev Tabs)</button>
     <button id="installBtn" class="menu-btn purple" style="display:none;" onclick="installApp()">&#128242; Install App on Phone</button>
         </div>
@@ -547,6 +548,21 @@
         <div id="pipelineSummary"></div>
         <div id="pipelineFilters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px;justify-content:center;"></div>
         <div id="pipelineResults"><p style="text-align:center;padding:30px;color:#888;">Loading pipeline...</p></div>
+    </div>
+</div>
+
+<!-- SHORTAGE TRENDS VIEW (Managers) -->
+<div id="shortageTrendsView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
+    <div class="header" style="background-color:var(--pass-green);">
+        <h1 style="font-size:40px;margin:10px 0;">&#128200;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Shortage Trends</p>
+        <div class="header-stripe"></div>
+    </div>
+    <div class="container" style="max-width:700px;">
+        <div id="shortageTrendsFilters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px;justify-content:center;"></div>
+        <div id="shortageTrendsSummary"></div>
+        <div id="shortageTrendsResults"><p style="text-align:center;padding:30px;color:#888;">Loading shortage trends...</p></div>
     </div>
 </div>
 
@@ -1180,6 +1196,8 @@
         if (quotesBtn) quotesBtn.style.display = devOverride ? 'block' : 'none';
         const salesPipelineBtn = document.getElementById('salesPipelineBtn');
         if (salesPipelineBtn) salesPipelineBtn.style.display = devOverride ? 'block' : 'none';
+        const shortageTrendsBtn = document.getElementById('shortageTrendsBtn');
+        if (shortageTrendsBtn) shortageTrendsBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         const announceBtn = document.getElementById('announceBtn');
         if (announceBtn) announceBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         const futureIntegrations = document.getElementById('futureIntegrations');
@@ -2096,6 +2114,115 @@
                 html += '</div>';
                 html += '</div>';
             });
+            resultsDiv.innerHTML = html;
+        })
+        .catch(err => { resultsDiv.innerHTML = '<p style="color:#e74c3c;text-align:center;">Error: ' + escapeHtml(err.message) + '</p>'; });
+    }
+
+    // ============================================================
+    // SHORTAGE TRENDS (Managers)
+    // ============================================================
+    let shortageTrendsDaysFilter = 30;
+
+    function openShortageTrends() {
+        triggerTransition(() => {
+            document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
+            document.getElementById('shortageTrendsView').style.display = 'block';
+            fetchShortageTrends();
+        });
+    }
+
+    function fetchShortageTrends() {
+        const resultsDiv = document.getElementById('shortageTrendsResults');
+        const summaryDiv = document.getElementById('shortageTrendsSummary');
+        const filtersDiv = document.getElementById('shortageTrendsFilters');
+        resultsDiv.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading shortage trends...</p>';
+
+        // Filters (render immediately so they're clickable while loading)
+        const dayOptions = [{ label: '7 Days', val: 7 }, { label: '30 Days', val: 30 }, { label: '90 Days', val: 90 }, { label: 'All Time', val: 0 }];
+        let filterHtml = '';
+        dayOptions.forEach(opt => {
+            const active = (shortageTrendsDaysFilter === opt.val);
+            filterHtml += '<button onclick="shortageTrendsDaysFilter=' + opt.val + ';fetchShortageTrends();" style="border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:bold;cursor:pointer;background:' + (active ? 'var(--pass-green)' : '#eee') + ';color:' + (active ? 'white' : '#555') + ';">' + opt.label + '</button>';
+        });
+        filtersDiv.innerHTML = filterHtml;
+
+        supabaseClient.from('shortages').select('*').order('id', { ascending: false }).limit(500)
+        .then(({ data, error }) => {
+            if (error) { resultsDiv.innerHTML = '<p style="color:#e74c3c;text-align:center;">Error loading shortages: ' + escapeHtml(error.message) + '</p>'; return; }
+            if (!data || data.length === 0) {
+                summaryDiv.innerHTML = '';
+                resultsDiv.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">No shortage reports yet.</p>';
+                return;
+            }
+
+            // Apply date filter (based on OrderDate, falling back to created_at)
+            let filtered = data;
+            if (shortageTrendsDaysFilter > 0) {
+                const cutoff = new Date();
+                cutoff.setDate(cutoff.getDate() - shortageTrendsDaysFilter);
+                filtered = data.filter(row => {
+                    const dateStr = row.OrderDate || row.created_at;
+                    if (!dateStr) return true;
+                    const d = new Date(dateStr);
+                    return !isNaN(d) && d >= cutoff;
+                });
+            }
+
+            if (filtered.length === 0) {
+                summaryDiv.innerHTML = '';
+                resultsDiv.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">No shortage reports in this time range.</p>';
+                return;
+            }
+
+            // Aggregate items and stores
+            const itemMap = {};
+            const storeMap = {};
+            filtered.forEach(row => {
+                const store = (row.Store || 'Unknown').toString().trim();
+                storeMap[store] = (storeMap[store] || 0) + 1;
+                [1, 2].forEach(i => {
+                    const rawName = (row['Item' + i] || '').toString().trim();
+                    if (!rawName) return;
+                    const key = rawName.toLowerCase();
+                    const qty = (row['Qty' + i] || '').toString().trim();
+                    if (!itemMap[key]) itemMap[key] = { label: rawName, count: 0, stores: {}, qtys: [] };
+                    itemMap[key].count++;
+                    itemMap[key].stores[store] = (itemMap[key].stores[store] || 0) + 1;
+                    if (qty) itemMap[key].qtys.push(qty);
+                });
+            });
+
+            const sortedItems = Object.values(itemMap).sort((a, b) => b.count - a.count);
+            const sortedStores = Object.entries(storeMap).sort((a, b) => b[1] - a[1]);
+            const topItem = sortedItems[0];
+            const topStore = sortedStores[0];
+
+            // Summary cards
+            let summaryHtml = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px;">';
+            summaryHtml += '<div style="flex:1;min-width:120px;background:var(--pass-green);color:white;border-radius:10px;padding:14px;text-align:center;"><div style="font-size:22px;font-weight:900;">' + filtered.length + '</div><div style="font-size:12px;text-transform:uppercase;opacity:.9;">Shortage Reports</div></div>';
+            summaryHtml += '<div style="flex:1;min-width:120px;background:var(--caliches-blue);color:white;border-radius:10px;padding:14px;text-align:center;"><div style="font-size:18px;font-weight:900;">' + (topItem ? escapeHtml(topItem.label) : '&mdash;') + '</div><div style="font-size:12px;text-transform:uppercase;opacity:.9;">Most Requested Item' + (topItem ? ' (' + topItem.count + 'x)' : '') + '</div></div>';
+            summaryHtml += '<div style="flex:1;min-width:120px;background:var(--maint-orange);color:white;border-radius:10px;padding:14px;text-align:center;"><div style="font-size:18px;font-weight:900;">' + (topStore ? escapeHtml(topStore[0]) : '&mdash;') + '</div><div style="font-size:12px;text-transform:uppercase;opacity:.9;">Top Reporting Store' + (topStore ? ' (' + topStore[1] + 'x)' : '') + '</div></div>';
+            summaryHtml += '</div>';
+
+            // Store breakdown chips
+            summaryHtml += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px;justify-content:center;">';
+            sortedStores.forEach(([store, count]) => {
+                summaryHtml += '<div style="background:#e8f5e9;color:var(--pass-green);border:1px solid var(--pass-green);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:bold;">' + escapeHtml(store) + ': ' + count + '</div>';
+            });
+            summaryHtml += '</div>';
+            summaryDiv.innerHTML = summaryHtml;
+
+            // Top items list
+            let html = '<div class="maint-card" style="border-left-color:var(--pass-green);"><div class="maint-card-title" style="margin-bottom:10px;">&#128200; Most Requested Items</div>';
+            sortedItems.slice(0, 15).forEach((item, idx) => {
+                const storeList = Object.entries(item.stores).sort((a, b) => b[1] - a[1]).map(([s, c]) => escapeHtml(s) + (c > 1 ? ' (' + c + 'x)' : '')).join(', ');
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;' + (idx < sortedItems.length - 1 && idx < 14 ? 'border-bottom:1px solid #eee;' : '') + '">';
+                html += '<div><div style="font-weight:bold;">' + escapeHtml(item.label) + '</div><div class="maint-card-meta">Requested by: ' + storeList + '</div></div>';
+                html += '<div style="background:var(--pass-green);color:white;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:bold;white-space:nowrap;">' + item.count + 'x</div>';
+                html += '</div>';
+            });
+            html += '</div>';
             resultsDiv.innerHTML = html;
         })
         .catch(err => { resultsDiv.innerHTML = '<p style="color:#e74c3c;text-align:center;">Error: ' + escapeHtml(err.message) + '</p>'; });
