@@ -97,6 +97,20 @@
         .table-wrapper{width:100%;max-height:500px;overflow:auto;background:white;border-radius:12px;border:1px solid #ddd;box-shadow:0 4px 6px rgba(0,0,0,0.05)}
         .data-table{width:100%;border-collapse:collapse;font-size:12px;text-align:left;white-space:nowrap} .data-table th{background:var(--caliches-blue);color:white;padding:12px 15px;position:sticky;top:0;z-index:10;border-bottom:2px solid #333;font-weight:bold} .data-table td{padding:10px 15px;border-bottom:1px solid #eee;max-width:200px;overflow:hidden;text-overflow:ellipsis} .data-table tr:nth-child(even){background-color:#f9f9f9} .data-table tr:hover{background-color:#f0f4f8}
         .role-select{padding:5px;border-radius:4px;border:1px solid #ccc;font-weight:bold} .update-role-btn{background:var(--pass-green);color:white;border:none;padding:5px 10px;border-radius:4px;font-weight:bold;cursor:pointer} .update-action-btn{background:var(--caliches-blue);color:white;border:none;padding:5px 10px;border-radius:4px;font-weight:bold;cursor:pointer} .delete-btn{background:var(--fail-red);color:white;border:none;padding:5px 10px;border-radius:4px;font-weight:bold;cursor:pointer;margin-left:5px}
+        /* Maintenance Board */
+        .maint-card{background:white;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.08);padding:15px;margin-bottom:15px;border-left:6px solid var(--maint-orange);text-align:left}
+        .maint-card-title{font-weight:900;font-size:16px;color:var(--caliches-blue)}
+        .maint-card-meta{font-size:12px;color:#888;margin-top:2px}
+        .maint-card-desc{margin:10px 0;font-size:14px;color:#333}
+        .urgency-chip{display:inline-block;color:white;font-size:11px;font-weight:bold;padding:4px 10px;border-radius:99px;text-transform:uppercase}
+        .overdue-chip{display:inline-block;background:var(--fail-red);color:white;font-size:11px;font-weight:bold;padding:4px 10px;border-radius:99px;text-transform:uppercase}
+        .status-btn{flex:1;padding:8px 6px;border-radius:8px;border:2px solid #ddd;background:#fafafa;color:#555;font-weight:bold;font-size:12px;cursor:pointer;transition:0.2s}
+        .status-btn.active{border-color:transparent}
+        .priority-arrow-btn{background:var(--light-gray);border:1px solid #ddd;border-radius:6px;width:32px;height:28px;font-weight:bold;color:var(--caliches-blue);cursor:pointer}
+        .maint-note-box{width:100%;border-radius:6px;border:1px solid #ccc;padding:6px;font-size:13px;font-family:inherit;box-sizing:border-box;resize:vertical}
+        .maint-readonly-note{background:#fdf3e8;padding:8px;border-radius:6px;font-size:13px;margin-bottom:8px}
+        .my-sub-card{background:white;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.08);padding:15px;margin-bottom:15px;border-left:6px solid var(--maint-orange);text-align:left}
+        .status-pill{display:inline-block;color:white;font-size:11px;font-weight:bold;padding:4px 10px;border-radius:99px;text-transform:uppercase}
         /* Progress Bar */
         #progressBarWrapper{position:sticky;top:0;z-index:100;background:white;padding:12px 15px;border-bottom:2px solid #eee;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
         #progressFill{background:var(--caliches-blue);height:10px;border-radius:99px;width:0%;transition:width 0.4s ease}
@@ -203,6 +217,8 @@
     <button id="btn-shortage" class="menu-btn green" onclick="openForm('shortageView')">&#128230; Report Shortages</button>
     <button id="btn-maintenance" class="menu-btn orange" onclick="openForm('maintenanceView')">&#128295; Required Maintenance</button>
     <button id="btn-damage" class="menu-btn red" onclick="openForm('damageView')">&#9888; Vehicle / Trailer Damage</button>
+    <button id="mySubmissionsBtn" class="menu-btn orange" onclick="openMySubmissions()">&#128203; My Maintenance Submissions</button>
+    <button id="maintBoardBtn" class="menu-btn orange" style="display:none;" onclick="openMaintenanceBoard()">&#128295; Maintenance Board</button>
     <button id="managerBtn" class="menu-btn dark" style="display:none;" onclick="openDashboard()">&#128202; View Manager Dashboard</button>
     <button id="installBtn" class="menu-btn purple" style="display:none;" onclick="installApp()">&#128242; Install App on Phone</button>
         </div>
@@ -245,6 +261,30 @@
             </select>
         </div>
         <div id="dashboardResults"><p style="text-align:center;padding:30px;color:#888;">Fetching live data...</p></div>
+    </div>
+</div>
+
+<!-- MAINTENANCE BOARD -->
+<div id="maintenanceBoardView" class="app-view">
+    <button class="back-btn" onclick="maintBoardBack()">&#128281; Back</button>
+    <div class="header" style="background:repeating-linear-gradient(45deg,var(--maint-orange),var(--maint-orange) 15px,#d35400 15px,#d35400 30px);">
+        <h1 style="font-size:40px;margin:10px 0;">&#128295;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Maintenance Board</p>
+    </div>
+    <div class="container" style="max-width:700px;">
+        <div id="maintBoardResults"><p style="text-align:center;padding:30px;color:#888;">Loading maintenance board...</p></div>
+    </div>
+</div>
+
+<!-- MY SUBMISSIONS VIEW -->
+<div id="mySubmissionsView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
+    <div class="header" style="background:repeating-linear-gradient(45deg,var(--maint-orange),var(--maint-orange) 15px,#d35400 15px,#d35400 30px);">
+        <h1 style="font-size:40px;margin:10px 0;">&#128203;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">My Maintenance Submissions</p>
+    </div>
+    <div class="container" style="max-width:700px;">
+        <div id="mySubmissionsResults"><p style="text-align:center;padding:30px;color:#888;">Loading your submissions...</p></div>
     </div>
 </div>
 
@@ -306,7 +346,7 @@
 <div id="shortageView" class="app-view"><button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button><div class="header green-theme"><img src="splash-logo.png" alt="Main Logo" class="logo-img" onerror="this.style.display='none'"><h1 style="font-size:40px;margin:10px 0;">&#128230;</h1><p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">STORE SHORTAGE REPORT</p></div><div class="container"><form id="shortageForm"><div class="info-group"><div class="full-width"><label class="form-label">Select Store:</label><select name="Store" required><option value="" disabled selected>Select Store...</option><option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option></select></div><div><label class="form-label">Date:</label><input type="date" id="shortageDt" name="OrderDate" required></div><div><label class="form-label">Manager Name:</label><input type="text" name="ManagerName" placeholder="Your Name" required></div></div><div class="category"><h2>Item Requests</h2><div class="form-spacer"><label class="form-label">Item 1 Name:</label><input type="text" name="Item1" placeholder="e.g., Seasonal Fruit, Cups"></div><div class="form-spacer" style="border-bottom:1px solid #eee;padding-bottom:20px;"><label class="form-label">Item 1 Quantity:</label><input type="text" name="Qty1" placeholder="e.g., 5 cases"></div><div class="form-spacer" style="margin-top:20px;"><label class="form-label">Item 2 Name:</label><input type="text" name="Item2" placeholder="Item name"></div><div class="form-spacer"><label class="form-label">Item 2 Quantity:</label><input type="text" name="Qty2" placeholder="Quantity"></div></div><div class="category"><h2>Urgency / Notes</h2><textarea name="Notes" rows="3" placeholder="Is this needed urgently?"></textarea></div><input type="hidden" id="shortageReportHtml" name="ReportHTML"><button type="button" id="submitShortageBtn" class="save-btn green-btn" onclick="submitShortage()">&#128640; SUBMIT SHORTAGE REPORT</button></form></div></div>
 
 <!-- MAINTENANCE VIEW -->
-<div id="maintenanceView" class="app-view"><button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button><div class="header orange-theme"><img src="splash-logo.png" alt="Main Logo" class="logo-img" onerror="this.style.display='none'"><h1 style="font-size:40px;margin:10px 0;">&#128295;</h1><p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">REQUIRED MAINTENANCE</p></div><div class="container"><form id="maintenanceForm"><div class="info-group"><div class="full-width"><label class="form-label">Store Location:</label><select name="Location" required><option value="" disabled selected>Select Store...</option><option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option></select></div><div><label class="form-label">Date:</label><input type="date" id="maintDt" name="ReportDate" required></div><div><label class="form-label">Reported By:</label><input type="text" name="ReporterName" placeholder="Your Name" required></div></div><div class="category"><h2>Issue Details</h2><div class="form-spacer"><label class="form-label">Equipment / Item Name:</label><input type="text" name="MaintenanceItem" placeholder="e.g., Shake Machine, AC Unit" required></div><div class="form-spacer"><label class="form-label">Urgency Level:</label><select name="Urgency" required><option value="" disabled selected>Select Urgency...</option><option>Low (Fix when possible)</option><option>Medium (Needs attention soon)</option><option>High (Critical / Safety Issue)</option></select></div><div class="form-spacer"><label class="form-label">Description of Problem:</label><textarea name="IssueDescription" rows="4" placeholder="What exactly is broken?" required></textarea></div><div class="form-spacer"><label class="form-label">Photo of the Issue:</label><label class="photo-btn">&#128248; Attach Photo<input type="file" accept="image/*" multiple onchange="compressToGlobal(event,'maintPrev',maintPhotos)" style="display:none;"></label><div id="maintPrev" style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;"></div></div></div><input type="hidden" id="maintenanceReportHtml" name="ReportHTML"><button type="button" id="submitMaintBtn" class="save-btn orange-btn" onclick="submitMaintenance()">&#128640; SUBMIT MAINTENANCE REQUEST</button></form></div></div>
+<div id="maintenanceView" class="app-view"><button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button><div class="header orange-theme"><img src="splash-logo.png" alt="Main Logo" class="logo-img" onerror="this.style.display='none'"><h1 style="font-size:40px;margin:10px 0;">&#128295;</h1><p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">REQUIRED MAINTENANCE</p></div><div class="container"><form id="maintenanceForm"><div class="info-group"><div class="full-width"><label class="form-label">Store Location:</label><select name="Location" required><option value="" disabled selected>Select Store...</option><option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option></select></div><div><label class="form-label">Date:</label><input type="date" id="maintDt" name="ReportDate" required></div><div><label class="form-label">Reported By:</label><input type="text" name="ReporterName" placeholder="Your Name" required></div></div><div class="category"><h2>Issue Details</h2><div class="form-spacer"><label class="form-label">Equipment / Item Name:</label><input type="text" name="MaintenanceItem" placeholder="e.g., Shake Machine, AC Unit" required></div><div class="form-spacer"><label class="form-label">Urgency Level:</label><select name="Urgency" required><option value="" disabled selected>Select Urgency...</option><option>Low (Fix when possible)</option><option>Medium (Needs attention soon)</option><option>High (Critical / Safety Issue)</option></select></div><div class="form-spacer"><label class="form-label">Description of Problem:</label><textarea name="IssueDescription" rows="4" placeholder="What exactly is broken?" required></textarea></div><div class="form-spacer"><label class="form-label">Photo of the Issue:</label><label class="photo-btn">&#128248; Attach Photo<input type="file" accept="image/*" multiple onchange="compressToGlobal(event,'maintPrev',maintPhotos)" style="display:none;"></label><div id="maintPrev" style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;"></div></div></div><input type="hidden" id="maintenanceReportHtml" name="ReportHTML"><input type="hidden" id="maintenanceSubmittedBy" name="submitted_by"><button type="button" id="submitMaintBtn" class="save-btn orange-btn" onclick="submitMaintenance()">&#128640; SUBMIT MAINTENANCE REQUEST</button></form></div></div>
 
 <!-- DAMAGE VIEW -->
 <div id="damageView" class="app-view"><button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button><div class="header red-theme"><img src="catering-logo.png" alt="Catering Logo" class="logo-img" onerror="this.src='splash-logo.png'"><h1 style="font-size:40px;margin:10px 0;">&#9888;</h1><p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">VEHICLE / TRAILER DAMAGE</p></div><div class="container"><form id="damageForm"><div class="info-group"><div class="full-width"><label class="form-label">Select Asset:</label><select name="DamageAsset" required><option value="" disabled selected>Choose Vehicle or Trailer...</option><option>Truck 2500</option><option>Truck 3500</option><option>Caliche's Cruiser</option><option>Scoopy Trailer</option><option>Poochie Trailer</option></select></div><div><label class="form-label">Date of Incident:</label><input type="date" id="damageDt" name="IncidentDate" required></div><div><label class="form-label">Reported By:</label><input type="text" name="ReporterName" placeholder="Your Name" required></div></div><div class="category"><h2>Damage Details</h2><div class="form-spacer"><label class="form-label">What Happened? (Cause):</label><input type="text" name="IncidentCause" placeholder="e.g., Backed into pole, Hit pothole" required></div><div class="form-spacer"><label class="form-label">Description of Damage:</label><textarea name="DamageDescription" rows="4" placeholder="Describe the damage in detail..." required></textarea></div><div class="form-spacer"><label class="form-label">Photo of the Damage:</label><label class="photo-btn" style="background-color:#fceceb;border-color:var(--damage-red);color:var(--damage-red);">&#128248; Attach Damage Photos<input type="file" accept="image/*" multiple onchange="compressToGlobal(event,'damagePrev',damagePhotos)" style="display:none;"></label><div id="damagePrev" style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;"></div></div></div><input type="hidden" id="damageReportHtml" name="ReportHTML"><button type="button" id="submitDamageBtn" class="save-btn red-btn" onclick="submitDamage()">&#128640; SUBMIT DAMAGE REPORT</button></form></div></div>
@@ -352,11 +392,16 @@
             currentUser = JSON.parse(savedUser);
             document.getElementById('greetingName').innerText = 'Hello, ' + currentUser.name;
             document.getElementById('greetingRole').innerText = 'Role: ' + currentUser.role;
-            document.getElementById('managerBtn').style.display = (currentUser.role === 'Admin Manager') ? 'block' : 'none';
+            applyRoleUI();
             setupNotifications();
             applyFormPermissions();
             document.getElementById('splash-screen').style.display = 'none';
-            document.getElementById('main-menu').style.display = 'block';
+            if (currentUser.role === 'Maintenance') {
+                document.getElementById('maintenanceBoardView').style.display = 'block';
+                fetchMaintenanceBoard();
+            } else {
+                document.getElementById('main-menu').style.display = 'block';
+            }
             resetTimer();
         } else {
             setTimeout(function() {
@@ -602,10 +647,19 @@
             logActivity(user.username, user.name, 'login');
             document.getElementById('greetingName').innerText = 'Hello, ' + user.name;
             document.getElementById('greetingRole').innerText = 'Role: ' + user.role;
-            document.getElementById('managerBtn').style.display = (user.role === 'Admin Manager') ? 'block' : 'none';
+            applyRoleUI();
             setupNotifications();
             applyFormPermissions();
-            triggerTransition(() => { document.getElementById('login-view').style.display = 'none'; document.getElementById('main-menu').style.display = 'block'; resetTimer(); });
+            triggerTransition(() => {
+                document.getElementById('login-view').style.display = 'none';
+                if (user.role === 'Maintenance') {
+                    document.getElementById('maintenanceBoardView').style.display = 'block';
+                    fetchMaintenanceBoard();
+                } else {
+                    document.getElementById('main-menu').style.display = 'block';
+                }
+                resetTimer();
+            });
             btn.innerText = 'ENTER HUB'; btn.disabled = false; form.reset();
         }).catch(err => { errorMsg.innerText = 'Connection error. Check your internet.'; errorMsg.style.display = 'block'; btn.innerText = 'ENTER HUB'; btn.disabled = false; });
     }
@@ -659,6 +713,158 @@
             document.getElementById('managerView').style.display = 'block';
             fetchDashboard('Pop-Ins', document.querySelector('.dash-tab'));
         });
+    }
+
+    // ============================================================
+    // ROLE-BASED UI / MAINTENANCE BOARD
+    // ============================================================
+    function applyRoleUI() {
+        const role = currentUser.role;
+        const isManager = (role === 'Admin Manager' || role === 'Manager');
+        document.getElementById('managerBtn').style.display = (role === 'Admin Manager') ? 'block' : 'none';
+        document.getElementById('maintBoardBtn').style.display = isManager ? 'block' : 'none';
+        document.getElementById('mySubmissionsBtn').style.display = (role === 'Maintenance') ? 'none' : 'block';
+    }
+
+    function maintBoardBack() {
+        if (currentUser.role === 'Maintenance') { logout(); } else { openMenu(); }
+    }
+
+    function openMaintenanceBoard() {
+        triggerTransition(() => {
+            document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
+            document.getElementById('maintenanceBoardView').style.display = 'block';
+            fetchMaintenanceBoard();
+        });
+    }
+
+    function fetchMaintenanceBoard() {
+        const container = document.getElementById('maintBoardResults');
+        const isManager = (currentUser.role === 'Admin Manager' || currentUser.role === 'Manager');
+        const canEditTech = (currentUser.role === 'Maintenance' || isManager);
+        container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading maintenance board...</p>';
+        supabaseClient.from('maintenance_logs').select('*').order('priority_rank', { ascending: true }).order('id', { ascending: true })
+        .then(({ data, error }) => {
+            if (error || !data) { container.innerHTML = '<p style="color:red;">Error loading board: ' + (error ? error.message : 'no data') + '</p>'; return; }
+            if (!data.length) { container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">No maintenance tickets. Great job! &#127881;</p>'; return; }
+            const todayStr = new Date().toISOString().split('T')[0];
+            let html = '';
+            data.forEach((row, idx) => {
+                let status = row.Status || 'Pending';
+                let urgency = row.Urgency || '';
+                let urgColor = urgency.indexOf('High') !== -1 ? 'var(--damage-red)' : (urgency.indexOf('Medium') !== -1 ? 'var(--maint-orange)' : 'var(--pass-green)');
+                let overdue = row.deadline && status !== 'Resolved' && row.deadline < todayStr;
+                let statusColor = status === 'Resolved' ? 'var(--pass-green)' : (status === 'In Progress' ? 'var(--caliches-blue)' : '#999');
+                html += '<div class="maint-card" style="border-left-color:' + (overdue ? 'var(--fail-red)' : urgColor) + ';">';
+                html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">';
+                html += '<div><div class="maint-card-title">' + escapeHtml(row.MaintenanceItem) + '</div><div class="maint-card-meta">' + escapeHtml(row.Location) + ' &bull; ' + escapeHtml(row.ReportDate) + ' &bull; by ' + escapeHtml(row.ReporterName || row.submitted_by) + '</div></div>';
+                if (isManager) {
+                    html += '<div style="display:flex;flex-direction:column;gap:4px;">';
+                    html += '<button class="priority-arrow-btn" ' + (idx === 0 ? 'disabled style="opacity:0.3;"' : '') + ' onclick="moveMaintPriority(' + row.id + ',\'up\')">&#9650;</button>';
+                    html += '<button class="priority-arrow-btn" ' + (idx === data.length - 1 ? 'disabled style="opacity:0.3;"' : '') + ' onclick="moveMaintPriority(' + row.id + ',\'down\')">&#9660;</button>';
+                    html += '</div>';
+                }
+                html += '</div>';
+                html += '<p class="maint-card-desc">' + escapeHtml(row.IssueDescription) + '</p>';
+                html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">';
+                html += '<span class="urgency-chip" style="background:' + urgColor + ';">' + escapeHtml(urgency) + '</span>';
+                if (overdue) html += '<span class="overdue-chip">&#9888; Overdue</span>';
+                html += '</div>';
+                html += '<div style="display:flex;gap:6px;margin-bottom:10px;">';
+                ['Pending', 'In Progress', 'Resolved'].forEach(s => {
+                    html += '<button class="status-btn' + (status === s ? ' active' : '') + '" style="' + (status === s ? ('background:' + statusColor + ';color:white;') : '') + '" onclick="updateMaintStatus(' + row.id + ',\'' + s + '\')">' + s + '</button>';
+                });
+                html += '</div>';
+                if (isManager) {
+                    html += '<div style="font-size:12px;margin-bottom:10px;"><label style="font-weight:bold;color:#555;display:block;margin-bottom:4px;">Deadline:</label><input type="date" value="' + (row.deadline || '') + '" onchange="updateMaintDeadline(' + row.id + ',this.value)" style="padding:6px;border-radius:6px;border:1px solid #ccc;font-size:13px;"></div>';
+                } else if (row.deadline) {
+                    html += '<div style="font-size:12px;margin-bottom:10px;color:#555;"><strong>Deadline:</strong> ' + escapeHtml(row.deadline) + (overdue ? ' <span style="color:var(--fail-red);font-weight:bold;">(Overdue)</span>' : '') + '</div>';
+                }
+                if (isManager) {
+                    html += '<div style="margin-bottom:10px;"><label style="font-size:12px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Manager Instructions:</label><textarea rows="2" id="mgrnotes-' + row.id + '" class="maint-note-box" placeholder="Instructions for the maintenance tech...">' + escapeHtml(row.manager_notes || '') + '</textarea><button class="update-action-btn" style="margin-top:5px;" onclick="saveMaintNote(' + row.id + ',\'manager_notes\',\'mgrnotes-' + row.id + '\')">Save</button></div>';
+                } else if (row.manager_notes) {
+                    html += '<div class="maint-readonly-note"><strong>Manager Notes:</strong> ' + escapeHtml(row.manager_notes) + '</div>';
+                }
+                if (canEditTech) {
+                    html += '<div><label style="font-size:12px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Tech Notes:</label><textarea rows="2" id="technotes-' + row.id + '" class="maint-note-box" placeholder="Notes from maintenance...">' + escapeHtml(row.tech_notes || '') + '</textarea><button class="update-action-btn" style="margin-top:5px;" onclick="saveMaintNote(' + row.id + ',\'tech_notes\',\'technotes-' + row.id + '\')">Save</button></div>';
+                } else if (row.tech_notes) {
+                    html += '<div class="maint-readonly-note" style="background:#eef2fb;"><strong>Tech Notes:</strong> ' + escapeHtml(row.tech_notes) + '</div>';
+                }
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        }).catch(() => { container.innerHTML = '<p style="color:red;">Connection error.</p>'; });
+    }
+
+    function updateMaintStatus(id, status) {
+        supabaseClient.from('maintenance_logs').update({ Status: status }).eq('id', id)
+        .then(({ error }) => { if (error) { alert('Error: ' + error.message); } else { fetchMaintenanceBoard(); } });
+    }
+
+    function updateMaintDeadline(id, value) {
+        supabaseClient.from('maintenance_logs').update({ deadline: value || null }).eq('id', id)
+        .then(({ error }) => { if (error) { alert('Error: ' + error.message); } else { fetchMaintenanceBoard(); } });
+    }
+
+    function saveMaintNote(id, field, textareaId) {
+        const val = document.getElementById(textareaId).value;
+        let updateObj = {}; updateObj[field] = val;
+        supabaseClient.from('maintenance_logs').update(updateObj).eq('id', id)
+        .then(({ error }) => { if (error) alert('Error: ' + error.message); else alert('Saved!'); });
+    }
+
+    function moveMaintPriority(id, dir) {
+        supabaseClient.from('maintenance_logs').select('id,priority_rank').order('priority_rank', { ascending: true }).order('id', { ascending: true })
+        .then(({ data, error }) => {
+            if (error || !data) return alert('Error: ' + (error ? error.message : 'no data'));
+            const idx = data.findIndex(r => r.id === id);
+            const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+            if (idx === -1 || swapIdx < 0 || swapIdx >= data.length) return;
+            const a = data[idx], b = data[swapIdx];
+            const aRank = a.priority_rank, bRank = b.priority_rank;
+            Promise.all([
+                supabaseClient.from('maintenance_logs').update({ priority_rank: bRank }).eq('id', a.id),
+                supabaseClient.from('maintenance_logs').update({ priority_rank: aRank }).eq('id', b.id)
+            ]).then(() => fetchMaintenanceBoard());
+        });
+    }
+
+    // ============================================================
+    // MY MAINTENANCE SUBMISSIONS (Staff)
+    // ============================================================
+    function openMySubmissions() {
+        triggerTransition(() => {
+            document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
+            document.getElementById('mySubmissionsView').style.display = 'block';
+            fetchMySubmissions();
+        });
+    }
+
+    function fetchMySubmissions() {
+        const container = document.getElementById('mySubmissionsResults');
+        container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading your submissions...</p>';
+        supabaseClient.from('maintenance_logs').select('*').or('submitted_by.eq.' + currentUser.name + ',ReporterName.eq.' + currentUser.name).order('id', { ascending: false })
+        .then(({ data, error }) => {
+            if (error || !data) { container.innerHTML = '<p style="color:red;">Error loading submissions: ' + (error ? error.message : 'no data') + '</p>'; return; }
+            if (!data.length) { container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">You have not submitted any maintenance requests yet.</p>'; return; }
+            const todayStr = new Date().toISOString().split('T')[0];
+            let html = '';
+            data.forEach(row => {
+                let status = row.Status || 'Pending';
+                let overdue = row.deadline && status !== 'Resolved' && row.deadline < todayStr;
+                let statusColor = status === 'Resolved' ? 'var(--pass-green)' : (status === 'In Progress' ? 'var(--caliches-blue)' : '#999');
+                html += '<div class="my-sub-card">';
+                html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">';
+                html += '<div><div class="maint-card-title">' + escapeHtml(row.MaintenanceItem) + '</div><div class="maint-card-meta">' + escapeHtml(row.Location) + ' &bull; ' + escapeHtml(row.ReportDate) + '</div></div>';
+                html += '<span class="status-pill" style="background:' + statusColor + ';">' + escapeHtml(status) + '</span>';
+                html += '</div>';
+                html += '<p class="maint-card-desc">' + escapeHtml(row.IssueDescription) + '</p>';
+                if (row.deadline) html += '<div style="font-size:12px;margin-bottom:8px;color:#555;"><strong>Deadline:</strong> ' + escapeHtml(row.deadline) + (overdue ? ' <span style="color:var(--fail-red);font-weight:bold;">(Overdue)</span>' : '') + '</div>';
+                if (row.manager_notes) html += '<div class="maint-readonly-note"><strong>Manager Notes:</strong> ' + escapeHtml(row.manager_notes) + '</div>';
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        }).catch(() => { container.innerHTML = '<p style="color:red;">Connection error.</p>'; });
     }
 
     function refreshCurrentDashboard() { fetchDashboard(currentDashTab, document.querySelector('.dash-tab.active')); }
@@ -722,7 +928,7 @@
             data.forEach(u => {
                 let perms = u.permissions || FORM_KEYS.map(f=>f.key);
                 let checks = FORM_KEYS.map(f => '<label style="margin-right:8px;font-size:11px;font-weight:bold;white-space:nowrap;"><input type="checkbox" data-key="' + f.key + '" ' + (perms.indexOf(f.key)!==-1?'checked':'') + ' style="transform:scale(1.2);vertical-align:middle;"> ' + f.label + '</label>').join('');
-                html += '<tr><td style="font-weight:500;">' + u.name + '</td><td style="color:var(--na-gray);">' + u.username + '</td><td style="color:var(--na-gray);">' + (u.email||'—') + '</td><td><select id="role-select-' + u.id + '" class="role-select"><option value="Blue Apron"' + (u.role==='Blue Apron'?' selected':'') + '>Blue Apron</option><option value="Shift Lead"' + (u.role==='Shift Lead'?' selected':'') + '>Shift Lead</option><option value="Manager"' + (u.role==='Manager'?' selected':'') + '>Manager</option><option value="Admin Manager"' + (u.role==='Admin Manager'?' selected':'') + '>Admin Manager</option></select></td><td><div id="perm-' + u.id + '" style="display:flex;flex-wrap:wrap;gap:2px;max-width:260px;">' + checks + '</div></td><td style="white-space:nowrap;"><button class="update-role-btn" onclick="updateRole(' + u.id + ')">Save Role</button><button class="update-action-btn" onclick="updatePermissions(' + u.id + ')" style="margin-left:5px;">Save Forms</button><button class="delete-btn" onclick="deleteUser(' + u.id + ')">Delete</button></td></tr>';
+                html += '<tr><td style="font-weight:500;">' + u.name + '</td><td style="color:var(--na-gray);">' + u.username + '</td><td style="color:var(--na-gray);">' + (u.email||'—') + '</td><td><select id="role-select-' + u.id + '" class="role-select"><option value="Blue Apron"' + (u.role==='Blue Apron'?' selected':'') + '>Blue Apron</option><option value="Shift Lead"' + (u.role==='Shift Lead'?' selected':'') + '>Shift Lead</option><option value="Manager"' + (u.role==='Manager'?' selected':'') + '>Manager</option><option value="Maintenance"' + (u.role==='Maintenance'?' selected':'') + '>Maintenance</option><option value="Admin Manager"' + (u.role==='Admin Manager'?' selected':'') + '>Admin Manager</option></select></td><td><div id="perm-' + u.id + '" style="display:flex;flex-wrap:wrap;gap:2px;max-width:260px;">' + checks + '</div></td><td style="white-space:nowrap;"><button class="update-role-btn" onclick="updateRole(' + u.id + ')">Save Role</button><button class="update-action-btn" onclick="updatePermissions(' + u.id + ')" style="margin-left:5px;">Save Forms</button><button class="delete-btn" onclick="deleteUser(' + u.id + ')">Delete</button></td></tr>';
             });
             html += '</tbody></table></div>'; results.innerHTML = html;
         }).catch(() => { results.innerHTML = '<p style="color:red;">Connection Error.</p>'; });
@@ -900,9 +1106,10 @@
         const btn = document.getElementById('submitMaintBtn'); const form = document.getElementById('maintenanceForm');
         if(!form.querySelector('input[name="MaintenanceItem"]').value||!form.querySelector('input[name="ReporterName"]').value) { return alert('Please fill out the required fields!'); }
         btn.innerText = 'Generating PDF...'; btn.disabled = true;
+        document.getElementById('maintenanceSubmittedBy').value = currentUser.name || form.querySelector('input[name="ReporterName"]').value;
         let pdfHtml = getBrandHeader('Required Maintenance','#e67e22');
         pdfHtml += '<table border="1" cellpadding="12" style="border-collapse:collapse;width:100%;font-size:15px;border-color:#ddd;">';
-        new FormData(form).forEach((value,key) => { if(key!=='ReportHTML'&&value.toString().trim()!=='') { pdfHtml += '<tr><td style="background:#fdf3e8;font-weight:bold;color:#e67e22;width:40%;">'+key.replace(/([A-Z])/g,' $1').trim().toUpperCase()+'</td><td>'+value+'</td></tr>'; } });
+        new FormData(form).forEach((value,key) => { if(key!=='ReportHTML'&&key!=='submitted_by'&&value.toString().trim()!=='') { pdfHtml += '<tr><td style="background:#fdf3e8;font-weight:bold;color:#e67e22;width:40%;">'+key.replace(/([A-Z])/g,' $1').trim().toUpperCase()+'</td><td>'+value+'</td></tr>'; } });
         if(maintPhotos.length>0) { pdfHtml += '<tr><td style="background:#fdf3e8;font-weight:bold;color:#e67e22;">PHOTOS</td><td><div style="display:flex;gap:10px;flex-wrap:wrap;">'; maintPhotos.forEach(p => { pdfHtml += '<img src="'+p+'" style="max-height:150px;border-radius:8px;border:1px solid #ccc;">'; }); pdfHtml += '</div></td></tr>'; }
         pdfHtml += '</table></div>';
         document.getElementById('maintenanceReportHtml').value = pdfHtml;
