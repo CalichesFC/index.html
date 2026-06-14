@@ -113,6 +113,7 @@
         .prev-arrow{left:10px} .next-arrow{right:10px}
         .app-view{display:none} .back-btn{background:#333;color:white;border:none;padding:12px 20px;font-size:14px;font-weight:bold;width:100%;text-align:left;cursor:pointer}
         .header{background-color:var(--caliches-blue);color:var(--white);text-align:center;padding:20px 10px 14px 10px;box-shadow:0 4px 6px rgba(0,0,0,0.1);position:relative} .logo-img{max-height:115px;width:auto;display:block;margin:0 auto;filter:drop-shadow(0px 2px 4px rgba(0,0,0,0.2))} .header p{margin:0;font-size:14px;font-weight:bold;letter-spacing:2px;text-transform:uppercase}
+        .header .logo-img{margin:0}
         .header-mascot{height:100px;width:auto;display:block;filter:drop-shadow(0px 4px 8px rgba(0,0,0,0.25))}
         .header-stripe{position:absolute;left:0;bottom:0;width:100%;height:6px;background:linear-gradient(90deg,var(--caliches-blue) 0%,var(--caliches-pink) 50%,var(--caliches-yellow) 100%)}
         .container{max-width:700px;margin:15px auto;padding:0 15px}
@@ -153,6 +154,14 @@
         .maint-note-box{width:100%;border-radius:6px;border:1px solid #ccc;padding:6px;font-size:13px;font-family:inherit;box-sizing:border-box;resize:vertical}
         .maint-readonly-note{background:#fdf3e8;padding:8px;border-radius:6px;font-size:13px;margin-bottom:8px}
         .my-sub-card{background:white;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.08);padding:15px;margin-bottom:15px;border-left:6px solid var(--maint-orange);text-align:left}
+        /* Vehicle Maintenance Tracker */
+        .vmt-card{background:white;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.08);padding:15px;margin-bottom:15px;border-left:6px solid var(--caliches-blue);text-align:left}
+        .vmt-title{font-weight:900;font-size:16px;color:var(--caliches-blue);margin-bottom:2px}
+        .vmt-mileage{font-size:12px;color:#888;margin-bottom:10px}
+        .vmt-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #eee;font-size:13px;flex-wrap:wrap}
+        .vmt-chip{display:inline-block;color:white;font-size:11px;font-weight:bold;padding:4px 10px;border-radius:99px;text-transform:uppercase;white-space:nowrap}
+        .vmt-set-btn{background:var(--light-gray);border:1px solid #ddd;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:bold;color:#555;cursor:pointer}
+        .vmt-input{width:80px;padding:5px;border:1px solid #ccc;border-radius:6px;font-size:12px;}
         .status-pill{display:inline-block;color:white;font-size:11px;font-weight:bold;padding:4px 10px;border-radius:99px;text-transform:uppercase}
         /* Progress Bar */
         #progressBarWrapper{position:sticky;top:0;z-index:100;background:white;padding:12px 15px;border-bottom:2px solid #eee;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
@@ -399,6 +408,7 @@
         <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Maintenance Board</p>
     </div>
     <div class="container" style="max-width:700px;">
+        <div id="vehicleMaintTracker"></div>
         <div id="maintBoardResults"><p style="text-align:center;padding:30px;color:#888;">Loading maintenance board...</p></div>
     </div>
 </div>
@@ -574,6 +584,7 @@
         if (currentUser.role === 'Maintenance') {
             document.getElementById('maintenanceBoardView').style.display = 'block';
             fetchMaintenanceBoard();
+            fetchVehicleMaintTracker();
         } else {
             document.getElementById('main-menu').style.display = 'block';
             applyWeeklyQuotes();
@@ -861,6 +872,7 @@
                 if (user.role === 'Maintenance') {
                     document.getElementById('maintenanceBoardView').style.display = 'block';
                     fetchMaintenanceBoard();
+                    fetchVehicleMaintTracker();
                 } else {
                     document.getElementById('main-menu').style.display = 'block';
                 }
@@ -1105,6 +1117,83 @@
             document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
             document.getElementById('maintenanceBoardView').style.display = 'block';
             fetchMaintenanceBoard();
+            fetchVehicleMaintTracker();
+        });
+    }
+
+    // ============================================================
+    // VEHICLE MAINTENANCE TRACKER (mileage-based due dates)
+    // ============================================================
+    let vmtMileageByVehicle = {};
+
+    function fetchVehicleMaintTracker() {
+        const container = document.getElementById('vehicleMaintTracker');
+        if (!container) return;
+        const isManager = (currentUser.role === 'Admin Manager' || currentUser.role === 'Manager');
+        const canEdit = (currentUser.role === 'Maintenance' || isManager);
+        container.innerHTML = '<p style="text-align:center;padding:10px;color:#888;font-size:13px;">Loading vehicle maintenance...</p>';
+        Promise.all([
+            supabaseClient.from('driver_logs').select('vehicle,mileage').order('id', { ascending: false }).limit(200),
+            supabaseClient.from('vehicle_maintenance_schedule').select('*').order('vehicle', { ascending: true }).order('id', { ascending: true })
+        ]).then(([logsRes, schedRes]) => {
+            if (schedRes.error || !schedRes.data) { container.innerHTML = ''; return; }
+            vmtMileageByVehicle = {};
+            (logsRes.data || []).forEach(row => {
+                const v = row.vehicle;
+                const m = parseFloat(row.mileage);
+                if (!v || isNaN(m)) return;
+                if (!vmtMileageByVehicle[v] || m > vmtMileageByVehicle[v]) vmtMileageByVehicle[v] = m;
+            });
+            const byVehicle = {};
+            schedRes.data.forEach(row => {
+                if (!byVehicle[row.vehicle]) byVehicle[row.vehicle] = [];
+                byVehicle[row.vehicle].push(row);
+            });
+            let html = '<h2 style="margin:0 0 10px 0;color:var(--caliches-blue);font-size:16px;">&#128663; Vehicle Maintenance Tracker</h2>';
+            Object.keys(byVehicle).forEach(vehicle => {
+                const currentMileage = vmtMileageByVehicle[vehicle];
+                html += '<div class="vmt-card">';
+                html += '<div class="vmt-title">' + escapeHtml(vehicle) + '</div>';
+                html += '<div class="vmt-mileage">Current Mileage: ' + (currentMileage != null ? currentMileage.toLocaleString() + ' mi (from latest driver log)' : 'No mileage logged yet') + '</div>';
+                byVehicle[vehicle].forEach(item => {
+                    let statusChip, statusColor, remainText = '';
+                    if (item.last_service_mileage == null || currentMileage == null) {
+                        statusColor = '#999'; statusChip = 'Not Set';
+                    } else {
+                        const dueAt = item.last_service_mileage + item.interval_miles;
+                        const remaining = dueAt - currentMileage;
+                        if (remaining <= 0) { statusColor = 'var(--fail-red)'; statusChip = 'Overdue'; }
+                        else if (remaining <= 500) { statusColor = 'var(--maint-orange)'; statusChip = 'Due Soon'; }
+                        else { statusColor = 'var(--pass-green)'; statusChip = 'OK'; }
+                        remainText = (remaining >= 0 ? Math.round(remaining).toLocaleString() + ' mi left' : Math.abs(Math.round(remaining)).toLocaleString() + ' mi over');
+                    }
+                    html += '<div class="vmt-row">';
+                    html += '<div><strong>' + escapeHtml(item.service_type) + '</strong><br><span style="color:#888;font-size:11px;">Every ' + item.interval_miles.toLocaleString() + ' mi' + (item.last_service_mileage != null ? ' &bull; last serviced at ' + item.last_service_mileage.toLocaleString() + ' mi' : '') + '</span></div>';
+                    html += '<div style="display:flex;align-items:center;gap:8px;">';
+                    if (remainText) html += '<span style="font-size:11px;color:#888;">' + remainText + '</span>';
+                    html += '<span class="vmt-chip" style="background:' + statusColor + ';">' + statusChip + '</span>';
+                    if (canEdit) html += '<button class="vmt-set-btn" onclick="markServiceDone(' + item.id + ')">Mark Serviced</button>';
+                    html += '</div></div>';
+                });
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        }).catch(() => { container.innerHTML = ''; });
+    }
+
+    function markServiceDone(scheduleId) {
+        supabaseClient.from('vehicle_maintenance_schedule').select('vehicle,service_type').eq('id', scheduleId).single()
+        .then(({ data, error }) => {
+            if (error || !data) { alert('Error: could not load item.'); return; }
+            const currentMileage = vmtMileageByVehicle[data.vehicle];
+            const defaultMileage = currentMileage != null ? currentMileage : 0;
+            const input = prompt('Mark "' + data.service_type + '" for ' + data.vehicle + ' as serviced at what mileage?', defaultMileage);
+            if (input === null) return;
+            const mileage = parseInt(input, 10);
+            if (isNaN(mileage)) { alert('Please enter a valid mileage.'); return; }
+            const today = new Date().toISOString().split('T')[0];
+            supabaseClient.from('vehicle_maintenance_schedule').update({ last_service_mileage: mileage, last_service_date: today }).eq('id', scheduleId)
+            .then(({ error }) => { if (error) alert('Error: ' + error.message); else fetchVehicleMaintTracker(); });
         });
     }
 
@@ -1699,6 +1788,7 @@
         pdfHtml += '<table border="1" cellpadding="10" style="border-collapse:collapse;width:100%;font-size:14px;border-color:#ccc;margin-bottom:20px;"><tr><td style="width:50%;"><strong>Contact\'s Name:</strong> ' + contactName + '</td><td><strong>Company:</strong> ' + (company || '&mdash;') + '</td></tr><tr><td><strong>Contact\'s Tel:</strong> ' + (phone || '&mdash;') + '</td><td><strong>Contact Email:</strong> ' + (email || '&mdash;') + '</td></tr><tr><td><strong>Event Date:</strong> ' + eventDateStr + '</td><td><strong>Event Type:</strong> ' + (eventType || '&mdash;') + '</td></tr></table>';
         pdfHtml += '<table border="1" cellpadding="10" style="border-collapse:collapse;width:100%;font-size:14px;border-color:#ccc;"><tr style="background:#f0f0f0;"><th style="text-align:left;">Quantity</th><th style="text-align:left;">Description</th><th style="text-align:left;">Price</th><th style="text-align:left;">Subtotal</th></tr>';
         let subtotal = 0;
+        let lineItemsArr = [];
         document.querySelectorAll('#quoteItemsContainer .quote-row').forEach(row => {
             const qty = parseFloat(row.querySelector('.quote-qty').value) || 0;
             const desc = row.querySelector('.quote-desc').value || '';
@@ -1706,6 +1796,7 @@
             if (!desc) return;
             const lineSub = qty * price;
             subtotal += lineSub;
+            lineItemsArr.push({ qty: qty, desc: desc, price: price, subtotal: lineSub });
             pdfHtml += '<tr><td>' + qty + '</td><td>' + desc + '</td><td style="text-align:right;">$' + price.toFixed(2) + '</td><td style="text-align:right;">$' + lineSub.toFixed(2) + '</td></tr>';
         });
         pdfHtml += '</table>';
@@ -1724,12 +1815,36 @@
             console.log('[Quote] GAS:', googleData);
             btn.disabled = false; btn.innerText = '\u{1F680} GENERATE QUOTE PDF';
             const linkDiv = document.getElementById('quoteResultLink');
-            if (googleData.pdfUrl && googleData.pdfUrl !== 'No PDF') {
-                linkDiv.innerHTML = '<a href="' + googleData.pdfUrl + '" target="_blank" style="display:inline-block;background:#7b2d8b;color:white;padding:14px 28px;border-radius:8px;font-weight:bold;text-decoration:none;">\u{1F4C4} View / Download Quote PDF</a>';
+            const pdfUrl = (googleData.pdfUrl && googleData.pdfUrl !== 'No PDF') ? googleData.pdfUrl : null;
+            if (pdfUrl) {
+                linkDiv.innerHTML = '<a href="' + pdfUrl + '" target="_blank" style="display:inline-block;background:#7b2d8b;color:white;padding:14px 28px;border-radius:8px;font-weight:bold;text-decoration:none;">\u{1F4C4} View / Download Quote PDF</a>';
             } else {
                 linkDiv.innerHTML = '<p style="color:#e74c3c;">PDF generation failed. Please try again.</p>';
             }
             linkDiv.style.display = 'block';
+
+            // Persist quote to Supabase for status tracking / pipeline
+            supabaseClient.from('quotes').insert([{
+                order_num: orderNum,
+                contact_name: contactName,
+                company: company || null,
+                contact_phone: phone || null,
+                contact_email: email || null,
+                event_date: eventDate,
+                event_type: eventType || null,
+                notes: notes || null,
+                line_items: lineItemsArr,
+                subtotal: subtotal,
+                tax: tax,
+                total: total,
+                pdf_url: pdfUrl,
+                status: 'Pending',
+                submitted_by: currentUser.name || null
+            }]).select()
+            .then(({ data, error }) => {
+                if (error) { console.error('[Quote] Supabase insert error:', error.code, error.message); }
+                else { console.log('[Quote] Saved to quotes table:', data); }
+            }).catch(err => console.error('[Quote] Unexpected Supabase error:', err));
         })
         .catch(err => { console.error('[Quote] GAS error:', err); alert('Could not reach PDF server: ' + err.message); btn.disabled = false; btn.innerText = '\u{1F680} GENERATE QUOTE PDF'; });
     }
