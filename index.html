@@ -273,6 +273,14 @@
 <!-- DRAFT TOAST -->
 <div id="draftToast">💾 Draft saved</div>
 
+<!-- QUOTE ACCEPTANCE VIEW (public, no login required) -->
+<div id="quoteAcceptView" style="display:none; min-height:100vh; background:var(--caliches-blue); flex-direction:column; align-items:center; padding:30px 15px; box-sizing:border-box;">
+    <img src="splash-logo.png" alt="Caliche's Logo" style="max-height:120px;margin-bottom:20px;filter:drop-shadow(0px 6px 12px rgba(0,0,0,0.3));" onerror="this.style.display='none'">
+    <div style="background:white;border-radius:16px;padding:25px;max-width:500px;width:100%;box-shadow:0 8px 20px rgba(0,0,0,0.2);box-sizing:border-box;">
+        <div id="quoteAcceptContent" style="text-align:center;color:#666;">Loading your quote&hellip;</div>
+    </div>
+</div>
+
 <!-- LOGIN VIEW -->
 <div id="login-view" class="app-view" style="display:none;">
     <div style="display:flex;align-items:flex-end;justify-content:center;gap:10px;margin-bottom:10px;">
@@ -593,7 +601,60 @@
         resetTimer();
     }
 
+    // ============================================================
+    // QUOTE ACCEPTANCE (public link, no login required)
+    // ============================================================
+    function renderQuoteAccept(quote) {
+        const c = document.getElementById('quoteAcceptContent');
+        if (!quote) {
+            c.innerHTML = '<h2 style="color:var(--fail-red);margin-top:0;">Quote Not Found</h2><p style="color:#666;">This link is invalid or has expired. Please contact Caliche\'s Frozen Custard directly for help.</p>';
+            return;
+        }
+        let itemsHtml = (quote.line_items || []).map(li =>
+            '<tr><td style="padding:6px 4px;border-bottom:1px solid #eee;">' + escapeHtml(li.desc) + ' &times; ' + li.qty + '</td><td style="padding:6px 4px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap;">$' + Number(li.subtotal).toFixed(2) + '</td></tr>'
+        ).join('');
+        let header = '<h2 style="color:var(--caliches-blue);margin-top:0;">Catering Quote #' + escapeHtml(String(quote.order_num)) + '</h2>' +
+            '<p style="color:#666;margin:0 0 15px 0;font-size:14px;">For: <strong>' + escapeHtml(quote.contact_name || '') + '</strong>' + (quote.company ? ' (' + escapeHtml(quote.company) + ')' : '') + '<br>Event Date: ' + escapeHtml(quote.event_date || 'TBD') + (quote.event_type ? '<br>Event Type: ' + escapeHtml(quote.event_type) : '') + '</p>' +
+            '<table style="width:100%;border-collapse:collapse;margin-bottom:10px;font-size:14px;">' + itemsHtml + '</table>' +
+            '<div style="text-align:right;font-size:14px;color:#444;line-height:1.6;"><div>Subtotal: $' + Number(quote.subtotal).toFixed(2) + '</div><div>Tax: $' + Number(quote.tax).toFixed(2) + '</div><div style="font-weight:900;font-size:20px;color:var(--caliches-blue);margin-top:5px;">Total: $' + Number(quote.total).toFixed(2) + '</div></div>';
+
+        if (quote.status === 'Accepted') {
+            c.innerHTML = header + '<div style="margin-top:20px;padding:15px;background:#eafaf0;border-radius:8px;text-align:center;color:var(--pass-green);font-weight:bold;">&#10003; Quote Accepted' + (quote.accepted_at ? ' on ' + new Date(quote.accepted_at).toLocaleDateString() : '') + '!<br><span style="font-weight:normal;font-size:13px;color:#555;">We\'ll be in touch to finalize the details.</span></div>' +
+                (quote.pdf_url ? '<a href="' + quote.pdf_url + '" target="_blank" style="display:block;text-align:center;margin-top:15px;color:var(--caliches-blue);font-weight:bold;text-decoration:underline;">View Full PDF</a>' : '');
+        } else {
+            c.innerHTML = header +
+                '<button class="save-btn green-btn" style="margin-top:15px;margin-bottom:10px;" onclick="acceptQuote(\'' + quote.accept_token + '\')">&#10003; Accept This Quote</button>' +
+                (quote.pdf_url ? '<a href="' + quote.pdf_url + '" target="_blank" style="display:block;text-align:center;color:var(--caliches-blue);font-weight:bold;text-decoration:underline;">View Full PDF</a>' : '');
+        }
+    }
+
+    function checkQuoteAcceptRoute() {
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('accept');
+        if (!token) return false;
+        document.getElementById('splash-screen').style.display = 'none';
+        document.getElementById('quoteAcceptView').style.display = 'flex';
+        supabaseClient.from('quotes').select('*').eq('accept_token', token).maybeSingle()
+            .then(({ data, error }) => {
+                if (error) { console.error('[QuoteAccept] fetch error:', error.message); renderQuoteAccept(null); return; }
+                renderQuoteAccept(data);
+            }).catch(err => { console.error('[QuoteAccept] unexpected fetch error:', err); renderQuoteAccept(null); });
+        return true;
+    }
+
+    function acceptQuote(token) {
+        const c = document.getElementById('quoteAcceptContent');
+        c.style.opacity = '0.6';
+        supabaseClient.from('quotes').update({ status: 'Accepted', accepted_at: new Date().toISOString() }).eq('accept_token', token).select().single()
+            .then(({ data, error }) => {
+                c.style.opacity = '1';
+                if (error) { console.error('[QuoteAccept] update error:', error.message); alert('Something went wrong accepting this quote. Please contact us directly.'); return; }
+                renderQuoteAccept(data);
+            }).catch(err => { c.style.opacity = '1'; console.error('[QuoteAccept] unexpected update error:', err); alert('Something went wrong accepting this quote. Please contact us directly.'); });
+    }
+
     window.addEventListener('load', function() {
+        if (checkQuoteAcceptRoute()) return;
         addQuoteRow(); addQuoteRow(); addQuoteRow();
         let savedUser = localStorage.getItem('calichesUser');
         if (savedUser) {
@@ -1843,7 +1904,25 @@
             }]).select()
             .then(({ data, error }) => {
                 if (error) { console.error('[Quote] Supabase insert error:', error.code, error.message); }
-                else { console.log('[Quote] Saved to quotes table:', data); }
+                else {
+                    console.log('[Quote] Saved to quotes table:', data);
+                    if (data && data[0] && data[0].accept_token) {
+                        const acceptUrl = window.location.origin + window.location.pathname + '?accept=' + data[0].accept_token;
+                        const linkBtn = document.createElement('button');
+                        linkBtn.className = 'save-btn blue-btn';
+                        linkBtn.style.marginTop = '12px';
+                        linkBtn.style.marginBottom = '0';
+                        linkBtn.innerText = '\u{1F517} Copy Customer Acceptance Link';
+                        linkBtn.onclick = function() {
+                            navigator.clipboard.writeText(acceptUrl).then(() => {
+                                linkBtn.innerText = '✅ Link Copied!';
+                                setTimeout(() => { linkBtn.innerText = '\u{1F517} Copy Customer Acceptance Link'; }, 2000);
+                            }).catch(() => { alert('Acceptance link:\n' + acceptUrl); });
+                        };
+                        linkDiv.appendChild(document.createElement('br'));
+                        linkDiv.appendChild(linkBtn);
+                    }
+                }
             }).catch(err => console.error('[Quote] Unexpected Supabase error:', err));
         })
         .catch(err => { console.error('[Quote] GAS error:', err); alert('Could not reach PDF server: ' + err.message); btn.disabled = false; btn.innerText = '\u{1F680} GENERATE QUOTE PDF'; });
