@@ -1703,7 +1703,7 @@
             const qty = parseFloat(row.querySelector('.quote-qty').value) || 0;
             const desc = row.querySelector('.quote-desc').value || '';
             const price = parseFloat(row.querySelector('.quote-price').value) || 0;
-            if (!desc && !qty && !price) return;
+            if (!desc) return;
             const lineSub = qty * price;
             subtotal += lineSub;
             pdfHtml += '<tr><td>' + qty + '</td><td>' + desc + '</td><td style="text-align:right;">$' + price.toFixed(2) + '</td><td style="text-align:right;">$' + lineSub.toFixed(2) + '</td></tr>';
