@@ -31,6 +31,9 @@
         .user-greeting { color:var(--caliches-blue); font-weight:900; font-size:16px; margin:0; text-align:left; }
         .user-role { color:var(--na-gray); font-size:12px; font-weight:bold; text-transform:uppercase; letter-spacing:1px; margin:0; text-align:left; }
         .logout-btn { background:#f8f9fa; color:var(--fail-red); border:1px solid var(--fail-red); padding:8px 15px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:12px; }
+        .icon-circle-btn { background:#f8f9fa; border:1px solid #ddd; border-radius:50%; width:38px; height:38px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+        #globalRefreshBtn { position:fixed; bottom:18px; right:18px; z-index:500; background:var(--caliches-blue); color:white; border:none; width:48px; height:48px; border-radius:50%; font-size:21px; box-shadow:0 4px 10px rgba(0,0,0,0.25); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+        #globalRefreshBtn:active { transform:scale(0.95); }
 
         /* NOTIFICATION BELL & PANEL */
         .notif-bell-wrap { position: relative; }
@@ -130,6 +133,9 @@
 <div id="neon-loader"><div class="neon-spinner"></div><div class="neon-text">Loading</div></div>
 <div id="splash-screen"><img src="splash-logo.png" alt="Caliche's Logo" class="splash-logo" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<h1 style=\'color:white;font-size:40px;\'>Caliche\'s</h1>');"></div>
 
+<!-- GLOBAL REFRESH BUTTON -->
+<button id="globalRefreshBtn" onclick="refreshApp()" title="Refresh App">&#128260;</button>
+
 <!-- FORGOT PIN MODAL -->
 <div id="forgotPinModal" class="modal-overlay">
     <div class="modal-box">
@@ -140,6 +146,18 @@
         <p id="forgotPinError" style="color:var(--fail-red);display:none;font-size:13px;font-weight:bold;margin-bottom:12px;"></p>
         <button id="forgotPinBtn" class="save-btn blue-btn" style="margin-bottom:12px;padding:15px;" onclick="submitForgotPin()">Send My PIN</button>
         <span class="text-link" onclick="closeForgotPin()">Cancel</span>
+    </div>
+</div>
+
+<!-- BIOMETRIC LOCK MODAL -->
+<div id="biometricLockModal" class="modal-overlay" style="z-index:99999;">
+    <div class="modal-box">
+        <h1 style="font-size:40px;margin:0 0 10px 0;">&#128272;</h1>
+        <h2 style="color:var(--caliches-blue);margin-top:0;font-size:22px;">Welcome Back<span id="bioWelcomeName"></span></h2>
+        <p style="color:#666;font-size:14px;margin-bottom:20px;">Use Face ID / Touch ID / Fingerprint to unlock the app.</p>
+        <p id="bioLockError" style="color:var(--fail-red);display:none;font-size:13px;font-weight:bold;margin-bottom:12px;"></p>
+        <button id="bioUnlockBtn" class="save-btn blue-btn" style="margin-bottom:12px;padding:15px;" onclick="biometricUnlock()">&#128272; Unlock</button>
+        <span class="text-link" onclick="biometricFallbackLogout()">Use PIN Instead</span>
     </div>
 </div>
 
@@ -191,6 +209,7 @@
                         <div class="notif-loading">Loading...</div>
                     </div>
                 </div>
+                <button id="bioToggleBtn" class="icon-circle-btn" onclick="toggleBiometric()" title="Enable Face/Touch ID Unlock">&#128272;</button>
                 <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
     </div>
@@ -250,7 +269,7 @@
             <button class="dash-tab" onclick="fetchDashboard('Maintenance Logs',this)">Maint.</button>
             <button class="dash-tab" onclick="fetchDashboard('Damage Reports',this)">Damage</button>
             <button class="dash-tab" style="background:var(--caliches-pink);color:white;" onclick="fetchUsers(this)">&#128101; Users</button>
-            <button class="dash-tab" style="background:#7b2d8b;color:white;" onclick="fetchActivityLog(this)">&#128196; Activity</button>
+            <button class="dash-tab" style="background:#7b2d8b;color:white;display:none;" onclick="fetchActivityLog(this)">&#128196; Activity</button>
         </div>
         <div class="filter-box" id="dashboardFilterDiv">
             <label style="font-size:14px;font-weight:bold;color:var(--caliches-blue);">&#128197; Filter: </label>
@@ -386,6 +405,17 @@
     // ============================================================
     // ON LOAD
     // ============================================================
+    function enterAppView() {
+        document.getElementById('splash-screen').style.display = 'none';
+        if (currentUser.role === 'Maintenance') {
+            document.getElementById('maintenanceBoardView').style.display = 'block';
+            fetchMaintenanceBoard();
+        } else {
+            document.getElementById('main-menu').style.display = 'block';
+        }
+        resetTimer();
+    }
+
     window.addEventListener('load', function() {
         let savedUser = localStorage.getItem('calichesUser');
         if (savedUser) {
@@ -395,14 +425,14 @@
             applyRoleUI();
             setupNotifications();
             applyFormPermissions();
-            document.getElementById('splash-screen').style.display = 'none';
-            if (currentUser.role === 'Maintenance') {
-                document.getElementById('maintenanceBoardView').style.display = 'block';
-                fetchMaintenanceBoard();
+            let bioId = localStorage.getItem('calichesBiometricId');
+            if (bioId && window.PublicKeyCredential) {
+                document.getElementById('splash-screen').style.display = 'none';
+                document.getElementById('bioWelcomeName').innerText = ', ' + currentUser.name;
+                document.getElementById('biometricLockModal').style.display = 'flex';
             } else {
-                document.getElementById('main-menu').style.display = 'block';
+                enterAppView();
             }
-            resetTimer();
         } else {
             setTimeout(function() {
                 document.getElementById('splash-screen').style.opacity = '0';
@@ -427,6 +457,14 @@
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js').catch(err => console.log('SW error:', err));
         }
+    });
+
+    // If the app is restored from the back-forward cache (e.g. reopened from
+    // the phone's app switcher after being closed), force a full reload so it
+    // always restarts from the main menu / login screen instead of whatever
+    // screen it was left on.
+    window.addEventListener('pageshow', function(e) {
+        if (e.persisted) { location.reload(); }
     });
 
     // ============================================================
@@ -642,7 +680,7 @@
             if (error) { errorMsg.innerText = 'Login error (' + error.code + '): ' + error.message; errorMsg.style.display = 'block'; btn.innerText = 'ENTER HUB'; btn.disabled = false; return; }
             if (!data || data.length === 0) { errorMsg.innerText = 'Invalid Username or PIN. Please try again.'; errorMsg.style.display = 'block'; btn.innerText = 'ENTER HUB'; btn.disabled = false; return; }
             const user = data[0];
-            currentUser.name = user.name; currentUser.role = user.role; currentUser.permissions = user.permissions || null;
+            currentUser.name = user.name; currentUser.role = user.role; currentUser.permissions = user.permissions || null; currentUser.maint_board_access = (user.maint_board_access !== false);
             localStorage.setItem('calichesUser', JSON.stringify(currentUser));
             logActivity(user.username, user.name, 'login');
             document.getElementById('greetingName').innerText = 'Hello, ' + user.name;
@@ -693,6 +731,100 @@
     }
 
     // ============================================================
+    // REFRESH APP
+    // ============================================================
+    function refreshApp() {
+        const btn = document.getElementById('globalRefreshBtn');
+        if (btn) { btn.style.transform = 'rotate(360deg)'; btn.style.transition = 'transform 0.6s'; }
+        if ('caches' in window) {
+            caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
+                .then(() => location.reload())
+                .catch(() => location.reload());
+        } else {
+            location.reload();
+        }
+    }
+
+    // ============================================================
+    // BIOMETRIC (FACE ID / TOUCH ID / FINGERPRINT) APP LOCK
+    // ============================================================
+    function bufferToBase64(buf) {
+        return btoa(String.fromCharCode.apply(null, new Uint8Array(buf)));
+    }
+    function base64ToBuffer(base64) {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes;
+    }
+    function updateBioToggleBtn() {
+        const btn = document.getElementById('bioToggleBtn');
+        if (!btn) return;
+        if (!window.PublicKeyCredential) { btn.style.display = 'none'; return; }
+        const enabled = !!localStorage.getItem('calichesBiometricId');
+        btn.style.display = 'flex';
+        btn.title = enabled ? 'Disable Face/Touch ID Unlock' : 'Enable Face/Touch ID Unlock';
+        btn.style.background = enabled ? 'var(--pass-green)' : '#f8f9fa';
+        btn.style.color = enabled ? 'white' : '#333';
+    }
+    function toggleBiometric() {
+        let bioId = localStorage.getItem('calichesBiometricId');
+        if (bioId) {
+            if (confirm('Turn off Face ID / Touch ID unlock for this device?')) {
+                localStorage.removeItem('calichesBiometricId');
+                updateBioToggleBtn();
+                alert('Biometric unlock has been turned off.');
+            }
+            return;
+        }
+        if (!window.PublicKeyCredential) { alert('This device or browser does not support Face ID / Touch ID / fingerprint unlock.'); return; }
+        PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(available => {
+            if (!available) { alert('No Face ID / Touch ID / fingerprint sensor was found on this device.'); return; }
+            const challenge = new Uint8Array(32); crypto.getRandomValues(challenge);
+            const userId = new Uint8Array(16); crypto.getRandomValues(userId);
+            navigator.credentials.create({
+                publicKey: {
+                    challenge: challenge,
+                    rp: { name: "Caliche's Operations Hub" },
+                    user: { id: userId, name: currentUser.name || 'user', displayName: currentUser.name || 'User' },
+                    pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
+                    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+                    timeout: 60000
+                }
+            }).then(cred => {
+                localStorage.setItem('calichesBiometricId', bufferToBase64(cred.rawId));
+                updateBioToggleBtn();
+                alert('Face ID / Touch ID unlock is now enabled on this device!');
+            }).catch(err => { alert('Could not set up biometric unlock: ' + err.message); });
+        });
+    }
+    function biometricUnlock() {
+        let bioId = localStorage.getItem('calichesBiometricId');
+        const errEl = document.getElementById('bioLockError');
+        errEl.style.display = 'none';
+        if (!bioId || !window.PublicKeyCredential) { biometricFallbackLogout(); return; }
+        const challenge = new Uint8Array(32); crypto.getRandomValues(challenge);
+        navigator.credentials.get({
+            publicKey: {
+                challenge: challenge,
+                allowCredentials: [{ id: base64ToBuffer(bioId), type: 'public-key' }],
+                userVerification: 'required',
+                timeout: 60000
+            }
+        }).then(() => {
+            document.getElementById('biometricLockModal').style.display = 'none';
+            enterAppView();
+        }).catch(err => {
+            errEl.innerText = 'Unlock failed: ' + err.message;
+            errEl.style.display = 'block';
+        });
+    }
+    function biometricFallbackLogout() {
+        document.getElementById('biometricLockModal').style.display = 'none';
+        logout();
+    }
+
+    // ============================================================
     // NAVIGATION
     // ============================================================
     function triggerTransition(callback) { const loader = document.getElementById('neon-loader'); loader.style.display = 'flex'; setTimeout(() => { loader.style.opacity = '1'; }, 10); setTimeout(() => { callback(); window.scrollTo(0,0); loader.style.opacity = '0'; setTimeout(() => { loader.style.display = 'none'; }, 300); }, 1200); }
@@ -721,9 +853,11 @@
     function applyRoleUI() {
         const role = currentUser.role;
         const isManager = (role === 'Admin Manager' || role === 'Manager');
+        const maintBoardAllowed = (currentUser.maint_board_access !== false);
         document.getElementById('managerBtn').style.display = (role === 'Admin Manager') ? 'block' : 'none';
-        document.getElementById('maintBoardBtn').style.display = isManager ? 'block' : 'none';
+        document.getElementById('maintBoardBtn').style.display = (isManager && maintBoardAllowed) ? 'block' : 'none';
         document.getElementById('mySubmissionsBtn').style.display = (role === 'Maintenance') ? 'none' : 'block';
+        updateBioToggleBtn();
     }
 
     function maintBoardBack() {
@@ -746,7 +880,8 @@
         supabaseClient.from('maintenance_logs').select('*').order('priority_rank', { ascending: true }).order('id', { ascending: true })
         .then(({ data, error }) => {
             if (error || !data) { container.innerHTML = '<p style="color:red;">Error loading board: ' + (error ? error.message : 'no data') + '</p>'; return; }
-            if (!data.length) { container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">No maintenance tickets. Great job! &#127881;</p>'; return; }
+            data = data.filter(row => (row.Status || 'Pending') !== 'Resolved');
+            if (!data.length) { container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">No open maintenance tickets. Great job! &#127881;</p>'; return; }
             const todayStr = new Date().toISOString().split('T')[0];
             let html = '';
             data.forEach((row, idx) => {
@@ -814,9 +949,10 @@
     }
 
     function moveMaintPriority(id, dir) {
-        supabaseClient.from('maintenance_logs').select('id,priority_rank').order('priority_rank', { ascending: true }).order('id', { ascending: true })
+        supabaseClient.from('maintenance_logs').select('id,priority_rank,Status').order('priority_rank', { ascending: true }).order('id', { ascending: true })
         .then(({ data, error }) => {
             if (error || !data) return alert('Error: ' + (error ? error.message : 'no data'));
+            data = data.filter(r => (r.Status || 'Pending') !== 'Resolved');
             const idx = data.findIndex(r => r.id === id);
             const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
             if (idx === -1 || swapIdx < 0 || swapIdx >= data.length) return;
@@ -928,6 +1064,10 @@
             data.forEach(u => {
                 let perms = u.permissions || FORM_KEYS.map(f=>f.key);
                 let checks = FORM_KEYS.map(f => '<label style="margin-right:8px;font-size:11px;font-weight:bold;white-space:nowrap;"><input type="checkbox" data-key="' + f.key + '" ' + (perms.indexOf(f.key)!==-1?'checked':'') + ' style="transform:scale(1.2);vertical-align:middle;"> ' + f.label + '</label>').join('');
+                if (u.role === 'Manager' || u.role === 'Admin Manager') {
+                    let maintBoardChecked = (u.maint_board_access !== false);
+                    checks += '<label style="margin-right:8px;font-size:11px;font-weight:bold;white-space:nowrap;color:var(--maint-orange);"><input type="checkbox" id="mb-' + u.id + '" ' + (maintBoardChecked?'checked':'') + ' style="transform:scale(1.2);vertical-align:middle;"> Maint. Board</label>';
+                }
                 html += '<tr><td style="font-weight:500;">' + u.name + '</td><td style="color:var(--na-gray);">' + u.username + '</td><td style="color:var(--na-gray);">' + (u.email||'—') + '</td><td><select id="role-select-' + u.id + '" class="role-select"><option value="Blue Apron"' + (u.role==='Blue Apron'?' selected':'') + '>Blue Apron</option><option value="Shift Lead"' + (u.role==='Shift Lead'?' selected':'') + '>Shift Lead</option><option value="Manager"' + (u.role==='Manager'?' selected':'') + '>Manager</option><option value="Maintenance"' + (u.role==='Maintenance'?' selected':'') + '>Maintenance</option><option value="Admin Manager"' + (u.role==='Admin Manager'?' selected':'') + '>Admin Manager</option></select></td><td><div id="perm-' + u.id + '" style="display:flex;flex-wrap:wrap;gap:2px;max-width:260px;">' + checks + '</div></td><td style="white-space:nowrap;"><button class="update-role-btn" onclick="updateRole(' + u.id + ')">Save Role</button><button class="update-action-btn" onclick="updatePermissions(' + u.id + ')" style="margin-left:5px;">Save Forms</button><button class="delete-btn" onclick="deleteUser(' + u.id + ')">Delete</button></td></tr>';
             });
             html += '</tbody></table></div>'; results.innerHTML = html;
@@ -942,8 +1082,11 @@
     function updatePermissions(id) {
         let container = document.getElementById('perm-' + id);
         if (!container) return;
-        let checked = Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(c => c.dataset.key);
-        supabaseClient.from('users').update({ permissions: checked }).eq('id', id).then(({ error }) => { if(!error) alert('Form access updated!'); else alert('Error: ' + error.message); });
+        let checked = Array.from(container.querySelectorAll('input[type="checkbox"][data-key]:checked')).map(c => c.dataset.key);
+        let updateObj = { permissions: checked };
+        let mbCheckbox = document.getElementById('mb-' + id);
+        if (mbCheckbox) updateObj.maint_board_access = mbCheckbox.checked;
+        supabaseClient.from('users').update(updateObj).eq('id', id).then(({ error }) => { if(!error) alert('Form access updated!'); else alert('Error: ' + error.message); });
     }
 
     function deleteUser(id) {
