@@ -363,6 +363,7 @@
     <button id="managerBtn" class="menu-btn dark" style="display:none;" onclick="openDashboard()">&#128202; View Manager Dashboard</button>
     <button id="developerBtn" class="menu-btn dark" style="display:none;background:#222;" onclick="openTrainingPortal()">&#128187; Developer: Training Portal</button>
     <button id="quotesBtn" class="menu-btn purple" style="display:none;" onclick="openForm('quotesView')">&#128221; Create Catering Quote</button>
+    <button id="salesPipelineBtn" class="menu-btn purple" style="display:none;" onclick="openSalesPipeline()">&#128202; Sales Pipeline</button>
     <button id="previewToggleBtn" class="menu-btn dark" style="display:none;background:#555;" onclick="togglePreviewMode()">&#128065; Preview as Staff (Hide Dev Tabs)</button>
     <button id="installBtn" class="menu-btn purple" style="display:none;" onclick="installApp()">&#128242; Install App on Phone</button>
         </div>
@@ -533,6 +534,21 @@
 
 <!-- QUOTES VIEW (Issac only) -->
 <div id="quotesView" class="app-view"><button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button><div class="header" style="background-color:#7b2d8b;"><div style="display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;"><img src="catering-logo.png" alt="Catering Logo" class="logo-img" onerror="this.src='splash-logo.png'"><img src="cherry-wave2.png" alt="Cherry" class="header-mascot" onerror="this.style.display='none'"></div><h1 style="font-size:40px;margin:10px 0;">&#128221;</h1><p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">CREATE CATERING QUOTE</p><div class="header-stripe"></div></div><div class="container"><form id="quoteForm"><div class="info-group"><div><label class="form-label">Contact's Name:</label><input type="text" name="ContactName" placeholder="Customer name" required></div><div><label class="form-label">Company:</label><input type="text" name="Company" placeholder="Company (if applicable)"></div><div><label class="form-label">Contact's Phone:</label><input type="tel" name="ContactPhone" placeholder="(555) 555-5555"></div><div><label class="form-label">Contact Email:</label><input type="email" name="ContactEmail" placeholder="email@example.com"></div><div><label class="form-label">Event Date:</label><input type="date" name="EventDate" required></div><div><label class="form-label">Event Type:</label><input type="text" name="EventType" placeholder="e.g., Birthday Party, Wedding, Corporate Event"></div></div><div class="category"><h2>Line Items</h2><div style="display:flex;gap:8px;font-size:12px;font-weight:bold;color:#888;text-transform:uppercase;margin-bottom:6px;"><div style="flex:0 0 70px;">Qty</div><div style="flex:1 1 200px;">Description</div><div style="flex:0 0 100px;">Price ($)</div><div style="flex:0 0 100px;">Subtotal</div><div style="flex:0 0 36px;"></div></div><div id="quoteItemsContainer"></div><button type="button" class="photo-btn" onclick="addQuoteRow()" style="margin-top:10px;">&#10133; Add Item</button></div><div class="category"><h2>Notes</h2><textarea name="Notes" rows="3" placeholder="Additional notes for the customer..."></textarea></div><div style="background:#7b2d8b;color:white;padding:20px;border-radius:12px;margin-bottom:30px;"><div style="display:flex;justify-content:space-between;font-size:16px;margin-bottom:6px;"><span>Subtotal:</span><span id="quoteSubtotal">$0.00</span></div><div style="display:flex;justify-content:space-between;font-size:16px;margin-bottom:6px;"><span>Tax (8.39%):</span><span id="quoteTax">$0.00</span></div><div style="display:flex;justify-content:space-between;font-size:22px;font-weight:900;border-top:1px solid rgba(255,255,255,0.3);padding-top:10px;margin-top:10px;"><span>Grand Total:</span><span id="quoteTotal">$0.00</span></div></div><div class="category"><h2>Booking &amp; Payment Policy</h2><p style="font-size:13px;color:#666;line-height:1.6;">Updated Booking and Payment Policy: At Caliche's Frozen Custard, we've updated our booking and payment terms to better serve our clients. We no longer require a 50% non-refundable deposit to secure your event. To confirm your booking, simply respond with your approval to your Caliche's Frozen Custard contact, and we will take care of scheduling your event. The full balance is due on the day of the event, offering you greater flexibility. We accept payments in cash, by check, or online via credit card, according to what's most convenient for you.</p></div><input type="hidden" id="quoteReportHtml" name="ReportHTML"><button type="button" id="submitQuoteBtn" class="save-btn" style="background-color:#7b2d8b;" onclick="submitQuote()">&#128640; GENERATE QUOTE PDF</button><div id="quoteResultLink" style="display:none;margin-top:15px;text-align:center;"></div></form></div></div>
+
+<!-- SALES PIPELINE VIEW (Issac only) -->
+<div id="salesPipelineView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
+    <div class="header" style="background-color:#7b2d8b;">
+        <h1 style="font-size:40px;margin:10px 0;">&#128202;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Sales Pipeline</p>
+        <div class="header-stripe"></div>
+    </div>
+    <div class="container" style="max-width:700px;">
+        <div id="pipelineSummary"></div>
+        <div id="pipelineFilters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px;justify-content:center;"></div>
+        <div id="pipelineResults"><p style="text-align:center;padding:30px;color:#888;">Loading pipeline...</p></div>
+    </div>
+</div>
 
 <script>
     const G_URL = 'https://script.google.com/macros/s/AKfycbw7zND3eu3BFEFEfVYU4pW5cEqBcEhd9mUI_FWPZB02BnI8yEup3yemiynKOaaNEp7dBQ/exec';
@@ -1161,6 +1177,8 @@
         document.getElementById('developerBtn').style.display = (currentUser.is_developer === true) ? 'block' : 'none';
         const quotesBtn = document.getElementById('quotesBtn');
         if (quotesBtn) quotesBtn.style.display = devOverride ? 'block' : 'none';
+        const salesPipelineBtn = document.getElementById('salesPipelineBtn');
+        if (salesPipelineBtn) salesPipelineBtn.style.display = devOverride ? 'block' : 'none';
         const announceBtn = document.getElementById('announceBtn');
         if (announceBtn) announceBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         const futureIntegrations = document.getElementById('futureIntegrations');
@@ -1926,6 +1944,125 @@
             }).catch(err => console.error('[Quote] Unexpected Supabase error:', err));
         })
         .catch(err => { console.error('[Quote] GAS error:', err); alert('Could not reach PDF server: ' + err.message); btn.disabled = false; btn.innerText = '\u{1F680} GENERATE QUOTE PDF'; });
+    }
+
+    // ============================================================
+    // SALES PIPELINE (Issac only)
+    // ============================================================
+    let pipelineStatusFilter = 'All';
+
+    function openSalesPipeline() {
+        triggerTransition(() => {
+            document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
+            document.getElementById('salesPipelineView').style.display = 'block';
+            fetchSalesPipeline();
+        });
+    }
+
+    function copyAcceptLink(token, btn) {
+        const url = window.location.origin + window.location.pathname + '?accept=' + token;
+        navigator.clipboard.writeText(url).then(() => {
+            const orig = btn.innerText;
+            btn.innerText = '✅ Copied!';
+            setTimeout(() => { btn.innerText = orig; }, 2000);
+        }).catch(() => alert('Acceptance link:\n' + url));
+    }
+
+    function updateQuoteStatus(id, status) {
+        const payload = { status: status };
+        if (status === 'Accepted') payload.accepted_at = new Date().toISOString();
+        supabaseClient.from('quotes').update(payload).eq('id', id)
+        .then(({ error }) => { if (error) { alert('Error: ' + error.message); } else { fetchSalesPipeline(); } });
+    }
+
+    function fetchSalesPipeline() {
+        const resultsDiv = document.getElementById('pipelineResults');
+        const summaryDiv = document.getElementById('pipelineSummary');
+        const filtersDiv = document.getElementById('pipelineFilters');
+        resultsDiv.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading pipeline...</p>';
+
+        supabaseClient.from('quotes').select('*').order('created_at', { ascending: false })
+        .then(({ data, error }) => {
+            if (error) { resultsDiv.innerHTML = '<p style="color:#e74c3c;text-align:center;">Error loading quotes: ' + escapeHtml(error.message) + '</p>'; return; }
+            if (!data || data.length === 0) {
+                summaryDiv.innerHTML = '';
+                filtersDiv.innerHTML = '';
+                resultsDiv.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">No quotes yet. Create one from the Catering Quote tab!</p>';
+                return;
+            }
+
+            const statusColors = { 'Pending': 'var(--maint-orange)', 'Accepted': 'var(--pass-green)', 'Declined': 'var(--fail-red)', 'Expired': 'var(--na-gray)' };
+
+            // Summary stats
+            const counts = {}; const totals = {};
+            let grandTotal = 0, openTotal = 0;
+            data.forEach(q => {
+                const st = q.status || 'Pending';
+                const amt = Number(q.total) || 0;
+                counts[st] = (counts[st] || 0) + 1;
+                totals[st] = (totals[st] || 0) + amt;
+                grandTotal += amt;
+                if (st === 'Pending') openTotal += amt;
+            });
+
+            let summaryHtml = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px;">';
+            summaryHtml += '<div style="flex:1;min-width:120px;background:#7b2d8b;color:white;border-radius:10px;padding:14px;text-align:center;"><div style="font-size:22px;font-weight:900;">' + data.length + '</div><div style="font-size:12px;text-transform:uppercase;opacity:.9;">Total Quotes</div></div>';
+            summaryHtml += '<div style="flex:1;min-width:120px;background:var(--pass-green);color:white;border-radius:10px;padding:14px;text-align:center;"><div style="font-size:22px;font-weight:900;">$' + grandTotal.toFixed(2) + '</div><div style="font-size:12px;text-transform:uppercase;opacity:.9;">Pipeline Value</div></div>';
+            summaryHtml += '<div style="flex:1;min-width:120px;background:var(--maint-orange);color:white;border-radius:10px;padding:14px;text-align:center;"><div style="font-size:22px;font-weight:900;">$' + openTotal.toFixed(2) + '</div><div style="font-size:12px;text-transform:uppercase;opacity:.9;">Pending Value</div></div>';
+            summaryHtml += '</div>';
+
+            summaryHtml += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px;justify-content:center;">';
+            Object.keys(counts).forEach(st => {
+                summaryHtml += '<div style="background:' + (statusColors[st] || '#888') + ';color:white;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:bold;">' + escapeHtml(st) + ': ' + counts[st] + ' &bull; $' + totals[st].toFixed(2) + '</div>';
+            });
+            summaryHtml += '</div>';
+            summaryDiv.innerHTML = summaryHtml;
+
+            // Filters
+            const allStatuses = ['All', 'Pending', 'Accepted', 'Declined', 'Expired'];
+            let filterHtml = '';
+            allStatuses.forEach(st => {
+                const active = (pipelineStatusFilter === st);
+                filterHtml += '<button onclick="pipelineStatusFilter=\'' + st + '\';fetchSalesPipeline();" style="border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:bold;cursor:pointer;background:' + (active ? '#7b2d8b' : '#eee') + ';color:' + (active ? 'white' : '#555') + ';">' + st + '</button>';
+            });
+            filtersDiv.innerHTML = filterHtml;
+
+            // Filtered quote list
+            let filtered = data;
+            if (pipelineStatusFilter !== 'All') filtered = data.filter(q => (q.status || 'Pending') === pipelineStatusFilter);
+
+            if (filtered.length === 0) {
+                resultsDiv.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">No quotes with status "' + escapeHtml(pipelineStatusFilter) + '".</p>';
+                return;
+            }
+
+            let html = '';
+            filtered.forEach(q => {
+                const st = q.status || 'Pending';
+                const color = statusColors[st] || '#888';
+                const eventDateStr = q.event_date ? new Date(q.event_date + 'T00:00:00').toLocaleDateString() : '&mdash;';
+                const createdStr = q.created_at ? new Date(q.created_at).toLocaleDateString() : '';
+                html += '<div class="maint-card" style="border-left-color:' + color + ';">';
+                html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;">';
+                html += '<div><div class="maint-card-title">#' + escapeHtml(q.order_num) + ' &mdash; ' + escapeHtml(q.contact_name) + (q.company ? ' (' + escapeHtml(q.company) + ')' : '') + '</div>';
+                html += '<div class="maint-card-meta">Event: ' + eventDateStr + (q.event_type ? ' &bull; ' + escapeHtml(q.event_type) : '') + ' &bull; Submitted ' + createdStr + (q.submitted_by ? ' by ' + escapeHtml(q.submitted_by) : '') + '</div></div>';
+                html += '<div style="background:' + color + ';color:white;border-radius:20px;padding:4px 12px;font-size:11px;font-weight:bold;white-space:nowrap;">' + escapeHtml(st) + '</div>';
+                html += '</div>';
+                html += '<div style="font-size:20px;font-weight:900;color:var(--caliches-blue);margin:8px 0;">$' + (Number(q.total) || 0).toFixed(2) + '</div>';
+                if (q.accepted_at) html += '<div class="maint-card-meta" style="color:var(--pass-green);font-weight:bold;">&#10003; Accepted on ' + new Date(q.accepted_at).toLocaleDateString() + '</div>';
+                html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">';
+                if (q.pdf_url) html += '<a href="' + q.pdf_url + '" target="_blank" style="background:#7b2d8b;color:white;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;text-decoration:none;">&#128196; View PDF</a>';
+                if (q.accept_token) html += '<button onclick="copyAcceptLink(\'' + q.accept_token + '\', this)" style="background:var(--caliches-blue);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">&#128279; Copy Accept Link</button>';
+                if (st === 'Pending') {
+                    html += '<button onclick="updateQuoteStatus(' + q.id + ', \'Accepted\')" style="background:var(--pass-green);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">Mark Accepted</button>';
+                    html += '<button onclick="updateQuoteStatus(' + q.id + ', \'Declined\')" style="background:var(--fail-red);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">Mark Declined</button>';
+                }
+                html += '</div>';
+                html += '</div>';
+            });
+            resultsDiv.innerHTML = html;
+        })
+        .catch(err => { resultsDiv.innerHTML = '<p style="color:#e74c3c;text-align:center;">Error: ' + escapeHtml(err.message) + '</p>'; });
     }
 
         // ============================================================
