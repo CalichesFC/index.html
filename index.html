@@ -234,6 +234,7 @@
 
         <div class="settings-section">
             <h3>Change PIN / Password</h3>
+            <input type="password" id="settingsCurrentPin" class="modal-input" placeholder="Current PIN / Password" style="margin-bottom:8px;">
             <input type="password" id="settingsNewPin" class="modal-input" placeholder="New PIN / Password" style="margin-bottom:8px;">
             <input type="password" id="settingsConfirmPin" class="modal-input" placeholder="Confirm New PIN / Password" style="margin-bottom:8px;">
             <button class="settings-btn" style="width:100%;" onclick="changePin()">Update PIN</button>
@@ -576,6 +577,16 @@
     const APP_VERSION = '1.0';
     let currentSlide = 0; let slideTimer; let currentUser = { name:'', role:'' }; let currentDashTab = 'Pop-Ins';
     let deferredInstallPrompt = null;
+    // In-memory only PIN cache (never persisted to localStorage). Used to re-verify
+    // sensitive account/admin actions against the secure RPC functions.
+    let sessionPin = null;
+    function withPin(callback, onCancel) {
+        if (sessionPin) { callback(sessionPin); return; }
+        const entered = prompt('Enter your PIN to confirm:');
+        if (entered === null || entered.trim() === '') { if (onCancel) onCancel(); return; }
+        sessionPin = entered.trim();
+        callback(sessionPin);
+    }
     let autoSaveTimer = null;
     let savedDraftData = null;
     let questionPhotos = {}; let maintPhotos = []; let damagePhotos = [];
@@ -912,7 +923,7 @@
         let btn = document.getElementById('forgotPinBtn');
         if (!username || !email) { errorEl.innerText = 'Please fill in both fields.'; errorEl.style.display = 'block'; return; }
         btn.innerText = 'Sending...'; btn.disabled = true; errorEl.style.display = 'none';
-        supabaseClient.from('users').select('*').eq('username', username).eq('email', email).limit(1)
+        supabaseClient.rpc('app_forgot_pin', { p_username: username, p_email: email })
         .then(({ data, error }) => {
             if (error) { errorEl.innerText = 'Error: ' + error.message; errorEl.style.display = 'block'; btn.innerText = 'Send My PIN'; btn.disabled = false; return; }
             if (!data || data.length === 0) { errorEl.innerText = 'No account found with that username and email. Contact your manager.'; errorEl.style.display = 'block'; btn.innerText = 'Send My PIN'; btn.disabled = false; return; }
@@ -921,7 +932,7 @@
             fd.append('forgotPassword', 'true');
             fd.append('name', user.name);
             fd.append('email', email);
-            fd.append('pin', user.password);
+            fd.append('pin', user.pin);
             fetch(G_URL, { method: 'POST', body: fd })
             .then(res => res.json())
             .then(() => {
@@ -946,12 +957,14 @@
         const btn = document.getElementById('loginBtn'); const form = document.getElementById('loginForm'); const errorMsg = document.getElementById('loginError');
         if (!form.username.value || !form.password.value) { errorMsg.innerText = 'Please enter both fields.'; errorMsg.style.display = 'block'; return; }
         btn.innerText = 'Verifying...'; btn.disabled = true; errorMsg.style.display = 'none';
-        supabaseClient.from('users').select('*').eq('username', form.username.value.trim()).eq('password', form.password.value.trim()).limit(1)
+        const enteredUsername = form.username.value.trim(); const enteredPassword = form.password.value.trim();
+        supabaseClient.rpc('app_login', { p_username: enteredUsername, p_password: enteredPassword })
         .then(({ data, error }) => {
             console.log('[Login] Supabase:', { data, error });
             if (error) { errorMsg.innerText = 'Login error (' + error.code + '): ' + error.message; errorMsg.style.display = 'block'; btn.innerText = 'ENTER HUB'; btn.disabled = false; return; }
             if (!data || data.length === 0) { errorMsg.innerText = 'Invalid Username or PIN. Please try again.'; errorMsg.style.display = 'block'; btn.innerText = 'ENTER HUB'; btn.disabled = false; return; }
             const user = data[0];
+            sessionPin = enteredPassword;
             currentUser.name = user.name; currentUser.role = user.role; currentUser.permissions = user.permissions || null; currentUser.maint_board_access = (user.maint_board_access !== false);
             currentUser.username = user.username; currentUser.email = user.email || ''; currentUser.is_developer = (user.is_developer === true);
             localStorage.setItem('calichesUser', JSON.stringify(currentUser));
@@ -980,12 +993,14 @@
         const btn = document.getElementById('registerBtn'); const form = document.getElementById('registerForm'); const errorMsg = document.getElementById('registerError');
         if (!form.name.value || !form.username.value || !form.email.value || !form.password.value) { errorMsg.innerText = 'Please fill all fields.'; errorMsg.style.display = 'block'; return; }
         btn.innerText = 'Creating Account...'; btn.disabled = true; errorMsg.style.display = 'none';
-        supabaseClient.from('users').insert([{ name: form.name.value.trim(), username: form.username.value.trim(), email: form.email.value.trim(), password: form.password.value.trim(), role: 'Blue Apron', permissions: ['popIn','driver','shortage','maintenance','damage'] }]).select()
+        const newPassword = form.password.value.trim();
+        supabaseClient.rpc('app_register', { p_name: form.name.value.trim(), p_username: form.username.value.trim(), p_email: form.email.value.trim(), p_password: newPassword })
         .then(({ data, error }) => {
             console.log('[Register] Supabase:', { data, error });
             if (error) { errorMsg.innerText = error.code === '23505' ? 'That username is already taken.' : 'Error (' + error.code + '): ' + error.message; errorMsg.style.display = 'block'; btn.innerText = 'CREATE ACCOUNT'; btn.disabled = false; return; }
             if (!data || data.length === 0) { errorMsg.innerText = 'Registration failed. Check Supabase grants.'; errorMsg.style.display = 'block'; btn.innerText = 'CREATE ACCOUNT'; btn.disabled = false; return; }
             const user = data[0];
+            sessionPin = newPassword;
             currentUser.name = user.name; currentUser.role = user.role;
             currentUser.username = user.username; currentUser.email = user.email || ''; currentUser.is_developer = (user.is_developer === true);
             localStorage.setItem('calichesUser', JSON.stringify(currentUser));
@@ -1001,7 +1016,7 @@
         triggerTransition(() => {
             document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
             document.getElementById('login-view').style.display = 'flex';
-            localStorage.removeItem('calichesUser'); currentUser = { name:'', role:'' }; clearInterval(slideTimer);
+            localStorage.removeItem('calichesUser'); currentUser = { name:'', role:'' }; sessionPin = null; clearInterval(slideTimer);
         });
     }
 
@@ -1107,6 +1122,7 @@
     function openSettings() {
         document.getElementById('settingsName').value = currentUser.name || '';
         document.getElementById('settingsEmail').value = currentUser.email || '';
+        document.getElementById('settingsCurrentPin').value = '';
         document.getElementById('settingsNewPin').value = '';
         document.getElementById('settingsConfirmPin').value = '';
         document.getElementById('pinMsg').style.display = 'none';
@@ -1119,18 +1135,21 @@
         document.getElementById('settingsModal').style.display = 'none';
     }
     function changePin() {
+        const currentPin = document.getElementById('settingsCurrentPin').value;
         const newPin = document.getElementById('settingsNewPin').value;
         const confirmPin = document.getElementById('settingsConfirmPin').value;
         const msg = document.getElementById('pinMsg');
         msg.style.display = 'none';
-        if (!newPin || !confirmPin) { msg.innerText = 'Please fill both fields.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
+        if (!currentPin || !newPin || !confirmPin) { msg.innerText = 'Please fill all fields.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
         if (newPin !== confirmPin) { msg.innerText = 'PINs do not match.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
         if (newPin.length < 4) { msg.innerText = 'PIN must be at least 4 characters.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
-        supabaseClient.from('users').update({ password: newPin }).eq('username', currentUser.username)
-        .then(({ error }) => {
+        supabaseClient.rpc('app_change_pin', { p_username: currentUser.username, p_old_password: currentPin, p_new_password: newPin })
+        .then(({ data, error }) => {
             if (error) { msg.innerText = 'Error: ' + error.message; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
+            if (!data) { msg.innerText = 'Current PIN is incorrect.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
+            sessionPin = newPin;
             msg.innerText = 'PIN updated successfully!'; msg.className = 'settings-msg ok'; msg.style.display = 'block';
-            document.getElementById('settingsNewPin').value = ''; document.getElementById('settingsConfirmPin').value = '';
+            document.getElementById('settingsCurrentPin').value = ''; document.getElementById('settingsNewPin').value = ''; document.getElementById('settingsConfirmPin').value = '';
         }).catch(() => { msg.innerText = 'Connection error. Please try again.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; });
     }
     function updateAccountInfo() {
@@ -1139,14 +1158,17 @@
         const msg = document.getElementById('accountMsg');
         msg.style.display = 'none';
         if (!name) { msg.innerText = 'Name cannot be empty.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
-        supabaseClient.from('users').update({ name: name, email: email }).eq('username', currentUser.username)
-        .then(({ error }) => {
-            if (error) { msg.innerText = 'Error: ' + error.message; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
-            currentUser.name = name; currentUser.email = email;
-            localStorage.setItem('calichesUser', JSON.stringify(currentUser));
-            document.getElementById('greetingName').innerText = 'Hello, ' + name;
-            msg.innerText = 'Account info updated!'; msg.className = 'settings-msg ok'; msg.style.display = 'block';
-        }).catch(() => { msg.innerText = 'Connection error. Please try again.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; });
+        withPin(function(pin) {
+            supabaseClient.rpc('app_update_profile', { p_username: currentUser.username, p_password: pin, p_name: name, p_email: email })
+            .then(({ data, error }) => {
+                if (error) { msg.innerText = 'Error: ' + error.message; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
+                if (!data) { msg.innerText = 'PIN verification failed.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; sessionPin = null; return; }
+                currentUser.name = name; currentUser.email = email;
+                localStorage.setItem('calichesUser', JSON.stringify(currentUser));
+                document.getElementById('greetingName').innerText = 'Hello, ' + name;
+                msg.innerText = 'Account info updated!'; msg.className = 'settings-msg ok'; msg.style.display = 'block';
+            }).catch(() => { msg.innerText = 'Connection error. Please try again.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; });
+        });
     }
 
     // ============================================================
@@ -1480,41 +1502,63 @@
         document.getElementById('dashboardFilterDiv').style.display = 'none';
         const results = document.getElementById('dashboardResults');
         results.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading Staff Database...</p>';
-        supabaseClient.from('users').select('*').order('id')
-        .then(({ data, error }) => {
-            if (error || !data) { results.innerHTML = '<p style="color:red;">Error: ' + (error?error.message:'no data') + '</p>'; return; }
-            let html = '<div class="table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Forms Allowed</th><th>Action</th></tr></thead><tbody>';
-            data.forEach(u => {
-                let perms = u.permissions || FORM_KEYS.map(f=>f.key);
-                let checks = FORM_KEYS.map(f => '<label style="margin-right:8px;font-size:11px;font-weight:bold;white-space:nowrap;"><input type="checkbox" data-key="' + f.key + '" ' + (perms.indexOf(f.key)!==-1?'checked':'') + ' style="transform:scale(1.2);vertical-align:middle;"> ' + f.label + '</label>').join('');
-                if (u.role === 'Manager' || u.role === 'Admin Manager') {
-                    let maintBoardChecked = (u.maint_board_access !== false);
-                    checks += '<label style="margin-right:8px;font-size:11px;font-weight:bold;white-space:nowrap;color:var(--maint-orange);"><input type="checkbox" id="mb-' + u.id + '" ' + (maintBoardChecked?'checked':'') + ' style="transform:scale(1.2);vertical-align:middle;"> Maint. Board</label>';
+        withPin(function(pin) {
+            supabaseClient.rpc('app_admin_list_users', { p_admin_username: currentUser.username, p_admin_password: pin })
+            .then(({ data, error }) => {
+                if (error || !data) {
+                    if (error && error.code === '42501') sessionPin = null;
+                    results.innerHTML = '<p style="color:red;">Error: ' + (error?error.message:'no data') + '</p>'; return;
                 }
-                html += '<tr><td style="font-weight:500;">' + u.name + '</td><td style="color:var(--na-gray);">' + u.username + '</td><td style="color:var(--na-gray);">' + (u.email||'—') + '</td><td><select id="role-select-' + u.id + '" class="role-select"><option value="Blue Apron"' + (u.role==='Blue Apron'?' selected':'') + '>Blue Apron</option><option value="Shift Lead"' + (u.role==='Shift Lead'?' selected':'') + '>Shift Lead</option><option value="Manager"' + (u.role==='Manager'?' selected':'') + '>Manager</option><option value="Maintenance"' + (u.role==='Maintenance'?' selected':'') + '>Maintenance</option><option value="Admin Manager"' + (u.role==='Admin Manager'?' selected':'') + '>Admin Manager</option></select></td><td><div id="perm-' + u.id + '" style="display:flex;flex-wrap:wrap;gap:2px;max-width:260px;">' + checks + '</div></td><td style="white-space:nowrap;"><button class="update-role-btn" onclick="updateRole(' + u.id + ')">Save Role</button><button class="update-action-btn" onclick="updatePermissions(' + u.id + ')" style="margin-left:5px;">Save Forms</button><button class="delete-btn" onclick="deleteUser(' + u.id + ')">Delete</button></td></tr>';
-            });
-            html += '</tbody></table></div>'; results.innerHTML = html;
-        }).catch(() => { results.innerHTML = '<p style="color:red;">Connection Error.</p>'; });
+                let html = '<div class="table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Forms Allowed</th><th>Action</th></tr></thead><tbody>';
+                data.forEach(u => {
+                    let perms = u.permissions || FORM_KEYS.map(f=>f.key);
+                    let checks = FORM_KEYS.map(f => '<label style="margin-right:8px;font-size:11px;font-weight:bold;white-space:nowrap;"><input type="checkbox" data-key="' + f.key + '" ' + (perms.indexOf(f.key)!==-1?'checked':'') + ' style="transform:scale(1.2);vertical-align:middle;"> ' + f.label + '</label>').join('');
+                    if (u.role === 'Manager' || u.role === 'Admin Manager') {
+                        let maintBoardChecked = (u.maint_board_access !== false);
+                        checks += '<label style="margin-right:8px;font-size:11px;font-weight:bold;white-space:nowrap;color:var(--maint-orange);"><input type="checkbox" id="mb-' + u.id + '" ' + (maintBoardChecked?'checked':'') + ' style="transform:scale(1.2);vertical-align:middle;"> Maint. Board</label>';
+                    }
+                    html += '<tr><td style="font-weight:500;">' + u.name + '</td><td style="color:var(--na-gray);">' + u.username + '</td><td style="color:var(--na-gray);">' + (u.email||'—') + '</td><td><select id="role-select-' + u.id + '" class="role-select"><option value="Blue Apron"' + (u.role==='Blue Apron'?' selected':'') + '>Blue Apron</option><option value="Shift Lead"' + (u.role==='Shift Lead'?' selected':'') + '>Shift Lead</option><option value="Manager"' + (u.role==='Manager'?' selected':'') + '>Manager</option><option value="Maintenance"' + (u.role==='Maintenance'?' selected':'') + '>Maintenance</option><option value="Admin Manager"' + (u.role==='Admin Manager'?' selected':'') + '>Admin Manager</option></select></td><td><div id="perm-' + u.id + '" style="display:flex;flex-wrap:wrap;gap:2px;max-width:260px;">' + checks + '</div></td><td style="white-space:nowrap;"><button class="update-role-btn" onclick="updateRole(' + u.id + ')">Save Role</button><button class="update-action-btn" onclick="updatePermissions(' + u.id + ')" style="margin-left:5px;">Save Forms</button><button class="delete-btn" onclick="deleteUser(' + u.id + ')">Delete</button></td></tr>';
+                });
+                html += '</tbody></table></div>'; results.innerHTML = html;
+            }).catch(() => { results.innerHTML = '<p style="color:red;">Connection Error.</p>'; });
+        }, function() { results.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">PIN required to load Staff Database.</p>'; });
     }
 
     function updateRole(id) {
         let newRole = document.getElementById('role-select-' + id).value;
-        supabaseClient.from('users').update({ role: newRole }).eq('id', id).then(({ error }) => { if(!error) alert('Role updated to ' + newRole + '!'); else alert('Error: ' + error.message); });
+        withPin(function(pin) {
+            supabaseClient.rpc('app_admin_update_role', { p_admin_username: currentUser.username, p_admin_password: pin, p_user_id: id, p_role: newRole })
+            .then(({ error }) => {
+                if (error && error.code === '42501') sessionPin = null;
+                if(!error) alert('Role updated to ' + newRole + '!'); else alert('Error: ' + error.message);
+            });
+        });
     }
 
     function updatePermissions(id) {
         let container = document.getElementById('perm-' + id);
         if (!container) return;
         let checked = Array.from(container.querySelectorAll('input[type="checkbox"][data-key]:checked')).map(c => c.dataset.key);
-        let updateObj = { permissions: checked };
         let mbCheckbox = document.getElementById('mb-' + id);
-        if (mbCheckbox) updateObj.maint_board_access = mbCheckbox.checked;
-        supabaseClient.from('users').update(updateObj).eq('id', id).then(({ error }) => { if(!error) alert('Form access updated!'); else alert('Error: ' + error.message); });
+        let maintBoardAccess = mbCheckbox ? mbCheckbox.checked : null;
+        withPin(function(pin) {
+            supabaseClient.rpc('app_admin_update_permissions', { p_admin_username: currentUser.username, p_admin_password: pin, p_user_id: id, p_permissions: checked, p_maint_board_access: maintBoardAccess })
+            .then(({ error }) => {
+                if (error && error.code === '42501') sessionPin = null;
+                if(!error) alert('Form access updated!'); else alert('Error: ' + error.message);
+            });
+        });
     }
 
     function deleteUser(id) {
         if(!confirm('Are you sure you want to permanently delete this user?')) return;
-        supabaseClient.from('users').delete().eq('id', id).then(({ error }) => { if(!error) { alert('User deleted.'); fetchUsers(document.querySelector('.dash-tab.active')); } else alert('Error: ' + error.message); });
+        withPin(function(pin) {
+            supabaseClient.rpc('app_admin_delete_user', { p_admin_username: currentUser.username, p_admin_password: pin, p_user_id: id })
+            .then(({ error }) => {
+                if (error && error.code === '42501') sessionPin = null;
+                if(!error) { alert('User deleted.'); fetchUsers(document.querySelector('.dash-tab.active')); } else alert('Error: ' + error.message);
+            });
+        });
     }
 
     // ============================================================
