@@ -1511,19 +1511,28 @@
                 if (error && error.code === '42501') sessionPin = null;
                 if (error) { console.error('[Dashboard] Error:', error); results.innerHTML = '<p style="color:red;padding:20px;">Error (' + error.code + '): ' + error.message + '</p>'; return; }
                 if (!supaData || supaData.length === 0) { results.innerHTML = '<p style="padding:20px;">No data found. Submit a form then check this tab.</p>'; return; }
-                let headers = Object.keys(supaData[0]).filter(k => k !== 'id');
+                let allKeys = Object.keys(supaData[0]).filter(k => k !== 'id');
+                let hasPdf = allKeys.includes('PDF_Archive');
+                let headers = allKeys.filter(k => k !== 'PDF_Archive');
+                let maxCols = hasPdf ? 9 : 10;
                 let html = '<div class="table-wrapper"><table class="data-table"><thead><tr>';
-                headers.forEach((h,i) => { if(i<10) html += '<th>' + h + '</th>'; });
+                headers.forEach((h,i) => { if(i<maxCols) html += '<th>' + h + '</th>'; });
+                if(hasPdf) html += '<th>PDF</th>';
                 if(tabName==='Maintenance Logs'||tabName==='Damage Reports') html += '<th>Action</th>';
                 html += '</tr></thead><tbody>';
                 supaData.forEach(row => {
                     html += '<tr>';
                     headers.forEach((h,i) => {
-                        if(i>=10) return;
+                        if(i>=maxCols) return;
                         let cellData = (row[h]!==null&&row[h]!==undefined)?row[h]:'';
                         if(cellData.toString().startsWith('http')) { html += '<td><a href="' + cellData + '" target="_blank" style="background:var(--caliches-pink);color:white;padding:5px 10px;border-radius:4px;text-decoration:none;font-weight:bold;display:inline-block;">View PDF</a></td>'; }
                         else { html += '<td>' + cellData + '</td>'; }
                     });
+                    if(hasPdf) {
+                        let pdfVal = row['PDF_Archive'];
+                        if(pdfVal && pdfVal.toString().startsWith('http')) html += '<td><a href="' + pdfVal + '" target="_blank" style="background:var(--caliches-pink);color:white;padding:5px 10px;border-radius:4px;text-decoration:none;font-weight:bold;display:inline-block;">View PDF</a></td>';
+                        else html += '<td>' + (pdfVal||'') + '</td>';
+                    }
                     if(tabName==='Maintenance Logs'||tabName==='Damage Reports') {
                         let st = row['Status']||'Pending';
                         html += '<td><select id="status-' + row.id + '" class="role-select"><option value="Pending"' + (st==='Pending'?' selected':'') + '>Pending</option><option value="In Progress"' + (st==='In Progress'?' selected':'') + '>In Progress</option><option value="Resolved"' + (st==='Resolved'?' selected':'') + '>Resolved</option></select><button class="update-action-btn" onclick="updateItemStatus(\'' + tabName + '\',' + row.id + ')">Save</button></td>';
