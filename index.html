@@ -175,6 +175,17 @@
         .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:99998;justify-content:center;align-items:center;padding:20px;box-sizing:border-box}
         .modal-box{background:white;border-radius:16px;padding:30px 25px;width:100%;max-width:380px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.3)}
         .modal-input{width:100%;padding:14px;border:2px solid #eee;border-radius:8px;font-size:16px;margin-bottom:12px;box-sizing:border-box}
+        /* ── KNOWLEDGE BASE ── */
+        #kbView .kb-category { margin-bottom:24px; }
+        #kbView .kb-category-title { font-size:15px; font-weight:bold; color:var(--caliches-blue); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid var(--caliches-blue); }
+        #kbView .kb-item { background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08); padding:14px; margin-bottom:12px; }
+        #kbView .kb-question { font-size:14px; font-weight:bold; color:#333; margin-bottom:8px; }
+        #kbView .kb-textarea { width:100%; min-height:80px; border:1.5px solid #ddd; border-radius:8px; padding:10px; font-size:13.5px; font-family:inherit; resize:vertical; box-sizing:border-box; outline:none; transition:border-color 0.2s; }
+        #kbView .kb-textarea:focus { border-color:var(--caliches-blue); }
+        #kbView .kb-save-btn { margin-top:8px; background:var(--caliches-blue); color:#fff; border:none; border-radius:8px; padding:8px 20px; font-size:13px; font-weight:bold; cursor:pointer; }
+        #kbView .kb-save-btn:disabled { opacity:0.6; cursor:default; }
+        #kbView .kb-saved-label { font-size:12px; color:green; margin-left:10px; display:none; }
+        #kbView .kb-updated { font-size:11px; color:#999; margin-top:4px; }
         /* ── AI CHAT WIDGET ── */
         #aiChatWidget { position:fixed; bottom:22px; right:18px; z-index:9000; display:none; flex-direction:column; align-items:flex-end; gap:10px; }
         #aiChatToggle { background:var(--caliches-blue); color:#fff; border:none; border-radius:50px; padding:12px 20px; font-size:15px; font-weight:bold; cursor:pointer; box-shadow:0 4px 16px rgba(0,0,0,0.25); display:flex; align-items:center; gap:8px; }
@@ -397,6 +408,7 @@
     <button id="quotesBtn" class="menu-btn purple" style="display:none;" onclick="openForm('quotesView')">&#128221; Create Catering Quote</button>
     <button id="salesPipelineBtn" class="menu-btn purple" style="display:none;" onclick="openSalesPipeline()">&#128202; Sales Pipeline</button>
     <button id="shortageTrendsBtn" class="menu-btn green" style="display:none;" onclick="openShortageTrends()">&#128200; Shortage Trends</button>
+    <button id="knowledgeBaseBtn" class="menu-btn dark" style="display:none;background:#0d6eaf;" onclick="openKnowledgeBase()">&#129504; AI Knowledge Base</button>
     <button id="previewToggleBtn" class="menu-btn dark" style="display:none;background:#555;" onclick="togglePreviewMode()">&#128065; Preview as Staff (Hide Dev Tabs)</button>
     <button id="installBtn" class="menu-btn purple" style="display:none;" onclick="installApp()">&#128242; Install App on Phone</button>
         </div>
@@ -1266,6 +1278,8 @@
         if (salesPipelineBtn) salesPipelineBtn.style.display = devOverride ? 'block' : 'none';
         const shortageTrendsBtn = document.getElementById('shortageTrendsBtn');
         if (shortageTrendsBtn) shortageTrendsBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
+        const kbBtn = document.getElementById('knowledgeBaseBtn');
+        if (kbBtn) kbBtn.style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
         const announceBtn = document.getElementById('announceBtn');
         if (announceBtn) announceBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         const futureIntegrations = document.getElementById('futureIntegrations');
@@ -2670,6 +2684,65 @@
         }
 
         // ============================================================
+        // KNOWLEDGE BASE
+        // ============================================================
+        function openKnowledgeBase() {
+            triggerTransition(() => {
+                document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
+                document.getElementById('kbView').style.display = 'block';
+                loadKnowledgeBase();
+            });
+        }
+
+        function loadKnowledgeBase() {
+            const container = document.getElementById('kbContent');
+            container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading questions...</p>';
+            supabaseClient.rpc('get_knowledge_base')
+            .then(({ data, error }) => {
+                if (error) { container.innerHTML = '<p style="text-align:center;padding:30px;color:#c00;">Failed to load. Please try again.</p>'; return; }
+                if (!data || data.length === 0) { container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">No questions found.</p>'; return; }
+                // Group by category
+                const categories = {};
+                data.forEach(row => {
+                    if (!categories[row.category]) categories[row.category] = [];
+                    categories[row.category].push(row);
+                });
+                let html = '';
+                Object.keys(categories).sort().forEach(cat => {
+                    html += '<div class="kb-category"><div class="kb-category-title">' + cat + '</div>';
+                    categories[cat].forEach(row => {
+                        const updatedText = (row.updated_by && row.answer)
+                            ? 'Last updated by ' + row.updated_by + (row.updated_at ? ' on ' + new Date(row.updated_at).toLocaleDateString() : '')
+                            : '';
+                        html += '<div class="kb-item" id="kb-item-' + row.id + '">'
+                            + '<div class="kb-question">' + row.question + '</div>'
+                            + '<textarea class="kb-textarea" id="kb-ans-' + row.id + '" placeholder="Enter your answer here...">' + (row.answer || '') + '</textarea>'
+                            + (updatedText ? '<div class="kb-updated">' + updatedText + '</div>' : '')
+                            + '<button class="kb-save-btn" onclick="saveKBAnswer(' + row.id + ')">Save</button>'
+                            + '<span class="kb-saved-label" id="kb-saved-' + row.id + '">&#10003; Saved!</span>'
+                            + '</div>';
+                    });
+                    html += '</div>';
+                });
+                container.innerHTML = html;
+            });
+        }
+
+        function saveKBAnswer(id) {
+            const textarea = document.getElementById('kb-ans-' + id);
+            const answer = textarea ? textarea.value.trim() : '';
+            const savedLabel = document.getElementById('kb-saved-' + id);
+            const btn = textarea ? textarea.parentElement.querySelector('.kb-save-btn') : null;
+            if (btn) btn.disabled = true;
+            supabaseClient.rpc('upsert_knowledge_base', { p_id: id, p_answer: answer, p_updated_by: currentUser.name })
+            .then(({ error }) => {
+                if (error) { alert('Save failed: ' + error.message); }
+                else if (savedLabel) { savedLabel.style.display = 'inline'; setTimeout(() => { savedLabel.style.display = 'none'; }, 2500); }
+                if (btn) btn.disabled = false;
+            });
+        }
+
+        // ============================================================
         // AI ASSISTANT CHAT
         // ============================================================
         let aiChatHistory = [];
@@ -2756,6 +2829,25 @@
             }
         });
 </script>
+
+<!-- KNOWLEDGE BASE VIEW (Admin Manager only) -->
+<div id="kbView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
+    <div class="header" style="background:var(--caliches-blue);">
+        <h1 style="font-size:40px;margin:10px 0;">&#129504;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">AI Knowledge Base</p>
+        <p style="font-size:12px;margin:6px 0 0;opacity:0.85;">Answers here teach the AI how Caliche's operates</p>
+        <div class="header-stripe"></div>
+    </div>
+    <div style="padding:16px;max-width:700px;margin:0 auto;">
+        <div style="background:#e8f4fd;border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:13.5px;color:#0d6eaf;border-left:4px solid var(--caliches-blue);">
+            &#128161; Fill in as many answers as you can. The AI assistant will use these to give more accurate, Caliche's-specific answers to your team.
+        </div>
+        <div id="kbContent">
+            <p style="text-align:center;padding:30px;color:#888;">Loading questions...</p>
+        </div>
+    </div>
+</div>
 
 <!-- AI ASSISTANT CHAT WIDGET -->
 <div id="aiChatWidget">
