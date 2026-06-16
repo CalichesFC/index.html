@@ -502,8 +502,16 @@
         <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Maintenance Board</p>
     </div>
     <div class="container" style="max-width:700px;">
-        <div id="vehicleMaintTracker"></div>
-        <div id="maintBoardResults"><p style="text-align:center;padding:30px;color:#888;">Loading maintenance board...</p></div>
+        <div class="menu-tab-bar">
+            <button class="menu-tab active" id="maintTab-stores" onclick="switchMaintTab('stores')">&#127978; Stores</button>
+            <button class="menu-tab" id="maintTab-vehicles" onclick="switchMaintTab('vehicles')">&#128666; Vehicles</button>
+        </div>
+        <div id="maintPanel-stores">
+            <div id="maintBoardResults"><p style="text-align:center;padding:30px;color:#888;">Loading maintenance board...</p></div>
+        </div>
+        <div id="maintPanel-vehicles" style="display:none;">
+            <div id="vehicleMaintTracker"></div>
+        </div>
     </div>
 </div>
 
@@ -793,6 +801,7 @@
         document.getElementById('splash-screen').style.display = 'none';
         if (currentUser.role === 'Maintenance') {
             document.getElementById('maintenanceBoardView').style.display = 'block';
+            switchMaintTab('stores');
             fetchMaintenanceBoard();
             fetchVehicleMaintTracker();
         } else {
@@ -1141,6 +1150,7 @@
                 document.getElementById('login-view').style.display = 'none';
                 if (user.role === 'Maintenance') {
                     document.getElementById('maintenanceBoardView').style.display = 'block';
+                    switchMaintTab('stores');
                     fetchMaintenanceBoard();
                     fetchVehicleMaintTracker();
                 } else {
@@ -1429,8 +1439,18 @@
         triggerTransition(() => {
             document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
             document.getElementById('maintenanceBoardView').style.display = 'block';
+            switchMaintTab('stores');
             fetchMaintenanceBoard();
             fetchVehicleMaintTracker();
+        });
+    }
+
+    function switchMaintTab(which) {
+        ['stores', 'vehicles'].forEach(t => {
+            const btn = document.getElementById('maintTab-' + t);
+            const panel = document.getElementById('maintPanel-' + t);
+            if (btn) btn.classList.toggle('active', t === which);
+            if (panel) panel.style.display = (t === which) ? 'block' : 'none';
         });
     }
 
