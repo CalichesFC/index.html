@@ -2904,4 +2904,147 @@
             supabaseClient.rpc('get_knowledge_base')
             .then(({ data, error }) => {
                 if (error) { container.innerHTML = '<p style="text-align:center;padding:30px;color:#c00;">Failed to load. Please try again.</p>'; return; }
-                if (!data || data.length === 0) { container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">No questions found.</p>';
+                if (!data || data.length === 0) { container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">No questions found.</p>'; return; }
+                // Group by category
+                const byCategory = {};
+                data.forEach(row => {
+                    const cat = row.category || 'General';
+                    if (!byCategory[cat]) byCategory[cat] = [];
+                    byCategory[cat].push(row);
+                });
+                let html = '';
+                Object.keys(byCategory).sort().forEach(cat => {
+                    html += '<div class="kb-category">';
+                    html += '<div class="kb-category-title"><span class="kb-cat-text">' + cat + '</span><span class="kb-cat-line"></span></div>';
+                    byCategory[cat].forEach(row => {
+                        const updated = row.updated_at ? new Date(row.updated_at).toLocaleDateString() : '';
+                        html += '<div class="kb-item" id="kb-item-' + row.id + '">';
+                        html += '<div class="kb-question">' + escapeHtml(row.question) + '</div>';
+                        html += '<textarea class="kb-textarea" id="kb-ta-' + row.id + '" placeholder="Add answer here...">' + escapeHtml(row.answer || '') + '</textarea>';
+                        if (updated) html += '<div class="kb-updated">Last updated: ' + updated + '</div>';
+                        html += '<button class="kb-save-btn" onclick="saveKBAnswer(' + row.id + ')">&#128190; Save</button>';
+                        html += '<span class="kb-saved-label" id="kb-saved-' + row.id + '">&#10003; Saved!</span>';
+                        html += '</div>';
+                    });
+                    html += '</div>';
+                });
+                container.innerHTML = html;
+            }).catch(err => { container.innerHTML = '<p style="text-align:center;padding:30px;color:#c00;">Error loading.</p>'; });
+        }
+
+        function saveKBAnswer(id) {
+            const ta = document.getElementById('kb-ta-' + id);
+            const btn = ta ? ta.parentElement.querySelector('.kb-save-btn') : null;
+            const label = document.getElementById('kb-saved-' + id);
+            if (!ta) return;
+            const answer = ta.value.trim();
+            if (btn) { btn.disabled = true; btn.innerText = 'Saving...'; }
+            withPin(function(pin) {
+                supabaseClient.rpc('app_kb_save_answer', { p_username: currentUser.username, p_password: pin, p_id: id, p_answer: answer })
+                .then(({ data, error }) => {
+                    if (error && error.code === '42501') sessionPin = null;
+                    if (error) { alert('Save failed: ' + error.message); }
+                    else { if (label) { label.style.display = 'inline'; setTimeout(() => label.style.display = 'none', 2500); } }
+                    if (btn) { btn.disabled = false; btn.innerText = '💾 Save'; }
+                }).catch(() => { if (btn) { btn.disabled = false; btn.innerText = '💾 Save'; } });
+            }, function() { if (btn) { btn.disabled = false; btn.innerText = '💾 Save'; } });
+        }
+
+        // ============================================================
+        // AI CHAT WIDGET
+        // ============================================================
+        let aiChatHistory = [];
+        let aiChatOpen = false;
+
+        function toggleAIChatPanel() {
+            const panel = document.getElementById('aiChatPanel');
+            if (!panel) return;
+            aiChatOpen = !aiChatOpen;
+            panel.style.display = aiChatOpen ? 'flex' : 'none';
+            if (aiChatOpen && aiChatHistory.length === 0) {
+                appendAIMessage('bot', "Hi! I'm Mr. Scoopy 🍦 Ask me anything about Caliche's operations, policies, or procedures!");
+            }
+        }
+
+        function appendAIMessage(role, text) {
+            const msgs = document.getElementById('aiChatMessages');
+            if (!msgs) return;
+            const div = document.createElement('div');
+            const isBot = role === 'bot';
+            div.style.cssText = 'max-width:85%;padding:9px 13px;border-radius:' + (isBot ? '4px 14px 14px 14px' : '14px 4px 14px 14px') + ';font-size:13.5px;line-height:1.45;word-break:break-word;' + (isBot ? 'background:#f0f4ff;color:#222;align-self:flex-start;' : 'background:var(--caliches-pink);color:#fff;align-self:flex-end;');
+            div.innerText = text;
+            msgs.appendChild(div);
+            msgs.scrollTop = msgs.scrollHeight;
+        }
+
+        async function sendAIMessage() {
+            const input = document.getElementById('aiChatInput');
+            if (!input) return;
+            const msg = input.value.trim();
+            if (!msg) return;
+            input.value = '';
+            appendAIMessage('user', msg);
+            appendAIMessage('bot', '...');
+            const msgs = document.getElementById('aiChatMessages');
+            const typingEl = msgs ? msgs.lastChild : null;
+
+            try {
+                const resp = await fetch(G_URL + '?action=ai&message=' + encodeURIComponent(msg) + '&history=' + encodeURIComponent(JSON.stringify(aiChatHistory)));
+                const json = await resp.json();
+                const reply = (json && json.reply) ? json.reply : "I'm not sure about that. Please check with your manager!";
+                if (typingEl) typingEl.innerText = reply;
+                else appendAIMessage('bot', reply);
+                aiChatHistory.push({ role: 'user', parts: [{ text: msg }] });
+                aiChatHistory.push({ role: 'model', parts: [{ text: reply }] });
+                if (aiChatHistory.length > 20) aiChatHistory = aiChatHistory.slice(-20);
+                // Gap tracking: log unanswered questions
+                if (reply && (reply.toLowerCase().includes("not sure") || reply.toLowerCase().includes("check with") || reply.toLowerCase().includes("don't have") || reply.toLowerCase().includes("contact your manager"))) {
+                    logScoopyGap(msg);
+                }
+            } catch(e) {
+                if (typingEl) typingEl.innerText = "Sorry, I couldn't connect right now. Try again!";
+            }
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && document.activeElement && document.activeElement.id === 'aiChatInput') {
+                sendAIMessage();
+            }
+        });
+
+    </script>
+
+<!-- AI KNOWLEDGE BASE VIEW -->
+<div id="kbView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
+    <div style="background:linear-gradient(135deg,var(--caliches-pink) 0%,var(--caliches-blue) 100%);padding:24px 20px 20px;text-align:center;">
+        <img src="scoopy-hero.png" alt="Mr. Scoopy" style="width:80px;height:80px;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.25));margin-bottom:10px;" onerror="this.style.display='none'">
+        <h1 style="color:#fff;font-size:24px;margin:0 0 6px 0;font-weight:900;">&#129504; Teach Mr. Scoopy</h1>
+        <p style="color:rgba(255,255,255,0.88);font-size:13px;margin:0;">Add answers so Mr. Scoopy can help your team instantly</p>
+    </div>
+    <div class="container" style="max-width:700px;">
+        <div id="kbContent"><p style="text-align:center;padding:30px;color:#888;">Loading...</p></div>
+    </div>
+</div>
+
+<!-- AI CHAT WIDGET -->
+<div id="aiChatWidget" style="display:none;">
+    <div id="aiChatPanel" style="display:none;">
+        <div id="aiChatHeader">
+            <span>&#129504; Ask Mr. Scoopy</span>
+            <button id="aiChatCloseBtn" onclick="toggleAIChatPanel()">&#10005;</button>
+        </div>
+        <div id="aiChatMessages"></div>
+        <div id="aiChatInputRow">
+            <input id="aiChatInput" type="text" placeholder="Ask a question..." autocomplete="off">
+            <button onclick="sendAIMessage()" style="background:var(--caliches-pink);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:16px;cursor:pointer;flex-shrink:0;">&#10148;</button>
+        </div>
+    </div>
+    <button id="aiChatToggle" onclick="toggleAIChatPanel()">
+        <img src="scoopy-hero.png" alt="" style="width:22px;height:22px;object-fit:contain;" onerror="this.style.display='none'">
+        Ask Mr. Scoopy
+    </button>
+</div>
+
+</body>
+</html>
