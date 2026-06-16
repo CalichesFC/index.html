@@ -427,6 +427,7 @@
                 <button id="btn-popIn" class="menu-btn" onclick="openPopIn()">&#128203; Store Pop-In Inspection</button>
                 <button id="btn-driver" class="menu-btn pink" onclick="openForm('driverView')">&#128666; Vehicle &amp; Trailer Check-Out</button>
                 <button id="btn-shortage" class="menu-btn green" onclick="openForm('shortageView')">&#128230; Report Shortages</button>
+                <button id="btn-scheduling" class="menu-btn" style="background:#5b3fb8;" onclick="openScheduling()">&#128197; Scheduling</button>
             </div>
 
             <!-- ── MAINTENANCE TAB ── -->
@@ -512,6 +513,80 @@
         <div id="maintPanel-vehicles" style="display:none;">
             <div id="vehicleMaintTracker"></div>
         </div>
+    </div>
+</div>
+
+<style>
+  .sched-controls { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  #schedLocation { padding:10px; border:2px solid #ddd; border-radius:8px; font-weight:bold; font-size:14px; }
+  .sched-week-nav { display:flex; align-items:center; gap:10px; }
+  .sched-week-nav button { width:34px; height:34px; border:none; border-radius:8px; background:#eee; cursor:pointer; font-size:14px; }
+  #schedWeekLabel { font-weight:bold; min-width:150px; text-align:center; }
+  .sched-btn { padding:9px 14px; border:none; border-radius:8px; background:#eef0fb; color:#333; font-weight:bold; cursor:pointer; font-size:13px; }
+  .sched-btn.publish { background:var(--caliches-pink); color:#fff; }
+  .sched-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .sched-table th, .sched-table td { border:1px solid #e5e5e5; padding:4px; vertical-align:top; }
+  .sched-table th { background:#f5f4fb; }
+  .sched-emp { text-align:left; font-weight:bold; white-space:nowrap; background:#faf9ff; }
+  .sched-cell { min-width:92px; height:52px; cursor:pointer; }
+  .sched-cell:hover { background:#f7f5ff; }
+  .sched-chip { color:#fff; border-radius:6px; padding:3px 5px; font-size:10.5px; line-height:1.25; margin-bottom:3px; cursor:pointer; }
+</style>
+
+<!-- SCHEDULING: COMING SOON (non-admins) -->
+<div id="scheduleComingSoonView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
+    <div style="background:linear-gradient(135deg,#5b3fb8 0%,var(--caliches-pink) 100%);padding:32px 20px;text-align:center;">
+        <img src="scoopy-wave.png" alt="Mr. Scoopy" style="width:120px;height:120px;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.25));" onerror="this.src='scoopy-hero.png'">
+        <h1 style="color:#fff;font-size:25px;margin:14px 0 4px;font-weight:900;">&#128197; Scheduling is Coming Soon!</h1>
+    </div>
+    <div class="container" style="max-width:600px;text-align:center;">
+        <p style="font-size:16px;color:#444;line-height:1.65;margin-top:26px;">Mr. Scoopy is still putting the schedule together! &#127846;<br><br>Soon you'll see your shifts right here in the Hub. Check back in a little while!</p>
+        <button class="save-btn blue-btn" style="max-width:280px;margin:26px auto 0;" onclick="openMenu()">&#128281; Back to Menu</button>
+    </div>
+</div>
+
+<!-- SCHEDULE BUILDER (Admin Manager only) -->
+<div id="scheduleBuilderView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
+    <div class="header" style="background:linear-gradient(135deg,#5b3fb8 0%,var(--caliches-blue) 100%);">
+        <h1 style="font-size:34px;margin:8px 0;">&#128197;</h1>
+        <p style="font-size:17px;margin:0;font-weight:bold;text-transform:uppercase;">Schedule Builder</p>
+        <p style="font-size:11px;margin:5px 0 0;opacity:.85;">TEST MODE &mdash; using test employees</p>
+    </div>
+    <div class="container" style="max-width:1100px;">
+        <div class="sched-controls">
+            <select id="schedLocation" onchange="schedChangeLocation()"></select>
+            <div class="sched-week-nav">
+                <button onclick="schedShiftWeek(-7)">&#9664;</button>
+                <span id="schedWeekLabel">&mdash;</span>
+                <button onclick="schedShiftWeek(7)">&#9654;</button>
+            </div>
+            <button class="sched-btn" onclick="schedCopyLastWeek()">&#128203; Copy Last Week</button>
+            <button class="sched-btn" onclick="schedAddEmployee()">&#10133; Add Employee</button>
+            <button class="sched-btn publish" onclick="schedPublish()">&#128640; Publish</button>
+        </div>
+        <div id="schedGrid"><p style="text-align:center;padding:30px;color:#888;">Loading&hellip;</p></div>
+    </div>
+</div>
+
+<!-- SHIFT EDIT MODAL -->
+<div id="shiftModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:#fff;border-radius:16px;padding:24px;max-width:380px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,0.3);">
+        <h2 id="shiftModalTitle" style="color:var(--caliches-blue);margin-top:0;font-size:20px;">Add Shift</h2>
+        <label class="form-label">Position:</label>
+        <select id="shiftPosition" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;margin-bottom:12px;"></select>
+        <div style="display:flex;gap:10px;">
+            <div style="flex:1;"><label class="form-label">Start:</label><input type="time" id="shiftStart" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;"></div>
+            <div style="flex:1;"><label class="form-label">End:</label><input type="time" id="shiftEnd" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;"></div>
+        </div>
+        <label class="form-label" style="margin-top:12px;">Note (optional):</label>
+        <input type="text" id="shiftNote" placeholder="e.g., AM duties, register" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;">
+        <div style="display:flex;gap:8px;margin-top:18px;">
+            <button class="save-btn blue-btn" style="flex:1;margin:0;" onclick="schedSaveShift()">Save</button>
+            <button id="shiftDeleteBtn" class="save-btn red-btn" style="flex:0 0 90px;margin:0;display:none;" onclick="schedDeleteShift()">Delete</button>
+        </div>
+        <span class="text-link" style="display:block;margin-top:12px;text-align:center;" onclick="schedCloseModal()">Cancel</span>
     </div>
 </div>
 
@@ -731,7 +806,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.16.1628';
+    const APP_VERSION = '2026.06.16.1742';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -1395,6 +1470,156 @@
     // ============================================================
     function triggerTransition(callback) { const loader = document.getElementById('neon-loader'); loader.style.display = 'flex'; setTimeout(() => { loader.style.opacity = '1'; }, 10); setTimeout(() => { callback(); window.scrollTo(0,0); loader.style.opacity = '0'; setTimeout(() => { loader.style.display = 'none'; }, 300); }, 1200); }
     function openMenu() { triggerTransition(() => { document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none'); document.getElementById('main-menu').style.display = 'block'; switchMenuTab('operations'); applyPendingReloadIfSafe(); }); }
+
+    // ============================================================
+    // SCHEDULING (Phase 1, TEST) - Admin Manager builder
+    // ============================================================
+    const SCHED_LOCATIONS = ['Roadrunner','Valley','Lenox','Alamogordo','Roswell','Catering & Vending'];
+    let schedState = { location:'Roadrunner', weekStart:null, data:{positions:[],employees:[],shifts:[]}, editing:{employeeId:null,date:null,shiftId:null} };
+
+    function isAdminManager() { return currentUser && (currentUser.role === 'Admin Manager' || currentUser.is_developer === true); }
+
+    function openScheduling() {
+        triggerTransition(() => {
+            document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
+            if (isAdminManager()) {
+                document.getElementById('scheduleBuilderView').style.display = 'block';
+                initScheduleBuilder();
+            } else {
+                document.getElementById('scheduleComingSoonView').style.display = 'block';
+            }
+        });
+    }
+
+    function schedMondayOf(d){ const dt=new Date(d); const day=(dt.getDay()+6)%7; dt.setDate(dt.getDate()-day); dt.setHours(0,0,0,0); return dt; }
+    function schedFmt(dt){ const m=String(dt.getMonth()+1).padStart(2,'0'); const da=String(dt.getDate()).padStart(2,'0'); return dt.getFullYear()+'-'+m+'-'+da; }
+    function schedAddDays(dt,n){ const x=new Date(dt); x.setDate(x.getDate()+n); return x; }
+
+    function initScheduleBuilder() {
+        const sel = document.getElementById('schedLocation');
+        if (sel && !sel.options.length) sel.innerHTML = SCHED_LOCATIONS.map(l => '<option>'+l+'</option>').join('');
+        schedState.location = sel ? sel.value : 'Roadrunner';
+        if (!schedState.weekStart) schedState.weekStart = schedMondayOf(new Date());
+        fetchScheduleWeek();
+    }
+    function schedChangeLocation(){ schedState.location = document.getElementById('schedLocation').value; fetchScheduleWeek(); }
+    function schedShiftWeek(days){ schedState.weekStart = schedAddDays(schedState.weekStart, days); fetchScheduleWeek(); }
+
+    function fetchScheduleWeek() {
+        const grid = document.getElementById('schedGrid');
+        grid.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading&hellip;</p>';
+        const ws = schedFmt(schedState.weekStart);
+        withPin(function(pin){
+            supabaseClient.rpc('app_sched_get_week', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_week_start: ws })
+            .then(({ data, error }) => {
+                if (error && error.code === '42501') sessionPin = null;
+                if (error) { grid.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Error: ' + error.message + '</p>'; return; }
+                schedState.data = data || { positions:[], employees:[], shifts:[] };
+                renderScheduleGrid();
+            }).catch(() => { grid.innerHTML = '<p style="color:red;text-align:center;">Connection error.</p>'; });
+        }, function(){ grid.innerHTML = '<p style="text-align:center;padding:20px;color:#888;">PIN required.</p>'; });
+    }
+
+    function schedPosById(id){ return (schedState.data.positions || []).find(p => p.id === id); }
+    function schedShiftHours(s){ if(!s.start_time||!s.end_time) return 0; const a=s.start_time.split(':').map(Number); const b=s.end_time.split(':').map(Number); let h=(b[0]*60+b[1]-(a[0]*60+a[1]))/60; if(h<0) h+=24; return h; }
+
+    function renderScheduleGrid() {
+        const ws = schedState.weekStart;
+        const days = []; for (let i=0;i<7;i++) days.push(schedAddDays(ws,i));
+        const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+        const lbl = document.getElementById('schedWeekLabel');
+        if (lbl) lbl.innerText = (ws.getMonth()+1)+'/'+ws.getDate()+' – '+(days[6].getMonth()+1)+'/'+days[6].getDate()+', '+ws.getFullYear();
+        const shifts = schedState.data.shifts || [];
+        const emps = schedState.data.employees || [];
+        const byKey = {}, dayTotals = {}, empTotals = {};
+        shifts.forEach(s => {
+            const k = s.employee_id + '|' + s.shift_date;
+            (byKey[k] = byKey[k] || []).push(s);
+            const h = schedShiftHours(s);
+            dayTotals[s.shift_date] = (dayTotals[s.shift_date]||0) + h;
+            empTotals[s.employee_id] = (empTotals[s.employee_id]||0) + h;
+        });
+        let html = '<div style="overflow-x:auto;"><table class="sched-table"><thead><tr><th class="sched-emp">Employee</th>';
+        days.forEach((d,i) => { html += '<th>'+dayNames[i]+'<br><span style="font-weight:normal;color:#888;">'+(d.getMonth()+1)+'/'+d.getDate()+'</span></th>'; });
+        html += '<th>Hrs</th></tr></thead><tbody>';
+        if (!emps.length) html += '<tr><td colspan="9" style="text-align:center;padding:20px;color:#888;">No employees yet. Tap &ldquo;Add Employee&rdquo; to add a test employee.</td></tr>';
+        emps.forEach(e => {
+            html += '<tr><td class="sched-emp">'+escapeHtml(e.name)+'</td>';
+            days.forEach(d => {
+                const ds = schedFmt(d); const cell = byKey[e.id+'|'+ds] || [];
+                html += '<td class="sched-cell" onclick="schedOpenModal('+e.id+",'"+ds+"',null)\">";
+                cell.forEach(s => {
+                    const p = schedPosById(s.position_id); const col = p ? p.color : '#888';
+                    const lblTxt = (p ? p.name : '') + (s.note ? (' · ' + s.note) : '');
+                    html += '<div class="sched-chip" style="background:'+col+';" onclick="event.stopPropagation();schedOpenModal('+e.id+",'"+ds+"',"+s.id+')">'+(s.start_time||'')+'-'+(s.end_time||'')+'<br>'+escapeHtml(lblTxt)+(s.published?'':' *')+'</div>';
+                });
+                html += '</td>';
+            });
+            html += '<td style="text-align:center;font-weight:bold;">'+(empTotals[e.id]||0).toFixed(1)+'</td></tr>';
+        });
+        html += '</tbody><tfoot><tr><td class="sched-emp">Daily total</td>';
+        days.forEach(d => { const ds = schedFmt(d); html += '<td style="text-align:center;font-weight:bold;color:#5b3fb8;">'+(dayTotals[ds]||0).toFixed(1)+'</td>'; });
+        html += '<td></td></tr></tfoot></table></div><p style="font-size:11px;color:#888;margin-top:6px;">Tap a cell to add a shift. Chips marked * are unpublished &mdash; hit Publish to release to staff.</p>';
+        document.getElementById('schedGrid').innerHTML = html;
+    }
+
+    function schedOpenModal(empId, date, shiftId) {
+        schedState.editing = { employeeId: empId, date: date, shiftId: shiftId };
+        const posSel = document.getElementById('shiftPosition');
+        posSel.innerHTML = '<option value="">&mdash; position &mdash;</option>' + (schedState.data.positions||[]).map(p => '<option value="'+p.id+'">'+escapeHtml(p.name)+'</option>').join('');
+        let s = shiftId ? (schedState.data.shifts||[]).find(x => x.id === shiftId) : null;
+        document.getElementById('shiftModalTitle').innerText = shiftId ? 'Edit Shift' : 'Add Shift';
+        document.getElementById('shiftStart').value = s ? (s.start_time||'') : '';
+        document.getElementById('shiftEnd').value = s ? (s.end_time||'') : '';
+        document.getElementById('shiftNote').value = s ? (s.note||'') : '';
+        posSel.value = (s && s.position_id) ? String(s.position_id) : '';
+        document.getElementById('shiftDeleteBtn').style.display = shiftId ? 'block' : 'none';
+        document.getElementById('shiftModal').style.display = 'flex';
+    }
+    function schedCloseModal(){ document.getElementById('shiftModal').style.display = 'none'; }
+
+    function schedSaveShift() {
+        const ed = schedState.editing;
+        const pos = document.getElementById('shiftPosition').value;
+        const st = document.getElementById('shiftStart').value;
+        const en = document.getElementById('shiftEnd').value;
+        const note = document.getElementById('shiftNote').value;
+        if (!st || !en) { alert('Please enter start and end times.'); return; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_sched_upsert_shift', { p_username: currentUser.username, p_password: pin, p_id: ed.shiftId, p_location: schedState.location, p_shift_date: ed.date, p_employee_id: ed.employeeId, p_position_id: pos ? parseInt(pos,10) : null, p_start: st, p_end: en, p_note: note })
+            .then(({ error }) => { if (error) { alert('Error: ' + error.message); return; } schedCloseModal(); fetchScheduleWeek(); });
+        });
+    }
+    function schedDeleteShift() {
+        const id = schedState.editing.shiftId; if (!id) return;
+        if (!confirm('Delete this shift?')) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_sched_delete_shift', { p_username: currentUser.username, p_password: pin, p_id: id })
+            .then(({ error }) => { if (error) { alert('Error: ' + error.message); return; } schedCloseModal(); fetchScheduleWeek(); });
+        });
+    }
+    function schedPublish() {
+        const ws = schedFmt(schedState.weekStart);
+        withPin(function(pin){
+            supabaseClient.rpc('app_sched_publish_week', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_week_start: ws })
+            .then(({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } alert('Published ' + (data||0) + ' shift(s) for ' + schedState.location + '.'); fetchScheduleWeek(); });
+        });
+    }
+    function schedCopyLastWeek() {
+        const to = schedFmt(schedState.weekStart); const from = schedFmt(schedAddDays(schedState.weekStart,-7));
+        if (!confirm("Copy last week's shifts into this week?")) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_sched_copy_week', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_from_week: from, p_to_week: to })
+            .then(({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } alert('Copied ' + (data||0) + ' shift(s) into this week.'); fetchScheduleWeek(); });
+        });
+    }
+    function schedAddEmployee() {
+        const name = prompt('New employee name (test roster):'); if (!name) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_sched_add_employee', { p_username: currentUser.username, p_password: pin, p_name: name, p_linked_username: '' })
+            .then(({ error }) => { if (error) { alert('Error: ' + error.message); return; } fetchScheduleWeek(); });
+        });
+    }
     function openForm(formId) { triggerTransition(() => { document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none'); document.getElementById(formId).style.display = 'block'; }); }
 
     function openPopIn() {
