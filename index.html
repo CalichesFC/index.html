@@ -550,16 +550,29 @@
 <style>
   /* Homebase-style LAYOUT, Caliche's brand COLORS, accessibility-focused */
   .hb-head { background:#fff; border-bottom:1px solid #dfe6ee; padding:11px 14px; display:flex; align-items:center; gap:10px; position:sticky; top:0; z-index:40; }
-  .hb-head .hb-ico { width:34px; height:34px; border-radius:8px; background:var(--caliches-blue); color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+  .hb-head .hb-ico { width:36px; height:36px; border-radius:8px; background:var(--caliches-blue); color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
   .hb-head h2 { margin:0; font-size:18px; font-weight:800; color:#1f2a44; }
   .hb-head .hb-sub { font-size:12px; color:#5b6472; margin:1px 0 0; }
-  .hb-back { background:#eaf1f8; color:var(--caliches-blue); border:1px solid #cfe0ef; border-radius:8px; padding:9px 13px; font-weight:bold; font-size:14px; cursor:pointer; min-height:40px; }
+  .hb-back { background:#eaf1f8; color:var(--caliches-blue); border:1px solid #cfe0ef; border-radius:8px; padding:0 14px; font-weight:bold; font-size:14px; cursor:pointer; min-height:44px; }
   #scheduleBuilderView, #timeClockView, #liveClockView, #timesheetsView { background:#f5f7fa; }
-  .sched-btn.publish { background:var(--caliches-pink); color:#fff; }
-  #scheduleBuilderView .sched-btn, #timeClockView .sched-btn, #timesheetsView .sched-btn, #liveClockView .sched-btn { min-height:40px; }
-  .sched-chip { font-size:12px; line-height:1.3; }
+  .hb-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:#fff; border:1px solid #e3e8ef; border-radius:12px; padding:10px 12px; margin-bottom:14px; }
+  .hb-bar .spacer { flex:1 1 auto; }
+  .hb-bar select { min-height:44px; }
+  .sched-week-nav { display:flex; align-items:center; gap:6px; }
+  .sched-week-nav button { width:44px; height:44px; border:1px solid #d7dde6; background:#fff; border-radius:8px; cursor:pointer; font-size:15px; color:#1f2a44; }
+  #schedWeekLabel { font-weight:bold; min-width:148px; text-align:center; font-size:14px; color:#1f2a44; }
+  .sched-btn { min-height:44px; padding:0 16px; }
+  .sched-btn.publish { background:var(--caliches-pink); color:#fff; font-weight:bold; }
+  .hb-tools-wrap { position:relative; }
+  .hb-tools-menu { position:absolute; right:0; top:50px; background:#fff; border:1px solid #d7dde6; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.15); z-index:60; min-width:210px; overflow:hidden; }
+  .hb-tools-menu button { display:block; width:100%; text-align:left; background:#fff; border:0; border-bottom:1px solid #f0f2f5; padding:0 16px; min-height:46px; font-size:14px; color:#1f2a44; cursor:pointer; }
+  .hb-tools-menu button:hover { background:#f5f7fa; }
+  .sched-emp small { display:block; font-weight:normal; color:#7a828f; font-size:11px; margin-top:1px; }
+  .sched-cell { min-height:48px; }
+  .sched-chip { font-size:12px; line-height:1.25; min-height:34px; padding:5px 7px; border-radius:7px; display:flex; flex-direction:column; justify-content:center; }
   .sched-table th, .sched-table td { font-size:12.5px; }
-  .hb-back:focus-visible, .sched-btn:focus-visible, .sched-cell:focus-visible, #scheduleBuilderView select:focus-visible, #timeClockView select:focus-visible, #timesheetsView input:focus-visible { outline:3px solid var(--caliches-blue); outline-offset:2px; }
+  #timeClockView .save-btn { min-height:48px; }
+  .hb-back:focus-visible, .sched-btn:focus-visible, .sched-cell:focus-visible, .sched-chip:focus-visible, .sched-week-nav button:focus-visible, .hb-tools-menu button:focus-visible, #scheduleBuilderView select:focus-visible, #timeClockView select:focus-visible, #timeClockView .save-btn:focus-visible, #timesheetsView input:focus-visible { outline:3px solid var(--caliches-blue); outline-offset:2px; }
 </style>
 <div id="scheduleBuilderView" class="app-view">
     <div class="hb-head">
@@ -568,20 +581,26 @@
         <div><h2>Schedule Builder</h2><div class="hb-sub">Test mode &mdash; test employees</div></div>
     </div>
     <div class="container" style="max-width:1100px;">
-        <div class="sched-controls">
-            <select id="schedLocation" onchange="schedChangeLocation()"></select>
+        <div class="hb-bar">
+            <select id="schedLocation" onchange="schedChangeLocation()" aria-label="Store location"></select>
             <div class="sched-week-nav">
                 <button onclick="schedShiftWeek(-7)" aria-label="Previous week" title="Previous week">&#9664;</button>
                 <span id="schedWeekLabel" aria-live="polite">&mdash;</span>
                 <button onclick="schedShiftWeek(7)" aria-label="Next week" title="Next week">&#9654;</button>
             </div>
-            <button class="sched-btn" onclick="schedCopyLastWeek()">&#128203; Copy Last Week</button>
-            <button class="sched-btn" onclick="schedAddEmployee()">&#10133; Add Employee</button>
+            <span class="spacer"></span>
             <button class="sched-btn publish" onclick="schedPublish()">&#128640; Publish</button>
-            <button class="sched-btn" onclick="schedPrint()">&#128424; Print</button>
-            <button class="sched-btn" style="background:#1f9d55;color:#fff;" onclick="openTimeClock()">&#128347; Time Clock</button>
-            <button class="sched-btn" style="background:#16a34a;color:#fff;" onclick="openLiveBoard()">&#128994; On the Clock</button>
-            <button class="sched-btn" style="background:#0d6eaf;color:#fff;" onclick="openTimesheets()">&#128202; Timesheets</button>
+            <div class="hb-tools-wrap">
+                <button class="sched-btn" id="schedToolsBtn" onclick="toggleSchedTools(event)" aria-haspopup="true" aria-expanded="false">&#9881; Tools &#9662;</button>
+                <div class="hb-tools-menu" id="schedToolsMenu" style="display:none;" role="menu">
+                    <button role="menuitem" onclick="schedToolsAction('copy')">&#128203; Copy Last Week</button>
+                    <button role="menuitem" onclick="schedToolsAction('print')">&#128424; Print Schedule</button>
+                    <button role="menuitem" onclick="schedToolsAction('addemp')">&#10133; Add Employee</button>
+                    <button role="menuitem" onclick="schedToolsAction('clock')">&#128347; Time Clock</button>
+                    <button role="menuitem" onclick="schedToolsAction('live')">&#128994; On the Clock</button>
+                    <button role="menuitem" onclick="schedToolsAction('timesheets')">&#128202; Timesheets</button>
+                </div>
+            </div>
         </div>
         <div id="schedGrid"><p style="text-align:center;padding:30px;color:#888;">Loading&hellip;</p></div>
     </div>
@@ -893,7 +912,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.16.1934';
+    const APP_VERSION = '2026.06.16.1952';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -1609,6 +1628,11 @@
 
     function schedPosById(id){ return (schedState.data.positions || []).find(p => p.id === id); }
     function schedShiftHours(s){ if(!s.start_time||!s.end_time) return 0; const a=s.start_time.split(':').map(Number); const b=s.end_time.split(':').map(Number); let h=(b[0]*60+b[1]-(a[0]*60+a[1]))/60; if(h<0) h+=24; return h; }
+    // pick black or white text for legibility on a colored chip (WCAG-ish luminance)
+    function hbTextOn(hex){ if(!hex||hex[0]!=='#'||hex.length<7) return '#fff'; const r=parseInt(hex.substr(1,2),16),g=parseInt(hex.substr(3,2),16),b=parseInt(hex.substr(5,2),16); return ((0.299*r+0.587*g+0.114*b)/255) > 0.5 ? '#1f2a44' : '#fff'; }
+    function toggleSchedTools(e){ if(e) e.stopPropagation(); const m=document.getElementById('schedToolsMenu'); const b=document.getElementById('schedToolsBtn'); const open=(m.style.display==='block'); m.style.display=open?'none':'block'; if(b) b.setAttribute('aria-expanded', open?'false':'true'); }
+    function schedToolsAction(a){ const m=document.getElementById('schedToolsMenu'); const b=document.getElementById('schedToolsBtn'); if(m) m.style.display='none'; if(b) b.setAttribute('aria-expanded','false'); if(a==='copy') schedCopyLastWeek(); else if(a==='print') schedPrint(); else if(a==='addemp') schedAddEmployee(); else if(a==='clock') openTimeClock(); else if(a==='live') openLiveBoard(); else if(a==='timesheets') openTimesheets(); }
+    document.addEventListener('click', function(ev){ const m=document.getElementById('schedToolsMenu'); const b=document.getElementById('schedToolsBtn'); if(m && m.style.display==='block' && !m.contains(ev.target) && b!==ev.target && (!b||!b.contains(ev.target))){ m.style.display='none'; b.setAttribute('aria-expanded','false'); } });
 
     function renderScheduleGrid() {
         const ws = schedState.weekStart;
@@ -1618,19 +1642,27 @@
         if (lbl) lbl.innerText = (ws.getMonth()+1)+'/'+ws.getDate()+' – '+(days[6].getMonth()+1)+'/'+days[6].getDate()+', '+ws.getFullYear();
         const shifts = schedState.data.shifts || [];
         const emps = schedState.data.employees || [];
-        const byKey = {}, dayTotals = {}, empTotals = {};
+        const byKey = {}, dayTotals = {}, empTotals = {}, empRoleCount = {};
         shifts.forEach(s => {
             const k = s.employee_id + '|' + s.shift_date;
             (byKey[k] = byKey[k] || []).push(s);
             const h = schedShiftHours(s);
             dayTotals[s.shift_date] = (dayTotals[s.shift_date]||0) + h;
-            empTotals[s.employee_id] = (empTotals[s.employee_id]||0) + h;
+            if (s.employee_id != null) {
+                empTotals[s.employee_id] = (empTotals[s.employee_id]||0) + h;
+                const pr = schedPosById(s.position_id);
+                if (pr) { if (!empRoleCount[s.employee_id]) empRoleCount[s.employee_id] = {}; empRoleCount[s.employee_id][pr.name] = (empRoleCount[s.employee_id][pr.name]||0) + 1; }
+            }
         });
+        const empRole = {};
+        Object.keys(empRoleCount).forEach(eid => { let best='', n=-1; Object.keys(empRoleCount[eid]).forEach(r => { if (empRoleCount[eid][r] > n) { n = empRoleCount[eid][r]; best = r; } }); empRole[eid] = best; });
         const chipHtml = (s) => {
-            const p = schedPosById(s.position_id); const col = p ? p.color : '#888';
+            const p = schedPosById(s.position_id); const col = p ? p.color : '#6b7280';
+            const txt = hbTextOn(col);
             const lblTxt = (p ? p.name : '') + (s.note ? (' · ' + s.note) : '');
             const empArg = (s.employee_id != null ? s.employee_id : 'null');
-            return '<div class="sched-chip" style="background:'+col+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+(s.start_time||'')+'-'+(s.end_time||'')+'<br>'+escapeHtml(lblTxt)+(s.published?'':' *')+'</div>';
+            const aria = (s.start_time||'') + ' to ' + (s.end_time||'') + ' ' + lblTxt + (s.published?'':' (unpublished)');
+            return '<div class="sched-chip" tabindex="0" role="button" aria-label="'+escapeHtml(aria)+'" style="background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+(s.start_time||'')+'-'+(s.end_time||'')+'<br>'+escapeHtml(lblTxt)+(s.published?'':' *')+'</div>';
         };
         let html = '<div style="overflow-x:auto;"><table class="sched-table"><thead><tr><th class="sched-emp">Employee</th>';
         days.forEach((d,i) => { html += '<th>'+dayNames[i]+'<br><span style="font-weight:normal;color:#888;">'+(d.getMonth()+1)+'/'+d.getDate()+'</span></th>'; });
@@ -1646,7 +1678,7 @@
         html += '<td></td></tr>';
         if (!emps.length) html += '<tr><td colspan="9" style="text-align:center;padding:20px;color:#888;">No employees yet. Tap &ldquo;Add Employee&rdquo; to add a test employee.</td></tr>';
         emps.forEach(e => {
-            html += '<tr><td class="sched-emp">'+escapeHtml(e.name)+'</td>';
+            html += '<tr><td class="sched-emp">'+escapeHtml(e.name)+(empRole[e.id]?'<small>'+escapeHtml(empRole[e.id])+'</small>':'')+'</td>';
             days.forEach(d => {
                 const ds = schedFmt(d); const cell = byKey[e.id+'|'+ds] || [];
                 html += '<td class="sched-cell" onclick="schedOpenModal('+e.id+",'"+ds+"',null)\">";
