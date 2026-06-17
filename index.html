@@ -1103,7 +1103,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.17.1307';
+    const APP_VERSION = '2026.06.17.1444';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2309,7 +2309,7 @@
             };
             let done=false;
             const finishOnce=function(pdfUrl){ if(done) return; done=true; clearTimeout(t); finish(pdfUrl); };
-            var t=setTimeout(function(){ finishOnce(''); }, 9000); // don't wait forever on the PDF
+            var t=setTimeout(function(){ finishOnce(''); }, 15000); // don't wait forever on the PDF (cold starts can take ~10s)
             fetch(G_URL+qs).then(r=>r.json()).then(j=>{ finishOnce(j && j.url ? j.url : ''); }).catch(()=>{ finishOnce(''); });
         }, function(){ if(btn){ btn.disabled=false; btn.innerText='Record Decision'; } });
     }
