@@ -566,6 +566,8 @@
             <button class="sched-btn" onclick="schedAddEmployee()">&#10133; Add Employee</button>
             <button class="sched-btn publish" onclick="schedPublish()">&#128640; Publish</button>
             <button class="sched-btn" style="background:#1f9d55;color:#fff;" onclick="openTimeClock()">&#128347; Time Clock</button>
+            <button class="sched-btn" style="background:#16a34a;color:#fff;" onclick="openLiveBoard()">&#128994; On the Clock</button>
+            <button class="sched-btn" style="background:#0d6eaf;color:#fff;" onclick="openTimesheets()">&#128202; Timesheets</button>
         </div>
         <div id="schedGrid"><p style="text-align:center;padding:30px;color:#888;">Loading&hellip;</p></div>
     </div>
@@ -595,6 +597,48 @@
             <p style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#999;font-weight:800;margin:0 0 8px;">&#128197; Today's Punches</p>
             <div id="clockTodayList"><p style="color:#888;font-size:13px;">&mdash;</p></div>
         </div>
+    </div>
+</div>
+
+<!-- ON THE CLOCK (live board) -->
+<div id="liveClockView" class="app-view">
+    <button class="back-btn" onclick="openScheduling()">&#128281; Back</button>
+    <div class="header" style="background:linear-gradient(135deg,#16a34a 0%,var(--caliches-blue) 100%);">
+        <h1 style="font-size:34px;margin:8px 0;">&#128994;</h1>
+        <p style="font-size:17px;margin:0;font-weight:bold;text-transform:uppercase;">On the Clock</p>
+    </div>
+    <div class="container" style="max-width:620px;">
+        <button class="sched-btn" style="margin-bottom:14px;" onclick="loadLiveBoard()">&#128260; Refresh</button>
+        <div id="liveBoard"><p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p></div>
+    </div>
+</div>
+
+<!-- TIMESHEETS -->
+<div id="timesheetsView" class="app-view">
+    <button class="back-btn" onclick="openScheduling()">&#128281; Back</button>
+    <div class="header" style="background:linear-gradient(135deg,#0d6eaf 0%,var(--caliches-blue) 100%);">
+        <h1 style="font-size:34px;margin:8px 0;">&#128202;</h1>
+        <p style="font-size:17px;margin:0;font-weight:bold;text-transform:uppercase;">Timesheets</p>
+        <p style="font-size:11px;margin:5px 0 0;opacity:.85;">Regular vs OT (over 40h/week) &mdash; for payroll</p>
+    </div>
+    <div class="container" style="max-width:900px;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">
+            <div><label class="form-label">From:</label><input type="date" id="tsFrom" style="padding:10px;border:2px solid #ddd;border-radius:8px;"></div>
+            <div><label class="form-label">To:</label><input type="date" id="tsTo" style="padding:10px;border:2px solid #ddd;border-radius:8px;"></div>
+            <button class="sched-btn" style="background:var(--caliches-blue);color:#fff;" onclick="loadTimesheet()">Load</button>
+            <button class="sched-btn" style="background:#1f9d55;color:#fff;" onclick="downloadTimesheetCSV()">&#11015; Download CSV</button>
+        </div>
+        <div id="timesheetSummary"></div>
+        <div id="timesheetTable"></div>
+    </div>
+</div>
+
+<!-- PUNCH EDIT MODAL -->
+<div id="punchModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;padding:16px;">
+    <div style="background:#fff;border-radius:16px;padding:20px;max-width:560px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,0.3);">
+        <h2 id="punchModalTitle" style="color:var(--caliches-blue);margin-top:0;font-size:19px;">Punches</h2>
+        <div id="punchList"></div>
+        <span class="text-link" style="display:block;margin-top:14px;text-align:center;" onclick="document.getElementById('punchModal').style.display='none'">Close</span>
     </div>
 </div>
 
@@ -837,7 +881,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.16.1848';
+    const APP_VERSION = '2026.06.16.1914';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -1750,6 +1794,136 @@
             const rpc = onBreak ? 'app_break_end' : 'app_break_start';
             supabaseClient.rpc(rpc, { p_username: currentUser.username, p_password: pin, p_employee_id: emp })
             .then(({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } if (data && data.ok === false) { alert(data.error); } clockRefreshStatus(); });
+        });
+    }
+
+    // ============================================================
+    // TIMESHEETS & LIVE BOARD (Phase 2b) - managers
+    // ============================================================
+    let tsRows = [];
+
+    function openLiveBoard() {
+        triggerTransition(() => {
+            document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
+            document.getElementById('liveClockView').style.display = 'block';
+            loadLiveBoard();
+        });
+    }
+    function loadLiveBoard() {
+        const c = document.getElementById('liveBoard');
+        c.innerHTML = '<p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_clock_live', { p_username: currentUser.username, p_password: pin })
+            .then(({ data, error }) => {
+                if (error && error.code === '42501') sessionPin = null;
+                if (error) { c.innerHTML = '<p style="color:red;text-align:center;">' + error.message + '</p>'; return; }
+                const list = data || [];
+                if (!list.length) { c.innerHTML = '<p style="text-align:center;color:#888;padding:20px;">Nobody is clocked in right now.</p>'; return; }
+                c.innerHTML = list.map(function(p){
+                    const hrs = (p.minutes/60).toFixed(2);
+                    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid #e5e5e5;border-left:5px solid '+(p.on_break?'#e67e22':'#16a34a')+';border-radius:10px;margin-bottom:8px;"><div><div style="font-weight:bold;">'+escapeHtml(p.employee)+(p.flagged?' &#9888;':'')+'</div><div style="font-size:12px;color:#888;">'+escapeHtml(p.location||'')+' &bull; since '+p.since+'</div></div><div style="text-align:right;"><div style="font-weight:900;color:var(--caliches-blue);">'+hrs+' h</div>'+(p.on_break?'<div style="font-size:11px;color:#e67e22;font-weight:bold;">ON BREAK</div>':'')+'</div></div>';
+                }).join('');
+            });
+        });
+    }
+
+    function tsDefaultRange() {
+        const to = new Date(); const from = new Date(); from.setDate(from.getDate()-13);
+        const f = document.getElementById('tsFrom'), t = document.getElementById('tsTo');
+        if (f && !f.value) f.value = schedFmt(from);
+        if (t && !t.value) t.value = schedFmt(to);
+    }
+    function openTimesheets() {
+        triggerTransition(() => {
+            document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
+            document.getElementById('timesheetsView').style.display = 'block';
+            tsDefaultRange();
+            loadTimesheet();
+        });
+    }
+    function loadTimesheet() {
+        const from = document.getElementById('tsFrom').value, to = document.getElementById('tsTo').value;
+        if (!from || !to) { alert('Pick a date range.'); return; }
+        const tbl = document.getElementById('timesheetTable'); const sum = document.getElementById('timesheetSummary');
+        tbl.innerHTML = '<p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p>'; sum.innerHTML = '';
+        withPin(function(pin){
+            supabaseClient.rpc('app_timesheet', { p_username: currentUser.username, p_password: pin, p_start: from, p_end: to })
+            .then(({ data, error }) => {
+                if (error && error.code === '42501') sessionPin = null;
+                if (error) { tbl.innerHTML = '<p style="color:red;">' + error.message + '</p>'; return; }
+                const d = data || {}; tsRows = d.rows || [];
+                let warn = '';
+                if (d.open_count) warn += '<span style="background:#fff3cd;color:#854F0B;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:bold;margin-right:8px;">&#9888; '+d.open_count+' open punch(es) &mdash; not clocked out</span>';
+                if (d.flagged_count) warn += '<span style="background:#fdecea;color:#c0392b;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:bold;">&#9873; '+d.flagged_count+' flagged</span>';
+                sum.innerHTML = warn ? '<div style="margin-bottom:12px;">'+warn+'</div>' : '';
+                if (!tsRows.length) { tbl.innerHTML = '<p style="text-align:center;color:#888;padding:20px;">No hours in this range.</p>'; return; }
+                let tot = 0, totOt = 0;
+                let h = '<div style="overflow-x:auto;"><table class="sched-table"><thead><tr><th class="sched-emp">Employee</th><th>Regular</th><th>OT</th><th>Total</th><th></th></tr></thead><tbody>';
+                tsRows.forEach(function(r){
+                    tot += r.total_hours; totOt += r.ot_hours;
+                    h += '<tr><td class="sched-emp">'+escapeHtml(r.name)+'</td><td style="text-align:center;">'+r.regular_hours.toFixed(2)+'</td><td style="text-align:center;color:'+(r.ot_hours>0?'#c0392b':'#333')+';font-weight:'+(r.ot_hours>0?'bold':'normal')+';">'+r.ot_hours.toFixed(2)+'</td><td style="text-align:center;font-weight:bold;">'+r.total_hours.toFixed(2)+'</td><td style="text-align:center;"><button class="update-action-btn" onclick="openPunchEditor('+r.employee_id+')">Punches</button></td></tr>';
+                });
+                h += '</tbody><tfoot><tr><td class="sched-emp">Totals</td><td></td><td style="text-align:center;color:#c0392b;font-weight:bold;">'+totOt.toFixed(2)+'</td><td style="text-align:center;font-weight:900;">'+tot.toFixed(2)+'</td><td></td></tr></tfoot></table></div>';
+                tbl.innerHTML = h;
+            });
+        });
+    }
+    function downloadTimesheetCSV() {
+        if (!tsRows.length) { alert('Load a timesheet first.'); return; }
+        const from = document.getElementById('tsFrom').value, to = document.getElementById('tsTo').value;
+        let csv = 'Employee,Regular Hours,OT Hours,Total Hours\n';
+        tsRows.forEach(function(r){ csv += '"'+(r.name||'').replace(/"/g,'""')+'",'+r.regular_hours+','+r.ot_hours+','+r.total_hours+'\n'; });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'timesheet_'+from+'_to_'+to+'.csv'; a.click();
+    }
+
+    function openPunchEditor(empId) {
+        const r = tsRows.find(function(x){ return x.employee_id === empId; });
+        document.getElementById('punchModalTitle').innerText = 'Punches — ' + (r ? r.name : '');
+        document.getElementById('punchModal').style.display = 'flex';
+        loadPunchList(empId);
+    }
+    function loadPunchList(empId) {
+        const from = document.getElementById('tsFrom').value, to = document.getElementById('tsTo').value;
+        const c = document.getElementById('punchList');
+        c.innerHTML = '<p style="color:#888;">Loading&hellip;</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_punch_list', { p_username: currentUser.username, p_password: pin, p_employee_id: empId, p_start: from, p_end: to })
+            .then(({ data, error }) => {
+                if (error) { c.innerHTML = '<p style="color:red;">' + error.message + '</p>'; return; }
+                const list = data || [];
+                if (!list.length) { c.innerHTML = '<p style="color:#888;">No punches in this range.</p>'; return; }
+                c.innerHTML = list.map(function(p){
+                    const io = 'p' + p.id;
+                    return '<div style="border:1px solid #eee;border-radius:10px;padding:10px;margin-bottom:10px;font-size:13px;">'
+                      + (p.flagged ? '<div style="color:#c0392b;font-size:11px;margin-bottom:4px;">&#9888; '+escapeHtml(p.flag_reason||'flagged')+'</div>' : '')
+                      + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">In <input type="date" id="'+io+'_id" value="'+(p.in_date||'')+'" style="padding:5px;border:1px solid #ccc;border-radius:6px;"> <input type="time" id="'+io+'_it" value="'+(p.in_time||'')+'" style="padding:5px;border:1px solid #ccc;border-radius:6px;"></div>'
+                      + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px;">Out <input type="date" id="'+io+'_od" value="'+(p.out_date||'')+'" style="padding:5px;border:1px solid #ccc;border-radius:6px;"> <input type="time" id="'+io+'_ot" value="'+(p.out_time||'')+'" style="padding:5px;border:1px solid #ccc;border-radius:6px;"></div>'
+                      + '<div style="margin-top:6px;"><input type="text" id="'+io+'_r" placeholder="reason for edit" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;"></div>'
+                      + '<div style="display:flex;gap:6px;margin-top:8px;"><button class="update-action-btn" onclick="savePunch('+p.id+','+empId+')">Save</button><button class="update-action-btn" style="background:var(--fail-red);" onclick="deletePunch('+p.id+','+empId+')">Delete</button>'
+                      + (p.edited_by ? '<span style="font-size:11px;color:#999;align-self:center;">edited by '+escapeHtml(p.edited_by)+'</span>' : '') + '</div></div>';
+                }).join('');
+            });
+        });
+    }
+    function savePunch(id, empId) {
+        const io = 'p' + id;
+        const inD = document.getElementById(io+'_id').value, inT = document.getElementById(io+'_it').value;
+        const outD = document.getElementById(io+'_od').value, outT = document.getElementById(io+'_ot').value;
+        const reason = document.getElementById(io+'_r').value;
+        if (!inD || !inT) { alert('Clock-in date & time required.'); return; }
+        const pIn = inD + ' ' + inT;
+        const pOut = (outD && outT) ? (outD + ' ' + outT) : '';
+        withPin(function(pin){
+            supabaseClient.rpc('app_punch_edit', { p_username: currentUser.username, p_password: pin, p_id: id, p_in: pIn, p_out: pOut, p_reason: reason })
+            .then(({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } if (data && data.ok === false) { alert(data.error); return; } loadPunchList(empId); loadTimesheet(); });
+        });
+    }
+    function deletePunch(id, empId) {
+        if (!confirm('Delete this punch?')) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_punch_delete', { p_username: currentUser.username, p_password: pin, p_id: id })
+            .then(({ error }) => { if (error) { alert('Error: ' + error.message); return; } loadPunchList(empId); loadTimesheet(); });
         });
     }
 
