@@ -774,7 +774,7 @@
             <a class="fl-link" href="https://u.pcloud.link/publink/show?code=kZUH7w5Z9NsH6rvcouXeDFltNB6mxLU8TGW7" target="_blank" rel="noopener"><span style="font-size:22px;">&#128228;</span><span><strong>Hiring Paperwork Uploads</strong></span></a>
             <a class="fl-link" href="https://www.onpointlc.com/employee/" target="_blank" rel="noopener"><span style="font-size:22px;">&#128231;</span><span><strong>New Manager Email Request</strong></span></a>
         </div>
-        <div style="margin-bottom:22px;">
+        <div class="forms-mgr-only" style="margin-bottom:22px;">
             <p style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#999;font-weight:800;margin:0 0 10px;">&#128181; Payroll &amp; HR <span style="color:#bbb;font-weight:600;text-transform:none;letter-spacing:0;">(manager/admin)</span></p>
             <a class="fl-link" href="https://form.jotform.com/261164512799060" target="_blank" rel="noopener"><span style="font-size:22px;">&#129534;</span><span><strong>Payroll Report</strong></span></a>
             <a class="fl-link" href="https://form.jotform.com/253527494743062" target="_blank" rel="noopener"><span style="font-size:22px;">&#9989;</span><span><strong>Raise Eligibility Checklist</strong></span></a>
@@ -782,7 +782,7 @@
             <a class="fl-link" href="https://form.jotform.com/team/261194595828067/caliches-admin-assistant-" target="_blank" rel="noopener"><span style="font-size:22px;">&#128188;</span><span><strong>Admin Assistant Internal Application</strong></span></a>
             <a class="fl-link" href="https://eform.pandadoc.com/?eform=30862498-ff17-4ecb-9d99-342540a3442" target="_blank" rel="noopener"><span style="font-size:22px;">&#128196;</span><span><strong>PandaDoc Form</strong><br><small style="color:#c00;font-weight:400;">(needs a label / confirm link)</small></span></a>
         </div>
-        <div style="margin-bottom:22px;">
+        <div class="forms-mgr-only" style="margin-bottom:22px;">
             <p style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#999;font-weight:800;margin:0 0 10px;">&#128200; Reports &amp; Leadership</p>
             <a class="fl-link" href="https://form.jotform.com/260295680006051" target="_blank" rel="noopener"><span style="font-size:22px;">&#9888;</span><span><strong>Internal Incident Report</strong><br><small style="color:#888;font-weight:400;">Corporate submission</small></span></a>
             <a class="fl-link" href="https://form.jotform.com/260656597350061" target="_blank" rel="noopener"><span style="font-size:22px;">&#127919;</span><span><strong>Leadership Role Alignment &amp; Growth Reflection</strong></span></a>
@@ -809,7 +809,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.16.1807';
+    const APP_VERSION = '2026.06.16.1818';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2795,6 +2795,8 @@
     }
 
     function openFormsLinks() {
+        const isMgr = currentUser && (currentUser.role === 'Manager' || currentUser.role === 'Admin Manager' || currentUser.is_developer === true);
+        document.querySelectorAll('.forms-mgr-only').forEach(el => { el.style.display = isMgr ? 'block' : 'none'; });
         triggerTransition(() => {
             document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
             document.getElementById('formsLinksView').style.display = 'block';
