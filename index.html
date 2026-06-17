@@ -565,6 +565,7 @@
             <button class="sched-btn" onclick="schedCopyLastWeek()">&#128203; Copy Last Week</button>
             <button class="sched-btn" onclick="schedAddEmployee()">&#10133; Add Employee</button>
             <button class="sched-btn publish" onclick="schedPublish()">&#128640; Publish</button>
+            <button class="sched-btn" onclick="schedPrint()">&#128424; Print</button>
             <button class="sched-btn" style="background:#1f9d55;color:#fff;" onclick="openTimeClock()">&#128347; Time Clock</button>
             <button class="sched-btn" style="background:#16a34a;color:#fff;" onclick="openLiveBoard()">&#128994; On the Clock</button>
             <button class="sched-btn" style="background:#0d6eaf;color:#fff;" onclick="openTimesheets()">&#128202; Timesheets</button>
@@ -881,7 +882,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.16.1914';
+    const APP_VERSION = '2026.06.16.1927';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -1614,27 +1615,39 @@
             dayTotals[s.shift_date] = (dayTotals[s.shift_date]||0) + h;
             empTotals[s.employee_id] = (empTotals[s.employee_id]||0) + h;
         });
+        const chipHtml = (s) => {
+            const p = schedPosById(s.position_id); const col = p ? p.color : '#888';
+            const lblTxt = (p ? p.name : '') + (s.note ? (' · ' + s.note) : '');
+            const empArg = (s.employee_id != null ? s.employee_id : 'null');
+            return '<div class="sched-chip" style="background:'+col+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+(s.start_time||'')+'-'+(s.end_time||'')+'<br>'+escapeHtml(lblTxt)+(s.published?'':' *')+'</div>';
+        };
         let html = '<div style="overflow-x:auto;"><table class="sched-table"><thead><tr><th class="sched-emp">Employee</th>';
         days.forEach((d,i) => { html += '<th>'+dayNames[i]+'<br><span style="font-weight:normal;color:#888;">'+(d.getMonth()+1)+'/'+d.getDate()+'</span></th>'; });
         html += '<th>Hrs</th></tr></thead><tbody>';
+        // Open (unassigned) shifts row
+        html += '<tr style="background:#faf7ff;"><td class="sched-emp" style="color:#5b3fb8;">&#9744; Open Shifts</td>';
+        days.forEach(d => {
+            const ds = schedFmt(d); const oc = byKey['null|'+ds] || [];
+            html += '<td class="sched-cell" onclick="schedOpenModal(null,\''+ds+'\',null)">';
+            oc.forEach(s => { html += chipHtml(s); });
+            html += '</td>';
+        });
+        html += '<td></td></tr>';
         if (!emps.length) html += '<tr><td colspan="9" style="text-align:center;padding:20px;color:#888;">No employees yet. Tap &ldquo;Add Employee&rdquo; to add a test employee.</td></tr>';
         emps.forEach(e => {
             html += '<tr><td class="sched-emp">'+escapeHtml(e.name)+'</td>';
             days.forEach(d => {
                 const ds = schedFmt(d); const cell = byKey[e.id+'|'+ds] || [];
                 html += '<td class="sched-cell" onclick="schedOpenModal('+e.id+",'"+ds+"',null)\">";
-                cell.forEach(s => {
-                    const p = schedPosById(s.position_id); const col = p ? p.color : '#888';
-                    const lblTxt = (p ? p.name : '') + (s.note ? (' · ' + s.note) : '');
-                    html += '<div class="sched-chip" style="background:'+col+';" onclick="event.stopPropagation();schedOpenModal('+e.id+",'"+ds+"',"+s.id+')">'+(s.start_time||'')+'-'+(s.end_time||'')+'<br>'+escapeHtml(lblTxt)+(s.published?'':' *')+'</div>';
-                });
+                cell.forEach(s => { html += chipHtml(s); });
                 html += '</td>';
             });
-            html += '<td style="text-align:center;font-weight:bold;">'+(empTotals[e.id]||0).toFixed(1)+'</td></tr>';
+            const eh = empTotals[e.id]||0; const ot = eh > 40;
+            html += '<td style="text-align:center;font-weight:bold;color:'+(ot?'#c0392b':'#333')+';" title="'+(ot?'Over 40h this week — overtime':'')+'">'+eh.toFixed(1)+(ot?' &#9888;':'')+'</td></tr>';
         });
         html += '</tbody><tfoot><tr><td class="sched-emp">Daily total</td>';
         days.forEach(d => { const ds = schedFmt(d); html += '<td style="text-align:center;font-weight:bold;color:#5b3fb8;">'+(dayTotals[ds]||0).toFixed(1)+'</td>'; });
-        html += '<td></td></tr></tfoot></table></div><p style="font-size:11px;color:#888;margin-top:6px;">Tap a cell to add a shift. Chips marked * are unpublished &mdash; hit Publish to release to staff.</p>';
+        html += '<td></td></tr></tfoot></table></div><p style="font-size:11px;color:#888;margin-top:6px;">Tap a cell to add a shift (top row = unassigned open shifts). <span style="color:#c0392b;">Red hours</span> = over 40 (OT). Chips marked * are unpublished.</p>';
         document.getElementById('schedGrid').innerHTML = html;
     }
 
@@ -1643,7 +1656,7 @@
         const posSel = document.getElementById('shiftPosition');
         posSel.innerHTML = '<option value="">&mdash; position &mdash;</option>' + (schedState.data.positions||[]).map(p => '<option value="'+p.id+'">'+escapeHtml(p.name)+'</option>').join('');
         let s = shiftId ? (schedState.data.shifts||[]).find(x => x.id === shiftId) : null;
-        document.getElementById('shiftModalTitle').innerText = shiftId ? 'Edit Shift' : 'Add Shift';
+        document.getElementById('shiftModalTitle').innerText = shiftId ? 'Edit Shift' : (empId == null ? 'Add Open Shift' : 'Add Shift');
         document.getElementById('shiftStart').value = s ? (s.start_time||'') : '';
         document.getElementById('shiftEnd').value = s ? (s.end_time||'') : '';
         document.getElementById('shiftNote').value = s ? (s.note||'') : '';
@@ -1694,6 +1707,16 @@
             supabaseClient.rpc('app_sched_add_employee', { p_username: currentUser.username, p_password: pin, p_name: name, p_linked_username: '' })
             .then(({ error }) => { if (error) { alert('Error: ' + error.message); return; } fetchScheduleWeek(); });
         });
+    }
+    function schedPrint() {
+        const node = document.getElementById('schedGrid');
+        if (!node || !node.innerHTML) { alert('Load a schedule first.'); return; }
+        const wkEl = document.getElementById('schedWeekLabel');
+        const title = 'Schedule — ' + schedState.location + ' — week of ' + (wkEl ? wkEl.innerText : '');
+        const w = window.open('', '_blank');
+        if (!w) { alert('Pop-up blocked. Allow pop-ups for this site to print.'); return; }
+        w.document.write('<html><head><title>'+title+'</title><style>body{font-family:Arial,sans-serif;padding:16px;color:#222;}h2{margin:0 0 12px;}table{width:100%;border-collapse:collapse;font-size:11px;}th,td{border:1px solid #999;padding:4px;vertical-align:top;text-align:center;}td:first-child,th:first-child{text-align:left;}.sched-chip{display:block;border-radius:4px;padding:2px 4px;margin-bottom:2px;color:#fff;font-size:10px;}p{font-size:10px;color:#888;}</style></head><body><h2>'+title+'</h2>'+node.innerHTML+'</body></html>');
+        w.document.close(); w.focus(); setTimeout(function(){ w.print(); }, 300);
     }
 
     // ============================================================
