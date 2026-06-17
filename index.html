@@ -449,6 +449,7 @@
             <div id="tab-content-management" class="menu-tab-content">
                 <button id="managerBtn" class="menu-btn dark" style="display:none;" onclick="openDashboard()">&#128202; Manager Dashboard</button>
                 <button id="knowledgeBaseBtn" class="menu-btn dark" style="display:none;background:#0d6eaf;" onclick="openKnowledgeBase()">&#129504; AI Knowledge Base</button>
+                <button id="rosterBtn" class="menu-btn dark" style="display:none;background:#176bb4;" onclick="openRoster()">&#128101; Employee Roster</button>
                 <button id="shortageTrendsBtn" class="menu-btn green" style="display:none;" onclick="openShortageTrends()">&#128200; Shortage Trends</button>
                 <button id="quotesBtn" class="menu-btn purple" style="display:none;" onclick="openForm('quotesView')">&#128221; Create Catering Quote</button>
                 <button id="salesPipelineBtn" class="menu-btn purple" style="display:none;" onclick="openSalesPipeline()">&#128202; Sales Pipeline</button>
@@ -579,6 +580,19 @@
   .sched-table th, .sched-table td { font-size:12.5px; }
   #timeClockView .save-btn { min-height:48px; }
   .hb-back:focus-visible, .sched-btn:focus-visible, .sched-cell:focus-visible, .sched-chip:focus-visible, .sched-week-nav button:focus-visible, .hb-tools-menu button:focus-visible, #scheduleBuilderView select:focus-visible, #timeClockView select:focus-visible, #timeClockView .save-btn:focus-visible, #timesheetsView input:focus-visible { outline:3px solid var(--caliches-blue); outline-offset:2px; }
+  /* Roster management */
+  #rosterView { background:#f5f7fa; }
+  .rm-lbl { display:block; font-size:12px; font-weight:700; color:#5b6472; margin:10px 0 4px; }
+  .rm-inp { width:100%; box-sizing:border-box; min-height:44px; border:1px solid #d7dde6; border-radius:8px; padding:8px 12px; font-size:14px; }
+  .roster-tbl { width:100%; border-collapse:collapse; background:#fff; border:1px solid #e3e8ef; border-radius:12px; overflow:hidden; }
+  .roster-tbl th { background:#eef3f8; color:#1f2a44; font-size:12px; text-align:left; padding:10px 12px; }
+  .roster-tbl td { border-top:1px solid #eef1f5; padding:9px 12px; font-size:13px; vertical-align:middle; }
+  .roster-row-inactive { opacity:0.55; }
+  .rtag { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; }
+  .rtag.linked { background:#e6f4ea; color:#1f7a3d; } .rtag.unlinked { background:#fdecef; color:#c0264b; }
+  .roster-act { min-height:36px; padding:0 10px; border-radius:7px; border:1px solid #cfe0ef; background:#eaf1f8; color:var(--caliches-blue); font-size:12px; font-weight:700; cursor:pointer; margin-left:4px; }
+  .roster-act:focus-visible, .rm-inp:focus-visible { outline:3px solid var(--caliches-blue); outline-offset:2px; }
+  .role-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:middle; }
 </style>
 <div id="scheduleBuilderView" class="app-view">
     <div class="hb-head">
@@ -605,11 +619,83 @@
                     <button role="menuitem" onclick="schedToolsAction('clock')">&#128347; Time Clock</button>
                     <button role="menuitem" onclick="schedToolsAction('live')">&#128994; On the Clock</button>
                     <button role="menuitem" onclick="schedToolsAction('timesheets')">&#128202; Timesheets</button>
+                    <button role="menuitem" onclick="schedToolsAction('roster')">&#128101; Manage Roster</button>
                 </div>
             </div>
         </div>
         <div id="schedGrid"><p style="text-align:center;padding:30px;color:#888;">Loading&hellip;</p></div>
     </div>
+</div>
+
+<!-- EMPLOYEE ROSTER (Admin Manager only) -->
+<div id="rosterView" class="app-view">
+    <div class="hb-head">
+        <button class="hb-back" onclick="openMenu()">&#8249; Menu</button>
+        <div class="hb-ico">&#128101;</div>
+        <div><h2>Employee Roster</h2><div class="hb-sub">Manage staff &amp; link app logins</div></div>
+    </div>
+    <div class="container" style="max-width:1000px;">
+        <div class="hb-bar">
+            <input id="rosterSearch" type="text" placeholder="Search name&hellip;" aria-label="Search roster" oninput="renderRosterTable()" style="min-height:44px;border:1px solid #d7dde6;border-radius:8px;padding:0 12px;flex:1 1 150px;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#5b6472;"><input type="checkbox" id="rosterShowInactive" onchange="renderRosterTable()"> Show inactive</label>
+            <span class="spacer"></span>
+            <button class="sched-btn" onclick="rosterAutolink()">&#128279; Auto-link</button>
+            <button class="sched-btn" onclick="openRosterImport()">&#128228; Bulk import</button>
+            <button class="sched-btn publish" onclick="openRosterModal(null)">&#10133; Add employee</button>
+        </div>
+        <div id="rosterSummary" class="hb-sub" style="margin:0 0 8px 4px;"></div>
+        <div id="rosterList"><p style="text-align:center;padding:30px;color:#888;">Loading&hellip;</p></div>
+    </div>
+</div>
+
+<!-- Roster add/edit modal -->
+<div id="rosterModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:420px;">
+    <h3 id="rosterModalTitle" style="margin:0 0 14px;color:var(--caliches-blue);">Add Employee</h3>
+    <input type="hidden" id="rosterEditId">
+    <label class="rm-lbl" for="rosterName">Name</label>
+    <input id="rosterName" type="text" class="rm-inp" placeholder="First Last">
+    <label class="rm-lbl" for="rosterHome">Home store</label>
+    <select id="rosterHome" class="rm-inp"></select>
+    <label class="rm-lbl" for="rosterPos">Default role</label>
+    <select id="rosterPos" class="rm-inp"></select>
+    <label id="rosterActiveWrap" style="display:none;align-items:center;gap:8px;margin:12px 0 0;font-size:14px;"><input type="checkbox" id="rosterActive" checked> Active employee</label>
+    <div id="rosterModalMsg" style="display:none;margin-top:10px;font-size:13px;"></div>
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <button class="hb-back" style="flex:1;" onclick="closeRosterModal()">Cancel</button>
+      <button class="sched-btn publish" style="flex:1;" onclick="saveRoster()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Roster link-login modal -->
+<div id="rosterLinkModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:400px;">
+    <h3 style="margin:0 0 6px;color:var(--caliches-blue);">Link App Login</h3>
+    <p id="rosterLinkWho" class="hb-sub" style="margin:0 0 14px;"></p>
+    <label class="rm-lbl" for="rosterLinkSelect">Choose a login (by username)</label>
+    <select id="rosterLinkSelect" class="rm-inp"></select>
+    <p class="hb-sub" style="margin:8px 0 0;font-size:11.5px;">Links by username only &mdash; PINs are never read or changed.</p>
+    <div id="rosterLinkMsg" style="display:none;margin-top:10px;font-size:13px;"></div>
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <button class="hb-back" style="flex:1;" onclick="closeRosterLink()">Cancel</button>
+      <button class="sched-btn publish" style="flex:1;" onclick="saveRosterLink()">Link</button>
+    </div>
+  </div>
+</div>
+
+<!-- Roster bulk-import modal -->
+<div id="rosterImportModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:440px;">
+    <h3 style="margin:0 0 6px;color:var(--caliches-blue);">Bulk Import Employees</h3>
+    <p class="hb-sub" style="margin:0 0 10px;">One per line. Optionally add store &amp; role, comma-separated:<br><code>Name, Home Store, Role</code></p>
+    <textarea id="rosterImportText" rows="9" class="rm-inp" style="resize:vertical;font-family:monospace;" placeholder="Jane Doe, Roadrunner, Pink Apron&#10;John Smith&#10;Maria Lopez, Roswell"></textarea>
+    <div id="rosterImportMsg" style="display:none;margin-top:10px;font-size:13px;"></div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="hb-back" style="flex:1;" onclick="closeRosterImport()">Cancel</button>
+      <button class="sched-btn publish" style="flex:1;" onclick="saveRosterImport()">Import</button>
+    </div>
+  </div>
 </div>
 
 <!-- TIME CLOCK (Phase 2a, TEST) -->
@@ -918,7 +1004,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.16.2112';
+    const APP_VERSION = '2026.06.16.2125';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -1637,7 +1723,7 @@
     // pick black or white text for legibility on a colored chip (WCAG-ish luminance)
     function hbTextOn(hex){ if(!hex||hex[0]!=='#'||hex.length<7) return '#fff'; const r=parseInt(hex.substr(1,2),16),g=parseInt(hex.substr(3,2),16),b=parseInt(hex.substr(5,2),16); return ((0.299*r+0.587*g+0.114*b)/255) > 0.5 ? '#1f2a44' : '#fff'; }
     function toggleSchedTools(e){ if(e) e.stopPropagation(); const m=document.getElementById('schedToolsMenu'); const b=document.getElementById('schedToolsBtn'); const open=(m.style.display==='block'); m.style.display=open?'none':'block'; if(b) b.setAttribute('aria-expanded', open?'false':'true'); }
-    function schedToolsAction(a){ const m=document.getElementById('schedToolsMenu'); const b=document.getElementById('schedToolsBtn'); if(m) m.style.display='none'; if(b) b.setAttribute('aria-expanded','false'); if(a==='copy') schedCopyLastWeek(); else if(a==='print') schedPrint(); else if(a==='addemp') schedAddEmployee(); else if(a==='clock') openTimeClock(); else if(a==='live') openLiveBoard(); else if(a==='timesheets') openTimesheets(); }
+    function schedToolsAction(a){ const m=document.getElementById('schedToolsMenu'); const b=document.getElementById('schedToolsBtn'); if(m) m.style.display='none'; if(b) b.setAttribute('aria-expanded','false'); if(a==='copy') schedCopyLastWeek(); else if(a==='print') schedPrint(); else if(a==='addemp') schedAddEmployee(); else if(a==='clock') openTimeClock(); else if(a==='live') openLiveBoard(); else if(a==='timesheets') openTimesheets(); else if(a==='roster') openRoster(); }
     document.addEventListener('click', function(ev){ const m=document.getElementById('schedToolsMenu'); const b=document.getElementById('schedToolsBtn'); if(m && m.style.display==='block' && !m.contains(ev.target) && b!==ev.target && (!b||!b.contains(ev.target))){ m.style.display='none'; b.setAttribute('aria-expanded','false'); } });
 
     function renderScheduleGrid() {
@@ -1766,6 +1852,162 @@
         if (!w) { alert('Pop-up blocked. Allow pop-ups for this site to print.'); return; }
         w.document.write('<html><head><title>'+title+'</title><style>body{font-family:Arial,sans-serif;padding:16px;color:#222;}h2{margin:0 0 12px;}table{width:100%;border-collapse:collapse;font-size:11px;}th,td{border:1px solid #999;padding:4px;vertical-align:top;text-align:center;}td:first-child,th:first-child{text-align:left;}.sched-chip{display:block;border-radius:4px;padding:2px 4px;margin-bottom:2px;color:#fff;font-size:10px;}p{font-size:10px;color:#888;}</style></head><body><h2>'+title+'</h2>'+node.innerHTML+'</body></html>');
         w.document.close(); w.focus(); setTimeout(function(){ w.print(); }, 300);
+    }
+
+    // ============================================================
+    // EMPLOYEE ROSTER (Admin Manager only)
+    // ============================================================
+    let rosterState = { list: [], meta: { positions:[], locations:[], users:[] } };
+    function rosterEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function openRoster(){
+        if(!isAdminManager()){ alert('Admins only.'); return; }
+        triggerTransition(()=>{
+            document.querySelectorAll('.app-view').forEach(v=>v.style.display='none');
+            document.getElementById('rosterView').style.display='block';
+            loadRosterMeta(); loadRoster();
+        });
+    }
+    function loadRosterMeta(){
+        withPin(function(pin){
+            supabaseClient.rpc('app_roster_meta',{p_username:currentUser.username,p_password:pin}).then(({data,error})=>{
+                if(error){ if(error.code==='42501') sessionPin=null; return; }
+                if(data) rosterState.meta = data;
+            });
+        });
+    }
+    function loadRoster(){
+        const box=document.getElementById('rosterList');
+        box.innerHTML='<p style="text-align:center;padding:30px;color:#888;">Loading&hellip;</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_roster_list',{p_username:currentUser.username,p_password:pin}).then(({data,error})=>{
+                if(error){ if(error.code==='42501') sessionPin=null; box.innerHTML='<p style="color:red;text-align:center;padding:20px;">Error: '+error.message+'</p>'; return; }
+                rosterState.list=data||[];
+                renderRosterTable();
+            }).catch(()=>{ box.innerHTML='<p style="color:red;text-align:center;">Connection error.</p>'; });
+        }, function(){ box.innerHTML='<p style="text-align:center;padding:20px;color:#888;">PIN required.</p>'; });
+    }
+    function renderRosterTable(){
+        const box=document.getElementById('rosterList');
+        const q=(document.getElementById('rosterSearch').value||'').toLowerCase();
+        const showInactive=document.getElementById('rosterShowInactive').checked;
+        const rows=rosterState.list.filter(e=> (showInactive||e.active) && (!q || (e.name||'').toLowerCase().indexOf(q)>-1) );
+        const total=rosterState.list.length, linked=rosterState.list.filter(e=>e.is_linked).length;
+        document.getElementById('rosterSummary').innerText=total+' employees · '+linked+' linked · '+(total-linked)+' unlinked';
+        if(!rows.length){ box.innerHTML='<p style="text-align:center;padding:24px;color:#888;">No employees match.</p>'; return; }
+        let html='<table class="roster-tbl"><thead><tr><th>Name</th><th>Role</th><th>Home store</th><th>Login</th><th></th></tr></thead><tbody>';
+        rows.forEach(e=>{
+            const dot = e.position_color ? '<span class="role-dot" style="background:'+rosterEsc(e.position_color)+'"></span>' : '';
+            const role = e.position_name ? dot+rosterEsc(e.position_name) : '<span style="color:#aab2bd">&mdash;</span>';
+            const home = e.home_location ? rosterEsc(e.home_location) : '<span style="color:#aab2bd">&mdash;</span>';
+            const login = e.is_linked
+                ? '<span class="rtag linked">'+rosterEsc(e.linked_username)+'</span><button class="roster-act" onclick="rosterUnlink('+e.id+')">Unlink</button>'
+                : '<span class="rtag unlinked">Not linked</span><button class="roster-act" onclick="openRosterLink('+e.id+')">Link</button>';
+            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;"><button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button></td></tr>';
+        });
+        html+='</tbody></table>';
+        box.innerHTML=html;
+    }
+    function rosterFillSelects(){
+        document.getElementById('rosterHome').innerHTML='<option value="">&mdash; none &mdash;</option>'+(rosterState.meta.locations||[]).map(l=>'<option>'+rosterEsc(l.name)+'</option>').join('');
+        document.getElementById('rosterPos').innerHTML='<option value="">&mdash; none &mdash;</option>'+(rosterState.meta.positions||[]).map(p=>'<option value="'+p.id+'">'+rosterEsc(p.name)+'</option>').join('');
+    }
+    function openRosterModal(id){
+        rosterFillSelects();
+        const msg=document.getElementById('rosterModalMsg'); msg.style.display='none';
+        if(id){
+            const e=rosterState.list.find(x=>x.id===id); if(!e) return;
+            document.getElementById('rosterModalTitle').innerText='Edit Employee';
+            document.getElementById('rosterEditId').value=e.id;
+            document.getElementById('rosterName').value=e.name||'';
+            document.getElementById('rosterHome').value=e.home_location||'';
+            document.getElementById('rosterPos').value=e.position_id?String(e.position_id):'';
+            document.getElementById('rosterActive').checked=!!e.active;
+            document.getElementById('rosterActiveWrap').style.display='flex';
+        } else {
+            document.getElementById('rosterModalTitle').innerText='Add Employee';
+            document.getElementById('rosterEditId').value='';
+            document.getElementById('rosterName').value='';
+            document.getElementById('rosterHome').value='';
+            document.getElementById('rosterPos').value='';
+            document.getElementById('rosterActive').checked=true;
+            document.getElementById('rosterActiveWrap').style.display='none';
+        }
+        document.getElementById('rosterModal').style.display='flex';
+    }
+    function closeRosterModal(){ document.getElementById('rosterModal').style.display='none'; }
+    function saveRoster(){
+        const id=document.getElementById('rosterEditId').value;
+        const name=document.getElementById('rosterName').value.trim();
+        const home=document.getElementById('rosterHome').value;
+        const posV=document.getElementById('rosterPos').value;
+        const pos=posV?parseInt(posV,10):null;
+        const msg=document.getElementById('rosterModalMsg');
+        if(!name){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Name is required.'; return; }
+        withPin(function(pin){
+            let p;
+            if(id){
+                const active=document.getElementById('rosterActive').checked;
+                p=supabaseClient.rpc('app_roster_update',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_name:name,p_home_location:home,p_position_id:pos,p_active:active});
+            } else {
+                p=supabaseClient.rpc('app_roster_add',{p_username:currentUser.username,p_password:pin,p_name:name,p_home_location:home,p_position_id:pos});
+            }
+            p.then(({error})=>{ if(error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; } closeRosterModal(); loadRoster(); });
+        });
+    }
+    function openRosterLink(id){
+        const e=rosterState.list.find(x=>x.id===id); if(!e) return;
+        document.getElementById('rosterLinkWho').innerText='Employee: '+e.name;
+        const sel=document.getElementById('rosterLinkSelect');
+        sel.innerHTML='<option value="">&mdash; choose login &mdash;</option>'+(rosterState.meta.users||[]).map(u=>'<option value="'+rosterEsc(u.username)+'"'+(u.linked?' disabled':'')+'>'+rosterEsc(u.name||u.username)+' ('+rosterEsc(u.username)+')'+(u.linked?' — linked':'')+'</option>').join('');
+        sel.setAttribute('data-emp',id);
+        document.getElementById('rosterLinkMsg').style.display='none';
+        document.getElementById('rosterLinkModal').style.display='flex';
+    }
+    function closeRosterLink(){ document.getElementById('rosterLinkModal').style.display='none'; }
+    function saveRosterLink(){
+        const sel=document.getElementById('rosterLinkSelect');
+        const id=parseInt(sel.getAttribute('data-emp'),10);
+        const u=sel.value;
+        const msg=document.getElementById('rosterLinkMsg');
+        if(!u){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Pick a login.'; return; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_roster_link',{p_username:currentUser.username,p_password:pin,p_employee_id:id,p_link_username:u})
+            .then(({error})=>{ if(error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; } closeRosterLink(); loadRosterMeta(); loadRoster(); });
+        });
+    }
+    function rosterUnlink(id){
+        if(!confirm('Unlink this login from the employee?')) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_roster_unlink',{p_username:currentUser.username,p_password:pin,p_employee_id:id})
+            .then(({error})=>{ if(error){ alert('Error: '+error.message); if(error.code==='42501') sessionPin=null; return; } loadRosterMeta(); loadRoster(); });
+        });
+    }
+    function rosterAutolink(){
+        if(!confirm('Auto-link app logins to employees whose names match exactly?')) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_roster_autolink',{p_username:currentUser.username,p_password:pin})
+            .then(({data,error})=>{ if(error){ alert('Error: '+error.message); if(error.code==='42501') sessionPin=null; return; }
+                const m=(data&&data.matched!=null)?data.matched:0; const sk=(data&&data.skipped)||[];
+                alert('Auto-linked '+m+' employee(s).'+(sk.length?'\n\nNot matched ('+sk.length+'): '+sk.slice(0,15).join(', ')+(sk.length>15?'…':''):''));
+                loadRosterMeta(); loadRoster();
+            });
+        });
+    }
+    function openRosterImport(){ document.getElementById('rosterImportText').value=''; document.getElementById('rosterImportMsg').style.display='none'; document.getElementById('rosterImportModal').style.display='flex'; }
+    function closeRosterImport(){ document.getElementById('rosterImportModal').style.display='none'; }
+    function saveRosterImport(){
+        const txt=document.getElementById('rosterImportText').value;
+        const msg=document.getElementById('rosterImportMsg');
+        const rows=txt.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ const parts=l.split(',').map(s=>s.trim()); return { name:parts[0], home_location:parts[1]||'', position:parts[2]||'' }; }).filter(r=>r.name);
+        if(!rows.length){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Nothing to import.'; return; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_roster_import',{p_username:currentUser.username,p_password:pin,p_rows:rows})
+            .then(({data,error})=>{ if(error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; }
+                msg.style.display='block'; msg.style.color='#1f7a3d'; msg.innerText='Imported '+(data!=null?data:0)+' new employee(s); duplicates skipped.';
+                loadRoster();
+                setTimeout(closeRosterImport, 1400);
+            });
+        });
     }
 
     // ============================================================
@@ -2042,6 +2284,8 @@
         document.getElementById('managerBtn').style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
         const kbBtn = document.getElementById('knowledgeBaseBtn');
         if (kbBtn) kbBtn.style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
+        const rosterBtn = document.getElementById('rosterBtn');
+        if (rosterBtn) rosterBtn.style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
         const shortageTrendsBtn = document.getElementById('shortageTrendsBtn');
         if (shortageTrendsBtn) shortageTrendsBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         const formsLinksBtn = document.getElementById('formsLinksBtn');
