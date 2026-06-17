@@ -803,12 +803,23 @@
     <h3 style="margin:0 0 6px;color:var(--caliches-blue);">Start Performance Improvement Plan</h3>
     <p id="pipWho" class="hb-sub" style="margin:0 0 14px;"></p>
     <input type="hidden" id="pipEmpId">
-    <label class="rm-lbl" for="pipStart">Start date</label>
+    <input type="hidden" id="pipLocation">
+    <input type="hidden" id="pipDesignation">
+    <label class="rm-lbl" for="pipIssue">Issue type</label>
+    <select id="pipIssue" class="rm-inp">
+      <option value="performance">Performance</option>
+      <option value="conduct">Conduct</option>
+      <option value="attendance">Attendance</option>
+    </select>
+    <label class="rm-lbl" for="pipIncident">Date of incident</label>
+    <input id="pipIncident" type="date" class="rm-inp">
+    <label class="rm-lbl" for="pipStart">PIP start date</label>
     <input id="pipStart" type="date" class="rm-inp">
-    <label class="rm-lbl" for="pipEnd">End date</label>
+    <label class="rm-lbl" for="pipEnd">PIP end date (review by)</label>
     <input id="pipEnd" type="date" class="rm-inp">
-    <label class="rm-lbl" for="pipReason">Reason / focus areas</label>
-    <textarea id="pipReason" rows="3" class="rm-inp" style="resize:vertical;" placeholder="What needs to improve…"></textarea>
+    <label class="rm-lbl" for="pipReason">Expected actions / improvement areas</label>
+    <textarea id="pipReason" rows="3" class="rm-inp" style="resize:vertical;" placeholder="What the employee must improve and the corrective actions agreed upon…"></textarea>
+    <p style="font-size:11px;color:#888;margin:8px 0 0;">A Written Warning Letter PDF will be generated and filed in Dropbox. Signature lines, verbal-warning date, and review dates are left blank to fill in.</p>
     <div id="pipMsg" style="display:none;margin-top:10px;font-size:13px;"></div>
     <div style="display:flex;gap:10px;margin-top:18px;">
       <button class="hb-back" style="flex:1;" onclick="closePip()">Cancel</button>
@@ -1161,7 +1172,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.17.1637';
+    const APP_VERSION = '2026.06.17.1750';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2071,7 +2082,7 @@
             const pipBadge = pip ? ' <span class="pip-badge" title="On PIP: '+pip.start+' to '+pip['end']+(pip.reason?(' — '+rosterEsc(pip.reason)):'')+'" onclick="openDecision('+pip.pip_id+',&quot;'+rosterEsc(nmJs)+'&quot;)">PIP</span>' : '';
             const pipAct = pip
                 ? '<button class="roster-act" onclick="openDecision('+pip.pip_id+',&quot;'+rosterEsc(nmJs)+'&quot;)">Decision</button>'
-                : '<button class="roster-act" onclick="openPip('+e.id+',&quot;'+rosterEsc(nmJs)+'&quot;)">+PIP</button>';
+                : '<button class="roster-act" onclick="openPip('+e.id+',&quot;'+rosterEsc(nmJs)+'&quot;,&quot;'+rosterEsc((e.home_location||'').replace(/&/g,'').replace(/"/g,''))+'&quot;,&quot;'+rosterEsc((e.position_name||'').replace(/&/g,'').replace(/"/g,''))+'&quot;)">+PIP</button>';
             html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+pipBadge+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;">'+pipAct+'<button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button></td></tr>';
         });
         html+='</tbody></table>';
@@ -2302,12 +2313,16 @@
         });
     }
 
-    function openPip(empId, name){
+    function openPip(empId, name, location, designation){
         document.getElementById('pipEmpId').value=empId;
+        document.getElementById('pipLocation').value=location||'';
+        document.getElementById('pipDesignation').value=designation||'';
         document.getElementById('pipWho').innerText='Employee: '+(name||'');
         const t=new Date(); const e=new Date(); e.setDate(e.getDate()+30);
         document.getElementById('pipStart').value=schedFmt(t);
         document.getElementById('pipEnd').value=schedFmt(e);
+        document.getElementById('pipIncident').value=schedFmt(t);
+        document.getElementById('pipIssue').value='performance';
         document.getElementById('pipReason').value='';
         document.getElementById('pipMsg').style.display='none';
         document.getElementById('pipModal').style.display='flex';
@@ -2316,12 +2331,28 @@
     function savePip(){
         const empId=parseInt(document.getElementById('pipEmpId').value,10);
         const start=document.getElementById('pipStart').value, end=document.getElementById('pipEnd').value;
-        const reason=document.getElementById('pipReason').value.trim();
+        const incident=document.getElementById('pipIncident').value;
+        const issueVal=document.getElementById('pipIssue').value;
+        const issueLabel=({performance:'Performance',conduct:'Conduct',attendance:'Attendance'})[issueVal]||issueVal;
+        const expected=document.getElementById('pipReason').value.trim();
+        const location=document.getElementById('pipLocation').value;
+        const designation=document.getElementById('pipDesignation').value;
+        const empName=(document.getElementById('pipWho').innerText||'').replace('Employee: ','').trim();
         const msg=document.getElementById('pipMsg');
-        if(!start||!end){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Start and end dates are required.'; return; }
+        if(!start||!end){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='PIP start and end dates are required.'; return; }
+        const combined='Issue: '+issueLabel+(incident?(' on '+incident):'')+(expected?('. Expected actions: '+expected):'');
         withPin(function(pin){
-            supabaseClient.rpc('app_pip_create',{p_username:currentUser.username,p_password:pin,p_employee_id:empId,p_start:start,p_end:end,p_reason:reason})
-            .then(({error})=>{ if(error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; } closePip(); ccRefresh(); });
+            supabaseClient.rpc('app_pip_create',{p_username:currentUser.username,p_password:pin,p_employee_id:empId,p_start:start,p_end:end,p_reason:combined})
+            .then(({data,error})=>{
+                if(error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; }
+                msg.style.display='block'; msg.style.color='#1f7a3d'; msg.innerText='PIP started ✓  Generating Written Warning Letter…';
+                const pipId=data;
+                const qs='?action=pip_warning_letter&employee='+encodeURIComponent(empName)+'&designation='+encodeURIComponent(designation)+'&location='+encodeURIComponent(location)+'&issue='+encodeURIComponent(issueLabel)+'&incident_date='+encodeURIComponent(incident||'')+'&expected='+encodeURIComponent(expected)+'&manager='+encodeURIComponent(currentUser.name||currentUser.username)+'&pip_start='+encodeURIComponent(start)+'&pip_end='+encodeURIComponent(end)+'&pip_id='+encodeURIComponent(pipId||'');
+                let done=false;
+                const finishOnce=function(){ if(done) return; done=true; clearTimeout(t); closePip(); if(typeof loadRoster==='function') loadRoster(); if(typeof ccRefresh==='function') ccRefresh(); };
+                var t=setTimeout(finishOnce, 15000);
+                fetch(G_URL+qs).then(r=>r.json()).then(()=>finishOnce()).catch(()=>finishOnce());
+            });
         });
     }
 
