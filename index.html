@@ -431,6 +431,7 @@
 
             <!-- ── OPERATIONS TAB ── -->
             <div id="tab-content-operations" class="menu-tab-content tab-visible">
+                <button id="btn-empHome" class="menu-btn" style="background:var(--caliches-pink);" onclick="openEmployeeHome()">&#127968; My Home</button>
                 <button id="btn-popIn" class="menu-btn" onclick="openPopIn()">&#128203; Store Pop-In Inspection</button>
                 <button id="btn-driver" class="menu-btn pink" onclick="openForm('driverView')">&#128666; Vehicle &amp; Trailer Check-Out</button>
                 <button id="btn-shortage" class="menu-btn green" onclick="openForm('shortageView')">&#128230; Report Shortages</button>
@@ -449,6 +450,7 @@
             <!-- ── MANAGEMENT TAB (Manager+ only) ── -->
             <div id="tab-content-management" class="menu-tab-content">
                 <button id="commandCenterBtn" class="menu-btn dark" style="display:none;background:#176bb4;" onclick="openCommandCenter()">&#128202; Command Center</button>
+                <button id="requestsBtn" class="menu-btn dark" style="display:none;background:#0d6eaf;" onclick="openRequests()">&#128197; Time-Off &amp; Swap Requests</button>
                 <button id="managerBtn" class="menu-btn dark" style="display:none;" onclick="openDashboard()">&#128202; Manager Dashboard</button>
                 <button id="knowledgeBaseBtn" class="menu-btn dark" style="display:none;background:#0d6eaf;" onclick="openKnowledgeBase()">&#129504; AI Knowledge Base</button>
                 <button id="rosterBtn" class="menu-btn dark" style="display:none;background:#176bb4;" onclick="openRoster()">&#128101; Employee Roster</button>
@@ -472,6 +474,61 @@
         <p style="margin:0 0 10px 0;font-weight:900;color:var(--caliches-blue);font-size:13px;text-transform:uppercase;letter-spacing:1px;">&#128241; Get The App On Your Phone</p>
         <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https://calichesfc.github.io/index.html/" alt="Scan to install" style="border-radius:8px;width:140px;height:140px;">
         <p style="margin:8px 0 0 0;font-size:12px;color:#888;">Scan with your camera → tap "Add to Home Screen"</p>
+    </div>
+</div>
+
+<!-- EMPLOYEE HOME -->
+<div id="employeeHomeView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
+    <div class="header" style="background:linear-gradient(135deg,var(--caliches-pink) 0%,var(--caliches-blue) 100%);">
+        <h1 style="font-size:40px;margin:10px 0;">&#127968;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">My Home</p>
+    </div>
+    <div class="container" style="max-width:760px;">
+        <div id="empHomeContent"><p style="text-align:center;padding:30px;color:#888;">Loading your info...</p></div>
+    </div>
+</div>
+
+<!-- TIME-OFF REQUEST MODAL -->
+<div id="timeOffModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;max-width:420px;width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+    <h3 style="color:var(--caliches-blue);margin:0 0 14px;">Request Time Off</h3>
+    <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Start date</label>
+    <input type="date" id="toStart" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:12px;">
+    <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">End date</label>
+    <input type="date" id="toEnd" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:12px;">
+    <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Reason (optional)</label>
+    <textarea id="toReason" rows="2" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:16px;" placeholder="e.g. family event"></textarea>
+    <div style="display:flex;gap:10px;">
+      <button onclick="closeTimeOff()" style="flex:1;padding:12px;border:1px solid #ccc;background:#f3f3f3;border-radius:8px;font-weight:bold;cursor:pointer;">Cancel</button>
+      <button id="toSubmitBtn" onclick="saveTimeOff()" style="flex:1;padding:12px;border:none;background:var(--caliches-pink);color:#fff;border-radius:8px;font-weight:bold;cursor:pointer;">Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- SHIFT-SWAP REQUEST MODAL -->
+<div id="swapModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;max-width:420px;width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+    <h3 style="color:var(--caliches-blue);margin:0 0 8px;">Request Shift Cover / Swap</h3>
+    <p id="swapShiftLabel" style="font-size:14px;color:#444;margin:0 0 14px;font-weight:bold;"></p>
+    <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Note to manager (optional)</label>
+    <textarea id="swapNote" rows="2" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:16px;" placeholder="Why you need this covered"></textarea>
+    <div style="display:flex;gap:10px;">
+      <button onclick="closeSwap()" style="flex:1;padding:12px;border:1px solid #ccc;background:#f3f3f3;border-radius:8px;font-weight:bold;cursor:pointer;">Cancel</button>
+      <button id="swapSubmitBtn" onclick="saveSwap()" style="flex:1;padding:12px;border:none;background:var(--caliches-pink);color:#fff;border-radius:8px;font-weight:bold;cursor:pointer;">Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- TIME-OFF & SWAP REQUESTS (Manager) -->
+<div id="requestsView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
+    <div class="header" style="background:#0d6eaf;">
+        <h1 style="font-size:40px;margin:10px 0;">&#128197;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Time-Off &amp; Swap Requests</p>
+    </div>
+    <div class="container" style="max-width:760px;">
+        <div id="requestsContent"><p style="text-align:center;padding:30px;color:#888;">Loading requests...</p></div>
     </div>
 </div>
 
@@ -1104,7 +1161,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.17.1546';
+    const APP_VERSION = '2026.06.17.1637';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2588,6 +2645,8 @@
         // ── Buttons within Management tab ──
         const commandCenterBtn = document.getElementById('commandCenterBtn');
         if (commandCenterBtn) commandCenterBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
+        const requestsBtn = document.getElementById('requestsBtn');
+        if (requestsBtn) requestsBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         document.getElementById('managerBtn').style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
         const kbBtn = document.getElementById('knowledgeBaseBtn');
         if (kbBtn) kbBtn.style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
@@ -2752,7 +2811,7 @@
                 html += '<div class="maint-card" style="border-left-color:' + (overdue ? 'var(--fail-red)' : urgColor) + ';">';
                 html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">';
                 html += '<div><div class="maint-card-title">' + escapeHtml(row.MaintenanceItem) + '</div><div class="maint-card-meta">' + escapeHtml(row.Location) + ' &bull; ' + escapeHtml(row.ReportDate) + ' &bull; by ' + escapeHtml(row.ReporterName || row.submitted_by) + '</div></div>';
-                if (isManager) {
+                if (isAdminManager()) {
                     var pr = parseInt(row.priority_rank, 10) || 3;
                     html += '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">';
                     html += '<label style="font-size:9px;font-weight:bold;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Priority</label>';
@@ -2825,6 +2884,210 @@
                 if (error && error.code === '42501') sessionPin = null;
                 if (error) alert('Error: ' + error.message); else alert('Saved!');
             });
+        });
+    }
+
+    // ============================================================
+    // EMPLOYEE HOME + TIME-OFF + SHIFT-SWAPS
+    // ============================================================
+    var empHomeState = { shifts: [] };
+
+    function openEmployeeHome() {
+        document.getElementById('main-menu').style.display = 'none';
+        document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
+        document.getElementById('employeeHomeView').style.display = 'block';
+        window.scrollTo(0, 0);
+        loadEmployeeHome();
+    }
+
+    function loadEmployeeHome() {
+        var c = document.getElementById('empHomeContent');
+        c.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading your info...</p>';
+        withPin(function(pin) {
+            supabaseClient.rpc('app_emp_home', { p_username: currentUser.username, p_password: pin }).then(function(res) {
+                if (res.error) { if (res.error.code === '42501') sessionPin = null; c.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Could not load: ' + escapeHtml(res.error.message) + '</p>'; return; }
+                empHomeRender(res.data || {});
+            }).catch(function() { c.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Connection error.</p>'; });
+        }, function() { c.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">PIN required.</p>'; });
+    }
+
+    function ehChip(status) {
+        var s = (status || '').toLowerCase(), col = '#888';
+        if (s === 'approved') col = 'var(--pass-green)';
+        else if (s === 'pending' || s === 'open') col = 'var(--maint-orange)';
+        else if (s === 'denied') col = 'var(--damage-red)';
+        else if (s === 'cancelled') col = '#aaa';
+        return '<span style="background:' + col + ';color:#fff;font-size:11px;font-weight:bold;padding:2px 8px;border-radius:10px;text-transform:uppercase;">' + escapeHtml(status || '') + '</span>';
+    }
+
+    function empHomeRender(d) {
+        var c = document.getElementById('empHomeContent');
+        if (!d || d.linked !== true) {
+            c.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
+                '<p style="font-size:15px;color:#444;margin:0 0 8px;">Your login isn\'t linked to your employee profile yet.</p>' +
+                '<p style="font-size:13px;color:#888;margin:0;">Ask a manager to link your account in the Employee Roster, then your shifts and requests will show up here.</p></div>';
+            return;
+        }
+        empHomeState.shifts = d.shifts || [];
+        var name = (d.employee && d.employee.name) ? d.employee.name : 'there';
+        var html = '<div style="background:#fff;border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
+            '<h2 style="margin:0;color:var(--caliches-blue);font-size:20px;">Hi, ' + escapeHtml(name) + '! &#128075;</h2>' +
+            (d.employee && d.employee.home_location ? '<p style="margin:4px 0 0;color:#888;font-size:13px;">Home store: ' + escapeHtml(d.employee.home_location) + '</p>' : '') + '</div>';
+
+        // PIP banner (own status, supportive tone)
+        if (d.pip && d.pip.active) {
+            html += '<div style="background:#fff7e6;border:1px solid #f0c36d;border-left:5px solid var(--maint-orange);border-radius:10px;padding:14px;margin-bottom:14px;">' +
+                '<strong style="color:#b35000;">You\'re on a performance improvement plan</strong>' +
+                (d.pip.end_date ? ' through <strong>' + escapeHtml(d.pip.end_date) + '</strong>' : '') +
+                '.<br><span style="font-size:13px;color:#8a5a1a;">Your manager is here to help you succeed — reach out with any questions.</span></div>';
+        }
+
+        // Upcoming shifts
+        html += '<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
+            '<h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#128197; My Upcoming Shifts (next 2 weeks)</h3>';
+        if (!empHomeState.shifts.length) {
+            html += '<p style="color:#888;font-size:13px;margin:0;">No published shifts scheduled.</p>';
+        } else {
+            empHomeState.shifts.forEach(function(s, i) {
+                var lbl = s.date + '  ' + (s.start || '') + '-' + (s.end || '') + (s.location ? '  @ ' + s.location : '');
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;' + (i < empHomeState.shifts.length - 1 ? 'border-bottom:1px solid #eee;' : '') + '">' +
+                    '<span style="font-size:14px;color:#333;">' + escapeHtml(lbl) + '</span>' +
+                    '<button onclick="openSwap(' + s.id + ',' + i + ')" style="background:#0d6eaf;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:bold;cursor:pointer;white-space:nowrap;">Request cover</button></div>';
+            });
+        }
+        html += '</div>';
+
+        // Time off
+        html += '<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h3 style="margin:0;color:var(--caliches-blue);font-size:16px;">&#127796; Time Off</h3>' +
+            '<button onclick="openTimeOff()" style="background:var(--caliches-pink);color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:bold;cursor:pointer;">+ Request</button></div>';
+        var to = d.time_off || [];
+        if (!to.length) { html += '<p style="color:#888;font-size:13px;margin:0;">No time-off requests.</p>'; }
+        else {
+            to.forEach(function(t, i) {
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;' + (i < to.length - 1 ? 'border-bottom:1px solid #eee;' : '') + '">' +
+                    '<span style="font-size:14px;color:#333;">' + escapeHtml(t.start) + ' → ' + escapeHtml(t.end) + (t.manager_note ? '<br><span style="font-size:12px;color:#888;">Note: ' + escapeHtml(t.manager_note) + '</span>' : '') + '</span>' +
+                    '<span style="white-space:nowrap;">' + ehChip(t.status) + (t.status === 'pending' ? ' <button onclick="cancelTimeOff(' + t.id + ')" style="background:#eee;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">Cancel</button>' : '') + '</span></div>';
+            });
+        }
+        html += '</div>';
+
+        // Swaps
+        html += '<div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
+            '<h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#128260; My Shift Cover Requests</h3>';
+        var sw = d.swaps || [];
+        if (!sw.length) { html += '<p style="color:#888;font-size:13px;margin:0;">No cover requests.</p>'; }
+        else {
+            sw.forEach(function(w, i) {
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;' + (i < sw.length - 1 ? 'border-bottom:1px solid #eee;' : '') + '">' +
+                    '<span style="font-size:14px;color:#333;">' + escapeHtml(w.date || '') + '  ' + escapeHtml(w.start || '') + '-' + escapeHtml(w.end || '') + (w.manager_note ? '<br><span style="font-size:12px;color:#888;">Note: ' + escapeHtml(w.manager_note) + '</span>' : '') + '</span>' + ehChip(w.status) + '</div>';
+            });
+        }
+        html += '</div>';
+        c.innerHTML = html;
+    }
+
+    // Time-off modal
+    function openTimeOff() { document.getElementById('toStart').value=''; document.getElementById('toEnd').value=''; document.getElementById('toReason').value=''; document.getElementById('timeOffModal').style.display='flex'; }
+    function closeTimeOff() { document.getElementById('timeOffModal').style.display='none'; }
+    function saveTimeOff() {
+        var st=document.getElementById('toStart').value, en=document.getElementById('toEnd').value, rs=document.getElementById('toReason').value;
+        if(!st||!en){ alert('Please pick a start and end date.'); return; }
+        if(en<st){ alert('End date can\'t be before the start date.'); return; }
+        var btn=document.getElementById('toSubmitBtn'); btn.disabled=true; btn.innerText='Submitting...';
+        withPin(function(pin){
+            supabaseClient.rpc('app_time_off_create',{p_username:currentUser.username,p_password:pin,p_start:st,p_end:en,p_reason:rs}).then(function(res){
+                btn.disabled=false; btn.innerText='Submit Request';
+                if(res.error){ if(res.error.code==='42501') sessionPin=null; alert('Could not submit: '+res.error.message); return; }
+                closeTimeOff(); loadEmployeeHome();
+            }).catch(function(){ btn.disabled=false; btn.innerText='Submit Request'; alert('Connection error.'); });
+        }, function(){ btn.disabled=false; btn.innerText='Submit Request'; });
+    }
+    function cancelTimeOff(id) {
+        if(!confirm('Cancel this time-off request?')) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_time_off_cancel',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(res){
+                if(res.error){ if(res.error.code==='42501') sessionPin=null; alert('Error: '+res.error.message); return; }
+                loadEmployeeHome();
+            });
+        });
+    }
+
+    // Swap modal
+    function openSwap(shiftId, idx) {
+        var s = empHomeState.shifts[idx] || {};
+        window._swapShiftId = shiftId;
+        document.getElementById('swapShiftLabel').innerText = (s.date||'') + '  ' + (s.start||'') + '-' + (s.end||'') + (s.location ? '  @ '+s.location : '');
+        document.getElementById('swapNote').value='';
+        document.getElementById('swapModal').style.display='flex';
+    }
+    function closeSwap() { document.getElementById('swapModal').style.display='none'; }
+    function saveSwap() {
+        var note=document.getElementById('swapNote').value;
+        var btn=document.getElementById('swapSubmitBtn'); btn.disabled=true; btn.innerText='Submitting...';
+        withPin(function(pin){
+            supabaseClient.rpc('app_swap_create',{p_username:currentUser.username,p_password:pin,p_shift_id:window._swapShiftId,p_note:note}).then(function(res){
+                btn.disabled=false; btn.innerText='Submit Request';
+                if(res.error){ if(res.error.code==='42501') sessionPin=null; alert('Could not submit: '+res.error.message); return; }
+                closeSwap(); loadEmployeeHome();
+            }).catch(function(){ btn.disabled=false; btn.innerText='Submit Request'; alert('Connection error.'); });
+        }, function(){ btn.disabled=false; btn.innerText='Submit Request'; });
+    }
+
+    // Manager: pending requests
+    function openRequests() {
+        document.getElementById('main-menu').style.display = 'none';
+        document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
+        document.getElementById('requestsView').style.display = 'block';
+        window.scrollTo(0, 0);
+        loadRequests();
+    }
+    function loadRequests() {
+        var c=document.getElementById('requestsContent');
+        c.innerHTML='<p style="text-align:center;padding:30px;color:#888;">Loading requests...</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_requests_pending',{p_username:currentUser.username,p_password:pin}).then(function(res){
+                if(res.error){ if(res.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;padding:20px;">Could not load: '+escapeHtml(res.error.message)+'</p>'; return; }
+                requestsRender(res.data||{});
+            }).catch(function(){ c.innerHTML='<p style="color:red;text-align:center;padding:20px;">Connection error.</p>'; });
+        }, function(){ c.innerHTML='<p style="text-align:center;padding:30px;color:#888;">PIN required.</p>'; });
+    }
+    function requestsRender(d) {
+        var c=document.getElementById('requestsContent');
+        var to=d.time_off||[], sw=d.swaps||[];
+        var html='<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
+            '<h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#127796; Pending Time-Off ('+to.length+')</h3>';
+        if(!to.length){ html+='<p style="color:#888;font-size:13px;margin:0;">None pending. &#127881;</p>'; }
+        else to.forEach(function(t,i){
+            html+='<div style="padding:10px 0;'+(i<to.length-1?'border-bottom:1px solid #eee;':'')+'">' +
+                '<div style="font-size:14px;color:#333;font-weight:bold;">'+escapeHtml(t.employee)+'</div>' +
+                '<div style="font-size:13px;color:#555;">'+escapeHtml(t.start)+' → '+escapeHtml(t.end)+(t.reason?' — '+escapeHtml(t.reason):'')+'</div>' +
+                '<div style="margin-top:6px;display:flex;gap:8px;"><button onclick="reqDecide(\'time_off\','+t.id+',true)" style="background:var(--pass-green);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Approve</button>' +
+                '<button onclick="reqDecide(\'time_off\','+t.id+',false)" style="background:var(--damage-red);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Deny</button></div></div>';
+        });
+        html+='</div>';
+        html+='<div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
+            '<h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#128260; Pending Shift Cover ('+sw.length+')</h3>';
+        if(!sw.length){ html+='<p style="color:#888;font-size:13px;margin:0;">None pending. &#127881;</p>'; }
+        else sw.forEach(function(w,i){
+            html+='<div style="padding:10px 0;'+(i<sw.length-1?'border-bottom:1px solid #eee;':'')+'">' +
+                '<div style="font-size:14px;color:#333;font-weight:bold;">'+escapeHtml(w.employee)+'</div>' +
+                '<div style="font-size:13px;color:#555;">'+escapeHtml(w.date||'')+'  '+escapeHtml(w.start||'')+'-'+escapeHtml(w.end||'')+(w.note?' — '+escapeHtml(w.note):'')+'</div>' +
+                '<div style="margin-top:6px;display:flex;gap:8px;"><button onclick="reqDecide(\'swap\','+w.id+',true)" style="background:var(--pass-green);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Approve</button>' +
+                '<button onclick="reqDecide(\'swap\','+w.id+',false)" style="background:var(--damage-red);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Deny</button></div></div>';
+        });
+        html+='</div>';
+        c.innerHTML=html;
+    }
+    function reqDecide(type, id, approve) {
+        var note='';
+        if(!approve){ note=prompt('Optional note to the employee (reason for denial):','')||''; }
+        var fn = type==='swap' ? 'app_swap_decide' : 'app_time_off_decide';
+        withPin(function(pin){
+            supabaseClient.rpc(fn,{p_username:currentUser.username,p_password:pin,p_id:id,p_approve:approve,p_note:note}).then(function(res){
+                if(res.error){ if(res.error.code==='42501') sessionPin=null; alert('Error: '+res.error.message); return; }
+                loadRequests();
+            }).catch(function(){ alert('Connection error.'); });
         });
     }
 
