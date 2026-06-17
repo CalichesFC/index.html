@@ -1032,7 +1032,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.16.2154';
+    const APP_VERSION = '2026.06.17.0052';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4039,7 +4039,7 @@
 <div id="aiChatWidget" style="display:none;">
     <div id="aiChatPanel" style="display:none;">
         <div id="aiChatHeader">
-            <span>&#129504; Ask Mr. Scoopy</span>
+            <span style="display:flex;align-items:center;gap:8px;"><img src="scoopy-hero.png" alt="" style="width:24px;height:24px;object-fit:contain;border-radius:50%;background:#fff;" onerror="this.style.display='none'">Ask Mr. Scoopy</span>
             <button id="aiChatCloseBtn" onclick="toggleAIChatPanel()">&#10005;</button>
         </div>
         <div id="aiChatMessages"></div>
