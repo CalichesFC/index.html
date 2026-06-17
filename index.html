@@ -607,6 +607,11 @@
   .cc-actions { display:flex; flex-wrap:wrap; gap:10px; }
   .cc-actions button { flex:1 1 140px; min-height:48px; border-radius:10px; border:1px solid #cfe0ef; background:#eaf1f8; color:var(--caliches-blue); font-weight:800; font-size:13px; cursor:pointer; }
   .cc-actions button:focus-visible { outline:3px solid var(--caliches-blue); outline-offset:2px; }
+  .cc-urg { display:inline-block; font-size:11px; font-weight:800; color:#fff; padding:2px 8px; border-radius:99px; margin-right:4px; }
+  .pip-badge { display:inline-block; font-size:10px; font-weight:800; color:#fff; background:#c0392b; padding:1px 7px; border-radius:99px; margin-left:6px; cursor:help; vertical-align:middle; letter-spacing:.3px; }
+  .dm-radio { display:flex; align-items:center; gap:8px; padding:10px 12px; border:1.5px solid #e3e8ef; border-radius:10px; margin-bottom:8px; cursor:pointer; font-size:14px; }
+  .dm-radio input { width:18px; height:18px; }
+  .dm-radio.sel { border-color:var(--caliches-blue); background:#eef4fb; }
 </style>
 <div id="scheduleBuilderView" class="app-view">
     <div class="hb-head">
@@ -708,6 +713,72 @@
     <div style="display:flex;gap:10px;margin-top:16px;">
       <button class="hb-back" style="flex:1;" onclick="closeRosterImport()">Cancel</button>
       <button class="sched-btn publish" style="flex:1;" onclick="saveRosterImport()">Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add admin task modal -->
+<div id="addTaskModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:420px;">
+    <h3 style="margin:0 0 14px;color:var(--caliches-blue);">New Admin Task</h3>
+    <label class="rm-lbl" for="atTitle">Title</label>
+    <input id="atTitle" type="text" class="rm-inp" placeholder="e.g., Submit payroll">
+    <label class="rm-lbl" for="atCategory">Category</label>
+    <select id="atCategory" class="rm-inp">
+      <option>Payroll</option><option>Evaluation</option><option>Training</option><option>PIP Review</option><option>Other</option>
+    </select>
+    <label class="rm-lbl" for="atDue">Due date</label>
+    <input id="atDue" type="date" class="rm-inp">
+    <label class="rm-lbl" for="atLink">Document/form link (optional)</label>
+    <input id="atLink" type="text" class="rm-inp" placeholder="https://...">
+    <div id="atMsg" style="display:none;margin-top:10px;font-size:13px;"></div>
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <button class="hb-back" style="flex:1;" onclick="closeAddTask()">Cancel</button>
+      <button class="sched-btn publish" style="flex:1;" onclick="saveAddTask()">Add Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- Start PIP modal -->
+<div id="pipModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:420px;">
+    <h3 style="margin:0 0 6px;color:var(--caliches-blue);">Start Performance Improvement Plan</h3>
+    <p id="pipWho" class="hb-sub" style="margin:0 0 14px;"></p>
+    <input type="hidden" id="pipEmpId">
+    <label class="rm-lbl" for="pipStart">Start date</label>
+    <input id="pipStart" type="date" class="rm-inp">
+    <label class="rm-lbl" for="pipEnd">End date</label>
+    <input id="pipEnd" type="date" class="rm-inp">
+    <label class="rm-lbl" for="pipReason">Reason / focus areas</label>
+    <textarea id="pipReason" rows="3" class="rm-inp" style="resize:vertical;" placeholder="What needs to improve…"></textarea>
+    <div id="pipMsg" style="display:none;margin-top:10px;font-size:13px;"></div>
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <button class="hb-back" style="flex:1;" onclick="closePip()">Cancel</button>
+      <button class="sched-btn publish" style="flex:1;" onclick="savePip()">Start PIP</button>
+    </div>
+  </div>
+</div>
+
+<!-- Final Decision modal -->
+<div id="decisionModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:440px;">
+    <h3 style="margin:0 0 4px;color:var(--caliches-blue);">PIP Final Decision</h3>
+    <p id="decWho" class="hb-sub" style="margin:0 0 14px;"></p>
+    <input type="hidden" id="decPipId">
+    <label class="rm-lbl">Final decision (required)</label>
+    <label class="dm-radio"><input type="radio" name="decChoice" value="completed" onchange="decPick(this)"> PIP completed successfully</label>
+    <label class="dm-radio"><input type="radio" name="decChoice" value="extended" onchange="decPick(this)"> Extend the PIP</label>
+    <label class="dm-radio"><input type="radio" name="decChoice" value="termination" onchange="decPick(this)"> Termination</label>
+    <div id="decExtendWrap" style="display:none;">
+      <label class="rm-lbl" for="decNewEnd">New end date</label>
+      <input id="decNewEnd" type="date" class="rm-inp">
+    </div>
+    <label class="rm-lbl" for="decNotes">Notes / justification (required)</label>
+    <textarea id="decNotes" rows="3" class="rm-inp" style="resize:vertical;" placeholder="Summary of performance and rationale…"></textarea>
+    <div id="decMsg" style="display:none;margin-top:10px;font-size:13px;"></div>
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <button class="hb-back" style="flex:1;" onclick="closeDecision()">Cancel</button>
+      <button class="sched-btn publish" style="flex:1;" id="decSaveBtn" onclick="saveDecision()">Record Decision</button>
     </div>
   </div>
 </div>
@@ -1032,7 +1103,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.17.0052';
+    const APP_VERSION = '2026.06.17.1307';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -1907,9 +1978,16 @@
         const box=document.getElementById('rosterList');
         box.innerHTML='<p style="text-align:center;padding:30px;color:#888;">Loading&hellip;</p>';
         withPin(function(pin){
-            supabaseClient.rpc('app_roster_list',{p_username:currentUser.username,p_password:pin}).then(({data,error})=>{
+            Promise.all([
+                supabaseClient.rpc('app_roster_list',{p_username:currentUser.username,p_password:pin}),
+                supabaseClient.rpc('app_pip_active',{p_username:currentUser.username,p_password:pin})
+            ]).then(function(res){
+                const error=res[0].error;
                 if(error){ if(error.code==='42501') sessionPin=null; box.innerHTML='<p style="color:red;text-align:center;padding:20px;">Error: '+error.message+'</p>'; return; }
-                rosterState.list=data||[];
+                rosterState.list=res[0].data||[];
+                rosterState.pips={};
+                var pips=(res[1] && res[1].data) ? res[1].data : [];
+                pips.forEach(function(p){ rosterState.pips[p.employee_id]=p; });
                 renderRosterTable();
             }).catch(()=>{ box.innerHTML='<p style="color:red;text-align:center;">Connection error.</p>'; });
         }, function(){ box.innerHTML='<p style="text-align:center;padding:20px;color:#888;">PIN required.</p>'; });
@@ -1930,7 +2008,13 @@
             const login = e.is_linked
                 ? '<span class="rtag linked">'+rosterEsc(e.linked_username)+'</span><button class="roster-act" onclick="rosterUnlink('+e.id+')">Unlink</button>'
                 : '<span class="rtag unlinked">Not linked</span><button class="roster-act" onclick="openRosterLink('+e.id+')">Link</button>';
-            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;"><button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button></td></tr>';
+            const nmJs = (e.name||'').replace(/&/g,'').replace(/"/g,'');
+            const pip = (rosterState.pips && rosterState.pips[e.id]) ? rosterState.pips[e.id] : null;
+            const pipBadge = pip ? ' <span class="pip-badge" title="On PIP: '+pip.start+' to '+pip['end']+(pip.reason?(' — '+rosterEsc(pip.reason)):'')+'" onclick="openDecision('+pip.pip_id+',&quot;'+rosterEsc(nmJs)+'&quot;)">PIP</span>' : '';
+            const pipAct = pip
+                ? '<button class="roster-act" onclick="openDecision('+pip.pip_id+',&quot;'+rosterEsc(nmJs)+'&quot;)">Decision</button>'
+                : '<button class="roster-act" onclick="openPip('+e.id+',&quot;'+rosterEsc(nmJs)+'&quot;)">+PIP</button>';
+            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+pipBadge+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;">'+pipAct+'<button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button></td></tr>';
         });
         html+='</tbody></table>';
         box.innerHTML=html;
@@ -2061,7 +2145,8 @@
             Promise.all([
                 supabaseClient.rpc('app_clock_live',{p_username:u,p_password:pin}),
                 supabaseClient.rpc('app_timesheet',{p_username:u,p_password:pin,p_start:today,p_end:today}),
-                supabaseClient.rpc('app_timesheet',{p_username:u,p_password:pin,p_start:wkStart,p_end:today})
+                supabaseClient.rpc('app_timesheet',{p_username:u,p_password:pin,p_start:wkStart,p_end:today}),
+                supabaseClient.rpc('app_admin_tasks_get',{p_username:u,p_password:pin})
             ]).then(function(res){
                 const e0=res[0].error;
                 if(e0 && e0.code==='42501'){ sessionPin=null; }
@@ -2069,11 +2154,13 @@
                 const live=res[0].data||[];
                 const todayTs=res[1].data||{rows:[],open_count:0};
                 const weekTs=res[2].data||{rows:[],open_count:0};
-                ccRender(live, todayTs, weekTs, wkStart);
+                const tasks=(res[3] && res[3].data && res[3].data.tasks) ? res[3].data.tasks : [];
+                ccRender(live, todayTs, weekTs, wkStart, tasks);
             }).catch(function(){ body.innerHTML='<p style="color:red;text-align:center;padding:20px;">Connection error.</p>'; });
         }, function(){ body.innerHTML='<p style="text-align:center;color:#888;padding:20px;">PIN required.</p>'; });
     }
-    function ccRender(live, todayTs, weekTs, wkStart){
+    function ccRender(live, todayTs, weekTs, wkStart, tasks){
+        tasks = tasks || [];
         const onClock=live.length;
         const onBreak=live.filter(p=>p.on_break).length;
         const workedToday=(todayTs.rows||[]).reduce((a,r)=>a+(r.total_hours||0),0);
@@ -2089,6 +2176,21 @@
         h+=ccCard(workedToday.toFixed(1), 'Hours today', peopleToday+' worked', 'var(--caliches-blue)');
         h+=ccCard(openPunch, 'Open punches', openPunch?'not clocked out':'all clear', openPunch?'#e67e22':'#16a34a');
         h+=ccCard(weekOt.toFixed(1), 'OT this week', weekTotal.toFixed(1)+' h total', weekOt>0?'#c0392b':'#16a34a');
+        h+='</div>';
+        // ── Time-sensitive admin tasks ──
+        var overdueN = tasks.filter(function(t){ return t.days_left < 0; }).length;
+        h+='<div class="cc-section"><h3 style="display:flex;justify-content:space-between;align-items:center;">&#9203; Time-Sensitive Tasks'+(overdueN?(' <span class="cc-urg" style="background:#c0392b;">'+overdueN+' overdue</span>'):'')+' <button class="roster-act" style="margin-left:auto;" onclick="openAddTask()">&#10133; Add</button></h3>';
+        if(!tasks.length){ h+='<p style="color:#888;font-size:13px;margin:0;">No upcoming admin tasks. &#127881;</p>'; }
+        else { tasks.forEach(function(t){
+            var d=t.days_left, color, badge;
+            if(d<0){ color='#c0392b'; badge=Math.abs(d)+'d overdue'; }
+            else if(d<=7){ color='#e67e22'; badge=(d===0?'due today':'in '+d+'d'); }
+            else { color='#16a34a'; badge='in '+d+'d'; }
+            var act = (t.category==='PIP Review' && t.related_pip_id)
+                ? '<button class="roster-act" onclick="openDecision('+t.related_pip_id+',&quot;'+escapeHtml((t.employee||'').replace(/&/g,'').replace(/"/g,''))+'&quot;)">Decision</button>'
+                : '<button class="roster-act" onclick="ccCompleteTask('+t.id+')">Done</button>';
+            h+='<div class="cc-row" style="border-left:5px solid '+color+';"><div><div style="font-weight:bold;">'+escapeHtml(t.title)+'</div><div style="font-size:12px;color:#888;">'+escapeHtml(t.category)+' &bull; due '+t.due_date+(t.employee?(' &bull; '+escapeHtml(t.employee)):'')+'</div></div><div style="text-align:right;white-space:nowrap;"><span class="cc-urg" style="background:'+color+';">'+badge+'</span>'+act+'</div></div>';
+        }); }
         h+='</div>';
         h+='<div class="cc-section"><h3>&#128994; On the clock now</h3>';
         if(!live.length){ h+='<p style="color:#888;font-size:13px;margin:0;">Nobody is clocked in right now.</p>'; }
@@ -2109,6 +2211,107 @@
         h+='<button onclick="openDashboard()">&#128200; Manager Dashboard</button>';
         h+='</div></div>';
         document.getElementById('ccBody').innerHTML=h;
+    }
+
+    // ============================================================
+    // ADMIN TASKS + PIP / DISCIPLINARY (Admin Manager only)
+    // ============================================================
+    function ccRefresh(){ if(document.getElementById('commandCenterView').style.display==='block') ccLoad(); if(document.getElementById('rosterView').style.display==='block') loadRoster(); }
+
+    function ccCompleteTask(id){
+        withPin(function(pin){
+            supabaseClient.rpc('app_admin_task_complete',{p_username:currentUser.username,p_password:pin,p_id:id})
+            .then(({error})=>{ if(error){ alert('Error: '+error.message); if(error.code==='42501') sessionPin=null; return; } ccRefresh(); });
+        });
+    }
+    function openAddTask(){
+        document.getElementById('atTitle').value=''; document.getElementById('atCategory').value='Payroll';
+        document.getElementById('atDue').value=''; document.getElementById('atLink').value='';
+        document.getElementById('atMsg').style.display='none';
+        document.getElementById('addTaskModal').style.display='flex';
+    }
+    function closeAddTask(){ document.getElementById('addTaskModal').style.display='none'; }
+    function saveAddTask(){
+        const title=document.getElementById('atTitle').value.trim();
+        const cat=document.getElementById('atCategory').value;
+        const due=document.getElementById('atDue').value;
+        const link=document.getElementById('atLink').value.trim();
+        const msg=document.getElementById('atMsg');
+        if(!title || !due){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Title and due date are required.'; return; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_admin_task_add',{p_username:currentUser.username,p_password:pin,p_title:title,p_category:cat,p_due_date:due,p_link_url:link,p_employee_id:null})
+            .then(({error})=>{ if(error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; } closeAddTask(); ccRefresh(); });
+        });
+    }
+
+    function openPip(empId, name){
+        document.getElementById('pipEmpId').value=empId;
+        document.getElementById('pipWho').innerText='Employee: '+(name||'');
+        const t=new Date(); const e=new Date(); e.setDate(e.getDate()+30);
+        document.getElementById('pipStart').value=schedFmt(t);
+        document.getElementById('pipEnd').value=schedFmt(e);
+        document.getElementById('pipReason').value='';
+        document.getElementById('pipMsg').style.display='none';
+        document.getElementById('pipModal').style.display='flex';
+    }
+    function closePip(){ document.getElementById('pipModal').style.display='none'; }
+    function savePip(){
+        const empId=parseInt(document.getElementById('pipEmpId').value,10);
+        const start=document.getElementById('pipStart').value, end=document.getElementById('pipEnd').value;
+        const reason=document.getElementById('pipReason').value.trim();
+        const msg=document.getElementById('pipMsg');
+        if(!start||!end){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Start and end dates are required.'; return; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_pip_create',{p_username:currentUser.username,p_password:pin,p_employee_id:empId,p_start:start,p_end:end,p_reason:reason})
+            .then(({error})=>{ if(error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; } closePip(); ccRefresh(); });
+        });
+    }
+
+    let decEmpName='';
+    function openDecision(pipId, name){
+        decEmpName=name||'';
+        document.getElementById('decPipId').value=pipId;
+        document.getElementById('decWho').innerText='Employee: '+decEmpName;
+        document.querySelectorAll('input[name="decChoice"]').forEach(function(r){ r.checked=false; });
+        document.querySelectorAll('#decisionModal .dm-radio').forEach(function(l){ l.classList.remove('sel'); });
+        document.getElementById('decExtendWrap').style.display='none';
+        document.getElementById('decNewEnd').value='';
+        document.getElementById('decNotes').value='';
+        document.getElementById('decMsg').style.display='none';
+        document.getElementById('decisionModal').style.display='flex';
+    }
+    function closeDecision(){ document.getElementById('decisionModal').style.display='none'; }
+    function decPick(el){
+        document.querySelectorAll('#decisionModal .dm-radio').forEach(function(l){ l.classList.remove('sel'); });
+        if(el.checked) el.closest('.dm-radio').classList.add('sel');
+        document.getElementById('decExtendWrap').style.display = (el.value==='extended') ? 'block' : 'none';
+    }
+    function saveDecision(){
+        const pipId=parseInt(document.getElementById('decPipId').value,10);
+        const chosen=document.querySelector('input[name="decChoice"]:checked');
+        const notes=document.getElementById('decNotes').value.trim();
+        const newEnd=document.getElementById('decNewEnd').value;
+        const msg=document.getElementById('decMsg');
+        if(!chosen){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Please choose a final decision.'; return; }
+        if(!notes){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Notes / justification are required.'; return; }
+        if(chosen.value==='extended' && !newEnd){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Enter the new end date for the extension.'; return; }
+        const btn=document.getElementById('decSaveBtn'); if(btn){ btn.disabled=true; btn.innerText='Saving...'; }
+        withPin(function(pin){
+            // Best-effort PDF generation (filed in Dropbox via Apps Script); never blocks the in-app save.
+            const qs='?action=pip_decision&pip_id='+pipId+'&employee='+encodeURIComponent(decEmpName)+'&decision='+encodeURIComponent(chosen.value)+'&notes='+encodeURIComponent(notes)+'&new_end='+encodeURIComponent(newEnd||'')+'&manager='+encodeURIComponent(currentUser.name||currentUser.username);
+            const finish=function(pdfUrl){
+                supabaseClient.rpc('app_pip_decide',{p_username:currentUser.username,p_password:pin,p_pip_id:pipId,p_decision:chosen.value,p_notes:notes,p_new_end:newEnd||null,p_pdf_url:pdfUrl||''})
+                .then(({error})=>{
+                    if(btn){ btn.disabled=false; btn.innerText='Record Decision'; }
+                    if(error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; }
+                    closeDecision(); ccRefresh();
+                });
+            };
+            let done=false;
+            const finishOnce=function(pdfUrl){ if(done) return; done=true; clearTimeout(t); finish(pdfUrl); };
+            var t=setTimeout(function(){ finishOnce(''); }, 9000); // don't wait forever on the PDF
+            fetch(G_URL+qs).then(r=>r.json()).then(j=>{ finishOnce(j && j.url ? j.url : ''); }).catch(()=>{ finishOnce(''); });
+        }, function(){ if(btn){ btn.disabled=false; btn.innerText='Record Decision'; } });
     }
 
     // ============================================================
