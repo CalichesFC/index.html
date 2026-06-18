@@ -1236,7 +1236,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.17.2059';
+    const APP_VERSION = '2026.06.17.2114';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3246,6 +3246,7 @@
                 currentUser.activeStore=(saved&&locs.indexOf(saved)>-1)?saved:(locs[0]||'');
                 var sel=document.getElementById('storeSelect'); if(sel) sel.innerHTML=locs.map(function(l){return '<option value="'+l.replace(/"/g,'')+'"'+(l===currentUser.activeStore?' selected':'')+'>'+escapeHtml(l)+'</option>';}).join('');
                 var sw=document.getElementById('storeSwitcher'); if(sw) sw.style.display=(locs.length>1)?'flex':'none';
+                if(currentUser.isStoreManager){ var mt=document.getElementById('tab-management'); if(mt) mt.style.display='flex'; }
                 var atb=document.getElementById('assignTaskBtn'); if(atb&&currentUser.isStoreManager) atb.style.display='block';
                 var rqb=document.getElementById('requestsBtn'); if(rqb&&currentUser.isStoreManager) rqb.style.display='block';
             });
