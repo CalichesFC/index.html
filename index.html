@@ -425,6 +425,10 @@
         <div class="hub-buttons">
 
             <!-- ── TAB BAR ── -->
+            <div id="storeSwitcher" style="display:none;background:#fff;border-radius:10px;padding:8px 12px;margin-bottom:10px;box-shadow:0 2px 4px rgba(0,0,0,0.05);align-items:center;gap:8px;">
+                <span style="font-weight:bold;font-size:13px;color:#555;white-space:nowrap;">🏪 Store:</span>
+                <select id="storeSelect" onchange="setActiveStore(this.value)" style="flex:1;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:13px;"></select>
+            </div>
             <div class="menu-tab-bar">
                 <button class="menu-tab active" id="tab-operations" onclick="switchMenuTab('operations')">📋 Operations</button>
                 <button class="menu-tab" id="tab-maintenance" onclick="switchMenuTab('maintenance')">🔧 Maintenance</button>
@@ -546,6 +550,7 @@
       <div id="taStoreWrap" style="display:none;margin-bottom:10px;"><select id="taStore" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;"></select></div>
       <div id="taRoleWrap" style="display:none;margin-bottom:10px;"><select id="taRole" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;"></select></div>
       <div id="taPeopleWrap" style="display:none;margin-bottom:10px;max-height:200px;overflow:auto;border:1px solid #eee;border-radius:8px;padding:8px;"></div>
+      <div id="taStoreSharedWrap" style="display:none;margin-bottom:10px;font-size:13px;color:#555;"><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="taStoreShared"> One person completes it for the whole store (shared)</label></div>
     </div>
     <div id="taMsg" style="font-size:13px;margin-bottom:10px;"></div>
     <div style="display:flex;gap:10px;">
@@ -789,6 +794,11 @@
     <label class="rm-lbl" for="rosterPos">Default role</label>
     <select id="rosterPos" class="rm-inp"></select>
     <label id="rosterActiveWrap" style="display:none;align-items:center;gap:8px;margin:12px 0 0;font-size:14px;"><input type="checkbox" id="rosterActive" checked> Active employee</label>
+    <div id="rosterStoresWrap" style="display:none;margin-top:14px;border-top:1px solid #eee;padding-top:12px;">
+      <div style="font-size:13px;font-weight:bold;color:#555;margin-bottom:6px;">Stores &amp; manager roles</div>
+      <div style="font-size:11px;color:#888;margin-bottom:8px;">Check each store this person works at. SM = Store Manager, AM = Assistant Manager for that store.</div>
+      <div id="rosterStoresList" style="max-height:220px;overflow:auto;"></div>
+    </div>
     <div id="rosterModalMsg" style="display:none;margin-top:10px;font-size:13px;"></div>
     <div style="display:flex;gap:10px;margin-top:18px;">
       <button class="hb-back" style="flex:1;" onclick="closeRosterModal()">Cancel</button>
@@ -1226,7 +1236,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.17.1835';
+    const APP_VERSION = '2026.06.17.2046';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2149,6 +2159,8 @@
     function openRosterModal(id){
         rosterFillSelects();
         const msg=document.getElementById('rosterModalMsg'); msg.style.display='none';
+        document.getElementById('rosterStoresWrap').style.display='none';
+        document.getElementById('rosterStoresList').innerHTML='';
         if(id){
             const e=rosterState.list.find(x=>x.id===id); if(!e) return;
             document.getElementById('rosterModalTitle').innerText='Edit Employee';
@@ -2158,6 +2170,7 @@
             document.getElementById('rosterPos').value=e.position_id?String(e.position_id):'';
             document.getElementById('rosterActive').checked=!!e.active;
             document.getElementById('rosterActiveWrap').style.display='flex';
+            loadRosterStores(e.id);
         } else {
             document.getElementById('rosterModalTitle').innerText='Add Employee';
             document.getElementById('rosterEditId').value='';
@@ -2179,14 +2192,42 @@
         const msg=document.getElementById('rosterModalMsg');
         if(!name){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Name is required.'; return; }
         withPin(function(pin){
-            let p;
             if(id){
                 const active=document.getElementById('rosterActive').checked;
-                p=supabaseClient.rpc('app_roster_update',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_name:name,p_home_location:home,p_position_id:pos,p_active:active});
+                supabaseClient.rpc('app_roster_update',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_name:name,p_home_location:home,p_position_id:pos,p_active:active}).then(({error})=>{
+                    if(error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; }
+                    var locs=[].slice.call(document.querySelectorAll('.rs-store:checked')).map(function(x){return x.value;});
+                    var sm=[].slice.call(document.querySelectorAll('.rs-sm:checked')).map(function(x){return x.value;});
+                    var am=[].slice.call(document.querySelectorAll('.rs-am:checked')).map(function(x){return x.value;});
+                    supabaseClient.rpc('app_emp_admin_set',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_locations:locs,p_sm:sm,p_am:am}).then(function(r2){
+                        if(r2.error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Saved basics; stores error: '+r2.error.message; return; }
+                        closeRosterModal(); loadRoster();
+                    });
+                });
             } else {
-                p=supabaseClient.rpc('app_roster_add',{p_username:currentUser.username,p_password:pin,p_name:name,p_home_location:home,p_position_id:pos});
+                supabaseClient.rpc('app_roster_add',{p_username:currentUser.username,p_password:pin,p_name:name,p_home_location:home,p_position_id:pos}).then(({error})=>{
+                    if(error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; }
+                    closeRosterModal(); loadRoster();
+                });
             }
-            p.then(({error})=>{ if(error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; } closeRosterModal(); loadRoster(); });
+        });
+    }
+    var rosterStoresData=null;
+    function loadRosterStores(empId){
+        withPin(function(pin){
+            supabaseClient.rpc('app_emp_admin_get',{p_username:currentUser.username,p_password:pin,p_employee_id:empId}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; return; }
+                rosterStoresData=r.data||{};
+                var all=rosterStoresData.all_stores||[], stores=rosterStoresData.stores||[], sm=rosterStoresData.sm||[], am=rosterStoresData.am||[];
+                var h=all.map(function(s){ var esc=rosterEsc(s);
+                    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #f3f3f3;">' +
+                        '<label style="display:flex;align-items:center;gap:8px;font-size:13px;flex:1;"><input type="checkbox" class="rs-store" value="'+esc+'"'+(stores.indexOf(s)>-1?' checked':'')+'> '+esc+'</label>' +
+                        '<span style="white-space:nowrap;font-size:11px;color:#888;"><label style="margin-right:8px;"><input type="checkbox" class="rs-sm" value="'+esc+'"'+(sm.indexOf(s)>-1?' checked':'')+'> SM</label>' +
+                        '<label><input type="checkbox" class="rs-am" value="'+esc+'"'+(am.indexOf(s)>-1?' checked':'')+'> AM</label></span></div>';
+                }).join('');
+                document.getElementById('rosterStoresList').innerHTML=h||'<p style="font-size:12px;color:#888;">No stores defined yet.</p>';
+                document.getElementById('rosterStoresWrap').style.display='block';
+            });
         });
     }
     function openRosterLink(id){
@@ -2736,6 +2777,7 @@
         if (requestsBtn) requestsBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         const assignTaskBtn = document.getElementById('assignTaskBtn');
         if (assignTaskBtn) assignTaskBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
+        if (typeof refreshMyStores === 'function') refreshMyStores();
         document.getElementById('managerBtn').style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
         const kbBtn = document.getElementById('knowledgeBaseBtn');
         if (kbBtn) kbBtn.style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
@@ -3187,6 +3229,29 @@
     // ============================================================
     function socFmt(s){ if(!s) return ''; try{ var d=new Date(s); return d.toLocaleDateString([], {month:'short',day:'numeric'})+' '+d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); }catch(e){ return s; } }
 
+    // ---- Multi-store context ----
+    var myStores=[];
+    function activeStoreLoc(){ return (currentUser&&currentUser.activeStore) || (myStores[0]&&myStores[0].location) || ''; }
+    function refreshMyStores(){
+        if(!currentUser||!currentUser.username) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_my_stores',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; return; }
+                var d=r.data||{}; if(d.linked===false){ myStores=[]; return; }
+                myStores=d.stores||[];
+                currentUser.isAdminStores=(d.is_admin===true);
+                currentUser.isStoreManager=(d.is_admin===true)||myStores.some(function(s){return s.role==='store_manager'||s.role==='assistant_manager';});
+                var locs=myStores.map(function(s){return s.location;});
+                var saved=null; try{ saved=localStorage.getItem('calichesActiveStore'); }catch(e){}
+                currentUser.activeStore=(saved&&locs.indexOf(saved)>-1)?saved:(locs[0]||'');
+                var sel=document.getElementById('storeSelect'); if(sel) sel.innerHTML=locs.map(function(l){return '<option value="'+l.replace(/"/g,'')+'"'+(l===currentUser.activeStore?' selected':'')+'>'+escapeHtml(l)+'</option>';}).join('');
+                var sw=document.getElementById('storeSwitcher'); if(sw) sw.style.display=(locs.length>1)?'flex':'none';
+                var atb=document.getElementById('assignTaskBtn'); if(atb&&currentUser.isStoreManager) atb.style.display='block';
+            });
+        });
+    }
+    function setActiveStore(loc){ currentUser.activeStore=loc; try{ localStorage.setItem('calichesActiveStore', loc); }catch(e){} var mv=document.getElementById('messagesView'); if(mv&&mv.style.display==='block'&&msgTab==='store') loadStoreFeed(); }
+
     // ---- My Tasks (Employee Home) ----
     function loadMyTasks(){
         var c=document.getElementById('empTasksCard'); if(!c) return;
@@ -3221,8 +3286,20 @@
     // ---- Assign / add task modal ----
     var taTargets=null, taSelfOnly=false;
     function openSelfTask(){ taSelfOnly=true; document.getElementById('taAssignTitle').innerText='Add a task for myself'; document.getElementById('taTargetRow').style.display='none'; document.getElementById('taSaveBtn').innerText='Add'; taResetFields(); document.getElementById('taskAssignModal').style.display='flex'; }
-    function openTaskAssign(){ taSelfOnly=false; document.getElementById('taAssignTitle').innerText='Assign Task'; document.getElementById('taTargetRow').style.display='block'; document.getElementById('taSaveBtn').innerText='Assign'; document.getElementById('taTarget').value='people'; taResetFields(); taTargetChange();
-        withPin(function(pin){ supabaseClient.rpc('app_task_targets',{p_username:currentUser.username,p_password:pin}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; return; } taTargets=r.data||{}; populateTaTargets(); }); });
+    function openTaskAssign(){ taSelfOnly=false; document.getElementById('taAssignTitle').innerText='Assign Task'; document.getElementById('taTargetRow').style.display='block'; document.getElementById('taSaveBtn').innerText='Assign'; taResetFields();
+        var globalMgr=currentUser&&(currentUser.role==='Admin Manager'||currentUser.role==='Manager'||currentUser.is_developer===true);
+        var tsel=document.getElementById('taTarget');
+        if(globalMgr){
+            tsel.innerHTML='<option value="self">Myself</option><option value="people">Specific people</option><option value="store">A whole store</option><option value="role">A role</option><option value="everyone">Everyone</option>';
+            tsel.value='people';
+            withPin(function(pin){ supabaseClient.rpc('app_task_targets',{p_username:currentUser.username,p_password:pin}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; return; } taTargets=r.data||{}; populateTaTargets(); }); });
+        } else {
+            tsel.innerHTML='<option value="self">Myself</option><option value="store">A whole store</option>';
+            tsel.value='store';
+            var managed=myStores.filter(function(s){return s.role==='store_manager'||s.role==='assistant_manager';}).map(function(s){return s.location;});
+            document.getElementById('taStore').innerHTML=managed.map(function(s){return '<option value="'+s.replace(/"/g,'')+'">'+escapeHtml(s)+'</option>';}).join('');
+        }
+        taTargetChange();
         document.getElementById('taskAssignModal').style.display='flex'; }
     function taResetFields(){ document.getElementById('taTitle').value=''; document.getElementById('taDetails').value=''; document.getElementById('taDue').value=''; document.getElementById('taMsg').innerText=''; }
     function closeTaskAssign(){ document.getElementById('taskAssignModal').style.display='none'; }
@@ -3234,7 +3311,7 @@
         var pw=document.getElementById('taPeopleWrap');
         pw.innerHTML=(taTargets.people||[]).map(function(p){return '<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;"><input type="checkbox" class="ta-person" value="'+p.id+'">'+escapeHtml(p.name)+(p.store?' <span style="color:#aab;font-size:11px;">'+escapeHtml(p.store)+'</span>':'')+'</label>';}).join('');
     }
-    function taTargetChange(){ var v=document.getElementById('taTarget').value; document.getElementById('taStoreWrap').style.display=(v==='store')?'block':'none'; document.getElementById('taRoleWrap').style.display=(v==='role')?'block':'none'; document.getElementById('taPeopleWrap').style.display=(v==='people')?'block':'none'; }
+    function taTargetChange(){ var v=document.getElementById('taTarget').value; document.getElementById('taStoreWrap').style.display=(v==='store')?'block':'none'; document.getElementById('taRoleWrap').style.display=(v==='role')?'block':'none'; document.getElementById('taPeopleWrap').style.display=(v==='people')?'block':'none'; document.getElementById('taStoreSharedWrap').style.display=(v==='store')?'block':'none'; }
     function saveTask(){
         var title=document.getElementById('taTitle').value.trim();
         var details=document.getElementById('taDetails').value.trim();
@@ -3248,7 +3325,7 @@
         else if(target==='people'){ ids=[].slice.call(document.querySelectorAll('.ta-person:checked')).map(function(x){return parseInt(x.value,10);}); if(!ids.length){ msg.style.color='#c0264b'; msg.innerText='Pick at least one person.'; return; } }
         var btn=document.getElementById('taSaveBtn'); btn.disabled=true;
         withPin(function(pin){
-            supabaseClient.rpc('app_task_create',{p_username:currentUser.username,p_password:pin,p_title:title,p_details:details,p_due:due,p_target_type:target,p_target_value:tval,p_employee_ids:ids}).then(function(r){
+            supabaseClient.rpc('app_task_create',{p_username:currentUser.username,p_password:pin,p_title:title,p_details:details,p_due:due,p_target_type:target,p_target_value:tval,p_employee_ids:ids,p_completion_mode:(target==='store'&&document.getElementById('taStoreShared').checked)?'store':'individual'}).then(function(r){
                 btn.disabled=false;
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; msg.style.color='#c0264b'; msg.innerText='Error: '+r.error.message; return; }
                 closeTaskAssign();
@@ -3361,7 +3438,7 @@
     function loadStoreFeed(){
         var c=document.getElementById('msgContent');
         withPin(function(pin){
-            supabaseClient.rpc('app_store_feed',{p_username:currentUser.username,p_password:pin}).then(function(r){
+            supabaseClient.rpc('app_store_feed',{p_username:currentUser.username,p_password:pin,p_location:activeStoreLoc()}).then(function(r){
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
                 if(r.data && r.data.linked===false){ c.innerHTML='<p style="text-align:center;padding:20px;color:#888;">Your login isn\'t linked yet — ask a manager to link your account.</p>'; return; }
                 var msgs=(r.data&&r.data.messages)||[]; var store=(r.data&&r.data.store)||'your store';
@@ -3374,7 +3451,7 @@
             });
         });
     }
-    function postStore(){ var inp=document.getElementById('stInput'); var body=(inp.value||'').trim(); if(!body) return; inp.value=''; withPin(function(pin){ supabaseClient.rpc('app_store_post',{p_username:currentUser.username,p_password:pin,p_body:body}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } loadStoreFeed(); }); }); }
+    function postStore(){ var inp=document.getElementById('stInput'); var body=(inp.value||'').trim(); if(!body) return; inp.value=''; withPin(function(pin){ supabaseClient.rpc('app_store_post',{p_username:currentUser.username,p_password:pin,p_location:activeStoreLoc(),p_body:body}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } loadStoreFeed(); }); }); }
 
     // Priority level meta (1=Critical .. 4=Low; default Normal)
     function maintPrioMeta(rank) {
