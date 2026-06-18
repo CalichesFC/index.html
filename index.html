@@ -810,6 +810,13 @@
             </div>
             <div id="pcInvRows"></div>
             <div id="pcInvTotal" style="text-align:right;font-size:13px;font-weight:bold;color:#08321a;margin-top:6px;">Total purchases: $0</div>
+            <div style="margin-top:12px;border-top:1px dashed #ddd;padding-top:10px;">
+                <label style="display:inline-block;background:#08321a;color:#fff;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:bold;cursor:pointer;">&#128247; Attach Invoice Photos
+                    <input type="file" accept="image/*" multiple onchange="compressToGlobal(event,'pcPhotoPrev',pcInvPhotos)" style="display:none;">
+                </label>
+                <span style="font-size:11.5px;color:#888;margin-left:8px;">Add as many as you need</span>
+                <div id="pcPhotoPrev" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div>
+            </div>
         </div>
         <textarea id="pcNote" rows="2" placeholder="Notes (optional)" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:12px;resize:vertical;"></textarea>
         <!-- Live summary -->
@@ -1469,7 +1476,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.17.2349';
+    const APP_VERSION = '2026.06.18.0003';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3882,6 +3889,7 @@
     // WEEKLY PRIME COST FORM
     // ============================================================
     var PC_DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    var pcInvPhotos=[];
     function pcMonday(){ var d=new Date(); var off=(d.getDay()+6)%7; d.setDate(d.getDate()-off); return d.toISOString().slice(0,10); }
     function pcNum(id){ var el=document.getElementById(id); var v=el?parseFloat(el.value):NaN; return isNaN(v)?0:v; }
     function pcMoney(n){ return '$'+Math.round(n).toLocaleString(); }
@@ -3896,6 +3904,7 @@
         document.getElementById('pcMgr').value=''; document.getElementById('pcBeg').value=''; document.getElementById('pcEnd').value=''; document.getElementById('pcNote').value='';
         buildPcGrid();
         document.getElementById('pcInvRows').innerHTML=''; addInvoiceRow();
+        pcInvPhotos=[]; var pp=document.getElementById('pcPhotoPrev'); if(pp) pp.innerHTML='';
         pcCalc();
         loadPrimeRecent();
     }
@@ -3966,6 +3975,16 @@
         });
         return {days:days,inv:inv};
     }
+    function pcPrevObj(data){
+        if(!data||!data.exists) return null;
+        var days=data.days||[], invs=data.invoices||[], wk=data.week||{};
+        var dep=0,mc=0,hos=0,hr=0,tx=0;
+        days.forEach(function(x){ dep+=Number(x.deposits)||0; mc+=Number(x.mcvisa)||0; hos+=Number(x.hospital)||0; hr+=Number(x.hourly_labor)||0; tx+=Number(x.transactions)||0; });
+        var pur=0; invs.forEach(function(x){ pur+=(Number(x.amount)||0)-(Number(x.credits)||0)-(Number(x.equipment)||0); });
+        var cogs=(Number(wk.beginning_inventory)||0)+pur-(Number(wk.ending_inventory)||0);
+        return {deposits:dep,mcvisa:mc,hospital:hos,cogs:cogs,mgr:Number(wk.mgr_labor)||0,hourly:hr,tx:tx};
+    }
+    function pcPrevWeekStr(wk){ try{ var p=wk.split('-'); var d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2])); d.setDate(d.getDate()-7); var m=('0'+(d.getMonth()+1)).slice(-2), dy=('0'+d.getDate()).slice(-2); return d.getFullYear()+'-'+m+'-'+dy; }catch(e){ return null; } }
     function savePrimeCost(){
         var loc=tempStoreLoc();
         if(!loc){ alert('No store set on your account.'); return; }
@@ -3973,18 +3992,26 @@
         if(!wk){ alert('Pick the week beginning date.'); return; }
         var g=gatherPrime();
         withPin(function(pin){
-            supabaseClient.rpc('app_prime_save',{p_username:currentUser.username,p_password:pin,p_location:loc,p_week_start:wk,p_week_end:null,p_tax:pcNum('pcTax')/100,p_mgr_labor:pcNum('pcMgr'),p_begin:pcNum('pcBeg'),p_end:pcNum('pcEnd'),p_note:document.getElementById('pcNote').value.trim(),p_days:g.days,p_invoices:g.inv}).then(function(r){
-                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
-                alert('Saved for the week of '+wk+'. Building your prime cost report in your master format…');
-                // Generate the filled .xlsx in the master format and file it to Dropbox (best effort).
-                var payload={store:loc,location:loc,week:wk,tax:pcNum('pcTax')/100,mgr:pcNum('pcMgr'),begin:pcNum('pcBeg'),end:pcNum('pcEnd'),days:g.days,invoices:g.inv};
-                fetch(G_URL,{method:'POST',body:new URLSearchParams({action:'prime_report',payload:JSON.stringify(payload)})}).then(function(rr){return rr.json();}).then(function(res){
-                    if(res&&res.result==='ok'&&res.url){
-                        withPin(function(pin2){ supabaseClient.rpc('app_prime_set_url',{p_username:currentUser.username,p_password:pin2,p_location:loc,p_week_start:wk,p_url:res.url}).then(function(){ loadPrimeRecent(); }); });
-                        alert('Report filed ✓  Saved to Dropbox, and downloadable from Recent Weeks.');
-                    } else { loadPrimeRecent(); }
-                }).catch(function(){ loadPrimeRecent(); });
-            }).catch(function(){ alert('Connection error.'); });
+            var doSave=function(prevObj){
+                supabaseClient.rpc('app_prime_save',{p_username:currentUser.username,p_password:pin,p_location:loc,p_week_start:wk,p_week_end:null,p_tax:pcNum('pcTax')/100,p_mgr_labor:pcNum('pcMgr'),p_begin:pcNum('pcBeg'),p_end:pcNum('pcEnd'),p_note:document.getElementById('pcNote').value.trim(),p_days:g.days,p_invoices:g.inv}).then(function(r){
+                    if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
+                    alert('Saved for the week of '+wk+'. Building your prime cost report in your master format…');
+                    var payload={store:loc,location:loc,week:wk,tax:pcNum('pcTax')/100,mgr:pcNum('pcMgr'),begin:pcNum('pcBeg'),end:pcNum('pcEnd'),days:g.days,invoices:g.inv,prev:prevObj,photos:pcInvPhotos};
+                    fetch(G_URL,{method:'POST',body:new URLSearchParams({action:'prime_report',payload:JSON.stringify(payload)})}).then(function(rr){return rr.json();}).then(function(res){
+                        if(res&&res.result==='ok'&&res.url){
+                            supabaseClient.rpc('app_prime_set_url',{p_username:currentUser.username,p_password:pin,p_location:loc,p_week_start:wk,p_url:res.url}).then(function(){ loadPrimeRecent(); });
+                            alert('Report filed ✓  Saved to Dropbox (with invoice photos), and downloadable from Recent Weeks.');
+                        } else { loadPrimeRecent(); }
+                    }).catch(function(){ loadPrimeRecent(); });
+                }).catch(function(){ alert('Connection error.'); });
+            };
+            // Pull the prior week for the Weekly Comparison tab (best effort).
+            var prevWk=pcPrevWeekStr(wk);
+            if(prevWk){
+                supabaseClient.rpc('app_prime_get',{p_username:currentUser.username,p_password:pin,p_location:loc,p_week_start:prevWk}).then(function(pr){
+                    doSave((pr&&pr.data)?pcPrevObj(pr.data):null);
+                }).catch(function(){ doSave(null); });
+            } else { doSave(null); }
         });
     }
     function loadPrimeRecent(){
