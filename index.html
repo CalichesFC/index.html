@@ -166,6 +166,8 @@
         .status-btn.active{border-color:transparent}
         .priority-arrow-btn{background:var(--light-gray);border:1px solid #ddd;border-radius:6px;width:32px;height:28px;font-weight:bold;color:var(--caliches-blue);cursor:pointer}
         .maint-prio-select{background:#fff;border:1.5px solid #ddd;border-radius:8px;padding:6px 8px;font-size:13px;font-weight:bold;color:var(--caliches-blue);cursor:pointer;min-height:34px}
+        .msg-tab{flex:1;padding:10px;border:1px solid #ddd;background:#f3f3f3;border-radius:8px;font-size:13px;font-weight:bold;color:#555;cursor:pointer}
+        .msg-tab.active{background:#6a3fb5;color:#fff;border-color:#6a3fb5}
         .maint-note-box{width:100%;border-radius:6px;border:1px solid #ccc;padding:6px;font-size:13px;font-family:inherit;box-sizing:border-box;resize:vertical}
         .maint-readonly-note{background:#fdf3e8;padding:8px;border-radius:6px;font-size:13px;margin-bottom:8px}
         .my-sub-card{background:white;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.08);padding:15px;margin-bottom:15px;border-left:6px solid var(--maint-orange);text-align:left}
@@ -432,6 +434,7 @@
             <!-- ── OPERATIONS TAB ── -->
             <div id="tab-content-operations" class="menu-tab-content tab-visible">
                 <button id="btn-empHome" class="menu-btn" style="background:var(--caliches-pink);" onclick="openEmployeeHome()">&#127968; My Home</button>
+                <button id="btn-messages" class="menu-btn" style="background:#6a3fb5;" onclick="openMessages()">&#128172; Messages</button>
                 <button id="btn-popIn" class="menu-btn" onclick="openPopIn()">&#128203; Store Pop-In Inspection</button>
                 <button id="btn-driver" class="menu-btn pink" onclick="openForm('driverView')">&#128666; Vehicle &amp; Trailer Check-Out</button>
                 <button id="btn-shortage" class="menu-btn green" onclick="openForm('shortageView')">&#128230; Report Shortages</button>
@@ -451,6 +454,7 @@
             <div id="tab-content-management" class="menu-tab-content">
                 <button id="commandCenterBtn" class="menu-btn dark" style="display:none;background:#176bb4;" onclick="openCommandCenter()">&#128202; Command Center</button>
                 <button id="requestsBtn" class="menu-btn dark" style="display:none;background:#0d6eaf;" onclick="openRequests()">&#128197; Time-Off &amp; Swap Requests</button>
+                <button id="assignTaskBtn" class="menu-btn dark" style="display:none;background:#176bb4;" onclick="openTaskAssign()">&#128203; Assign Task</button>
                 <button id="managerBtn" class="menu-btn dark" style="display:none;" onclick="openDashboard()">&#128202; Manager Dashboard</button>
                 <button id="knowledgeBaseBtn" class="menu-btn dark" style="display:none;background:#0d6eaf;" onclick="openKnowledgeBase()">&#129504; AI Knowledge Base</button>
                 <button id="rosterBtn" class="menu-btn dark" style="display:none;background:#176bb4;" onclick="openRoster()">&#128101; Employee Roster</button>
@@ -518,6 +522,54 @@
       <button id="swapSubmitBtn" onclick="saveSwap()" style="flex:1;padding:12px;border:none;background:var(--caliches-pink);color:#fff;border-radius:8px;font-weight:bold;cursor:pointer;">Submit Request</button>
     </div>
   </div>
+</div>
+
+<!-- ASSIGN / ADD TASK MODAL -->
+<div id="taskAssignModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;max-width:460px;width:100%;padding:22px;max-height:90vh;overflow:auto;">
+    <h3 id="taAssignTitle" style="color:var(--caliches-blue);margin:0 0 14px;">Assign Task</h3>
+    <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Task</label>
+    <input id="taTitle" type="text" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;" placeholder="What needs doing">
+    <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Details (optional)</label>
+    <textarea id="taDetails" rows="2" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;"></textarea>
+    <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Due date (optional)</label>
+    <input id="taDue" type="date" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;">
+    <div id="taTargetRow">
+      <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Assign to</label>
+      <select id="taTarget" onchange="taTargetChange()" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;">
+        <option value="self">Myself</option>
+        <option value="people">Specific people</option>
+        <option value="store">A whole store</option>
+        <option value="role">A role</option>
+        <option value="everyone">Everyone</option>
+      </select>
+      <div id="taStoreWrap" style="display:none;margin-bottom:10px;"><select id="taStore" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;"></select></div>
+      <div id="taRoleWrap" style="display:none;margin-bottom:10px;"><select id="taRole" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;"></select></div>
+      <div id="taPeopleWrap" style="display:none;margin-bottom:10px;max-height:200px;overflow:auto;border:1px solid #eee;border-radius:8px;padding:8px;"></div>
+    </div>
+    <div id="taMsg" style="font-size:13px;margin-bottom:10px;"></div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="closeTaskAssign()" style="flex:1;padding:12px;border:1px solid #ccc;background:#f3f3f3;border-radius:8px;font-weight:bold;cursor:pointer;">Cancel</button>
+      <button id="taSaveBtn" onclick="saveTask()" style="flex:1;padding:12px;border:none;background:var(--caliches-pink);color:#fff;border-radius:8px;font-weight:bold;cursor:pointer;">Assign</button>
+    </div>
+  </div>
+</div>
+
+<!-- MESSAGES VIEW -->
+<div id="messagesView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
+    <div class="header" style="background:#6a3fb5;">
+        <h1 style="font-size:40px;margin:10px 0;">&#128172;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Messages</p>
+    </div>
+    <div class="container" style="max-width:760px;">
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+            <button id="msgTabUpdates" class="msg-tab" onclick="setMsgTab('updates')">&#128226; Updates</button>
+            <button id="msgTabDm" class="msg-tab" onclick="setMsgTab('dm')">&#128100; Direct</button>
+            <button id="msgTabStore" class="msg-tab" onclick="setMsgTab('store')">&#127970; My Store</button>
+        </div>
+        <div id="msgContent"><p style="text-align:center;padding:30px;color:#888;">Loading...</p></div>
+    </div>
 </div>
 
 <!-- TIME-OFF & SWAP REQUESTS (Manager) -->
@@ -1174,7 +1226,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.17.1806';
+    const APP_VERSION = '2026.06.17.1835';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2682,6 +2734,8 @@
         if (commandCenterBtn) commandCenterBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         const requestsBtn = document.getElementById('requestsBtn');
         if (requestsBtn) requestsBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
+        const assignTaskBtn = document.getElementById('assignTaskBtn');
+        if (assignTaskBtn) assignTaskBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         document.getElementById('managerBtn').style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
         const kbBtn = document.getElementById('knowledgeBaseBtn');
         if (kbBtn) kbBtn.style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
@@ -2942,6 +2996,7 @@
             supabaseClient.rpc('app_emp_home', { p_username: currentUser.username, p_password: pin }).then(function(res) {
                 if (res.error) { if (res.error.code === '42501') sessionPin = null; c.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Could not load: ' + escapeHtml(res.error.message) + '</p>'; return; }
                 empHomeRender(res.data || {});
+                if (res.data && res.data.linked) loadMyTasks();
             }).catch(function() { c.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Connection error.</p>'; });
         }, function() { c.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">PIN required.</p>'; });
     }
@@ -2968,6 +3023,7 @@
         var html = '<div style="background:#fff;border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
             '<h2 style="margin:0;color:var(--caliches-blue);font-size:20px;">Hi, ' + escapeHtml(name) + '! &#128075;</h2>' +
             (d.employee && d.employee.home_location ? '<p style="margin:4px 0 0;color:#888;font-size:13px;">Home store: ' + escapeHtml(d.employee.home_location) + '</p>' : '') + '</div>';
+        html += '<div id="empTasksCard"></div>';
 
         // PIP banner (own status, supportive tone)
         if (d.pip && d.pip.active) {
@@ -3125,6 +3181,200 @@
             }).catch(function(){ alert('Connection error.'); });
         });
     }
+
+    // ============================================================
+    // ASSIGNABLE TASKS + MESSAGING
+    // ============================================================
+    function socFmt(s){ if(!s) return ''; try{ var d=new Date(s); return d.toLocaleDateString([], {month:'short',day:'numeric'})+' '+d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); }catch(e){ return s; } }
+
+    // ---- My Tasks (Employee Home) ----
+    function loadMyTasks(){
+        var c=document.getElementById('empTasksCard'); if(!c) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_my_tasks',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; return; }
+                var tasks=(r.data&&r.data.tasks)||[];
+                var h='<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-size:15px;font-weight:500;color:#185FA5;">&#9989; My Tasks</span>' +
+                    '<button onclick="openSelfTask()" style="background:var(--caliches-pink);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:bold;cursor:pointer;">+ Add</button></div>';
+                if(!tasks.length){ h+='<p style="color:#888;font-size:13px;margin:0;">No tasks. &#127881;</p>'; }
+                else tasks.forEach(function(t){
+                    var done=t.status==='done';
+                    h+='<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid #f0f0f0;">' +
+                        '<input type="checkbox" '+(done?'checked':'')+' onchange="toggleTask('+t.assignee_id+',this.checked)" style="margin-top:3px;transform:scale(1.3);">' +
+                        '<div style="flex:1;"><div style="font-size:14px;'+(done?'text-decoration:line-through;color:#aaa;':'color:#333;')+'">'+escapeHtml(t.title)+'</div>' +
+                        (t.details?'<div style="font-size:12px;color:#888;">'+escapeHtml(t.details)+'</div>':'') +
+                        '<div style="font-size:11px;color:#aab;">'+(t.due_date?('Due '+t.due_date+' &bull; '):'')+'from '+escapeHtml(t['from']||'')+'</div></div></div>';
+                });
+                h+='</div>'; c.innerHTML=h;
+            });
+        });
+    }
+    function toggleTask(aid, done){
+        withPin(function(pin){
+            supabaseClient.rpc('app_task_complete',{p_username:currentUser.username,p_password:pin,p_assignee_id:aid,p_done:done}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); } loadMyTasks();
+            });
+        });
+    }
+
+    // ---- Assign / add task modal ----
+    var taTargets=null, taSelfOnly=false;
+    function openSelfTask(){ taSelfOnly=true; document.getElementById('taAssignTitle').innerText='Add a task for myself'; document.getElementById('taTargetRow').style.display='none'; document.getElementById('taSaveBtn').innerText='Add'; taResetFields(); document.getElementById('taskAssignModal').style.display='flex'; }
+    function openTaskAssign(){ taSelfOnly=false; document.getElementById('taAssignTitle').innerText='Assign Task'; document.getElementById('taTargetRow').style.display='block'; document.getElementById('taSaveBtn').innerText='Assign'; document.getElementById('taTarget').value='people'; taResetFields(); taTargetChange();
+        withPin(function(pin){ supabaseClient.rpc('app_task_targets',{p_username:currentUser.username,p_password:pin}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; return; } taTargets=r.data||{}; populateTaTargets(); }); });
+        document.getElementById('taskAssignModal').style.display='flex'; }
+    function taResetFields(){ document.getElementById('taTitle').value=''; document.getElementById('taDetails').value=''; document.getElementById('taDue').value=''; document.getElementById('taMsg').innerText=''; }
+    function closeTaskAssign(){ document.getElementById('taskAssignModal').style.display='none'; }
+    function populateTaTargets(){
+        if(!taTargets) return;
+        var st=document.getElementById('taStore'); st.innerHTML=(taTargets.stores||[]).map(function(s){return '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>';}).join('');
+        var rl=document.getElementById('taRole'); rl.innerHTML=(taTargets.roles||[]).map(function(r){return '<option value="'+r.id+'">'+escapeHtml(r.name)+'</option>';}).join('');
+        var pp=document.getElementById('taPeople');
+        var pw=document.getElementById('taPeopleWrap');
+        pw.innerHTML=(taTargets.people||[]).map(function(p){return '<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;"><input type="checkbox" class="ta-person" value="'+p.id+'">'+escapeHtml(p.name)+(p.store?' <span style="color:#aab;font-size:11px;">'+escapeHtml(p.store)+'</span>':'')+'</label>';}).join('');
+    }
+    function taTargetChange(){ var v=document.getElementById('taTarget').value; document.getElementById('taStoreWrap').style.display=(v==='store')?'block':'none'; document.getElementById('taRoleWrap').style.display=(v==='role')?'block':'none'; document.getElementById('taPeopleWrap').style.display=(v==='people')?'block':'none'; }
+    function saveTask(){
+        var title=document.getElementById('taTitle').value.trim();
+        var details=document.getElementById('taDetails').value.trim();
+        var due=document.getElementById('taDue').value||null;
+        var msg=document.getElementById('taMsg');
+        if(!title){ msg.style.color='#c0264b'; msg.innerText='Task title is required.'; return; }
+        var target = taSelfOnly ? 'self' : document.getElementById('taTarget').value;
+        var tval=null, ids=null;
+        if(target==='store') tval=document.getElementById('taStore').value;
+        else if(target==='role') tval=document.getElementById('taRole').value;
+        else if(target==='people'){ ids=[].slice.call(document.querySelectorAll('.ta-person:checked')).map(function(x){return parseInt(x.value,10);}); if(!ids.length){ msg.style.color='#c0264b'; msg.innerText='Pick at least one person.'; return; } }
+        var btn=document.getElementById('taSaveBtn'); btn.disabled=true;
+        withPin(function(pin){
+            supabaseClient.rpc('app_task_create',{p_username:currentUser.username,p_password:pin,p_title:title,p_details:details,p_due:due,p_target_type:target,p_target_value:tval,p_employee_ids:ids}).then(function(r){
+                btn.disabled=false;
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; msg.style.color='#c0264b'; msg.innerText='Error: '+r.error.message; return; }
+                closeTaskAssign();
+                if(document.getElementById('employeeHomeView').style.display==='block') loadMyTasks();
+                else alert('Task assigned.');
+            }).catch(function(){ btn.disabled=false; msg.style.color='#c0264b'; msg.innerText='Connection error.'; });
+        }, function(){ btn.disabled=false; });
+    }
+
+    // ---- Messaging ----
+    var msgTab='updates';
+    function openMessages(){ document.getElementById('main-menu').style.display='none'; document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';}); document.getElementById('messagesView').style.display='block'; window.scrollTo(0,0); msgTab='updates'; renderMsgTabs(); loadMsgTab(); }
+    function renderMsgTabs(){ ['updates','dm','store'].forEach(function(t){ var el=document.getElementById('msgTab'+t.charAt(0).toUpperCase()+t.slice(1)); if(el) el.className='msg-tab'+(msgTab===t?' active':''); }); }
+    function setMsgTab(t){ msgTab=t; renderMsgTabs(); loadMsgTab(); }
+    function loadMsgTab(){ var c=document.getElementById('msgContent'); c.innerHTML='<p style="text-align:center;padding:30px;color:#888;">Loading...</p>'; if(msgTab==='updates') loadUpdates(); else if(msgTab==='dm') loadDmThreads(); else loadStoreFeed(); }
+    function isMgr(){ return currentUser && (currentUser.role==='Admin Manager'||currentUser.role==='Manager'||currentUser.is_developer===true); }
+
+    function loadUpdates(){
+        var c=document.getElementById('msgContent');
+        withPin(function(pin){
+            supabaseClient.rpc('app_announce_feed',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                if(r.data && r.data.linked===false){ c.innerHTML='<p style="text-align:center;padding:20px;color:#888;">Your login isn\'t linked yet — ask a manager to link your account.</p>'; return; }
+                var items=(r.data&&r.data.items)||[]; var h='';
+                if(isMgr()){
+                    h+='<div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
+                        '<div style="font-size:14px;font-weight:500;color:#6a3fb5;margin-bottom:8px;">Post an update</div>' +
+                        '<input id="anTitle" placeholder="Title (optional)" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;">' +
+                        '<textarea id="anBody" rows="2" placeholder="What&#39;s the update? (new item, policy change…)" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;"></textarea>' +
+                        '<div style="display:flex;gap:8px;"><select id="anAud" onchange="anAudChange()" style="flex:1;padding:9px;border:1px solid #ccc;border-radius:8px;"><option value="everyone">Everyone</option><option value="store">A store</option></select>' +
+                        '<select id="anStore" style="flex:1;padding:9px;border:1px solid #ccc;border-radius:8px;display:none;"></select>' +
+                        '<button onclick="postAnnounce()" style="background:#6a3fb5;color:#fff;border:none;border-radius:8px;padding:9px 14px;font-weight:bold;cursor:pointer;">Post</button></div></div>';
+                }
+                if(!items.length){ h+='<p style="color:#888;text-align:center;padding:10px;font-size:13px;">No updates yet.</p>'; }
+                else items.forEach(function(a){
+                    h+='<div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 4px 6px rgba(0,0,0,0.05);'+(a.read?'':'border-left:4px solid #6a3fb5;')+'">' +
+                        (a.title?'<div style="font-size:15px;font-weight:500;color:#333;">'+escapeHtml(a.title)+'</div>':'') +
+                        '<div style="font-size:14px;color:#444;white-space:pre-wrap;">'+escapeHtml(a.body)+'</div>' +
+                        '<div style="font-size:11px;color:#aab;margin-top:6px;">'+escapeHtml(a['from']||'')+' &bull; '+socFmt(a.at)+'</div></div>';
+                });
+                c.innerHTML=h;
+                if(isMgr() && taTargets===null){ withPin(function(p2){ supabaseClient.rpc('app_task_targets',{p_username:currentUser.username,p_password:p2}).then(function(rr){ if(!rr.error){ taTargets=rr.data||{}; var sel=document.getElementById('anStore'); if(sel) sel.innerHTML=(taTargets.stores||[]).map(function(s){return '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>';}).join(''); } }); }); }
+                else if(isMgr()){ var sel=document.getElementById('anStore'); if(sel&&taTargets) sel.innerHTML=(taTargets.stores||[]).map(function(s){return '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>';}).join(''); }
+                // mark unread read
+                (items||[]).forEach(function(a){ if(!a.read){ withPin(function(p3){ supabaseClient.rpc('app_announce_read',{p_username:currentUser.username,p_password:p3,p_id:a.id}); }); } });
+            });
+        });
+    }
+    function anAudChange(){ document.getElementById('anStore').style.display=(document.getElementById('anAud').value==='store')?'block':'none'; }
+    function postAnnounce(){
+        var title=document.getElementById('anTitle').value.trim(), body=document.getElementById('anBody').value.trim();
+        var aud=document.getElementById('anAud').value, av=aud==='store'?document.getElementById('anStore').value:null;
+        if(!body){ alert('Write an update first.'); return; }
+        withPin(function(pin){ supabaseClient.rpc('app_announce_post',{p_username:currentUser.username,p_password:pin,p_title:title,p_body:body,p_audience_type:aud,p_audience_value:av}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } loadUpdates(); }); });
+    }
+
+    function loadDmThreads(){
+        var c=document.getElementById('msgContent');
+        withPin(function(pin){
+            supabaseClient.rpc('app_dm_threads',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                if(r.data && r.data.linked===false){ c.innerHTML='<p style="text-align:center;padding:20px;color:#888;">Your login isn\'t linked yet — ask a manager to link your account.</p>'; return; }
+                var th=(r.data&&r.data.threads)||[];
+                var h='<button onclick="newDm()" style="width:100%;background:#6a3fb5;color:#fff;border:none;border-radius:8px;padding:10px;font-weight:bold;cursor:pointer;margin-bottom:12px;">&#10133; New message</button>';
+                if(!th.length){ h+='<p style="color:#888;text-align:center;font-size:13px;">No conversations yet.</p>'; }
+                else th.forEach(function(t){
+                    h+='<div onclick="openDm('+t.emp+',&quot;'+escapeHtml((t.name||'').replace(/"/g,''))+'&quot;)" style="background:#fff;border-radius:10px;padding:12px;margin-bottom:8px;box-shadow:0 2px 4px rgba(0,0,0,0.05);cursor:pointer;display:flex;justify-content:space-between;align-items:center;">' +
+                        '<div><div style="font-size:14px;font-weight:500;color:#333;">'+escapeHtml(t.name||'')+'</div><div style="font-size:12px;color:#888;">'+escapeHtml((t.last||'').slice(0,40))+'</div></div>' +
+                        (t.unread>0?'<span style="background:#6a3fb5;color:#fff;border-radius:10px;font-size:11px;font-weight:bold;padding:2px 7px;">'+t.unread+'</span>':'') + '</div>';
+                });
+                c.innerHTML=h;
+            });
+        });
+    }
+    function newDm(){
+        var c=document.getElementById('msgContent'); c.innerHTML='<p style="text-align:center;padding:20px;color:#888;">Loading directory...</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_directory',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var ppl=(r.data||[]).filter(function(p){return p.linked;});
+                var h='<button onclick="loadDmThreads()" style="background:#eee;border:none;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;margin-bottom:12px;">&#8592; Back</button>' +
+                    '<input id="dirSearch" onkeyup="dirFilter()" placeholder="Search name..." style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;">' +
+                    '<div id="dirList">';
+                ppl.forEach(function(p){ h+='<div class="dir-row" data-n="'+escapeHtml((p.name||'').toLowerCase())+'" onclick="openDm('+p.id+',&quot;'+escapeHtml((p.name||'').replace(/"/g,''))+'&quot;)" style="background:#fff;border-radius:10px;padding:11px;margin-bottom:7px;box-shadow:0 2px 4px rgba(0,0,0,0.05);cursor:pointer;font-size:14px;color:#333;">'+escapeHtml(p.name)+(p.store?' <span style="color:#aab;font-size:11px;">'+escapeHtml(p.store)+'</span>':'')+'</div>'; });
+                if(!ppl.length) h+='<p style="color:#888;text-align:center;font-size:13px;">No one else has a login yet.</p>';
+                h+='</div>'; c.innerHTML=h;
+            });
+        });
+    }
+    function dirFilter(){ var q=(document.getElementById('dirSearch').value||'').toLowerCase(); [].slice.call(document.querySelectorAll('.dir-row')).forEach(function(d){ d.style.display=(d.getAttribute('data-n').indexOf(q)>-1)?'block':'none'; }); }
+    var dmWith=null, dmWithName='';
+    function openDm(emp, name){ dmWith=emp; dmWithName=name||''; renderDm(); }
+    function renderDm(){
+        var c=document.getElementById('msgContent');
+        withPin(function(pin){
+            supabaseClient.rpc('app_dm_thread',{p_username:currentUser.username,p_password:pin,p_with_emp:dmWith}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var msgs=(r.data&&r.data.messages)||[];
+                var h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><button onclick="loadDmThreads()" style="background:#eee;border:none;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;">&#8592;</button><span style="font-size:15px;font-weight:500;color:#333;">'+escapeHtml(dmWithName)+'</span></div>' +
+                    '<div style="background:#f7f5fb;border-radius:12px;padding:12px;max-height:50vh;overflow:auto;margin-bottom:10px;">';
+                if(!msgs.length) h+='<p style="color:#888;text-align:center;font-size:13px;">No messages yet. Say hi!</p>';
+                msgs.forEach(function(m){ h+='<div style="display:flex;justify-content:'+(m.mine?'flex-end':'flex-start')+';margin-bottom:6px;"><div style="max-width:75%;background:'+(m.mine?'#6a3fb5':'#fff')+';color:'+(m.mine?'#fff':'#333')+';border-radius:12px;padding:8px 11px;font-size:14px;box-shadow:0 1px 2px rgba(0,0,0,0.08);">'+escapeHtml(m.body)+'<div style="font-size:10px;opacity:.7;margin-top:2px;">'+socFmt(m.at)+'</div></div></div>'; });
+                h+='</div><div style="display:flex;gap:8px;"><input id="dmInput" onkeypress="if(event.key===&quot;Enter&quot;)sendDm()" placeholder="Message..." style="flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;"><button onclick="sendDm()" style="background:#6a3fb5;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:bold;cursor:pointer;">Send</button></div>';
+                c.innerHTML=h; var inp=document.getElementById('dmInput'); if(inp) inp.focus();
+            });
+        });
+    }
+    function sendDm(){ var inp=document.getElementById('dmInput'); var body=(inp.value||'').trim(); if(!body) return; inp.value=''; withPin(function(pin){ supabaseClient.rpc('app_dm_send',{p_username:currentUser.username,p_password:pin,p_to_emp:dmWith,p_body:body}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } renderDm(); }); }); }
+
+    function loadStoreFeed(){
+        var c=document.getElementById('msgContent');
+        withPin(function(pin){
+            supabaseClient.rpc('app_store_feed',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                if(r.data && r.data.linked===false){ c.innerHTML='<p style="text-align:center;padding:20px;color:#888;">Your login isn\'t linked yet — ask a manager to link your account.</p>'; return; }
+                var msgs=(r.data&&r.data.messages)||[]; var store=(r.data&&r.data.store)||'your store';
+                var h='<div style="font-size:13px;color:#888;margin-bottom:10px;">Team thread for <strong>'+escapeHtml(store)+'</strong></div>' +
+                    '<div style="background:#f7f5fb;border-radius:12px;padding:12px;max-height:55vh;overflow:auto;margin-bottom:10px;">';
+                if(!msgs.length) h+='<p style="color:#888;text-align:center;font-size:13px;">No messages yet.</p>';
+                msgs.forEach(function(m){ h+='<div style="display:flex;justify-content:'+(m.mine?'flex-end':'flex-start')+';margin-bottom:8px;"><div style="max-width:78%;background:'+(m.mine?'#6a3fb5':'#fff')+';color:'+(m.mine?'#fff':'#333')+';border-radius:12px;padding:8px 11px;font-size:14px;box-shadow:0 1px 2px rgba(0,0,0,0.08);">'+(!m.mine?'<div style="font-size:11px;font-weight:500;opacity:.8;">'+escapeHtml(m.name||'')+'</div>':'')+escapeHtml(m.body)+'<div style="font-size:10px;opacity:.7;margin-top:2px;">'+socFmt(m.at)+'</div></div></div>'; });
+                h+='</div><div style="display:flex;gap:8px;"><input id="stInput" onkeypress="if(event.key===&quot;Enter&quot;)postStore()" placeholder="Message your store team..." style="flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;"><button onclick="postStore()" style="background:#6a3fb5;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:bold;cursor:pointer;">Send</button></div>';
+                c.innerHTML=h;
+            });
+        });
+    }
+    function postStore(){ var inp=document.getElementById('stInput'); var body=(inp.value||'').trim(); if(!body) return; inp.value=''; withPin(function(pin){ supabaseClient.rpc('app_store_post',{p_username:currentUser.username,p_password:pin,p_body:body}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } loadStoreFeed(); }); }); }
 
     // Priority level meta (1=Critical .. 4=Low; default Normal)
     function maintPrioMeta(rank) {
