@@ -805,6 +805,8 @@
     <input type="hidden" id="pipEmpId">
     <input type="hidden" id="pipLocation">
     <input type="hidden" id="pipDesignation">
+    <label class="rm-lbl" for="pipManager">Store Manager (present at meeting)</label>
+    <input id="pipManager" type="text" class="rm-inp" placeholder="Defaults to you">
     <label class="rm-lbl" for="pipIssue">Issue type</label>
     <select id="pipIssue" class="rm-inp">
       <option value="performance">Performance</option>
@@ -1172,7 +1174,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.17.1750';
+    const APP_VERSION = '2026.06.17.1806';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2322,6 +2324,7 @@
         document.getElementById('pipStart').value=schedFmt(t);
         document.getElementById('pipEnd').value=schedFmt(e);
         document.getElementById('pipIncident').value=schedFmt(t);
+        document.getElementById('pipManager').value=(currentUser && currentUser.name) ? currentUser.name : '';
         document.getElementById('pipIssue').value='performance';
         document.getElementById('pipReason').value='';
         document.getElementById('pipMsg').style.display='none';
@@ -2337,6 +2340,7 @@
         const expected=document.getElementById('pipReason').value.trim();
         const location=document.getElementById('pipLocation').value;
         const designation=document.getElementById('pipDesignation').value;
+        const mgrName=(document.getElementById('pipManager').value||'').trim() || (currentUser.name||currentUser.username);
         const empName=(document.getElementById('pipWho').innerText||'').replace('Employee: ','').trim();
         const msg=document.getElementById('pipMsg');
         if(!start||!end){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='PIP start and end dates are required.'; return; }
@@ -2347,7 +2351,7 @@
                 if(error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; }
                 msg.style.display='block'; msg.style.color='#1f7a3d'; msg.innerText='PIP started ✓  Generating Written Warning Letter…';
                 const pipId=data;
-                const qs='?action=pip_warning_letter&employee='+encodeURIComponent(empName)+'&designation='+encodeURIComponent(designation)+'&location='+encodeURIComponent(location)+'&issue='+encodeURIComponent(issueLabel)+'&incident_date='+encodeURIComponent(incident||'')+'&expected='+encodeURIComponent(expected)+'&manager='+encodeURIComponent(currentUser.name||currentUser.username)+'&pip_start='+encodeURIComponent(start)+'&pip_end='+encodeURIComponent(end)+'&pip_id='+encodeURIComponent(pipId||'');
+                const qs='?action=pip_warning_letter&employee='+encodeURIComponent(empName)+'&designation='+encodeURIComponent(designation)+'&location='+encodeURIComponent(location)+'&issue='+encodeURIComponent(issueLabel)+'&incident_date='+encodeURIComponent(incident||'')+'&expected='+encodeURIComponent(expected)+'&manager='+encodeURIComponent(mgrName)+'&pip_start='+encodeURIComponent(start)+'&pip_end='+encodeURIComponent(end)+'&final_review='+encodeURIComponent(end)+'&pip_id='+encodeURIComponent(pipId||'');
                 let done=false;
                 const finishOnce=function(){ if(done) return; done=true; clearTimeout(t); closePip(); if(typeof loadRoster==='function') loadRoster(); if(typeof ccRefresh==='function') ccRefresh(); };
                 var t=setTimeout(finishOnce, 15000);
