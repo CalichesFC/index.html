@@ -443,6 +443,7 @@
                 <button id="btn-popIn" class="menu-btn" onclick="openPopIn()">&#128203; Store Pop-In Inspection</button>
                 <button id="btn-driver" class="menu-btn pink" onclick="openForm('driverView')">&#128666; Vehicle &amp; Trailer Check-Out</button>
                 <button id="btn-shortage" class="menu-btn green" onclick="openForm('shortageView')">&#128230; Report Shortages</button>
+                <button id="btn-tempLogs" class="menu-btn" style="background:#0e7c7b;" onclick="openTempLogs()">&#127777; Temperature Logs</button>
                 <button id="btn-scheduling" class="menu-btn" style="background:#5b3fb8;" onclick="openScheduling()">&#128197; Scheduling</button>
                 <button id="btn-formsDocs" class="menu-btn" style="background:#176bb4;" onclick="openFormsLinks()">&#128196; Forms &amp; Documents</button>
             </div>
@@ -639,6 +640,36 @@
       <button onclick="document.getElementById('discHistModal').style.display='none';" style="background:#eee;border:none;border-radius:8px;padding:6px 12px;font-size:14px;cursor:pointer;">Close</button>
     </div>
     <div id="discHistBody"><p style="color:#888;">Loading...</p></div>
+  </div>
+</div>
+
+<!-- TEMPERATURE LOGS -->
+<div id="tempLogsView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
+    <div class="header" style="background:linear-gradient(135deg,#0e7c7b 0%,#0a5152 100%);">
+        <h1 style="font-size:40px;margin:10px 0;">&#127777;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Temperature Logs</p>
+    </div>
+    <div class="container" style="max-width:780px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap;">
+            <div id="tempStoreLabel" style="font-weight:bold;color:#0a5152;font-size:15px;">&#127970; Store</div>
+            <button id="tempHistBtn" onclick="openTempHistory()" style="display:none;background:#0e7c7b;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:bold;cursor:pointer;">&#128202; View 7-day history</button>
+        </div>
+        <div style="background:#e7f5f5;border:1px solid #bfe3e2;border-radius:10px;padding:9px 13px;margin-bottom:14px;font-size:12.5px;color:#0a5152;">
+            Log each unit's temperature. Readings outside the safe range are flagged red and notify management automatically. Aim to log at open and close each day.
+        </div>
+        <div id="tempPointsList"><p style="text-align:center;padding:30px;color:#888;">Loading equipment...</p></div>
+    </div>
+</div>
+
+<!-- TEMP HISTORY MODAL -->
+<div id="tempHistModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;max-width:560px;width:100%;max-height:85vh;overflow:auto;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <h3 style="color:#0a5152;margin:0;font-size:17px;">7-Day Temperature History</h3>
+      <button onclick="document.getElementById('tempHistModal').style.display='none';" style="background:#eee;border:none;border-radius:8px;padding:6px 12px;font-size:14px;cursor:pointer;">Close</button>
+    </div>
+    <div id="tempHistBody"><p style="color:#888;">Loading...</p></div>
   </div>
 </div>
 
@@ -1289,7 +1320,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.17.2206';
+    const APP_VERSION = '2026.06.17.2245';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3423,6 +3454,92 @@
                 discLoadFeed();
                 if(document.getElementById('discEmp').value==String(empId)) discEmpChange();
             }).catch(function(){ alert('Connection error.'); });
+        });
+    }
+
+    // ============================================================
+    // TEMPERATURE LOGS (food safety)
+    // ============================================================
+    function tempStoreLoc(){ return (typeof activeStoreLoc==='function' && activeStoreLoc()) || (currentUser && currentUser.home_location) || ''; }
+    function openTempLogs(){
+        document.getElementById('main-menu').style.display='none';
+        document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
+        document.getElementById('tempLogsView').style.display='block';
+        window.scrollTo(0,0);
+        var loc=tempStoreLoc();
+        document.getElementById('tempStoreLabel').innerHTML='&#127970; '+escapeHtml(loc||'No store set');
+        var hb=document.getElementById('tempHistBtn'); if(hb) hb.style.display=(typeof isDiscAdmin==='function'&&(isDiscAdmin()||isManagerRole()))?'inline-block':'none';
+        loadTempPoints();
+    }
+    function tempTimeFmt(s){ if(!s) return ''; try{ return new Date(s).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } }
+    function loadTempPoints(){
+        var c=document.getElementById('tempPointsList');
+        var loc=tempStoreLoc();
+        if(!loc){ c.innerHTML='<p style="color:#888;text-align:center;padding:20px;">No store is set on your account. Ask an admin to assign your store.</p>'; return; }
+        c.innerHTML='<p style="text-align:center;padding:20px;color:#888;">Loading equipment...</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_temp_points',{p_username:currentUser.username,p_password:pin,p_location:loc}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;padding:20px;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var list=r.data||[];
+                if(!list.length){ c.innerHTML='<p style="color:#888;text-align:center;padding:20px;">No equipment set up for this store yet.</p>'; return; }
+                c.innerHTML=list.map(function(p){
+                    var last=p.last;
+                    var statusHtml;
+                    if(last){
+                        var ok=(last.status==='pass');
+                        statusHtml='<div style="font-size:12px;margin-top:3px;color:'+(ok?'#1f7a3d':'#c0264b')+';font-weight:bold;">'+
+                            (ok?'✔':'⚠')+' '+last.temp+'°F logged '+tempTimeFmt(last.at)+(last.by?' by '+escapeHtml(last.by):'')+(ok?'':' — OUT OF RANGE')+'</div>';
+                    } else {
+                        statusHtml='<div style="font-size:12px;margin-top:3px;color:#b06a00;font-weight:bold;">Not logged today</div>';
+                    }
+                    return '<div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">'+
+                        '<div style="font-weight:bold;color:#0a5152;font-size:15px;">'+escapeHtml(p.name)+'</div>'+
+                        '<div style="font-size:12px;color:#888;">Safe range: '+p.min+'° to '+p.max+'°F</div>'+
+                        statusHtml+
+                        '<div style="display:flex;gap:8px;margin-top:10px;align-items:center;">'+
+                          '<input type="number" inputmode="numeric" id="tempval-'+p.id+'" placeholder="°F" style="width:90px;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:15px;">'+
+                          '<input type="text" id="tempnote-'+p.id+'" placeholder="Note (optional)" style="flex:1;min-width:0;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:13px;">'+
+                          '<button onclick="saveTempReading('+p.id+')" style="background:#0e7c7b;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:bold;cursor:pointer;white-space:nowrap;">Log</button>'+
+                        '</div>'+
+                    '</div>';
+                }).join('');
+            }).catch(function(){ c.innerHTML='<p style="color:red;text-align:center;padding:20px;">Connection error.</p>'; });
+        }, function(){ c.innerHTML='<p style="color:#888;text-align:center;padding:20px;">PIN required.</p>'; });
+    }
+    function saveTempReading(pointId){
+        var inp=document.getElementById('tempval-'+pointId);
+        var noteEl=document.getElementById('tempnote-'+pointId);
+        if(!inp) return;
+        var val=parseFloat(inp.value);
+        if(isNaN(val)){ alert('Enter a temperature.'); inp.focus(); return; }
+        var note=noteEl?noteEl.value.trim():'';
+        withPin(function(pin){
+            supabaseClient.rpc('app_temp_log_save',{p_username:currentUser.username,p_password:pin,p_point_id:pointId,p_temp_f:val,p_note:note}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
+                var st=(r.data&&r.data.status)||'';
+                if(st==='fail'){ alert('⚠ '+val+'°F is OUT OF the safe range. Management has been notified. Please address it.'); }
+                loadTempPoints();
+            }).catch(function(){ alert('Connection error.'); });
+        });
+    }
+    function openTempHistory(){
+        var modal=document.getElementById('tempHistModal');
+        document.getElementById('tempHistBody').innerHTML='<p style="color:#888;">Loading...</p>';
+        modal.style.display='flex';
+        withPin(function(pin){
+            supabaseClient.rpc('app_temp_history',{p_username:currentUser.username,p_password:pin,p_location:tempStoreLoc(),p_days:7}).then(function(r){
+                if(r.error){ document.getElementById('tempHistBody').innerHTML='<p style="color:red;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var list=r.data||[];
+                if(!list.length){ document.getElementById('tempHistBody').innerHTML='<p style="color:#888;">No readings in the last 7 days.</p>'; return; }
+                document.getElementById('tempHistBody').innerHTML=list.map(function(l){
+                    var ok=(l.status==='pass');
+                    return '<div style="padding:8px 0;border-bottom:1px solid #eee;display:flex;justify-content:space-between;gap:8px;">'+
+                        '<div><div style="font-weight:bold;font-size:13px;color:#333;">'+escapeHtml(l.point)+'</div>'+
+                          '<div style="font-size:11.5px;color:#888;">'+socFmt(l.at)+(l.by?' • '+escapeHtml(l.by):'')+(l.note?' • '+escapeHtml(l.note):'')+'</div></div>'+
+                        '<div style="font-weight:bold;white-space:nowrap;color:'+(ok?'#1f7a3d':'#c0264b')+';">'+l.temp+'°F '+(ok?'✔':'⚠')+'</div>'+
+                    '</div>';
+                }).join('');
+            });
         });
     }
 
