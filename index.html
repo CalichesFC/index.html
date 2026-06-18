@@ -412,17 +412,6 @@
     </div>
     <h1 class="menu-title" style="margin-bottom:4px;"><img src="caliches-cone.png" alt="" style="height:30px;vertical-align:-7px;margin-right:7px;" onerror="this.style.display='none'">Caliche's Hub</h1>
     <p style="font-size:11px;color:var(--caliches-pink);font-weight:bold;letter-spacing:2px;text-transform:uppercase;margin:0 0 22px 0;">Creating Memories Since 1996!</p>
-    <div class="slider-wrapper">
-        <button class="arrow prev-arrow" onclick="moveSlide(-1)">&#10094;</button>
-        <button class="arrow next-arrow" onclick="moveSlide(1)">&#10095;</button>
-        <div class="slides" id="slider-track">
-            <div class="slide image-slide"><img src="caliches-cone.png" alt="Focus Banner" class="slide-img" onerror="this.style.display='none'"></div>
-            <div class="slide text-slide"><div class="focus-title"><img src="caliches-cone.png" alt="" style="height:18px;vertical-align:-3px;margin-right:5px;" onerror="this.style.display='none'">Our Promise</div><div class="focus-text">Cleanliness, Friendliness, Speed, &amp; Quality!</div><div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:0.85;margin-top:14px;font-weight:bold;">Creating Memories Since 1996</div></div>
-            <div class="slide quote-slide" id="quote-slide-1"><div class="quote-text">&ldquo;Happiness is homemade.&rdquo;</div><div class="quote-author">&#8212; Caliche's Family Since 1996</div></div>
-            <div class="slide quote-slide" id="quote-slide-2"><div class="quote-text">&ldquo;Quality means doing it right even when no one is looking.&rdquo;</div><div class="quote-author">&#8212; Henry Ford</div></div>
-            <div class="slide quote-slide" id="quote-slide-3"><div class="quote-text">&ldquo;The secret ingredient is always love.&rdquo;</div><div class="quote-author">&#8212; The Caliche's Kitchen</div></div>
-        </div>
-    </div>
     <div class="hub-layout">
         <div class="hub-sidebar">
             <img src="splash-logo.png" alt="Caliche's Logo" class="hub-logo" onerror="this.style.display='none'">
@@ -504,6 +493,19 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+
+    <!-- Billboard / motivational carousel (below the menu) -->
+    <div class="slider-wrapper" style="margin-top:26px;">
+        <button class="arrow prev-arrow" onclick="moveSlide(-1)">&#10094;</button>
+        <button class="arrow next-arrow" onclick="moveSlide(1)">&#10095;</button>
+        <div class="slides" id="slider-track">
+            <div class="slide image-slide"><img src="caliches-cone.png" alt="Focus Banner" class="slide-img" onerror="this.style.display='none'"></div>
+            <div class="slide text-slide"><div class="focus-title"><img src="caliches-cone.png" alt="" style="height:18px;vertical-align:-3px;margin-right:5px;" onerror="this.style.display='none'">Our Promise</div><div class="focus-text">Cleanliness, Friendliness, Speed, &amp; Quality!</div><div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:0.85;margin-top:14px;font-weight:bold;">Creating Memories Since 1996</div></div>
+            <div class="slide quote-slide" id="quote-slide-1"><div class="quote-text">&ldquo;Happiness is homemade.&rdquo;</div><div class="quote-author">&#8212; Caliche's Family Since 1996</div></div>
+            <div class="slide quote-slide" id="quote-slide-2"><div class="quote-text">&ldquo;Quality means doing it right even when no one is looking.&rdquo;</div><div class="quote-author">&#8212; Henry Ford</div></div>
+            <div class="slide quote-slide" id="quote-slide-3"><div class="quote-text">&ldquo;The secret ingredient is always love.&rdquo;</div><div class="quote-author">&#8212; The Caliche's Kitchen</div></div>
         </div>
     </div>
 
@@ -1522,7 +1524,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.18.0126';
+    const APP_VERSION = '2026.06.18.0141';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
