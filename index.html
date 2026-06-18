@@ -1476,7 +1476,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.18.0003';
+    const APP_VERSION = '2026.06.18.0022';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3995,7 +3995,7 @@
             var doSave=function(prevObj){
                 supabaseClient.rpc('app_prime_save',{p_username:currentUser.username,p_password:pin,p_location:loc,p_week_start:wk,p_week_end:null,p_tax:pcNum('pcTax')/100,p_mgr_labor:pcNum('pcMgr'),p_begin:pcNum('pcBeg'),p_end:pcNum('pcEnd'),p_note:document.getElementById('pcNote').value.trim(),p_days:g.days,p_invoices:g.inv}).then(function(r){
                     if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
-                    alert('Saved for the week of '+wk+'. Building your prime cost report in your master format…');
+                    alert('Saved for the week of '+wk+'.'+((prevObj&&prevObj._week)?(' Previous week ('+prevObj._week+') auto-filled for the comparison.'):' (No prior week on file yet — comparison will fill in next week.)')+' Building your prime cost report in your master format…');
                     var payload={store:loc,location:loc,week:wk,tax:pcNum('pcTax')/100,mgr:pcNum('pcMgr'),begin:pcNum('pcBeg'),end:pcNum('pcEnd'),days:g.days,invoices:g.inv,prev:prevObj,photos:pcInvPhotos};
                     fetch(G_URL,{method:'POST',body:new URLSearchParams({action:'prime_report',payload:JSON.stringify(payload)})}).then(function(rr){return rr.json();}).then(function(res){
                         if(res&&res.result==='ok'&&res.url){
@@ -4005,13 +4005,12 @@
                     }).catch(function(){ loadPrimeRecent(); });
                 }).catch(function(){ alert('Connection error.'); });
             };
-            // Pull the prior week for the Weekly Comparison tab (best effort).
-            var prevWk=pcPrevWeekStr(wk);
-            if(prevWk){
-                supabaseClient.rpc('app_prime_get',{p_username:currentUser.username,p_password:pin,p_location:loc,p_week_start:prevWk}).then(function(pr){
-                    doSave((pr&&pr.data)?pcPrevObj(pr.data):null);
-                }).catch(function(){ doSave(null); });
-            } else { doSave(null); }
+            // Auto-pull the most recent prior week for this store for the Weekly Comparison tab.
+            supabaseClient.rpc('app_prime_prev',{p_username:currentUser.username,p_password:pin,p_location:loc,p_before:wk}).then(function(pr){
+                var pd=(pr&&pr.data&&pr.data.found)?pr.data:null;
+                var prevObj=pd?{deposits:pd.deposits,mcvisa:pd.mcvisa,hospital:pd.hospital,cogs:pd.cogs,mgr:pd.mgr,hourly:pd.hourly,tx:pd.tx,_week:pd.week_start}:null;
+                doSave(prevObj);
+            }).catch(function(){ doSave(null); });
         });
     }
     function loadPrimeRecent(){
