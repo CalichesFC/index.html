@@ -1403,7 +1403,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.17.2306';
+    const APP_VERSION = '2026.06.17.2321';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3792,14 +3792,17 @@
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;font-size:13px;">'+escapeHtml(r.error.message)+'</p>'; return; }
                 var list=r.data||[];
                 if(!list.length){ c.innerHTML='<p style="color:#888;font-size:13px;margin:0;">No days entered yet.</p>'; return; }
-                var html='<table style="width:100%;border-collapse:collapse;font-size:13px;"><tr style="color:#888;text-align:left;border-bottom:1px solid #eee;"><th style="padding:6px 4px;">Date</th><th>Sales</th><th>Labor</th><th>Labor%</th></tr>';
+                var html='<div style="font-size:11.5px;color:#888;margin-bottom:6px;">Labor target <b>18%–23%</b>. <span style="color:#c0264b;">Red</span> = over 23% · <span style="color:#1b7a3d;">Green</span> = on target · <span style="color:#b06a00;">Amber</span> = under 18%.</div>'+
+                    '<table style="width:100%;border-collapse:collapse;font-size:13px;"><tr style="color:#888;text-align:left;border-bottom:1px solid #eee;"><th style="padding:6px 4px;">Date</th><th>Sales</th><th>Labor</th><th>Labor%</th></tr>';
                 list.forEach(function(d){
-                    var pct=(d.labor_pct===null||d.labor_pct===undefined)?'—':d.labor_pct+'%';
-                    var hot=(d.labor_pct!==null&&d.labor_pct>30);
+                    var lp=d.labor_pct;
+                    var pct=(lp===null||lp===undefined)?'—':lp+'%';
+                    var color='#1b7a3d';
+                    if(lp!==null&&lp!==undefined){ if(lp>23) color='#c0264b'; else if(lp<18) color='#b06a00'; }
                     html+='<tr style="border-bottom:1px solid #f3f3f3;"><td style="padding:7px 4px;">'+escapeHtml(d.date)+'</td>'+
                         '<td>$'+(d.gross!=null?Number(d.gross).toLocaleString():'—')+'</td>'+
                         '<td>$'+(d.labor!=null?Number(d.labor).toLocaleString():'—')+'</td>'+
-                        '<td style="font-weight:bold;color:'+(hot?'#c0264b':'#1b7a3d')+';">'+pct+'</td></tr>';
+                        '<td style="font-weight:bold;color:'+color+';">'+pct+'</td></tr>';
                 });
                 html+='</table>';
                 c.innerHTML=html;
