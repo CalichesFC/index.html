@@ -104,9 +104,25 @@
         .menu-tab:active { transform:scale(0.97); }
         .menu-tab-content { display:none; }
         .menu-tab-content.tab-visible { display:flex; flex-wrap:wrap; gap:12px; align-content:flex-start; min-height:58vh; }
-        .menu-tab-content .menu-btn { flex:1 1 220px; max-width:320px; margin-bottom:0; background:#fff !important; color:#23303a !important; border:1px solid #e7eef5 !important; border-radius:14px !important; padding:16px !important; font-size:14.5px !important; font-weight:700; text-align:left; box-shadow:0 6px 22px rgba(20,50,80,0.08) !important; transition:transform .16s, border-color .16s; }
+        .menu-tab-content .menu-btn { flex:1 1 230px; max-width:340px; width:auto !important; margin-bottom:0; background:#fff !important; color:#23303a !important; border:1px solid #e7eef5 !important; border-radius:14px !important; padding:16px !important; font-size:14.5px !important; font-weight:700; text-align:left; box-shadow:0 6px 22px rgba(20,50,80,0.08) !important; transition:transform .16s, border-color .16s; }
         .menu-tab-content .menu-btn:hover { transform:translateY(-2px); border-color:var(--caliches-pink) !important; }
         .menu-tab-content .menu-btn:active { transform:scale(0.99); }
+        /* prototype-style rich tiles */
+        .menu-tab-content .menu-btn .tile-ic { display:block; font-size:24px; line-height:1; }
+        .menu-tab-content .menu-btn b { display:block; margin-top:9px; font-size:15px; color:#23303a; font-weight:800; }
+        .menu-tab-content .menu-btn small { display:block; margin-top:3px; color:#7a8a98; font-weight:600; font-size:12px; line-height:1.3; }
+        .menu-tab-content .menu-btn .rchip { position:absolute; top:11px; right:11px; font-size:9px; letter-spacing:.5px; text-transform:uppercase; font-weight:900; padding:2px 7px; border-radius:999px; }
+        .rchip.staff { background:#e7f0fb; color:#106ab3; } .rchip.mgr { background:#fff1dd; color:#9a5b00; } .rchip.admin { background:#fde6ee; color:#c42462; }
+        /* home hero */
+        .hub-hero { flex-basis:100%; background:linear-gradient(120deg,#ffffff,#eef6fc); border:1px solid #e7eef5; border-radius:16px; padding:20px 22px; box-shadow:0 6px 22px rgba(20,50,80,0.08); display:flex; gap:18px; align-items:center; flex-wrap:wrap; margin-bottom:6px; text-align:left; }
+        .hub-hero img { height:88px; width:auto; filter:drop-shadow(0 3px 6px rgba(0,0,0,0.18)); }
+        .hub-hero h2 { margin:0 0 5px; font-size:22px; color:#23303a; }
+        .hub-hero p { margin:0; color:#7a8a98; font-weight:600; font-size:14px; max-width:430px; }
+        /* section titles */
+        .sec-title { flex-basis:100%; display:flex; align-items:baseline; gap:10px; margin:8px 2px 0; }
+        .sec-title h2 { margin:0; font-size:17px; color:#23303a; }
+        .sec-title .tag { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:#7a8a98; font-weight:800; }
+        @media(max-width:560px){ .hub-hero img{height:64px;} .hub-hero h2{font-size:19px;} }
         .menu-tab-content > p, .menu-tab-content > #futureIntegrations { flex-basis:100%; }
         .sec-mascot { flex-basis:100%; display:flex; align-items:center; gap:11px; margin:2px 0 2px; }
         .sec-mascot img { height:46px; width:auto; filter:drop-shadow(0 3px 5px rgba(0,0,0,0.15)); }
@@ -415,84 +431,91 @@
         <button class="announce-close" onclick="dismissAnnouncement()" title="Dismiss">&times;</button>
     </div>
     <h1 class="menu-title" style="margin-bottom:4px;"><img src="caliches-cone.png" alt="" style="height:30px;vertical-align:-7px;margin-right:7px;" onerror="this.style.display='none'">Caliche's Hub</h1>
-    <p style="font-size:11px;color:var(--caliches-pink);font-weight:bold;letter-spacing:2px;text-transform:uppercase;margin:0 0 22px 0;">Creating Memories Since 1996!</p>
-    <div class="hub-layout">
-        <div class="hub-sidebar">
-            <img src="splash-logo.png" alt="Caliche's Logo" class="hub-logo" onerror="this.style.display='none'">
-            <img src="scoopy-hero.png" alt="Scoopy" class="hub-mascot" onerror="this.style.display='none'">
+    <p style="font-size:11px;color:var(--caliches-pink);font-weight:bold;letter-spacing:2px;text-transform:uppercase;margin:0 0 18px 0;">Creating Memories Since 1996!</p>
+    <div class="hub-buttons">
+
+        <!-- ── STORE SWITCHER ── -->
+        <div id="storeSwitcher" style="display:none;background:#fff;border-radius:10px;padding:8px 12px;margin-bottom:10px;box-shadow:0 2px 4px rgba(0,0,0,0.05);align-items:center;gap:8px;">
+            <span style="font-weight:bold;font-size:13px;color:#555;white-space:nowrap;">🏪 Store:</span>
+            <select id="storeSelect" onchange="setActiveStore(this.value)" style="flex:1;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:13px;"></select>
         </div>
-        <div class="hub-buttons">
 
-            <!-- ── TAB BAR ── -->
-            <div id="storeSwitcher" style="display:none;background:#fff;border-radius:10px;padding:8px 12px;margin-bottom:10px;box-shadow:0 2px 4px rgba(0,0,0,0.05);align-items:center;gap:8px;">
-                <span style="font-weight:bold;font-size:13px;color:#555;white-space:nowrap;">🏪 Store:</span>
-                <select id="storeSelect" onchange="setActiveStore(this.value)" style="flex:1;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:13px;"></select>
-            </div>
-            <div class="menu-tab-bar">
-                <button class="menu-tab active" id="tab-home" onclick="switchMenuTab('home')">🏠 Home</button>
-                <button class="menu-tab" id="tab-scheduling" onclick="switchMenuTab('scheduling')">📅 Scheduling</button>
-                <button class="menu-tab" id="tab-operations" onclick="switchMenuTab('operations')">&#127846; Store Ops</button>
-                <button class="menu-tab" id="tab-fleet" onclick="switchMenuTab('fleet')">🚚 Fleet</button>
-                <button class="menu-tab" id="tab-management" style="display:none;" onclick="switchMenuTab('management')">⚙️ Admin</button>
-            </div>
+        <!-- ── TAB BAR ── -->
+        <div class="menu-tab-bar">
+            <button class="menu-tab active" id="tab-home" onclick="switchMenuTab('home')">🏠 Home</button>
+            <button class="menu-tab" id="tab-scheduling" onclick="switchMenuTab('scheduling')">📅 Scheduling</button>
+            <button class="menu-tab" id="tab-operations" onclick="switchMenuTab('operations')">&#127846; Store Operations</button>
+            <button class="menu-tab" id="tab-fleet" onclick="switchMenuTab('fleet')">🚚 Mobile Vending &amp; Catering</button>
+            <button class="menu-tab" id="tab-management" style="display:none;" onclick="switchMenuTab('management')">⚡ Admin Dashboard</button>
+        </div>
 
-            <!-- ── HOME ── -->
-            <div id="tab-content-home" class="menu-tab-content tab-visible">
-                <button id="btn-empHome" class="menu-btn" style="background:var(--caliches-pink);" onclick="openEmployeeHome()">&#127968; My Home</button>
-                <button id="btn-messages" class="menu-btn" style="background:#6a3fb5;" onclick="openMessages()">&#128172; Messages</button>
-                <button id="btn-formsDocs" class="menu-btn" style="background:#106ab3;" onclick="openFormsLinks()">&#128196; Forms &amp; Documents</button>
-            </div>
-
-            <!-- ── SCHEDULING ── -->
-            <div id="tab-content-scheduling" class="menu-tab-content">
-                <button id="btn-scheduling" class="menu-btn" style="background:#5b3fb8;" onclick="openScheduling()">&#128197; Shift Schedules</button>
-                <button id="btn-driver" class="menu-btn pink" onclick="openForm('driverView')">&#128666; Driver Checklist &mdash; Vehicle &amp; Trailer</button>
-                <button id="requestsBtn" class="menu-btn dark" style="display:none;background:#0d6eaf;" onclick="openRequests()">&#128197; Time-Off &amp; Swap Requests</button>
-                <button id="assignTaskBtn" class="menu-btn dark" style="display:none;background:#106ab3;" onclick="openTaskAssign()">&#128203; Assign Task</button>
-            </div>
-
-            <!-- ── STORE OPERATIONS ── -->
-            <div id="tab-content-operations" class="menu-tab-content">
-                <button id="btn-popIn" class="menu-btn" onclick="openPopIn()">&#128203; Store Pop-In Inspection</button>
-                <button id="btn-tempLogs" class="menu-btn" style="background:#0e7c7b;" onclick="openTempLogs()">&#127777; Temperature Logs</button>
-                <button id="btn-checklists" class="menu-btn" style="background:#2e7d32;" onclick="openChecklists()">&#9989; Shift Checklists</button>
-                <button id="btn-inventory" class="menu-btn" style="background:#a35200;" onclick="openInventory()">&#128230; Inventory &amp; Supplies</button>
-                <button id="btn-shortage" class="menu-btn green" onclick="openForm('shortageView')">&#128230; Report Shortages</button>
-                <button id="btn-discipline" class="menu-btn" style="display:none;background:#8a1f1f;" onclick="openDiscipline()">&#9888; Disciplinary Actions</button>
-                <button id="btn-maintenance" class="menu-btn orange" onclick="openForm('maintenanceView')">&#128295; Required Maintenance</button>
-                <button id="btn-damage" class="menu-btn red" onclick="openForm('damageView')">&#9888; Vehicle / Trailer Damage</button>
-                <button id="mySubmissionsBtn" class="menu-btn orange" onclick="openMySubmissions()">&#128203; My Maintenance Submissions</button>
-                <button id="maintBoardBtn" class="menu-btn dark" style="display:none;background:#b35000;" onclick="openMaintenanceBoard()">&#128295; Maintenance Board</button>
-            </div>
-
-            <!-- ── FLEET &amp; CATERING ── -->
-            <div id="tab-content-fleet" class="menu-tab-content">
-                <button class="menu-btn pink" onclick="openForm('driverView')">&#128666; Vehicle &amp; Trailer Check-Out</button>
-                <button id="quotesBtn" class="menu-btn purple" style="display:none;" onclick="openForm('quotesView')">&#128221; Create Catering Quote</button>
-                <button id="salesPipelineBtn" class="menu-btn purple" style="display:none;" onclick="openSalesPipeline()">&#128202; Sales Pipeline</button>
-                <p style="font-size:12.5px;color:#888;text-align:center;margin:8px 4px 0;">Vending revenue by town &amp; catering metrics live in <b>Admin &rarr; Live Dashboard</b>.</p>
-            </div>
-
-            <!-- ── ADMIN (Manager+ only) ── -->
-            <div id="tab-content-management" class="menu-tab-content">
-                <button id="adminDashBtn" class="menu-btn dark" style="display:none;background:linear-gradient(120deg,#ec3e7e,#106ab3);" onclick="openAdminDash()">&#128225; Live Dashboard &mdash; NCR Pulse &amp; Square</button>
-                <button id="commandCenterBtn" class="menu-btn dark" style="display:none;background:#106ab3;" onclick="openCommandCenter()">&#128202; Command Center</button>
-                <button id="salesBtn" class="menu-btn dark" style="display:none;background:#1b7a3d;" onclick="openSales()">&#128176; Daily Sales &amp; Labor</button>
-                <button id="primeCostBtn" class="menu-btn dark" style="display:none;background:#0f4d27;" onclick="openPrimeCost()">&#128202; Weekly Prime Cost</button>
-                <button id="managerBtn" class="menu-btn dark" style="display:none;" onclick="openDashboard()">&#128202; Manager Dashboard</button>
-                <button id="knowledgeBaseBtn" class="menu-btn dark" style="display:none;background:#0d6eaf;" onclick="openKnowledgeBase()">&#129504; AI Knowledge Base</button>
-                <button id="rosterBtn" class="menu-btn dark" style="display:none;background:#106ab3;" onclick="openRoster()">&#128101; Employee Roster</button>
-                <button id="shortageTrendsBtn" class="menu-btn green" style="display:none;" onclick="openShortageTrends()">&#128200; Shortage Trends</button>
-                <button id="developerBtn" class="menu-btn dark" style="display:none;background:#222;" onclick="openTrainingPortal()">&#128187; Developer: Training Portal</button>
-                <button id="previewToggleBtn" class="menu-btn dark" style="display:none;background:#555;" onclick="togglePreviewMode()">&#128065; Preview as Staff (Hide Dev Tabs)</button>
-                <button id="installBtn" class="menu-btn purple" style="display:none;" onclick="installApp()">&#128242; Install App on Phone</button>
-                <div id="futureIntegrations" style="display:none;">
-                    <button class="menu-btn" onclick="window.open('https://www.jotform.com','_blank')">&#128221; JotForm</button>
-                    <button class="menu-btn" onclick="window.open('https://www.pandadoc.com','_blank')">&#128196; PandaDoc</button>
+        <!-- ── HOME ── -->
+        <div id="tab-content-home" class="menu-tab-content tab-visible">
+            <div class="hub-hero">
+                <img src="scoopy-wave.png" alt="Mr. Scoopy" onerror="this.style.display='none'">
+                <div>
+                    <h2>Welcome back, <span id="heroName">team</span>!</h2>
+                    <p>Your stores, fleet, and team &mdash; all in one place. Mr. Scoopy's got your back.</p>
                 </div>
             </div>
-
+            <button id="btn-empHome" class="menu-btn" onclick="openEmployeeHome()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127968;</span><b>My Home</b><small>Your shifts, tasks &amp; updates</small></button>
+            <button id="btn-messages" class="menu-btn" onclick="openMessages()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128172;</span><b>Messages</b><small>Team chat &amp; broadcasts</small></button>
+            <button id="btn-formsDocs" class="menu-btn" onclick="openFormsLinks()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128196;</span><b>Forms &amp; Documents</b><small>Payroll, HR &amp; hiring forms</small></button>
         </div>
+
+        <!-- ── SCHEDULING ── -->
+        <div id="tab-content-scheduling" class="menu-tab-content">
+            <div class="sec-title"><h2>📅 Scheduling</h2><span class="tag">Shifts, tours &amp; checklists</span></div>
+            <button id="btn-scheduling" class="menu-btn" onclick="openScheduling()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#129389;</span><b>Shift Schedules</b><small>Build &amp; view weekly shifts</small></button>
+            <button id="btn-driver" class="menu-btn" onclick="openForm('driverView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128666;</span><b>Driver Checklist</b><small>Pre-trip vehicle &amp; trailer check</small></button>
+            <button id="requestsBtn" class="menu-btn" style="display:none;" onclick="openRequests()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128197;</span><b>Time-Off &amp; Swaps</b><small>Requests &amp; approvals</small></button>
+            <button id="assignTaskBtn" class="menu-btn" style="display:none;" onclick="openTaskAssign()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128203;</span><b>Assign Task</b><small>Send tasks to the crew</small></button>
+        </div>
+
+        <!-- ── STORE OPERATIONS ── -->
+        <div id="tab-content-operations" class="menu-tab-content">
+            <div class="sec-title"><h2>&#127846; Store Operations</h2><span class="tag">Daily tasks &amp; logs</span></div>
+            <button id="btn-popIn" class="menu-btn" onclick="openPopIn()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128203;</span><b>Store Pop-In Inspection</b><small>Store walk-through</small></button>
+            <button id="btn-tempLogs" class="menu-btn" onclick="openTempLogs()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127777;</span><b>Temperature Logs</b><small>Food-safety temp checks</small></button>
+            <button id="btn-checklists" class="menu-btn" onclick="openChecklists()"><span class="rchip staff">Staff</span><span class="tile-ic">&#9989;</span><b>Shift Checklists</b><small>Open / close / clean</small></button>
+            <button id="btn-inventory" class="menu-btn" onclick="openInventory()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128230;</span><b>Inventory &amp; Supplies</b><small>Counts, par &amp; reorders</small></button>
+            <button id="btn-shortage" class="menu-btn" onclick="openForm('shortageView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128722;</span><b>Report Shortages</b><small>Request items from the office</small></button>
+            <button id="btn-discipline" class="menu-btn" style="display:none;" onclick="openDiscipline()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#9888;</span><b>Disciplinary Actions</b><small>Verbal &rarr; written &rarr; final</small></button>
+            <button id="btn-maintenance" class="menu-btn" onclick="openForm('maintenanceView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128295;</span><b>Required Maintenance</b><small>Flag a repair</small></button>
+            <button id="btn-damage" class="menu-btn" onclick="openForm('damageView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#9888;</span><b>Vehicle / Trailer Damage</b><small>Report damage with photos</small></button>
+            <button id="mySubmissionsBtn" class="menu-btn" onclick="openMySubmissions()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128203;</span><b>My Submissions</b><small>Your past reports</small></button>
+            <button id="maintBoardBtn" class="menu-btn" style="display:none;" onclick="openMaintenanceBoard()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128295;</span><b>Maintenance Board</b><small>Track &amp; prioritize repairs</small></button>
+        </div>
+
+        <!-- ── MOBILE VENDING &amp; CATERING ── -->
+        <div id="tab-content-fleet" class="menu-tab-content">
+            <div class="sec-title"><h2>🚚 Mobile Vending &amp; Catering</h2><span class="tag">Fleet routes &amp; events</span></div>
+            <button class="menu-btn" onclick="openForm('driverView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128666;</span><b>Vehicle &amp; Trailer Check-Out</b><small>Pre-roll safety checklist</small></button>
+            <button id="quotesBtn" class="menu-btn" style="display:none;" onclick="openForm('quotesView')"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128221;</span><b>Create Catering Quote</b><small>Build &amp; send event quotes</small></button>
+            <button id="salesPipelineBtn" class="menu-btn" style="display:none;" onclick="openSalesPipeline()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128202;</span><b>Sales Pipeline</b><small>Catering leads &amp; quotes</small></button>
+            <p style="flex-basis:100%;font-size:12.5px;color:#888;text-align:center;margin:8px 4px 0;">Vending revenue by town &amp; catering metrics live in <b>Admin Dashboard &rarr; Live Dashboard</b>.</p>
+        </div>
+
+        <!-- ── ADMIN (Manager+ only) ── -->
+        <div id="tab-content-management" class="menu-tab-content">
+            <div class="sec-title"><h2>⚡ Admin Dashboard</h2><span class="tag">Metrics &amp; management tools</span></div>
+            <button id="adminDashBtn" class="menu-btn" style="display:none;" onclick="openAdminDash()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128225;</span><b>Live Dashboard</b><small>NCR Pulse &amp; Square</small></button>
+            <button id="commandCenterBtn" class="menu-btn" style="display:none;" onclick="openCommandCenter()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Command Center</b><small>Live ops at a glance</small></button>
+            <button id="salesBtn" class="menu-btn" style="display:none;" onclick="openSales()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128176;</span><b>Daily Sales &amp; Labor</b><small>Feeds NCR Pulse</small></button>
+            <button id="primeCostBtn" class="menu-btn" style="display:none;" onclick="openPrimeCost()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Weekly Prime Cost</b><small>Auto-builds your master xlsx</small></button>
+            <button id="managerBtn" class="menu-btn" style="display:none;" onclick="openDashboard()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128200;</span><b>Manager Dashboard</b><small>Submissions &amp; activity</small></button>
+            <button id="knowledgeBaseBtn" class="menu-btn" style="display:none;" onclick="openKnowledgeBase()"><span class="rchip admin">Admin</span><span class="tile-ic">&#129504;</span><b>Teach Mr. Scoopy</b><small>AI knowledge base</small></button>
+            <button id="rosterBtn" class="menu-btn" style="display:none;" onclick="openRoster()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128101;</span><b>Employee Roster</b><small>Staff, logins &amp; stores</small></button>
+            <button id="shortageTrendsBtn" class="menu-btn" style="display:none;" onclick="openShortageTrends()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128200;</span><b>Shortage Trends</b><small>What runs low, often</small></button>
+            <button id="developerBtn" class="menu-btn" style="display:none;" onclick="openTrainingPortal()"><span class="rchip admin">Dev</span><span class="tile-ic">&#128187;</span><b>Training Portal</b><small>Developer tools</small></button>
+            <button id="previewToggleBtn" class="menu-btn" style="display:none;" onclick="togglePreviewMode()"><span class="rchip admin">Dev</span><span class="tile-ic">&#128065;</span><b>Preview as Staff</b><small>Hide dev tabs</small></button>
+            <button id="installBtn" class="menu-btn" style="display:none;" onclick="installApp()"><span class="tile-ic">&#128242;</span><b>Install App on Phone</b><small>Add to home screen</small></button>
+            <div id="futureIntegrations" style="display:none;">
+                <button class="menu-btn" onclick="window.open('https://www.jotform.com','_blank')"><span class="tile-ic">&#128221;</span><b>JotForm</b><small>External forms</small></button>
+                <button class="menu-btn" onclick="window.open('https://www.pandadoc.com','_blank')"><span class="tile-ic">&#128196;</span><b>PandaDoc</b><small>Documents</small></button>
+            </div>
+        </div>
+
     </div>
 
     <!-- Billboard / motivational carousel (below the menu) -->
@@ -1523,7 +1546,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.18.0158';
+    const APP_VERSION = '2026.06.18.0210';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3104,6 +3127,8 @@
         if (devOverride || role === 'Admin Manager') {
             setTimeout(updateScoopyGapBadge, 500);
         }
+        const heroNameEl = document.getElementById('heroName');
+        if (heroNameEl) heroNameEl.textContent = (currentUser.name || '').trim().split(' ')[0] || 'team';
         updateBioToggleBtn();
         updatePreviewToggleBtn();
     }
