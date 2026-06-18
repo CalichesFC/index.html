@@ -439,6 +439,7 @@
             <div id="tab-content-operations" class="menu-tab-content tab-visible">
                 <button id="btn-empHome" class="menu-btn" style="background:var(--caliches-pink);" onclick="openEmployeeHome()">&#127968; My Home</button>
                 <button id="btn-messages" class="menu-btn" style="background:#6a3fb5;" onclick="openMessages()">&#128172; Messages</button>
+                <button id="btn-discipline" class="menu-btn" style="display:none;background:#8a1f1f;" onclick="openDiscipline()">&#9888; Disciplinary Actions</button>
                 <button id="btn-popIn" class="menu-btn" onclick="openPopIn()">&#128203; Store Pop-In Inspection</button>
                 <button id="btn-driver" class="menu-btn pink" onclick="openForm('driverView')">&#128666; Vehicle &amp; Trailer Check-Out</button>
                 <button id="btn-shortage" class="menu-btn green" onclick="openForm('shortageView')">&#128230; Report Shortages</button>
@@ -587,6 +588,58 @@
     <div class="container" style="max-width:760px;">
         <div id="requestsContent"><p style="text-align:center;padding:30px;color:#888;">Loading requests...</p></div>
     </div>
+</div>
+
+<!-- DISCIPLINARY ACTIONS -->
+<div id="disciplineView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
+    <div class="header" style="background:linear-gradient(135deg,#8a1f1f 0%,#5a1414 100%);">
+        <h1 style="font-size:40px;margin:10px 0;">&#9888;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Disciplinary Actions</p>
+    </div>
+    <div class="container" style="max-width:780px;">
+        <div style="background:#fff3f3;border:1px solid #f0caca;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12.5px;color:#7a2222;">
+            Progressive steps: <b>Verbal &rarr; Written &rarr; Final &rarr; Termination</b>. Final warnings and termination can only be issued by Admin Managers. All actions notify management.
+        </div>
+        <div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+            <h3 style="margin:0 0 12px;color:#8a1f1f;font-size:16px;">Log a New Action</h3>
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Employee</label>
+            <select id="discEmp" onchange="discEmpChange()" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:10px;"><option value="">Loading...</option></select>
+            <div id="discStanding" style="display:none;font-size:12.5px;color:#555;background:#f7f7f7;border-radius:8px;padding:8px 10px;margin-bottom:10px;"></div>
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Action level</label>
+            <select id="discLevel" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:10px;"></select>
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Category</label>
+            <select id="discCategory" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:10px;">
+                <option value="Attendance">Attendance / Punctuality</option>
+                <option value="Conduct">Conduct / Behavior</option>
+                <option value="Performance">Job Performance</option>
+                <option value="Policy">Policy Violation</option>
+                <option value="Safety">Safety</option>
+                <option value="Cash Handling">Cash Handling</option>
+                <option value="Other">Other</option>
+            </select>
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Date</label>
+            <input type="date" id="discDate" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:10px;">
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Details / what happened</label>
+            <textarea id="discDetails" rows="3" placeholder="Describe the incident, expectations discussed, and next steps." style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:12px;resize:vertical;"></textarea>
+            <button onclick="saveDisciplineAction()" style="width:100%;background:#8a1f1f;color:#fff;border:none;border-radius:9px;padding:12px;font-size:15px;font-weight:bold;cursor:pointer;">Log Action</button>
+        </div>
+        <div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+            <h3 style="margin:0 0 10px;color:#8a1f1f;font-size:16px;">Recent Actions</h3>
+            <div id="discFeed"><p style="color:#888;font-size:13px;margin:0;">Loading...</p></div>
+        </div>
+    </div>
+</div>
+
+<!-- DISCIPLINARY HISTORY MODAL -->
+<div id="discHistModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;max-width:560px;width:100%;max-height:85vh;overflow:auto;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <h3 id="discHistName" style="color:#8a1f1f;margin:0;font-size:17px;">History</h3>
+      <button onclick="document.getElementById('discHistModal').style.display='none';" style="background:#eee;border:none;border-radius:8px;padding:6px 12px;font-size:14px;cursor:pointer;">Close</button>
+    </div>
+    <div id="discHistBody"><p style="color:#888;">Loading...</p></div>
+  </div>
 </div>
 
 <!-- MANAGER DASHBOARD -->
@@ -1236,7 +1289,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.17.2136';
+    const APP_VERSION = '2026.06.17.2206';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2778,6 +2831,9 @@
         if (requestsBtn) requestsBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         const assignTaskBtn = document.getElementById('assignTaskBtn');
         if (assignTaskBtn) assignTaskBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
+        // ── Disciplinary Actions: Shift Lead and above ──
+        const disciplineBtn = document.getElementById('btn-discipline');
+        if (disciplineBtn) disciplineBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
         if (typeof refreshMyStores === 'function') refreshMyStores();
         document.getElementById('managerBtn').style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
         const kbBtn = document.getElementById('knowledgeBaseBtn');
@@ -3221,6 +3277,151 @@
             supabaseClient.rpc(fn,{p_username:currentUser.username,p_password:pin,p_id:id,p_approve:approve,p_note:note}).then(function(res){
                 if(res.error){ if(res.error.code==='42501') sessionPin=null; alert('Error: '+res.error.message); return; }
                 loadRequests();
+            }).catch(function(){ alert('Connection error.'); });
+        });
+    }
+
+    // ============================================================
+    // DISCIPLINARY ACTIONS
+    // ============================================================
+    function isDiscAdmin(){ return currentUser && (currentUser.role==='Admin Manager' || currentUser.role==='Vice President/Co-Owner' || currentUser.is_developer===true); }
+    function discSafe(s){ return String(s===null||s===undefined?'':s).replace(/['"\\<>&]/g,''); }
+    function discLevelMeta(l){
+        switch(l){
+            case 'verbal': return {label:'Verbal Warning', color:'#b8860b'};
+            case 'written': return {label:'Written Warning', color:'#d9730d'};
+            case 'final': return {label:'Final Warning', color:'#c0392b'};
+            case 'termination': return {label:'Termination', color:'#7a1010'};
+            default: return {label:l||'', color:'#888'};
+        }
+    }
+    function discFillLevels(suggested){
+        var sel=document.getElementById('discLevel'); if(!sel) return;
+        var admin=isDiscAdmin();
+        var opts=admin ? ['verbal','written','final','termination'] : ['verbal','written'];
+        var pick=(suggested && opts.indexOf(suggested)>-1) ? suggested : opts[0];
+        sel.innerHTML=opts.map(function(l){ var m=discLevelMeta(l); return '<option value="'+l+'"'+(l===pick?' selected':'')+'>'+m.label+'</option>'; }).join('');
+    }
+    function openDiscipline(){
+        document.getElementById('main-menu').style.display='none';
+        document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
+        document.getElementById('disciplineView').style.display='block';
+        window.scrollTo(0,0);
+        try{ document.getElementById('discDate').value=new Date().toISOString().slice(0,10); }catch(e){}
+        document.getElementById('discStanding').style.display='none';
+        discFillLevels(null);
+        discLoadEmployees();
+        discLoadFeed();
+    }
+    function discLoadEmployees(){
+        var sel=document.getElementById('discEmp');
+        withPin(function(pin){
+            supabaseClient.rpc('app_discipline_employees',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; sel.innerHTML='<option value="">Could not load</option>'; return; }
+                var list=r.data||[];
+                sel.innerHTML='<option value="">— Select employee —</option>'+list.map(function(e){
+                    return '<option value="'+e.id+'">'+escapeHtml(e.name)+(e.location?' ('+escapeHtml(e.location)+')':'')+(e.open>0?'  •  '+e.open+' on file':'')+'</option>';
+                }).join('');
+            }).catch(function(){ sel.innerHTML='<option value="">Connection error</option>'; });
+        }, function(){ sel.innerHTML='<option value="">PIN required</option>'; });
+    }
+    function discEmpChange(){
+        var id=document.getElementById('discEmp').value;
+        var box=document.getElementById('discStanding');
+        if(!id){ box.style.display='none'; discFillLevels(null); return; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_discipline_history',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10)}).then(function(r){
+                if(r.error){ box.style.display='none'; return; }
+                var d=r.data||{}; var c=d.counts||{};
+                var m=discLevelMeta(d.next_level);
+                box.style.display='block';
+                box.innerHTML='Current standing: '+(c.verbal||0)+' verbal, '+(c.written||0)+' written, '+(c.final||0)+' final.'+
+                    ' &nbsp;Suggested next step: <b style="color:'+m.color+';">'+m.label+'</b>'+
+                    ' &nbsp;<a href="#" onclick="openDiscHistory('+id+',\''+discSafe((d.employee&&d.employee.name)||'')+'\');return false;" style="color:#0d6eaf;">View full history</a>';
+                discFillLevels(d.next_level);
+            });
+        });
+    }
+    function discLoadFeed(){
+        var c=document.getElementById('discFeed');
+        withPin(function(pin){
+            supabaseClient.rpc('app_discipline_feed',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;font-size:13px;">Could not load.</p>'; return; }
+                var list=r.data||[];
+                if(!list.length){ c.innerHTML='<p style="color:#888;font-size:13px;margin:0;">No actions on record yet.</p>'; return; }
+                c.innerHTML=list.map(function(a,i){
+                    var m=discLevelMeta(a.level);
+                    var voided=(a.status!=='active');
+                    return '<div style="padding:10px 0;'+(i<list.length-1?'border-bottom:1px solid #eee;':'')+(voided?'opacity:0.55;':'')+'">'+
+                        '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">'+
+                          '<span style="font-weight:bold;color:#333;font-size:14px;cursor:pointer;" onclick="openDiscHistory('+a.employee_id+',\''+discSafe(a.employee||'')+'\')">'+escapeHtml(a.employee||'')+'</span>'+
+                          '<span style="background:'+m.color+';color:#fff;border-radius:10px;padding:2px 9px;font-size:11px;font-weight:bold;white-space:nowrap;">'+m.label+(voided?' (voided)':'')+'</span>'+
+                        '</div>'+
+                        '<div style="font-size:12.5px;color:#666;margin-top:3px;">'+escapeHtml(a.category||'')+(a.date?' • '+escapeHtml(a.date):'')+(a.by?' • by '+escapeHtml(a.by):'')+(a.location?' • '+escapeHtml(a.location):'')+'</div>'+
+                    '</div>';
+                }).join('');
+            }).catch(function(){ c.innerHTML='<p style="color:red;font-size:13px;">Connection error.</p>'; });
+        }, function(){ c.innerHTML='<p style="color:#888;font-size:13px;">PIN required.</p>'; });
+    }
+    function saveDisciplineAction(){
+        var id=document.getElementById('discEmp').value;
+        var level=document.getElementById('discLevel').value;
+        var cat=document.getElementById('discCategory').value;
+        var date=document.getElementById('discDate').value||null;
+        var details=document.getElementById('discDetails').value.trim();
+        if(!id){ alert('Please select an employee.'); return; }
+        if(!level){ alert('Please choose an action level.'); return; }
+        var m=discLevelMeta(level);
+        if(!confirm('Log a '+m.label+' for this employee? Management will be notified.')) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_discipline_create',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_level:level,p_category:cat,p_details:details,p_action_date:date}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
+                // Best-effort email alert to admins via Apps Script.
+                try{ fetch(G_URL+'?action=discipline_notify&level='+encodeURIComponent(level)+'&category='+encodeURIComponent(cat)+'&by='+encodeURIComponent(currentUser.name||currentUser.username),{mode:'no-cors'}); }catch(e){}
+                document.getElementById('discDetails').value='';
+                alert(m.label+' logged.');
+                discEmpChange();
+                discLoadFeed();
+                discLoadEmployees();
+            }).catch(function(){ alert('Connection error.'); });
+        });
+    }
+    function openDiscHistory(empId,name){
+        var modal=document.getElementById('discHistModal');
+        document.getElementById('discHistName').textContent=(name||'Employee')+' — History';
+        document.getElementById('discHistBody').innerHTML='<p style="color:#888;">Loading...</p>';
+        modal.style.display='flex';
+        withPin(function(pin){
+            supabaseClient.rpc('app_discipline_history',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(empId,10)}).then(function(r){
+                if(r.error){ document.getElementById('discHistBody').innerHTML='<p style="color:red;">Could not load.</p>'; return; }
+                var d=r.data||{}; var acts=d.actions||[]; var c=d.counts||{};
+                var admin=isDiscAdmin();
+                var html='<div style="font-size:12.5px;color:#555;background:#f7f7f7;border-radius:8px;padding:8px 10px;margin-bottom:12px;">On file: '+(c.verbal||0)+' verbal, '+(c.written||0)+' written, '+(c.final||0)+' final'+((c.termination||0)?', '+c.termination+' termination':'')+'.</div>';
+                if(!acts.length){ html+='<p style="color:#888;">No actions recorded.</p>'; }
+                else acts.forEach(function(a){
+                    var m=discLevelMeta(a.level); var voided=(a.status!=='active');
+                    html+='<div style="border:1px solid #eee;border-radius:10px;padding:10px 12px;margin-bottom:8px;'+(voided?'opacity:0.55;':'')+'">'+
+                        '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">'+
+                          '<span style="background:'+m.color+';color:#fff;border-radius:10px;padding:2px 9px;font-size:11px;font-weight:bold;">'+m.label+(voided?' (voided)':'')+'</span>'+
+                          '<span style="font-size:12px;color:#888;">'+escapeHtml(a.date||'')+'</span>'+
+                        '</div>'+
+                        '<div style="font-size:12.5px;color:#666;margin-top:5px;"><b>'+escapeHtml(a.category||'')+'</b>'+(a.by?' • by '+escapeHtml(a.by):'')+'</div>'+
+                        (a.details?'<div style="font-size:13px;color:#333;margin-top:5px;white-space:pre-wrap;">'+escapeHtml(a.details)+'</div>':'')+
+                        ((admin&&!voided)?'<div style="margin-top:7px;"><button onclick="discRescind('+a.id+','+empId+',\''+discSafe(name||'')+'\')" style="background:#eee;color:#7a2222;border:none;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:bold;cursor:pointer;">Void this action</button></div>':'')+
+                    '</div>';
+                });
+                document.getElementById('discHistBody').innerHTML=html;
+            });
+        });
+    }
+    function discRescind(id,empId,name){
+        if(!confirm('Void (rescind) this disciplinary action? It will no longer count toward the employee\'s standing.')) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_discipline_rescind',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
+                openDiscHistory(empId,name);
+                discLoadFeed();
+                if(document.getElementById('discEmp').value==String(empId)) discEmpChange();
             }).catch(function(){ alert('Connection error.'); });
         });
     }
@@ -4831,6 +5032,18 @@
             msgs.scrollTop = msgs.scrollHeight;
         }
 
+        // Build a friendly description of who Scoopy is talking to (name, role, store) plus a tone cue.
+        function scoopyUserContext() {
+            try {
+                if (!currentUser || !currentUser.name) return 'Team Member';
+                var role = currentUser.role || 'team member';
+                if (role === 'Vice President/Co-Owner') role = 'Vice President / Co-Owner';
+                var store = (typeof activeStoreLoc === 'function' && activeStoreLoc()) || currentUser.home_location || '';
+                var who = currentUser.name + ', who is a ' + role + (store ? ' (home store: ' + store + ')' : '');
+                return who + '. Greet them by their first name, keep things warm and personable, and respond with genuine empathy and emotion when the situation calls for it';
+            } catch (e) { return (currentUser && currentUser.name) || 'Team Member'; }
+        }
+
         async function sendAIMessage() {
             const input = document.getElementById('aiChatInput');
             if (!input) return;
@@ -4843,7 +5056,7 @@
             const typingEl = msgs ? msgs.lastChild : null;
 
             try {
-                const resp = await fetch(G_URL + '?action=ai&message=' + encodeURIComponent(msg) + '&history=' + encodeURIComponent(JSON.stringify(aiChatHistory)));
+                const resp = await fetch(G_URL + '?action=ai&message=' + encodeURIComponent(msg) + '&history=' + encodeURIComponent(JSON.stringify(aiChatHistory)) + '&userName=' + encodeURIComponent(scoopyUserContext()));
                 const json = await resp.json();
                 const reply = (json && json.reply) ? json.reply : "I'm not sure about that. Please check with your manager!";
                 if (typingEl) typingEl.innerText = reply;
