@@ -1236,7 +1236,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.17.2114';
+    const APP_VERSION = '2026.06.17.2127';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -1907,7 +1907,7 @@
     const SCHED_LOCATIONS = ['Roadrunner','Valley','Lenox','Alamogordo','Roswell','Catering & Vending'];
     let schedState = { location:'Roadrunner', weekStart:null, data:{positions:[],employees:[],shifts:[]}, editing:{employeeId:null,date:null,shiftId:null} };
 
-    function isAdminManager() { return currentUser && (currentUser.role === 'Admin Manager' || currentUser.is_developer === true); }
+    function isAdminManager() { return currentUser && (currentUser.role === 'Admin Manager' || currentUser.role === 'Vice President/Co-Owner' || currentUser.is_developer === true); }
 
     function openScheduling() {
         triggerTransition(() => {
@@ -2289,7 +2289,7 @@
     // ============================================================
     // MANAGER COMMAND CENTER (live ops, managers+)
     // ============================================================
-    function isManagerRole(){ return currentUser && (currentUser.role==='Admin Manager' || currentUser.role==='Manager' || currentUser.is_developer===true); }
+    function isManagerRole(){ return currentUser && (currentUser.role==='Admin Manager' || currentUser.role==='Manager' || currentUser.role==='Vice President/Co-Owner' || currentUser.is_developer===true); }
     function openCommandCenter(){
         if(!isManagerRole()){ alert('Managers only.'); return; }
         triggerTransition(()=>{
@@ -2761,7 +2761,8 @@
     // ROLE-BASED UI / MAINTENANCE BOARD
     // ============================================================
     function applyRoleUI() {
-        const role = currentUser.role;
+        let role = currentUser.role;
+        if (role === 'Vice President/Co-Owner') role = 'Admin Manager';
         const isManager = (role === 'Admin Manager' || role === 'Manager');
         const maintBoardAllowed = (currentUser.maint_board_access !== false);
         const devOverride = currentUser.is_developer === true && !isPreviewMode();
@@ -3601,7 +3602,7 @@
                         let maintBoardChecked = (u.maint_board_access !== false);
                         checks += '<label style="margin-right:8px;font-size:11px;font-weight:bold;white-space:nowrap;color:var(--maint-orange);"><input type="checkbox" id="mb-' + u.id + '" ' + (maintBoardChecked?'checked':'') + ' style="transform:scale(1.2);vertical-align:middle;"> Maint. Board</label>';
                     }
-                    html += '<tr><td style="font-weight:500;">' + u.name + '</td><td style="color:var(--na-gray);">' + u.username + '</td><td style="color:var(--na-gray);">' + (u.email||'—') + '</td><td><select id="role-select-' + u.id + '" class="role-select"><option value="Blue Apron"' + (u.role==='Blue Apron'?' selected':'') + '>Blue Apron</option><option value="Shift Lead"' + (u.role==='Shift Lead'?' selected':'') + '>Shift Lead</option><option value="Manager"' + (u.role==='Manager'?' selected':'') + '>Manager</option><option value="Maintenance"' + (u.role==='Maintenance'?' selected':'') + '>Maintenance</option><option value="Admin Manager"' + (u.role==='Admin Manager'?' selected':'') + '>Admin Manager</option></select></td><td><div id="perm-' + u.id + '" style="display:flex;flex-wrap:wrap;gap:2px;max-width:260px;">' + checks + '</div></td><td style="white-space:nowrap;"><button class="update-role-btn" onclick="updateRole(' + u.id + ')">Save Role</button><button class="update-action-btn" onclick="updatePermissions(' + u.id + ')" style="margin-left:5px;">Save Forms</button><button class="delete-btn" onclick="deleteUser(' + u.id + ')">Delete</button></td></tr>';
+                    html += '<tr><td style="font-weight:500;">' + u.name + '</td><td style="color:var(--na-gray);">' + u.username + '</td><td style="color:var(--na-gray);">' + (u.email||'—') + '</td><td><select id="role-select-' + u.id + '" class="role-select"><option value="Blue Apron"' + (u.role==='Blue Apron'?' selected':'') + '>Blue Apron</option><option value="Shift Lead"' + (u.role==='Shift Lead'?' selected':'') + '>Shift Lead</option><option value="Manager"' + (u.role==='Manager'?' selected':'') + '>Manager</option><option value="Maintenance"' + (u.role==='Maintenance'?' selected':'') + '>Maintenance</option><option value="Admin Manager"' + (u.role==='Admin Manager'?' selected':'') + '>Admin Manager</option><option value="Vice President/Co-Owner"' + (u.role==='Vice President/Co-Owner'?' selected':'') + '>Vice President/Co-Owner</option></select></td><td><div id="perm-' + u.id + '" style="display:flex;flex-wrap:wrap;gap:2px;max-width:260px;">' + checks + '</div></td><td style="white-space:nowrap;"><button class="update-role-btn" onclick="updateRole(' + u.id + ')">Save Role</button><button class="update-action-btn" onclick="updatePermissions(' + u.id + ')" style="margin-left:5px;">Save Forms</button><button class="delete-btn" onclick="deleteUser(' + u.id + ')">Delete</button></td></tr>';
                 });
                 html += '</tbody></table></div>'; results.innerHTML = html;
             }).catch(() => { results.innerHTML = '<p style="color:red;">Connection Error.</p>'; });
