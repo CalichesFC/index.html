@@ -104,7 +104,7 @@
         .menu-tab:active { transform:scale(0.97); }
         .menu-tab-content { display:none; }
         .menu-tab-content.tab-visible { display:flex; flex-wrap:wrap; gap:12px; align-content:flex-start; min-height:58vh; }
-        .menu-tab-content .menu-btn { flex:1 1 230px; max-width:340px; width:auto !important; margin-bottom:0; background:#fff !important; color:#23303a !important; border:1px solid #e7eef5 !important; border-radius:14px !important; padding:16px !important; font-size:14.5px !important; font-weight:700; text-align:left; box-shadow:0 6px 22px rgba(20,50,80,0.08) !important; transition:transform .16s, border-color .16s; }
+        .menu-tab-content .menu-btn { position:relative; flex:1 1 230px; max-width:340px; width:auto !important; margin-bottom:0; background:#fff !important; color:#23303a !important; border:1px solid #e7eef5 !important; border-radius:14px !important; padding:16px 16px 16px 16px !important; font-size:14.5px !important; font-weight:700; text-align:left; box-shadow:0 6px 22px rgba(20,50,80,0.08) !important; transition:transform .16s, border-color .16s; }
         .menu-tab-content .menu-btn:hover { transform:translateY(-2px); border-color:var(--caliches-pink) !important; }
         .menu-tab-content .menu-btn:active { transform:scale(0.99); }
         /* prototype-style rich tiles */
@@ -1546,7 +1546,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.18.0210';
+    const APP_VERSION = '2026.06.18.0214';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
