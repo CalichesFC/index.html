@@ -444,6 +444,8 @@
                 <button id="btn-driver" class="menu-btn pink" onclick="openForm('driverView')">&#128666; Vehicle &amp; Trailer Check-Out</button>
                 <button id="btn-shortage" class="menu-btn green" onclick="openForm('shortageView')">&#128230; Report Shortages</button>
                 <button id="btn-tempLogs" class="menu-btn" style="background:#0e7c7b;" onclick="openTempLogs()">&#127777; Temperature Logs</button>
+                <button id="btn-checklists" class="menu-btn" style="background:#2e7d32;" onclick="openChecklists()">&#9989; Shift Checklists</button>
+                <button id="btn-inventory" class="menu-btn" style="background:#a35200;" onclick="openInventory()">&#128230; Inventory &amp; Supplies</button>
                 <button id="btn-scheduling" class="menu-btn" style="background:#5b3fb8;" onclick="openScheduling()">&#128197; Scheduling</button>
                 <button id="btn-formsDocs" class="menu-btn" style="background:#176bb4;" onclick="openFormsLinks()">&#128196; Forms &amp; Documents</button>
             </div>
@@ -459,6 +461,7 @@
             <!-- ── MANAGEMENT TAB (Manager+ only) ── -->
             <div id="tab-content-management" class="menu-tab-content">
                 <button id="commandCenterBtn" class="menu-btn dark" style="display:none;background:#176bb4;" onclick="openCommandCenter()">&#128202; Command Center</button>
+                <button id="salesBtn" class="menu-btn dark" style="display:none;background:#1b7a3d;" onclick="openSales()">&#128176; Daily Sales &amp; Labor</button>
                 <button id="requestsBtn" class="menu-btn dark" style="display:none;background:#0d6eaf;" onclick="openRequests()">&#128197; Time-Off &amp; Swap Requests</button>
                 <button id="assignTaskBtn" class="menu-btn dark" style="display:none;background:#176bb4;" onclick="openTaskAssign()">&#128203; Assign Task</button>
                 <button id="managerBtn" class="menu-btn dark" style="display:none;" onclick="openDashboard()">&#128202; Manager Dashboard</button>
@@ -671,6 +674,86 @@
     </div>
     <div id="tempHistBody"><p style="color:#888;">Loading...</p></div>
   </div>
+</div>
+
+<!-- SHIFT CHECKLISTS -->
+<div id="checklistsView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
+    <div class="header" style="background:linear-gradient(135deg,#2e7d32 0%,#1b5e20 100%);">
+        <h1 style="font-size:40px;margin:10px 0;">&#9989;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Shift Checklists</p>
+    </div>
+    <div class="container" style="max-width:760px;">
+        <div id="clStoreLabel" style="font-weight:bold;color:#1b5e20;font-size:15px;margin-bottom:10px;">&#127970; Store</div>
+        <div class="menu-tab-bar" style="margin-bottom:14px;">
+            <button class="menu-tab active" id="cl-tab-open" onclick="setChecklistTab('open')">&#127749; Opening</button>
+            <button class="menu-tab" id="cl-tab-close" onclick="setChecklistTab('close')">&#127769; Closing</button>
+            <button class="menu-tab" id="cl-tab-clean" onclick="setChecklistTab('clean')">&#129529; Cleaning</button>
+        </div>
+        <div id="clProgress" style="font-size:13px;color:#555;margin-bottom:10px;"></div>
+        <div id="clItems"><p style="text-align:center;padding:30px;color:#888;">Loading...</p></div>
+    </div>
+</div>
+
+<!-- INVENTORY -->
+<div id="inventoryView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
+    <div class="header" style="background:linear-gradient(135deg,#a35200 0%,#6e3700 100%);">
+        <h1 style="font-size:40px;margin:10px 0;">&#128230;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Inventory &amp; Supplies</p>
+    </div>
+    <div class="container" style="max-width:780px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap;">
+            <div id="invStoreLabel" style="font-weight:bold;color:#6e3700;font-size:15px;">&#127970; Store</div>
+            <button id="invReqBtn" onclick="openInvRequests()" style="display:none;background:#a35200;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:bold;cursor:pointer;">&#128203; Pending requests</button>
+        </div>
+        <div style="background:#fdf2e6;border:1px solid #f0d4b3;border-radius:10px;padding:9px 13px;margin-bottom:14px;font-size:12.5px;color:#6e3700;">
+            Enter what's on hand. Items at or below par turn red &mdash; tap <b>Request</b> to send a supply request to the office.
+        </div>
+        <div id="invList"><p style="text-align:center;padding:30px;color:#888;">Loading...</p></div>
+    </div>
+</div>
+
+<!-- INVENTORY REQUESTS MODAL -->
+<div id="invReqModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#fff;border-radius:14px;max-width:520px;width:100%;max-height:85vh;overflow:auto;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <h3 style="color:#6e3700;margin:0;font-size:17px;">Pending Supply Requests</h3>
+      <button onclick="document.getElementById('invReqModal').style.display='none';" style="background:#eee;border:none;border-radius:8px;padding:6px 12px;font-size:14px;cursor:pointer;">Close</button>
+    </div>
+    <div id="invReqBody"><p style="color:#888;">Loading...</p></div>
+  </div>
+</div>
+
+<!-- DAILY SALES & LABOR -->
+<div id="salesView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
+    <div class="header" style="background:linear-gradient(135deg,#1b7a3d 0%,#0f4d27 100%);">
+        <h1 style="font-size:40px;margin:10px 0;">&#128176;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Daily Sales &amp; Labor</p>
+    </div>
+    <div class="container" style="max-width:780px;">
+        <div id="salesStoreLabel" style="font-weight:bold;color:#0f4d27;font-size:15px;margin-bottom:10px;">&#127970; Store</div>
+        <div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+            <h3 style="margin:0 0 12px;color:#0f4d27;font-size:16px;">Enter a Day</h3>
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Date</label>
+            <input type="date" id="salesDate" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:10px;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:120px;"><label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Gross sales ($)</label>
+                <input type="number" inputmode="decimal" id="salesGross" placeholder="0.00" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;"></div>
+              <div style="flex:1;min-width:120px;"><label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Labor cost ($)</label>
+                <input type="number" inputmode="decimal" id="salesLabor" placeholder="0.00" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;"></div>
+            </div>
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin:10px 0 4px;">Transactions (optional)</label>
+            <input type="number" inputmode="numeric" id="salesTx" placeholder="0" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:10px;">
+            <input type="text" id="salesNote" placeholder="Note (optional)" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:12px;">
+            <button onclick="saveSales()" style="width:100%;background:#1b7a3d;color:#fff;border:none;border-radius:9px;padding:12px;font-size:15px;font-weight:bold;cursor:pointer;">Save Day</button>
+        </div>
+        <div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+            <h3 style="margin:0 0 10px;color:#0f4d27;font-size:16px;">Last 30 Days</h3>
+            <div id="salesRecent"><p style="color:#888;font-size:13px;margin:0;">Loading...</p></div>
+        </div>
+    </div>
 </div>
 
 <!-- MANAGER DASHBOARD -->
@@ -1320,7 +1403,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.17.2245';
+    const APP_VERSION = '2026.06.17.2306';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2858,6 +2941,8 @@
         // ── Buttons within Management tab ──
         const commandCenterBtn = document.getElementById('commandCenterBtn');
         if (commandCenterBtn) commandCenterBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
+        const salesBtn = document.getElementById('salesBtn');
+        if (salesBtn) salesBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         const requestsBtn = document.getElementById('requestsBtn');
         if (requestsBtn) requestsBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         const assignTaskBtn = document.getElementById('assignTaskBtn');
@@ -3540,6 +3625,185 @@
                     '</div>';
                 }).join('');
             });
+        });
+    }
+
+    // ============================================================
+    // SHIFT CHECKLISTS
+    // ============================================================
+    var clShift='open';
+    function openChecklists(){
+        document.getElementById('main-menu').style.display='none';
+        document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
+        document.getElementById('checklistsView').style.display='block';
+        window.scrollTo(0,0);
+        document.getElementById('clStoreLabel').innerHTML='&#127970; '+escapeHtml(tempStoreLoc()||'No store set');
+        clShift='open'; setChecklistTab('open');
+    }
+    function setChecklistTab(shift){
+        clShift=shift;
+        ['open','close','clean'].forEach(function(s){ var b=document.getElementById('cl-tab-'+s); if(b) b.classList.toggle('active', s===shift); });
+        loadChecklist();
+    }
+    function loadChecklist(){
+        var c=document.getElementById('clItems'); var loc=tempStoreLoc();
+        if(!loc){ c.innerHTML='<p style="color:#888;text-align:center;padding:20px;">No store set on your account.</p>'; document.getElementById('clProgress').textContent=''; return; }
+        c.innerHTML='<p style="text-align:center;padding:20px;color:#888;">Loading...</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_checklist_items',{p_username:currentUser.username,p_password:pin,p_shift:clShift,p_location:loc}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;padding:20px;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var list=r.data||[]; var done=list.filter(function(i){return i.done;}).length;
+                document.getElementById('clProgress').innerHTML='<b>'+done+' / '+list.length+'</b> done today';
+                c.innerHTML=list.map(function(i){
+                    return '<div onclick="toggleChecklistItem('+i.id+','+(i.done?'false':'true')+')" style="background:#fff;border-radius:10px;padding:13px 14px;margin-bottom:9px;box-shadow:0 2px 4px rgba(0,0,0,0.05);cursor:pointer;display:flex;align-items:center;gap:12px;'+(i.done?'opacity:0.7;':'')+'">'+
+                        '<div style="width:26px;height:26px;border-radius:7px;border:2px solid '+(i.done?'#2e7d32':'#bbb')+';background:'+(i.done?'#2e7d32':'#fff')+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">'+(i.done?'✔':'')+'</div>'+
+                        '<div style="flex:1;"><div style="font-size:14px;font-weight:600;color:#333;'+(i.done?'text-decoration:line-through;color:#888;':'')+'">'+escapeHtml(i.label)+'</div>'+
+                        (i.done&&i.by?'<div style="font-size:11px;color:#999;">'+escapeHtml(i.by)+' • '+tempTimeFmt(i.at)+'</div>':'')+'</div>'+
+                    '</div>';
+                }).join('');
+            }).catch(function(){ c.innerHTML='<p style="color:red;text-align:center;padding:20px;">Connection error.</p>'; });
+        }, function(){ c.innerHTML='<p style="color:#888;text-align:center;padding:20px;">PIN required.</p>'; });
+    }
+    function toggleChecklistItem(itemId, done){
+        withPin(function(pin){
+            supabaseClient.rpc('app_checklist_toggle',{p_username:currentUser.username,p_password:pin,p_item_id:itemId,p_location:tempStoreLoc(),p_done:done}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
+                loadChecklist();
+            }).catch(function(){ alert('Connection error.'); });
+        });
+    }
+
+    // ============================================================
+    // INVENTORY & SUPPLIES
+    // ============================================================
+    function openInventory(){
+        document.getElementById('main-menu').style.display='none';
+        document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
+        document.getElementById('inventoryView').style.display='block';
+        window.scrollTo(0,0);
+        document.getElementById('invStoreLabel').innerHTML='&#127970; '+escapeHtml(tempStoreLoc()||'No store set');
+        var rb=document.getElementById('invReqBtn'); if(rb) rb.style.display=(typeof isDiscAdmin==='function'&&(isDiscAdmin()||isManagerRole()))?'inline-block':'none';
+        loadInventory();
+    }
+    function loadInventory(){
+        var c=document.getElementById('invList'); var loc=tempStoreLoc();
+        if(!loc){ c.innerHTML='<p style="color:#888;text-align:center;padding:20px;">No store set on your account.</p>'; return; }
+        c.innerHTML='<p style="text-align:center;padding:20px;color:#888;">Loading...</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_inventory_list',{p_username:currentUser.username,p_password:pin,p_location:loc}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;padding:20px;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var list=r.data||[];
+                if(!list.length){ c.innerHTML='<p style="color:#888;text-align:center;padding:20px;">No items set up for this store.</p>'; return; }
+                c.innerHTML=list.map(function(i){
+                    var oh=(i.on_hand===null||i.on_hand===undefined)?null:Number(i.on_hand);
+                    var low=(oh!==null && i.par!==null && oh<=Number(i.par));
+                    return '<div style="background:#fff;border-radius:12px;padding:13px 14px;margin-bottom:11px;box-shadow:0 2px 4px rgba(0,0,0,0.05);'+(low?'border:1.5px solid #d9534f;':'')+'">'+
+                        '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">'+
+                          '<span style="font-weight:bold;color:#6e3700;font-size:15px;">'+escapeHtml(i.name)+'</span>'+
+                          '<span style="font-size:12px;color:#888;">par '+i.par+' '+escapeHtml(i.unit||'')+'</span>'+
+                        '</div>'+
+                        '<div style="font-size:12px;margin-top:2px;color:'+(low?'#c0264b':'#666')+';font-weight:'+(low?'bold':'normal')+';">'+
+                          (oh===null?'No count yet':('On hand: '+oh+' '+escapeHtml(i.unit||'')+(low?' — LOW, reorder':'')))+'</div>'+
+                        '<div style="display:flex;gap:8px;margin-top:9px;align-items:center;">'+
+                          '<input type="number" inputmode="decimal" id="invcount-'+i.id+'" placeholder="count" style="width:90px;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;">'+
+                          '<button onclick="saveInvCount('+i.id+')" style="background:#555;color:#fff;border:none;border-radius:8px;padding:9px 12px;font-size:13px;font-weight:bold;cursor:pointer;">Save</button>'+
+                          '<button onclick="requestInv('+i.id+',\''+discSafe(i.name)+'\')" style="background:#a35200;color:#fff;border:none;border-radius:8px;padding:9px 12px;font-size:13px;font-weight:bold;cursor:pointer;margin-left:auto;">Request</button>'+
+                        '</div>'+
+                    '</div>';
+                }).join('');
+            }).catch(function(){ c.innerHTML='<p style="color:red;text-align:center;padding:20px;">Connection error.</p>'; });
+        }, function(){ c.innerHTML='<p style="color:#888;text-align:center;padding:20px;">PIN required.</p>'; });
+    }
+    function saveInvCount(itemId){
+        var inp=document.getElementById('invcount-'+itemId); if(!inp) return;
+        var val=parseFloat(inp.value);
+        if(isNaN(val)){ alert('Enter a count.'); inp.focus(); return; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_inventory_count_save',{p_username:currentUser.username,p_password:pin,p_item_id:itemId,p_on_hand:val}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
+                loadInventory();
+            }).catch(function(){ alert('Connection error.'); });
+        });
+    }
+    function requestInv(itemId, name){
+        var qty=prompt('How many '+name+' to request?','');
+        if(qty===null) return;
+        var note=prompt('Note for the office (optional):','')||'';
+        withPin(function(pin){
+            supabaseClient.rpc('app_inventory_request',{p_username:currentUser.username,p_password:pin,p_item_id:itemId,p_qty:parseFloat(qty)||0,p_note:note}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
+                alert('Request sent to the office.');
+            }).catch(function(){ alert('Connection error.'); });
+        });
+    }
+    function openInvRequests(){
+        var modal=document.getElementById('invReqModal');
+        document.getElementById('invReqBody').innerHTML='<p style="color:#888;">Loading...</p>';
+        modal.style.display='flex';
+        withPin(function(pin){
+            supabaseClient.rpc('app_inventory_requests',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ document.getElementById('invReqBody').innerHTML='<p style="color:red;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var list=r.data||[];
+                if(!list.length){ document.getElementById('invReqBody').innerHTML='<p style="color:#888;">No pending requests. 🎉</p>'; return; }
+                document.getElementById('invReqBody').innerHTML=list.map(function(o){
+                    return '<div style="padding:9px 0;border-bottom:1px solid #eee;">'+
+                        '<div style="font-weight:bold;font-size:14px;color:#333;">'+escapeHtml(o.item)+' × '+o.qty+'</div>'+
+                        '<div style="font-size:12px;color:#888;">'+escapeHtml(o.location||'')+' • '+escapeHtml(o.by||'')+' • '+socFmt(o.at)+(o.note?' • '+escapeHtml(o.note):'')+'</div>'+
+                    '</div>';
+                }).join('');
+            });
+        });
+    }
+
+    // ============================================================
+    // DAILY SALES & LABOR
+    // ============================================================
+    function openSales(){
+        document.getElementById('main-menu').style.display='none';
+        document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
+        document.getElementById('salesView').style.display='block';
+        window.scrollTo(0,0);
+        document.getElementById('salesStoreLabel').innerHTML='&#127970; '+escapeHtml(tempStoreLoc()||'No store set');
+        try{ document.getElementById('salesDate').value=new Date().toISOString().slice(0,10); }catch(e){}
+        loadSalesRecent();
+    }
+    function saveSales(){
+        var loc=tempStoreLoc();
+        if(!loc){ alert('No store set on your account.'); return; }
+        var date=document.getElementById('salesDate').value||null;
+        var gross=parseFloat(document.getElementById('salesGross').value);
+        var labor=parseFloat(document.getElementById('salesLabor').value);
+        var tx=parseInt(document.getElementById('salesTx').value,10);
+        var note=document.getElementById('salesNote').value.trim();
+        if(isNaN(gross)){ alert('Enter gross sales.'); return; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_sales_save',{p_username:currentUser.username,p_password:pin,p_location:loc,p_date:date,p_gross:gross,p_labor:isNaN(labor)?null:labor,p_tx:isNaN(tx)?null:tx,p_note:note}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
+                document.getElementById('salesGross').value=''; document.getElementById('salesLabor').value=''; document.getElementById('salesTx').value=''; document.getElementById('salesNote').value='';
+                loadSalesRecent();
+            }).catch(function(){ alert('Connection error.'); });
+        });
+    }
+    function loadSalesRecent(){
+        var c=document.getElementById('salesRecent'); var loc=tempStoreLoc();
+        if(!loc){ c.innerHTML='<p style="color:#888;">No store set.</p>'; return; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_sales_recent',{p_username:currentUser.username,p_password:pin,p_location:loc,p_days:30}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;font-size:13px;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var list=r.data||[];
+                if(!list.length){ c.innerHTML='<p style="color:#888;font-size:13px;margin:0;">No days entered yet.</p>'; return; }
+                var html='<table style="width:100%;border-collapse:collapse;font-size:13px;"><tr style="color:#888;text-align:left;border-bottom:1px solid #eee;"><th style="padding:6px 4px;">Date</th><th>Sales</th><th>Labor</th><th>Labor%</th></tr>';
+                list.forEach(function(d){
+                    var pct=(d.labor_pct===null||d.labor_pct===undefined)?'—':d.labor_pct+'%';
+                    var hot=(d.labor_pct!==null&&d.labor_pct>30);
+                    html+='<tr style="border-bottom:1px solid #f3f3f3;"><td style="padding:7px 4px;">'+escapeHtml(d.date)+'</td>'+
+                        '<td>$'+(d.gross!=null?Number(d.gross).toLocaleString():'—')+'</td>'+
+                        '<td>$'+(d.labor!=null?Number(d.labor).toLocaleString():'—')+'</td>'+
+                        '<td style="font-weight:bold;color:'+(hot?'#c0264b':'#1b7a3d')+';">'+pct+'</td></tr>';
+                });
+                html+='</table>';
+                c.innerHTML=html;
+            }).catch(function(){ c.innerHTML='<p style="color:red;font-size:13px;">Connection error.</p>'; });
         });
     }
 
