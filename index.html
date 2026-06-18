@@ -430,47 +430,60 @@
                 <select id="storeSelect" onchange="setActiveStore(this.value)" style="flex:1;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:13px;"></select>
             </div>
             <div class="menu-tab-bar">
-                <button class="menu-tab active" id="tab-operations" onclick="switchMenuTab('operations')">📋 Operations</button>
-                <button class="menu-tab" id="tab-maintenance" onclick="switchMenuTab('maintenance')">🔧 Maintenance</button>
-                <button class="menu-tab" id="tab-management" style="display:none;" onclick="switchMenuTab('management')">⚙️ Management</button>
+                <button class="menu-tab active" id="tab-home" onclick="switchMenuTab('home')">🏠 Home</button>
+                <button class="menu-tab" id="tab-scheduling" onclick="switchMenuTab('scheduling')">📅 Scheduling</button>
+                <button class="menu-tab" id="tab-operations" onclick="switchMenuTab('operations')">🍦 Store Ops</button>
+                <button class="menu-tab" id="tab-fleet" onclick="switchMenuTab('fleet')">🚚 Fleet</button>
+                <button class="menu-tab" id="tab-management" style="display:none;" onclick="switchMenuTab('management')">⚙️ Admin</button>
             </div>
 
-            <!-- ── OPERATIONS TAB ── -->
-            <div id="tab-content-operations" class="menu-tab-content tab-visible">
+            <!-- ── HOME ── -->
+            <div id="tab-content-home" class="menu-tab-content tab-visible">
                 <button id="btn-empHome" class="menu-btn" style="background:var(--caliches-pink);" onclick="openEmployeeHome()">&#127968; My Home</button>
                 <button id="btn-messages" class="menu-btn" style="background:#6a3fb5;" onclick="openMessages()">&#128172; Messages</button>
-                <button id="btn-discipline" class="menu-btn" style="display:none;background:#8a1f1f;" onclick="openDiscipline()">&#9888; Disciplinary Actions</button>
-                <button id="btn-popIn" class="menu-btn" onclick="openPopIn()">&#128203; Store Pop-In Inspection</button>
-                <button id="btn-driver" class="menu-btn pink" onclick="openForm('driverView')">&#128666; Vehicle &amp; Trailer Check-Out</button>
-                <button id="btn-shortage" class="menu-btn green" onclick="openForm('shortageView')">&#128230; Report Shortages</button>
-                <button id="btn-tempLogs" class="menu-btn" style="background:#0e7c7b;" onclick="openTempLogs()">&#127777; Temperature Logs</button>
-                <button id="btn-checklists" class="menu-btn" style="background:#2e7d32;" onclick="openChecklists()">&#9989; Shift Checklists</button>
-                <button id="btn-inventory" class="menu-btn" style="background:#a35200;" onclick="openInventory()">&#128230; Inventory &amp; Supplies</button>
-                <button id="btn-scheduling" class="menu-btn" style="background:#5b3fb8;" onclick="openScheduling()">&#128197; Scheduling</button>
                 <button id="btn-formsDocs" class="menu-btn" style="background:#176bb4;" onclick="openFormsLinks()">&#128196; Forms &amp; Documents</button>
             </div>
 
-            <!-- ── MAINTENANCE TAB ── -->
-            <div id="tab-content-maintenance" class="menu-tab-content">
+            <!-- ── SCHEDULING ── -->
+            <div id="tab-content-scheduling" class="menu-tab-content">
+                <button id="btn-scheduling" class="menu-btn" style="background:#5b3fb8;" onclick="openScheduling()">&#128197; Shift Schedules</button>
+                <button id="btn-driver" class="menu-btn pink" onclick="openForm('driverView')">&#128666; Driver Checklist &mdash; Vehicle &amp; Trailer</button>
+                <button id="requestsBtn" class="menu-btn dark" style="display:none;background:#0d6eaf;" onclick="openRequests()">&#128197; Time-Off &amp; Swap Requests</button>
+                <button id="assignTaskBtn" class="menu-btn dark" style="display:none;background:#176bb4;" onclick="openTaskAssign()">&#128203; Assign Task</button>
+            </div>
+
+            <!-- ── STORE OPERATIONS ── -->
+            <div id="tab-content-operations" class="menu-tab-content">
+                <button id="btn-popIn" class="menu-btn" onclick="openPopIn()">&#128203; Store Pop-In Inspection</button>
+                <button id="btn-tempLogs" class="menu-btn" style="background:#0e7c7b;" onclick="openTempLogs()">&#127777; Temperature Logs</button>
+                <button id="btn-checklists" class="menu-btn" style="background:#2e7d32;" onclick="openChecklists()">&#9989; Shift Checklists</button>
+                <button id="btn-inventory" class="menu-btn" style="background:#a35200;" onclick="openInventory()">&#128230; Inventory &amp; Supplies</button>
+                <button id="btn-shortage" class="menu-btn green" onclick="openForm('shortageView')">&#128230; Report Shortages</button>
+                <button id="btn-discipline" class="menu-btn" style="display:none;background:#8a1f1f;" onclick="openDiscipline()">&#9888; Disciplinary Actions</button>
                 <button id="btn-maintenance" class="menu-btn orange" onclick="openForm('maintenanceView')">&#128295; Required Maintenance</button>
                 <button id="btn-damage" class="menu-btn red" onclick="openForm('damageView')">&#9888; Vehicle / Trailer Damage</button>
                 <button id="mySubmissionsBtn" class="menu-btn orange" onclick="openMySubmissions()">&#128203; My Maintenance Submissions</button>
                 <button id="maintBoardBtn" class="menu-btn dark" style="display:none;background:#b35000;" onclick="openMaintenanceBoard()">&#128295; Maintenance Board</button>
             </div>
 
-            <!-- ── MANAGEMENT TAB (Manager+ only) ── -->
+            <!-- ── FLEET &amp; CATERING ── -->
+            <div id="tab-content-fleet" class="menu-tab-content">
+                <button class="menu-btn pink" onclick="openForm('driverView')">&#128666; Vehicle &amp; Trailer Check-Out</button>
+                <button id="quotesBtn" class="menu-btn purple" style="display:none;" onclick="openForm('quotesView')">&#128221; Create Catering Quote</button>
+                <button id="salesPipelineBtn" class="menu-btn purple" style="display:none;" onclick="openSalesPipeline()">&#128202; Sales Pipeline</button>
+                <p style="font-size:12.5px;color:#888;text-align:center;margin:8px 4px 0;">Vending revenue by town &amp; catering metrics live in <b>Admin &rarr; Live Dashboard</b>.</p>
+            </div>
+
+            <!-- ── ADMIN (Manager+ only) ── -->
             <div id="tab-content-management" class="menu-tab-content">
+                <button id="adminDashBtn" class="menu-btn dark" style="display:none;background:linear-gradient(120deg,#ed3c7e,#176bb4);" onclick="openAdminDash()">&#128225; Live Dashboard &mdash; NCR Pulse &amp; Square</button>
                 <button id="commandCenterBtn" class="menu-btn dark" style="display:none;background:#176bb4;" onclick="openCommandCenter()">&#128202; Command Center</button>
                 <button id="salesBtn" class="menu-btn dark" style="display:none;background:#1b7a3d;" onclick="openSales()">&#128176; Daily Sales &amp; Labor</button>
                 <button id="primeCostBtn" class="menu-btn dark" style="display:none;background:#0f4d27;" onclick="openPrimeCost()">&#128202; Weekly Prime Cost</button>
-                <button id="requestsBtn" class="menu-btn dark" style="display:none;background:#0d6eaf;" onclick="openRequests()">&#128197; Time-Off &amp; Swap Requests</button>
-                <button id="assignTaskBtn" class="menu-btn dark" style="display:none;background:#176bb4;" onclick="openTaskAssign()">&#128203; Assign Task</button>
                 <button id="managerBtn" class="menu-btn dark" style="display:none;" onclick="openDashboard()">&#128202; Manager Dashboard</button>
                 <button id="knowledgeBaseBtn" class="menu-btn dark" style="display:none;background:#0d6eaf;" onclick="openKnowledgeBase()">&#129504; AI Knowledge Base</button>
                 <button id="rosterBtn" class="menu-btn dark" style="display:none;background:#176bb4;" onclick="openRoster()">&#128101; Employee Roster</button>
                 <button id="shortageTrendsBtn" class="menu-btn green" style="display:none;" onclick="openShortageTrends()">&#128200; Shortage Trends</button>
-                <button id="quotesBtn" class="menu-btn purple" style="display:none;" onclick="openForm('quotesView')">&#128221; Create Catering Quote</button>
-                <button id="salesPipelineBtn" class="menu-btn purple" style="display:none;" onclick="openSalesPipeline()">&#128202; Sales Pipeline</button>
                 <button id="developerBtn" class="menu-btn dark" style="display:none;background:#222;" onclick="openTrainingPortal()">&#128187; Developer: Training Portal</button>
                 <button id="previewToggleBtn" class="menu-btn dark" style="display:none;background:#555;" onclick="togglePreviewMode()">&#128065; Preview as Staff (Hide Dev Tabs)</button>
                 <button id="installBtn" class="menu-btn purple" style="display:none;" onclick="installApp()">&#128242; Install App on Phone</button>
@@ -756,6 +769,28 @@
         </div>
     </div>
 </div>
+
+<!-- ADMIN LIVE DASHBOARD — NCR Pulse + Square -->
+<div id="adminDashView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
+    <div class="header" style="background:linear-gradient(135deg,#ed3c7e 0%,#176bb4 100%);">
+        <h1 style="font-size:40px;margin:10px 0;">&#128225;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Live Dashboard</p>
+    </div>
+    <div class="container" style="max-width:820px;">
+        <div style="display:flex;align-items:center;gap:8px;font-weight:800;color:#0f4d7e;font-size:13px;margin-bottom:8px;">
+            <span style="width:10px;height:10px;border-radius:50%;background:#1f9d57;display:inline-block;animation:adpulse 1.8s infinite;"></span>
+            NCR PULSE &middot; Store Operations &mdash; live across 5 locations
+        </div>
+        <div id="adNcr"><p style="color:#888;font-size:13px;">Loading…</p></div>
+        <h3 style="margin:24px 0 8px;color:#6e3700;">&#128225; Square &middot; Mobile Vending Trends</h3>
+        <div id="adRoutes"></div>
+        <h3 style="margin:24px 0 8px;color:#0f4d27;">&#127881; Catering &mdash; Text-to-Pay</h3>
+        <div id="adCater" style="background:#fff;border-radius:12px;padding:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);"></div>
+        <p style="font-size:12px;color:#888;margin-top:12px;">Placeholder figures for now &mdash; we'll wire these to live NCR &amp; Square data next.</p>
+    </div>
+</div>
+<style>@keyframes adpulse{0%{box-shadow:0 0 0 0 rgba(31,157,87,.5)}70%{box-shadow:0 0 0 9px rgba(31,157,87,0)}100%{box-shadow:0 0 0 0 rgba(31,157,87,0)}}</style>
 
 <!-- WEEKLY PRIME COST -->
 <div id="primeCostView" class="app-view">
@@ -1476,7 +1511,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.18.0022';
+    const APP_VERSION = '2026.06.18.0059';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3014,6 +3049,8 @@
         // ── Buttons within Management tab ──
         const commandCenterBtn = document.getElementById('commandCenterBtn');
         if (commandCenterBtn) commandCenterBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
+        const adminDashBtn = document.getElementById('adminDashBtn');
+        if (adminDashBtn) adminDashBtn.style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
         const salesBtn = document.getElementById('salesBtn');
         if (salesBtn) salesBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         const primeCostBtn = document.getElementById('primeCostBtn');
@@ -3883,6 +3920,72 @@
                 c.innerHTML=html;
             }).catch(function(){ c.innerHTML='<p style="color:red;font-size:13px;">Connection error.</p>'; });
         });
+    }
+
+    // ============================================================
+    // ADMIN LIVE DASHBOARD — NCR Pulse + Square (placeholder data)
+    // ============================================================
+    var AD_STORES=[
+        {name:'Roadrunner',pin:'🛣️',sales:9120,labor:19.4,tx:612},
+        {name:'Valley',pin:'🌄',sales:7340,labor:21.8,tx:498},
+        {name:'Lenox',pin:'🏙️',sales:6180,labor:24.6,tx:441},
+        {name:'Alamogordo',pin:'🌵',sales:5560,labor:17.2,tx:402},
+        {name:'Roswell',pin:'🛸',sales:4980,labor:22.3,tx:369}
+    ];
+    var AD_ROUTES=[
+        {town:'Deming',ic:'🎡',cups:1840,rev:5260},
+        {town:'Hatch',ic:'🌶️',cups:1320,rev:3910},
+        {town:'Silver City',ic:'⛏️',cups:1610,rev:4720}
+    ];
+    var AD_CATER=[
+        {ic:'💍',name:'Sanchez Wedding',town:'Las Cruces',amt:1450},
+        {ic:'🎓',name:'NMSU Grad Bash',town:'Las Cruces',amt:980},
+        {ic:'🏢',name:'Spaceport Mixer',town:'T or C',amt:1720},
+        {ic:'🎂',name:'Quinceañera — Reyes',town:'Deming',amt:640}
+    ];
+    var adTimer=null;
+    function adMoney(n){ return '$'+Math.round(n).toLocaleString(); }
+    function adLaborCol(p){ return p>23?'#c0264b':(p<18?'#b06a00':'#1f7a3d'); }
+    function openAdminDash(){
+        if(!isAdminManager()){ alert('The Live Dashboard is for Admin Managers only.'); return; }
+        document.getElementById('main-menu').style.display='none';
+        document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
+        document.getElementById('adminDashView').style.display='block';
+        window.scrollTo(0,0);
+        adRender();
+        if(adTimer) clearInterval(adTimer);
+        adTimer=setInterval(function(){
+            if(document.getElementById('adminDashView').style.display!=='block'){ clearInterval(adTimer); return; }
+            AD_STORES.forEach(function(s){ s.sales+=Math.floor(Math.random()*60); s.tx+=(Math.random()<0.5?1:0); s.labor=Math.max(15,Math.min(27,s.labor+(Math.random()-0.5)*0.3)); });
+            adRenderNcr();
+        }, 4000);
+    }
+    function adRenderNcr(){
+        var t=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+        var st='font-size:10px;letter-spacing:1px;color:#7a8a98;font-weight:800;text-transform:uppercase;';
+        document.getElementById('adNcr').innerHTML=AD_STORES.map(function(s){
+            return '<div style="background:linear-gradient(100deg,#fbfdff,#f3f8fd);border:1px solid #e7eef5;border-left:5px solid #176bb4;border-radius:12px;padding:13px 15px;margin-bottom:9px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;">'+
+              '<span style="font-weight:900;font-size:15px;min-width:130px;">'+s.pin+' '+s.name+'</span>'+
+              '<span style="display:flex;flex-direction:column;"><small style="'+st+'">Net Sales</small><b style="font-size:17px;color:#0f4d7e;">'+adMoney(s.sales)+'</b></span>'+
+              '<span style="display:flex;flex-direction:column;"><small style="'+st+'">Labor</small><b style="font-size:16px;color:'+adLaborCol(s.labor)+';">'+s.labor.toFixed(1)+'%</b></span>'+
+              '<span style="display:flex;flex-direction:column;"><small style="'+st+'">Transactions</small><b style="font-size:17px;">'+s.tx+'</b></span>'+
+              '<span style="margin-left:auto;font-size:11px;color:#7a8a98;font-weight:700;">&#9679; '+t+'</span>'+
+            '</div>';
+        }).join('');
+    }
+    function adRender(){
+        adRenderNcr();
+        var max=Math.max.apply(null, AD_ROUTES.map(function(r){return r.rev;}));
+        document.getElementById('adRoutes').innerHTML=AD_ROUTES.map(function(r){
+            return '<div style="background:#fff;border:1px solid #e7eef5;border-radius:12px;padding:13px 15px;margin-bottom:10px;box-shadow:0 3px 10px rgba(20,50,80,.05);">'+
+              '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span style="font-weight:900;font-size:15px;">'+r.ic+' '+r.town+'</span><span style="margin-left:auto;font-weight:900;color:#1f7a3d;font-size:17px;">'+adMoney(r.rev)+'</span></div>'+
+              '<div style="height:12px;border-radius:999px;background:#eef4fa;overflow:hidden;"><i style="display:block;height:100%;width:'+Math.round(r.rev/max*100)+'%;background:linear-gradient(90deg,#ed3c7e,#176bb4);"></i></div>'+
+              '<div style="font-size:12px;color:#7a8a98;font-weight:700;margin-top:6px;">&#127847; '+r.cups.toLocaleString()+' cups served · this month</div>'+
+            '</div>';
+        }).join('');
+        var tot=AD_CATER.reduce(function(a,b){return a+b.amt;},0);
+        document.getElementById('adCater').innerHTML='<div style="font-size:13px;color:#555;margin-bottom:8px;">Pre-booked event revenue (MTD): <b style="color:#1f7a3d;font-size:18px;">'+adMoney(tot)+'</b> &middot; '+AD_CATER.length+' events</div>'+
+            AD_CATER.map(function(c){ return '<div style="display:flex;align-items:center;gap:11px;padding:10px 2px;border-bottom:1px dashed #eee;"><span style="font-size:18px;">'+c.ic+'</span><span><b>'+escapeHtml(c.name)+'</b><br><small style="color:#888;">'+escapeHtml(c.town)+' · paid via text link</small></span><span style="margin-left:auto;font-weight:900;color:#1f7a3d;">'+adMoney(c.amt)+'</span></div>'; }).join('');
     }
 
     // ============================================================
