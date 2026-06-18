@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#ed3c7e">
+    <meta name="theme-color" content="#ec3e7e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Caliche's Hub">
@@ -13,7 +13,7 @@
     <title>Caliche's Hub 🍦</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --caliches-blue:#176bb4; --caliches-pink:#ed3c7e; --caliches-yellow:#eee441; --light-gray:#f0f4f8; --white:#ffffff; --pass-green:#28a745; --fail-red:#dc3545; --maint-orange:#e67e22; --damage-red:#e74c3c; --na-gray:#9e9e9e; }
+        :root { --caliches-blue:#106ab3; --caliches-pink:#ec3e7e; --caliches-yellow:#eee441; --light-gray:#f0f4f8; --white:#ffffff; --pass-green:#28a745; --fail-red:#dc3545; --maint-orange:#e67e22; --damage-red:#e74c3c; --na-gray:#9e9e9e; }
         html { overflow-x:hidden; }
         body { font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; background-color:var(--light-gray); margin:0; padding:0; color:#333; overflow-x:hidden; width:100%; }
         #splash-screen { position:fixed; top:0; left:0; width:100%; height:100%; background:linear-gradient(135deg,var(--caliches-pink) 0%,var(--caliches-blue) 100%); display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:9999; transition:opacity 0.6s ease-out; }
@@ -125,7 +125,7 @@
         .arrow { position:absolute; top:50%; transform:translateY(-50%); background:rgba(255,255,255,0.75); border:none; color:var(--caliches-blue); font-size:20px; font-weight:bold; width:32px; height:32px; border-radius:50%; cursor:pointer; z-index:10; display:flex; justify-content:center; align-items:center; box-shadow:0 2px 5px rgba(0,0,0,0.2); transition:opacity 0.2s; opacity:0.6; }
         .arrow:hover { opacity:1; background:rgba(255,255,255,0.95); }
         .prev-arrow{left:6px} .next-arrow{right:6px}
-        .app-view{display:none} .back-btn{background:#333;color:white;border:none;padding:12px 20px;font-size:14px;font-weight:bold;width:100%;text-align:left;cursor:pointer}
+        .app-view{display:none} .back-btn{background:var(--caliches-pink);color:white;border:none;padding:13px 20px;font-size:14px;font-weight:bold;width:100%;text-align:left;cursor:pointer;position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(236,62,126,0.25)} .back-btn:active{filter:brightness(0.92)}
         .header{background-color:var(--caliches-blue);color:var(--white);text-align:center;padding:20px 10px 14px 10px;box-shadow:0 4px 6px rgba(0,0,0,0.1);position:relative} .logo-img{max-height:115px;width:auto;display:block;margin:0 auto;filter:drop-shadow(0px 2px 4px rgba(0,0,0,0.2))} .header p{margin:0;font-size:14px;font-weight:bold;letter-spacing:2px;text-transform:uppercase}
         .header .logo-img{margin:0}
         .header-mascot{height:100px;width:auto;display:block;filter:drop-shadow(0px 4px 8px rgba(0,0,0,0.25))}
@@ -404,14 +404,14 @@
         <span class="announce-text" id="announcementText"></span>
         <button class="announce-close" onclick="dismissAnnouncement()" title="Dismiss">&times;</button>
     </div>
-    <h1 class="menu-title" style="margin-bottom:4px;">🍦 Caliche's Hub</h1>
+    <h1 class="menu-title" style="margin-bottom:4px;"><img src="caliches-cone.png" alt="" style="height:30px;vertical-align:-7px;margin-right:7px;" onerror="this.style.display='none'">Caliche's Hub</h1>
     <p style="font-size:11px;color:var(--caliches-pink);font-weight:bold;letter-spacing:2px;text-transform:uppercase;margin:0 0 22px 0;">Creating Memories Since 1996!</p>
     <div class="slider-wrapper">
         <button class="arrow prev-arrow" onclick="moveSlide(-1)">&#10094;</button>
         <button class="arrow next-arrow" onclick="moveSlide(1)">&#10095;</button>
         <div class="slides" id="slider-track">
             <div class="slide image-slide"><img src="caliches-cone.png" alt="Focus Banner" class="slide-img" onerror="this.style.display='none'"></div>
-            <div class="slide text-slide"><div class="focus-title">🍦 Our Promise</div><div class="focus-text">Cleanliness, Friendliness, Speed, &amp; Quality!</div><div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:0.85;margin-top:14px;font-weight:bold;">Creating Memories Since 1996</div></div>
+            <div class="slide text-slide"><div class="focus-title"><img src="caliches-cone.png" alt="" style="height:18px;vertical-align:-3px;margin-right:5px;" onerror="this.style.display='none'">Our Promise</div><div class="focus-text">Cleanliness, Friendliness, Speed, &amp; Quality!</div><div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:0.85;margin-top:14px;font-weight:bold;">Creating Memories Since 1996</div></div>
             <div class="slide quote-slide" id="quote-slide-1"><div class="quote-text">&ldquo;Happiness is homemade.&rdquo;</div><div class="quote-author">&#8212; Caliche's Family Since 1996</div></div>
             <div class="slide quote-slide" id="quote-slide-2"><div class="quote-text">&ldquo;Quality means doing it right even when no one is looking.&rdquo;</div><div class="quote-author">&#8212; Henry Ford</div></div>
             <div class="slide quote-slide" id="quote-slide-3"><div class="quote-text">&ldquo;The secret ingredient is always love.&rdquo;</div><div class="quote-author">&#8212; The Caliche's Kitchen</div></div>
@@ -432,7 +432,7 @@
             <div class="menu-tab-bar">
                 <button class="menu-tab active" id="tab-home" onclick="switchMenuTab('home')">🏠 Home</button>
                 <button class="menu-tab" id="tab-scheduling" onclick="switchMenuTab('scheduling')">📅 Scheduling</button>
-                <button class="menu-tab" id="tab-operations" onclick="switchMenuTab('operations')">🍦 Store Ops</button>
+                <button class="menu-tab" id="tab-operations" onclick="switchMenuTab('operations')"><img src="caliches-cone.png" alt="" style="height:15px;vertical-align:-2px;margin-right:3px;" onerror="this.style.display='none'">Store Ops</button>
                 <button class="menu-tab" id="tab-fleet" onclick="switchMenuTab('fleet')">🚚 Fleet</button>
                 <button class="menu-tab" id="tab-management" style="display:none;" onclick="switchMenuTab('management')">⚙️ Admin</button>
             </div>
@@ -441,7 +441,7 @@
             <div id="tab-content-home" class="menu-tab-content tab-visible">
                 <button id="btn-empHome" class="menu-btn" style="background:var(--caliches-pink);" onclick="openEmployeeHome()">&#127968; My Home</button>
                 <button id="btn-messages" class="menu-btn" style="background:#6a3fb5;" onclick="openMessages()">&#128172; Messages</button>
-                <button id="btn-formsDocs" class="menu-btn" style="background:#176bb4;" onclick="openFormsLinks()">&#128196; Forms &amp; Documents</button>
+                <button id="btn-formsDocs" class="menu-btn" style="background:#106ab3;" onclick="openFormsLinks()">&#128196; Forms &amp; Documents</button>
             </div>
 
             <!-- ── SCHEDULING ── -->
@@ -449,7 +449,7 @@
                 <button id="btn-scheduling" class="menu-btn" style="background:#5b3fb8;" onclick="openScheduling()">&#128197; Shift Schedules</button>
                 <button id="btn-driver" class="menu-btn pink" onclick="openForm('driverView')">&#128666; Driver Checklist &mdash; Vehicle &amp; Trailer</button>
                 <button id="requestsBtn" class="menu-btn dark" style="display:none;background:#0d6eaf;" onclick="openRequests()">&#128197; Time-Off &amp; Swap Requests</button>
-                <button id="assignTaskBtn" class="menu-btn dark" style="display:none;background:#176bb4;" onclick="openTaskAssign()">&#128203; Assign Task</button>
+                <button id="assignTaskBtn" class="menu-btn dark" style="display:none;background:#106ab3;" onclick="openTaskAssign()">&#128203; Assign Task</button>
             </div>
 
             <!-- ── STORE OPERATIONS ── -->
@@ -476,13 +476,13 @@
 
             <!-- ── ADMIN (Manager+ only) ── -->
             <div id="tab-content-management" class="menu-tab-content">
-                <button id="adminDashBtn" class="menu-btn dark" style="display:none;background:linear-gradient(120deg,#ed3c7e,#176bb4);" onclick="openAdminDash()">&#128225; Live Dashboard &mdash; NCR Pulse &amp; Square</button>
-                <button id="commandCenterBtn" class="menu-btn dark" style="display:none;background:#176bb4;" onclick="openCommandCenter()">&#128202; Command Center</button>
+                <button id="adminDashBtn" class="menu-btn dark" style="display:none;background:linear-gradient(120deg,#ec3e7e,#106ab3);" onclick="openAdminDash()">&#128225; Live Dashboard &mdash; NCR Pulse &amp; Square</button>
+                <button id="commandCenterBtn" class="menu-btn dark" style="display:none;background:#106ab3;" onclick="openCommandCenter()">&#128202; Command Center</button>
                 <button id="salesBtn" class="menu-btn dark" style="display:none;background:#1b7a3d;" onclick="openSales()">&#128176; Daily Sales &amp; Labor</button>
                 <button id="primeCostBtn" class="menu-btn dark" style="display:none;background:#0f4d27;" onclick="openPrimeCost()">&#128202; Weekly Prime Cost</button>
                 <button id="managerBtn" class="menu-btn dark" style="display:none;" onclick="openDashboard()">&#128202; Manager Dashboard</button>
                 <button id="knowledgeBaseBtn" class="menu-btn dark" style="display:none;background:#0d6eaf;" onclick="openKnowledgeBase()">&#129504; AI Knowledge Base</button>
-                <button id="rosterBtn" class="menu-btn dark" style="display:none;background:#176bb4;" onclick="openRoster()">&#128101; Employee Roster</button>
+                <button id="rosterBtn" class="menu-btn dark" style="display:none;background:#106ab3;" onclick="openRoster()">&#128101; Employee Roster</button>
                 <button id="shortageTrendsBtn" class="menu-btn green" style="display:none;" onclick="openShortageTrends()">&#128200; Shortage Trends</button>
                 <button id="developerBtn" class="menu-btn dark" style="display:none;background:#222;" onclick="openTrainingPortal()">&#128187; Developer: Training Portal</button>
                 <button id="previewToggleBtn" class="menu-btn dark" style="display:none;background:#555;" onclick="togglePreviewMode()">&#128065; Preview as Staff (Hide Dev Tabs)</button>
@@ -773,7 +773,7 @@
 <!-- ADMIN LIVE DASHBOARD — NCR Pulse + Square -->
 <div id="adminDashView" class="app-view">
     <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
-    <div class="header" style="background:linear-gradient(135deg,#ed3c7e 0%,#176bb4 100%);">
+    <div class="header" style="background:linear-gradient(135deg,#ec3e7e 0%,#106ab3 100%);">
         <h1 style="font-size:40px;margin:10px 0;">&#128225;</h1>
         <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Live Dashboard</p>
     </div>
@@ -1511,7 +1511,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.18.0059';
+    const APP_VERSION = '2026.06.18.0118';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3964,7 +3964,7 @@
         var t=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
         var st='font-size:10px;letter-spacing:1px;color:#7a8a98;font-weight:800;text-transform:uppercase;';
         document.getElementById('adNcr').innerHTML=AD_STORES.map(function(s){
-            return '<div style="background:linear-gradient(100deg,#fbfdff,#f3f8fd);border:1px solid #e7eef5;border-left:5px solid #176bb4;border-radius:12px;padding:13px 15px;margin-bottom:9px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;">'+
+            return '<div style="background:linear-gradient(100deg,#fbfdff,#f3f8fd);border:1px solid #e7eef5;border-left:5px solid #106ab3;border-radius:12px;padding:13px 15px;margin-bottom:9px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;">'+
               '<span style="font-weight:900;font-size:15px;min-width:130px;">'+s.pin+' '+s.name+'</span>'+
               '<span style="display:flex;flex-direction:column;"><small style="'+st+'">Net Sales</small><b style="font-size:17px;color:#0f4d7e;">'+adMoney(s.sales)+'</b></span>'+
               '<span style="display:flex;flex-direction:column;"><small style="'+st+'">Labor</small><b style="font-size:16px;color:'+adLaborCol(s.labor)+';">'+s.labor.toFixed(1)+'%</b></span>'+
@@ -3979,7 +3979,7 @@
         document.getElementById('adRoutes').innerHTML=AD_ROUTES.map(function(r){
             return '<div style="background:#fff;border:1px solid #e7eef5;border-radius:12px;padding:13px 15px;margin-bottom:10px;box-shadow:0 3px 10px rgba(20,50,80,.05);">'+
               '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span style="font-weight:900;font-size:15px;">'+r.ic+' '+r.town+'</span><span style="margin-left:auto;font-weight:900;color:#1f7a3d;font-size:17px;">'+adMoney(r.rev)+'</span></div>'+
-              '<div style="height:12px;border-radius:999px;background:#eef4fa;overflow:hidden;"><i style="display:block;height:100%;width:'+Math.round(r.rev/max*100)+'%;background:linear-gradient(90deg,#ed3c7e,#176bb4);"></i></div>'+
+              '<div style="height:12px;border-radius:999px;background:#eef4fa;overflow:hidden;"><i style="display:block;height:100%;width:'+Math.round(r.rev/max*100)+'%;background:linear-gradient(90deg,#ec3e7e,#106ab3);"></i></div>'+
               '<div style="font-size:12px;color:#7a8a98;font-weight:700;margin-top:6px;">&#127847; '+r.cups.toLocaleString()+' cups served · this month</div>'+
             '</div>';
         }).join('');
@@ -5809,6 +5809,15 @@
 </div>
 
 <!-- AI CHAT WIDGET -->
+<!-- Mr. Scoopy scroll-to-top indicator -->
+<div id="scoopyTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top" style="display:none;position:fixed;left:16px;bottom:18px;z-index:9000;cursor:pointer;text-align:center;transition:transform .15s;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='none'">
+  <img src="scoopy-point.png" alt="Back to top" style="height:62px;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.28));pointer-events:none;" onerror="this.style.display='none'">
+  <div style="font-size:10px;font-weight:900;color:#fff;background:var(--caliches-pink);border-radius:999px;padding:2px 9px;box-shadow:0 2px 6px rgba(0,0,0,0.2);margin-top:-8px;display:inline-block;">&#9650; Top</div>
+</div>
+<script>
+  window.addEventListener('scroll', function(){ var b=document.getElementById('scoopyTop'); if(b) b.style.display=(window.scrollY>340)?'block':'none'; }, {passive:true});
+</script>
+
 <div id="aiChatWidget" style="display:none;">
     <div id="aiChatPanel" style="display:none;">
         <div id="aiChatHeader">
