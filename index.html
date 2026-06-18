@@ -1469,7 +1469,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.17.2337';
+    const APP_VERSION = '2026.06.17.2349';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3975,8 +3975,15 @@
         withPin(function(pin){
             supabaseClient.rpc('app_prime_save',{p_username:currentUser.username,p_password:pin,p_location:loc,p_week_start:wk,p_week_end:null,p_tax:pcNum('pcTax')/100,p_mgr_labor:pcNum('pcMgr'),p_begin:pcNum('pcBeg'),p_end:pcNum('pcEnd'),p_note:document.getElementById('pcNote').value.trim(),p_days:g.days,p_invoices:g.inv}).then(function(r){
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
-                alert('Saved for the week of '+wk+'. Your prime cost report will be built in your master format.');
-                loadPrimeRecent();
+                alert('Saved for the week of '+wk+'. Building your prime cost report in your master format…');
+                // Generate the filled .xlsx in the master format and file it to Dropbox (best effort).
+                var payload={store:loc,location:loc,week:wk,tax:pcNum('pcTax')/100,mgr:pcNum('pcMgr'),begin:pcNum('pcBeg'),end:pcNum('pcEnd'),days:g.days,invoices:g.inv};
+                fetch(G_URL,{method:'POST',body:new URLSearchParams({action:'prime_report',payload:JSON.stringify(payload)})}).then(function(rr){return rr.json();}).then(function(res){
+                    if(res&&res.result==='ok'&&res.url){
+                        withPin(function(pin2){ supabaseClient.rpc('app_prime_set_url',{p_username:currentUser.username,p_password:pin2,p_location:loc,p_week_start:wk,p_url:res.url}).then(function(){ loadPrimeRecent(); }); });
+                        alert('Report filed ✓  Saved to Dropbox, and downloadable from Recent Weeks.');
+                    } else { loadPrimeRecent(); }
+                }).catch(function(){ loadPrimeRecent(); });
             }).catch(function(){ alert('Connection error.'); });
         });
     }
@@ -3989,13 +3996,14 @@
                 var list=r.data||[];
                 if(!list.length){ c.innerHTML='<p style="color:#888;font-size:13px;margin:0;">No weeks saved yet.</p>'; return; }
                 function col(v,lo,hi){ if(v==null) return '#888'; if(v>hi) return '#c0264b'; if(v<lo) return '#b06a00'; return '#1b7a3d'; }
-                var html='<table style="width:100%;border-collapse:collapse;font-size:12.5px;"><tr style="color:#888;text-align:left;border-bottom:1px solid #eee;"><th style="padding:6px 3px;">Week</th><th>Net</th><th>Food%</th><th>Labor%</th><th>Prime%</th></tr>';
+                var html='<table style="width:100%;border-collapse:collapse;font-size:12.5px;"><tr style="color:#888;text-align:left;border-bottom:1px solid #eee;"><th style="padding:6px 3px;">Week</th><th>Net</th><th>Food%</th><th>Labor%</th><th>Prime%</th><th></th></tr>';
                 list.forEach(function(w){
                     html+='<tr style="border-bottom:1px solid #f3f3f3;"><td style="padding:6px 3px;">'+escapeHtml(w.week_start)+'</td>'+
                         '<td>'+pcMoney(w.net||0)+'</td>'+
                         '<td style="font-weight:bold;color:'+col(w.food_pct,30,33)+';">'+(w.food_pct!=null?w.food_pct+'%':'—')+'</td>'+
                         '<td style="font-weight:bold;color:'+col(w.labor_pct,18,23)+';">'+(w.labor_pct!=null?w.labor_pct+'%':'—')+'</td>'+
-                        '<td style="font-weight:bold;color:'+col(w.prime_pct,48,56)+';">'+(w.prime_pct!=null?w.prime_pct+'%':'—')+'</td></tr>';
+                        '<td style="font-weight:bold;color:'+col(w.prime_pct,48,56)+';">'+(w.prime_pct!=null?w.prime_pct+'%':'—')+'</td>'+
+                        '<td>'+(w.xlsx_url?'<a href="'+escapeHtml(w.xlsx_url)+'" target="_blank" style="color:#0f4d27;font-weight:bold;text-decoration:none;">&#128202; Excel</a>':'')+'</td></tr>';
                 });
                 html+='</table>';
                 c.innerHTML=html;
