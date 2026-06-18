@@ -101,7 +101,13 @@
         .menu-tab.active { background:linear-gradient(135deg,var(--caliches-pink),var(--caliches-blue)); color:#fff; border-color:transparent; box-shadow:0 3px 12px rgba(237,60,126,0.3); }
         .menu-tab:active { transform:scale(0.97); }
         .menu-tab-content { display:none; }
-        .menu-tab-content.tab-visible { display:block; min-height:58vh; }
+        .menu-tab-content.tab-visible { display:flex; flex-wrap:wrap; gap:12px; align-content:flex-start; min-height:58vh; }
+        .menu-tab-content .menu-btn { flex:1 1 230px; margin-bottom:0; }
+        .menu-tab-content > p, .menu-tab-content > #futureIntegrations { flex-basis:100%; }
+        .sec-mascot { flex-basis:100%; display:flex; align-items:center; gap:11px; margin:2px 0 2px; }
+        .sec-mascot img { height:46px; width:auto; filter:drop-shadow(0 3px 5px rgba(0,0,0,0.15)); }
+        .sec-mascot span { font-weight:900; color:var(--caliches-blue); font-size:15px; line-height:1.2; }
+        @media(max-width:520px){ .menu-tab-content .menu-btn { flex-basis:100%; } .sec-mascot img{height:40px;} }
         .hub-layout { display:flex; gap:12px; align-items:flex-start; text-align:left; }
         .hub-sidebar { flex:0 0 84px; display:flex; flex-direction:column; align-items:center; gap:16px; position:sticky; top:15px; }
         .hub-sidebar .hub-logo { width:100%; max-width:84px; height:auto; filter:drop-shadow(0px 4px 8px rgba(0,0,0,0.2)); }
@@ -439,6 +445,7 @@
 
             <!-- ── HOME ── -->
             <div id="tab-content-home" class="menu-tab-content tab-visible">
+                <div class="sec-mascot"><img src="scoopy-wave.png" alt="" onerror="this.style.display='none'"><span>Welcome &mdash; here's your home base</span></div>
                 <button id="btn-empHome" class="menu-btn" style="background:var(--caliches-pink);" onclick="openEmployeeHome()">&#127968; My Home</button>
                 <button id="btn-messages" class="menu-btn" style="background:#6a3fb5;" onclick="openMessages()">&#128172; Messages</button>
                 <button id="btn-formsDocs" class="menu-btn" style="background:#106ab3;" onclick="openFormsLinks()">&#128196; Forms &amp; Documents</button>
@@ -446,6 +453,7 @@
 
             <!-- ── SCHEDULING ── -->
             <div id="tab-content-scheduling" class="menu-tab-content">
+                <div class="sec-mascot"><img src="poochie-point.png" alt="" onerror="this.style.display='none'"><span>Scheduling &mdash; shifts, tours &amp; checklists</span></div>
                 <button id="btn-scheduling" class="menu-btn" style="background:#5b3fb8;" onclick="openScheduling()">&#128197; Shift Schedules</button>
                 <button id="btn-driver" class="menu-btn pink" onclick="openForm('driverView')">&#128666; Driver Checklist &mdash; Vehicle &amp; Trailer</button>
                 <button id="requestsBtn" class="menu-btn dark" style="display:none;background:#0d6eaf;" onclick="openRequests()">&#128197; Time-Off &amp; Swap Requests</button>
@@ -454,6 +462,7 @@
 
             <!-- ── STORE OPERATIONS ── -->
             <div id="tab-content-operations" class="menu-tab-content">
+                <div class="sec-mascot"><img src="cherry-wave.png" alt="" onerror="this.style.display='none'"><span>Store Operations &mdash; daily tasks &amp; logs</span></div>
                 <button id="btn-popIn" class="menu-btn" onclick="openPopIn()">&#128203; Store Pop-In Inspection</button>
                 <button id="btn-tempLogs" class="menu-btn" style="background:#0e7c7b;" onclick="openTempLogs()">&#127777; Temperature Logs</button>
                 <button id="btn-checklists" class="menu-btn" style="background:#2e7d32;" onclick="openChecklists()">&#9989; Shift Checklists</button>
@@ -468,6 +477,7 @@
 
             <!-- ── FLEET &amp; CATERING ── -->
             <div id="tab-content-fleet" class="menu-tab-content">
+                <div class="sec-mascot"><img src="poochie-dog.png" alt="" onerror="this.style.display='none'"><span>Mobile Vending &amp; Catering</span></div>
                 <button class="menu-btn pink" onclick="openForm('driverView')">&#128666; Vehicle &amp; Trailer Check-Out</button>
                 <button id="quotesBtn" class="menu-btn purple" style="display:none;" onclick="openForm('quotesView')">&#128221; Create Catering Quote</button>
                 <button id="salesPipelineBtn" class="menu-btn purple" style="display:none;" onclick="openSalesPipeline()">&#128202; Sales Pipeline</button>
@@ -476,6 +486,7 @@
 
             <!-- ── ADMIN (Manager+ only) ── -->
             <div id="tab-content-management" class="menu-tab-content">
+                <div class="sec-mascot"><img src="scoopy-cheer.png" alt="" onerror="this.style.display='none'"><span>Admin Dashboard &mdash; metrics &amp; tools</span></div>
                 <button id="adminDashBtn" class="menu-btn dark" style="display:none;background:linear-gradient(120deg,#ec3e7e,#106ab3);" onclick="openAdminDash()">&#128225; Live Dashboard &mdash; NCR Pulse &amp; Square</button>
                 <button id="commandCenterBtn" class="menu-btn dark" style="display:none;background:#106ab3;" onclick="openCommandCenter()">&#128202; Command Center</button>
                 <button id="salesBtn" class="menu-btn dark" style="display:none;background:#1b7a3d;" onclick="openSales()">&#128176; Daily Sales &amp; Labor</button>
@@ -1511,7 +1522,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.18.0118';
+    const APP_VERSION = '2026.06.18.0126';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
