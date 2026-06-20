@@ -240,7 +240,7 @@
         #draftToast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.82);color:white;padding:10px 22px;border-radius:99px;font-size:14px;font-weight:bold;display:none;z-index:99999;pointer-events:none;white-space:nowrap}
         /* Modal Overlay */
         .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:99998;justify-content:center;align-items:center;padding:20px;box-sizing:border-box}
-        .modal-box{background:white;border-radius:16px;padding:30px 25px;width:100%;max-width:380px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.3)}
+        .modal-box{background:white;border-radius:16px;padding:30px 25px;width:100%;max-width:380px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.3);max-height:calc(100vh - 40px);overflow-y:auto;-webkit-overflow-scrolling:touch}
         .modal-input{width:100%;padding:14px;border:2px solid #eee;border-radius:8px;font-size:16px;margin-bottom:12px;box-sizing:border-box}
         /* ── KNOWLEDGE BASE ── */
         #kbView .kb-category { margin-bottom:28px; }
@@ -1860,7 +1860,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.20.1357';
+    const APP_VERSION = '2026.06.20.1412';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
