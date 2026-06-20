@@ -383,8 +383,11 @@
         .hbn-item{ flex:0 0 auto; flex-direction:row; gap:13px; justify-content:flex-start; align-items:center; padding:13px 22px; font-size:14px; border-radius:0; }
         .hbn-item .hbn-ic{ font-size:20px; }
         .hbn-item.active{ background:rgba(16,106,179,0.08); box-shadow:inset 4px 0 0 var(--caliches-pink); }
-        /* Personal Home reads best as a centered column; section lists fill the width as a grid */
+        /* Personal Home + segmented Scheduling read best as a centered column; card lists fill the width */
         #tab-content-home.tab-visible{ max-width:720px; margin-left:auto; margin-right:auto; }
+        #tab-content-scheduling.tab-visible{ max-width:760px; margin-left:auto; margin-right:auto; }
+        /* Segmented controls + their panes always take a full row (fixes the cramped/overlapping Schedule & Maintenance) */
+        .menu-tab-content .seg, .menu-tab-content .sched-pane{ flex-basis:100% !important; width:100%; }
         .menu-tab-content.tab-visible{ gap:16px; }
         /* Forms get a touch more room */
         .container{ max-width:860px; }
@@ -1814,7 +1817,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.20.0014';
+    const APP_VERSION = '2026.06.20.0110';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
