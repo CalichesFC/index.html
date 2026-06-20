@@ -963,7 +963,7 @@
         <div id="adRoutes"></div>
         <h3 style="margin:24px 0 8px;color:#0f4d27;">&#127881; Catering &mdash; Text-to-Pay</h3>
         <div id="adCater" style="background:#fff;border-radius:12px;padding:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);"></div>
-        <p style="font-size:12px;color:#888;margin-top:12px;">Placeholder figures for now &mdash; we'll wire these to live NCR &amp; Square data next.</p>
+        <p style="font-size:12px;color:#888;margin-top:12px;">Store sales &amp; labor above are live from your <b>Daily Sales &amp; Labor</b> entries (refreshes every minute). Square &amp; catering figures below are still illustrative.</p>
     </div>
 </div>
 <style>@keyframes adpulse{0%{box-shadow:0 0 0 0 rgba(31,157,87,.5)}70%{box-shadow:0 0 0 9px rgba(31,157,87,0)}100%{box-shadow:0 0 0 0 rgba(31,157,87,0)}}</style>
@@ -1700,7 +1700,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.19.2207';
+    const APP_VERSION = '2026.06.19.2312';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4378,9 +4378,47 @@
         if(adTimer) clearInterval(adTimer);
         adTimer=setInterval(function(){
             if(document.getElementById('adminDashView').style.display!=='block'){ clearInterval(adTimer); return; }
-            AD_STORES.forEach(function(s){ s.sales+=Math.floor(Math.random()*60); s.tx+=(Math.random()<0.5?1:0); s.labor=Math.max(15,Math.min(27,s.labor+(Math.random()-0.5)*0.3)); });
-            adRenderNcr();
-        }, 4000);
+            adLoadNcr();
+        }, 60000);
+    }
+    // Pull the latest real day per store from the Daily Sales & Labor feed (app_sales_recent).
+    function adLoadNcr(){
+        var box=document.getElementById('adNcr'); if(!box) return;
+        var stores=['Roadrunner','Valley','Lenox','Alamogordo','Roswell'];
+        if(box.getAttribute('data-loaded')!=='1') box.innerHTML='<p style="color:#888;font-size:13px;">Loading store sales&hellip;</p>';
+        withPin(function(pin){
+            var results={}, pending=stores.length, gotErr=false;
+            function done(){ pending--; if(pending===0){ box.setAttribute('data-loaded','1'); adRenderNcrReal(stores, results, gotErr); } }
+            stores.forEach(function(loc){
+                supabaseClient.rpc('app_sales_recent',{p_username:currentUser.username,p_password:pin,p_location:loc,p_days:30}).then(function(r){
+                    if(r.error){ if(r.error.code==='42501') sessionPin=null; gotErr=true; }
+                    else if(r.data && r.data.length){ var latest=r.data[0]; r.data.forEach(function(d){ if((d.date||'')>(latest.date||'')) latest=d; }); results[loc]=latest; }
+                    done();
+                }).catch(function(){ done(); });
+            });
+        }, function(){ box.innerHTML='<p style="color:#888;font-size:13px;">PIN required to load sales.</p>'; });
+    }
+    function adRenderNcrReal(stores, results, gotErr){
+        var pins={Roadrunner:'🛣️',Valley:'🌄',Lenox:'🏙️',Alamogordo:'🌵',Roswell:'🛸'};
+        var st='font-size:10px;letter-spacing:1px;color:#7a8a98;font-weight:800;text-transform:uppercase;';
+        var any=false;
+        var html=stores.map(function(loc){
+            var d=results[loc]; var pin=pins[loc]||'🏪';
+            if(!d){ return '<div style="background:#f7f9fb;border:1px solid #e7eef5;border-left:5px solid #c9d4de;border-radius:12px;padding:13px 15px;margin-bottom:9px;display:flex;align-items:center;gap:12px;">'+
+                '<span style="font-weight:900;font-size:15px;min-width:130px;">'+pin+' '+loc+'</span>'+
+                '<span style="color:#9aa7b4;font-size:13px;">No sales entered yet</span></div>'; }
+            any=true;
+            var lp=d.labor_pct; var laborCol=(lp==null)?'#7a8a98':(lp>23?'#c0264b':(lp<18?'#b06a00':'#1f7a3d'));
+            return '<div style="background:linear-gradient(100deg,#fbfdff,#f3f8fd);border:1px solid #e7eef5;border-left:5px solid #106ab3;border-radius:12px;padding:13px 15px;margin-bottom:9px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;">'+
+              '<span style="font-weight:900;font-size:15px;min-width:130px;">'+pin+' '+loc+'</span>'+
+              '<span style="display:flex;flex-direction:column;"><small style="'+st+'">Net Sales</small><b style="font-size:17px;color:#0f4d7e;">'+(d.gross!=null?adMoney(d.gross):'—')+'</b></span>'+
+              '<span style="display:flex;flex-direction:column;"><small style="'+st+'">Labor</small><b style="font-size:16px;color:'+laborCol+';">'+(lp!=null?lp+'%':'—')+'</b></span>'+
+              '<span style="display:flex;flex-direction:column;"><small style="'+st+'">Transactions</small><b style="font-size:17px;">'+(d.tx!=null?d.tx:'—')+'</b></span>'+
+              '<span style="margin-left:auto;font-size:11px;color:#7a8a98;font-weight:700;">&#9679; '+escapeHtml(d.date||'')+'</span>'+
+            '</div>';
+        }).join('');
+        if(gotErr && !any){ html='<p style="color:#c0264b;font-size:13px;">Could not load sales for these stores — check access.</p>'; }
+        document.getElementById('adNcr').innerHTML=html;
     }
     function adRenderNcr(){
         var t=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
@@ -4396,7 +4434,7 @@
         }).join('');
     }
     function adRender(){
-        adRenderNcr();
+        adLoadNcr();
         var max=Math.max.apply(null, AD_ROUTES.map(function(r){return r.rev;}));
         document.getElementById('adRoutes').innerHTML=AD_ROUTES.map(function(r){
             return '<div style="background:#fff;border:1px solid #e7eef5;border-radius:12px;padding:13px 15px;margin-bottom:10px;box-shadow:0 3px 10px rgba(20,50,80,.05);">'+
