@@ -278,6 +278,98 @@
         #aiSendBtn { background:var(--caliches-blue); color:#fff; border:none; border-radius:20px; padding:9px 16px; font-weight:bold; cursor:pointer; font-size:13px; white-space:nowrap; }
         @media (max-width:400px) { #aiChatPanel { width:calc(100vw - 32px); } }
     </style>
+    <style id="caliches-theme">
+    /* ===== NEW LOOK — Since '96 (day) + Dark Scoop (night) =====
+       Everything here is scoped under body.newlook so the ORIGINAL design stays
+       fully in the code, just hidden. Remove the 'newlook' class to restore it. */
+    body.newlook{
+        --pg:#fdf6ec; --surface:#fffdf8; --txt:#2f2a24; --txt2:#8a7f6c; --bd:#e7d9c0;
+        --nav-bg:#fffaf2; --hero-grad:linear-gradient(120deg,#fffdf8,#fdecdc);
+        --card-shadow:2px 3px 0 rgba(184,150,104,.28);
+        background:var(--pg) !important; color:var(--txt); transition:background .25s ease;
+    }
+    body.newlook.night{
+        --pg:#0f1b2d; --surface:#16243c; --txt:#dce6f2; --txt2:#90a6c2; --bd:#27374f;
+        --nav-bg:#13233b; --hero-grad:linear-gradient(120deg,#16243c,#1d2e4c);
+        --card-shadow:0 4px 14px rgba(0,0,0,.45);
+    }
+    body.newlook .hub-hero{ background:var(--hero-grad) !important; border-color:var(--bd) !important; box-shadow:var(--card-shadow) !important; }
+    body.newlook .hub-hero h2{ color:var(--txt) !important; font-family:Georgia,'Times New Roman',serif; }
+    body.newlook .hub-hero p{ color:var(--txt2) !important; }
+    body.newlook .menu-tab-content .menu-btn{ background:var(--surface) !important; color:var(--txt) !important; border-color:var(--bd) !important; box-shadow:var(--card-shadow) !important; }
+    body.newlook .menu-tab-content .menu-btn b{ color:var(--txt) !important; }
+    body.newlook .menu-tab-content .menu-btn small{ color:var(--txt2) !important; }
+    body.newlook .qcard{ background:var(--surface) !important; border-color:var(--bd) !important; box-shadow:var(--card-shadow) !important; }
+    body.newlook .qcard b{ color:var(--txt) !important; } body.newlook .qcard small{ color:var(--txt2) !important; }
+    body.newlook .sec-title h2{ color:var(--txt) !important; font-family:Georgia,'Times New Roman',serif; font-style:italic; }
+    body.newlook .sec-title .tag{ color:var(--txt2) !important; }
+    body.newlook .home-card{ background:var(--surface) !important; border:1px solid var(--bd); border-left:5px solid var(--caliches-blue) !important; box-shadow:var(--card-shadow) !important; color:var(--txt); }
+    body.newlook .home-card-label{ color:var(--txt2) !important; }
+    body.newlook .home-clock-btn{ box-shadow:var(--card-shadow) !important; }
+    body.newlook #homeTasksCard > div{ background:var(--surface) !important; border:1px solid var(--bd) !important; box-shadow:var(--card-shadow) !important; }
+    body.newlook.night #homeTasksCard div, body.newlook.night #homeTasksCard span{ color:var(--txt) !important; }
+    body.newlook .hub-bottom-nav{ background:var(--nav-bg) !important; border-top:1px solid var(--bd) !important; }
+    body.newlook .seg{ background:var(--bd) !important; }
+    body.newlook .sgb{ color:var(--txt2); } body.newlook .sgb.on{ background:var(--surface) !important; color:var(--caliches-blue) !important; }
+    body.newlook .sec-back{ color:var(--caliches-blue) !important; }
+    /* ---- Form / report screens — consistent across the whole app, day & night ---- */
+    body.newlook .info-group, body.newlook .category{ background:var(--surface) !important; }
+    body.newlook .form-label{ color:var(--txt) !important; }
+    body.newlook .category h2{ border-bottom-color:var(--bd) !important; }
+    body.newlook .checkbox-item, body.newlook .checkbox-item label{ color:var(--txt) !important; }
+    body.newlook .info-group input, body.newlook .info-group select, body.newlook .info-group textarea,
+    body.newlook .category input[type="text"], body.newlook .category input[type="number"],
+    body.newlook .category select, body.newlook .category textarea{ background:var(--pg) !important; color:var(--txt) !important; border-color:var(--bd) !important; }
+    body.newlook .photo-btn{ background:var(--bd) !important; color:var(--txt) !important; }
+    body.newlook .training-card{ background:var(--surface) !important; }
+    /* ---- Modals + Settings (brand pink) ---- */
+    body.newlook .modal-box{ background:var(--surface) !important; color:var(--txt); }
+    body.newlook .modal-input{ background:var(--pg) !important; color:var(--txt) !important; border-color:var(--bd) !important; }
+    body.newlook .settings-section{ border-bottom-color:var(--bd) !important; }
+    body.newlook .settings-section h3{ color:var(--caliches-pink) !important; }
+    body.newlook .settings-row p{ color:var(--txt2) !important; }
+    body.newlook .settings-btn{ background:var(--surface) !important; color:var(--caliches-pink) !important; border-color:var(--bd) !important; }
+    /* ---- Since '96 candy stripe under the header + EST badge ---- */
+    .retro-stripe{ display:none; }
+    body.newlook .retro-stripe{ display:block; height:7px; margin:8px 0 2px; border-radius:4px; background:repeating-linear-gradient(90deg,var(--caliches-pink) 0 13px,#ffffff 13px 26px,var(--caliches-blue) 26px 39px,#ffffff 39px 52px); }
+    body.newlook.night .retro-stripe{ background:repeating-linear-gradient(90deg,var(--caliches-pink) 0 13px,#16243c 13px 26px,var(--caliches-blue) 26px 39px,#16243c 39px 52px); }
+    body.newlook .appbar-title small{ border:1px solid rgba(255,255,255,.6); padding:1px 6px; border-radius:4px; display:inline-block; margin-top:3px; }
+    /* ---- Pink-forward LIGHT theme (option 2) ---- */
+    body.newlook .home-clock-btn{ background:var(--caliches-blue) !important; }
+    body.newlook.pinklight .user-profile-bar.appbar{ background:var(--caliches-pink) !important; }
+    body.newlook.pinklight .home-clock-btn{ background:var(--caliches-pink) !important; }
+    body.newlook.pinklight .home-card{ border-left-color:var(--caliches-pink) !important; }
+    body.newlook.pinklight .hbn-item.active{ color:var(--caliches-pink) !important; }
+    body.newlook.pinklight .sgb.on{ color:var(--caliches-pink) !important; }
+    body.newlook.pinklight .sec-back{ color:var(--caliches-pink) !important; }
+    body.newlook.pinklight #homeDayCard [style*="caliches-blue"], body.newlook.pinklight #homeTasksCard [style*="185FA5"]{ color:var(--caliches-pink) !important; }
+    /* ===== App-wide coverage — every screen, all three choices ===== */
+    /* Inline white / very-light cards -> themed surface (cream in light, navy in dark) */
+    body.newlook [style*="background:#fff;"], body.newlook [style*="background:#fff "], body.newlook [style*="background: #fff"],
+    body.newlook [style*="background:#ffffff"], body.newlook [style*="background: #ffffff"],
+    body.newlook [style*="background:white"], body.newlook [style*="background: white"],
+    body.newlook [style*="background-color:#fff"], body.newlook [style*="background-color: #fff"],
+    body.newlook [style*="background-color:white"], body.newlook [style*="background-color:#ffffff"],
+    body.newlook [style*="background:#fafafa"], body.newlook [style*="background:#f9f9f9"],
+    body.newlook [style*="background:#f8f9fa"], body.newlook [style*="background:#f7f5fb"],
+    body.newlook [style*="background:#f0f4"], body.newlook [style*="background:#fafbff"]{ background:var(--surface) !important; }
+    /* Dark: lift near-black inline text so it stays readable on navy */
+    body.newlook.night [style*="color:#333"], body.newlook.night [style*="color: #333"],
+    body.newlook.night [style*="color:#222"], body.newlook.night [style*="color:#444"],
+    body.newlook.night [style*="color:#555"], body.newlook.night [style*="color:#666"],
+    body.newlook.night [style*="color:#23303a"], body.newlook.night [style*="color:#2a3642"],
+    body.newlook.night [style*="color:#3a4654"], body.newlook.night [style*="color:#444441"]{ color:var(--txt) !important; }
+    body.newlook.night [style*="color:#888"], body.newlook.night [style*="color:#999"],
+    body.newlook.night [style*="color:#aaa"], body.newlook.night [style*="color:#7a8a98"],
+    body.newlook.night [style*="color:#8794a3"]{ color:var(--txt2) !important; }
+    /* Pink choice: flip the common blue accents to brand pink across pages */
+    body.newlook.pinklight [style*="color:#106ab3"], body.newlook.pinklight [style*="color:#185FA5"],
+    body.newlook.pinklight [style*="color:#0f4d7e"], body.newlook.pinklight [style*="color:#0f4d27"]{ color:var(--caliches-pink) !important; }
+    body.newlook.pinklight [style*="background:#106ab3"], body.newlook.pinklight [style*="background-color:#106ab3"],
+    body.newlook.pinklight [style*="background:#185FA5"]{ background:var(--caliches-pink) !important; }
+    /* Hide the day/night toggle when the new look is off, so the classic design is untouched */
+    body:not(.newlook) #nightToggle{ display:none !important; }
+    </style>
 </head>
 <body>
 
@@ -451,10 +543,12 @@
             </div>
             <button id="announceBtn" class="icon-circle-btn" onclick="openAnnouncementEditor()" title="Announcement" style="display:none;">&#128227;</button>
             <button id="topMessagesBtn" class="icon-circle-btn" onclick="openMessages()" title="Messages">&#128172;</button>
+            <button id="nightToggle" class="icon-circle-btn" onclick="toggleNight()" title="Day / Night view">&#127769;</button>
             <button id="settingsBtn" class="icon-circle-btn" onclick="openSettings()" title="Settings">&#9881;&#65039;</button>
             <button class="logout-btn" onclick="logout()">Logout</button>
         </div>
     </div>
+    <div class="retro-stripe"></div>
     <div id="announcementBar" class="announcement-bar">
         <span class="announce-text" id="announcementText"></span>
         <button class="announce-close" onclick="dismissAnnouncement()" title="Dismiss">&times;</button>
@@ -1700,7 +1794,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.19.2312';
+    const APP_VERSION = '2026.06.19.2357';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -1742,6 +1836,29 @@
         { key:'maintenance', label:'Maint.', btnId:'btn-maintenance' },
         { key:'damage', label:'Damage', btnId:'btn-damage' }
     ];
+
+    // ── Theme switch: Blue Light → Pink Light → Dark Scoop ──
+    var CAL_THEMES=['blue','pink','dark'];
+    var CAL_ICON={ blue:'&#128162;', pink:'&#127800;', dark:'&#127769;' }; // 💢-style blue, 🌸, 🌙
+    var CAL_TITLE={ blue:'Theme: Blue (light) — tap for Pink', pink:'Theme: Pink (light) — tap for Dark', dark:'Theme: Dark Scoop — tap for Blue' };
+    function applyTheme(t){
+        if(CAL_THEMES.indexOf(t)<0) t='blue';
+        document.body.classList.remove('pinklight','night');
+        if(t==='pink') document.body.classList.add('pinklight');
+        else if(t==='dark') document.body.classList.add('night');
+        try{ localStorage.setItem('calichesTheme', t); }catch(e){}
+        var b=document.getElementById('nightToggle'); if(b){ b.innerHTML=CAL_ICON[t]; b.title=CAL_TITLE[t]; }
+    }
+    function applyNightPref(){
+        var t='blue'; try{ t=localStorage.getItem('calichesTheme')||'blue'; }catch(e){}
+        applyTheme(t);
+    }
+    function toggleNight(){
+        var cur='blue'; try{ cur=localStorage.getItem('calichesTheme')||'blue'; }catch(e){}
+        var i=CAL_THEMES.indexOf(cur); if(i<0) i=0;
+        applyTheme(CAL_THEMES[(i+1)%CAL_THEMES.length]);
+    }
+    try{ document.body.classList.add('newlook'); applyNightPref(); }catch(e){}
 
     function isPreviewMode() { return localStorage.getItem('calichesPreviewMode') === 'on'; }
 
