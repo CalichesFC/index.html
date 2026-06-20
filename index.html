@@ -519,7 +519,7 @@
         <div id="tab-content-scheduling" class="menu-tab-content">
             <button class="sec-back" onclick="hubNav('more')">&#8249; All Sections</button>
             <div class="sec-title"><h2>📅 Scheduling</h2><span class="tag">Shifts, tours &amp; checklists</span></div>
-            <div class="seg" id="schedSeg">
+            <div class="seg" id="schedSegBar">
                 <button class="sgb on" id="schedSegMine" onclick="schedSeg('mine')">My Shifts</button>
                 <button class="sgb" id="schedSegBuild" style="display:none;" onclick="schedSeg('build')">Build</button>
             </div>
@@ -548,10 +548,20 @@
             <button id="btn-inventory" class="menu-btn" onclick="openInventory()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128230;</span><b>Inventory &amp; Supplies</b><small>Counts, par &amp; reorders</small></button>
             <button id="btn-shortage" class="menu-btn" onclick="openForm('shortageView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128722;</span><b>Report Shortages</b><small>Request items from the office</small></button>
             <button id="btn-discipline" class="menu-btn" style="display:none;" onclick="openDiscipline()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#9888;</span><b>Disciplinary Actions</b><small>Verbal &rarr; written &rarr; final</small></button>
-            <button id="btn-maintenance" class="menu-btn" onclick="openForm('maintenanceView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128295;</span><b>Required Maintenance</b><small>Flag a repair</small></button>
-            <button id="btn-damage" class="menu-btn" onclick="openForm('damageView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#9888;</span><b>Vehicle / Trailer Damage</b><small>Report damage with photos</small></button>
+            <div class="sec-title" style="margin-top:8px;"><h2 style="font-size:15px;">Maintenance &amp; Damage</h2></div>
+            <div class="seg" id="maintSegBar">
+                <button class="sgb on" id="maintSegReport" onclick="maintSeg('report')">Report</button>
+                <button class="sgb" id="maintSegBoard" style="display:none;" onclick="maintSeg('board')">Board</button>
+            </div>
+            <div id="maintPaneReport" class="sched-pane">
+                <button id="btn-maintenance" class="menu-btn" onclick="openForm('maintenanceView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128295;</span><b>Required Maintenance</b><small>Flag a repair</small></button>
+                <button id="btn-damage" class="menu-btn" onclick="openForm('damageView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#9888;</span><b>Vehicle / Trailer Damage</b><small>Report damage with photos</small></button>
+            </div>
+            <div id="maintPaneBoard" class="sched-pane" style="display:none;">
+                <button id="maintBoardBtn" class="menu-btn" style="display:none;" onclick="openMaintenanceBoard()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128295;</span><b>Maintenance Board</b><small>Track &amp; prioritize repairs</small></button>
+            </div>
+            <div class="sec-title" style="margin-top:8px;"><h2 style="font-size:15px;">More</h2></div>
             <button id="mySubmissionsBtn" class="menu-btn" onclick="openMySubmissions()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128203;</span><b>My Submissions</b><small>Your past reports</small></button>
-            <button id="maintBoardBtn" class="menu-btn" style="display:none;" onclick="openMaintenanceBoard()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128295;</span><b>Maintenance Board</b><small>Track &amp; prioritize repairs</small></button>
         </div>
 
         <!-- ── MOBILE VENDING &amp; CATERING ── -->
@@ -644,6 +654,26 @@
     </div>
     <div class="container" style="max-width:760px;">
         <div id="empHomeContent"><p style="text-align:center;padding:30px;color:#888;">Loading your info...</p></div>
+    </div>
+</div>
+
+<!-- TASKS (My Tasks / Assign) -->
+<div id="tasksView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
+    <div class="header" style="background:linear-gradient(135deg,var(--caliches-blue) 0%,var(--caliches-pink) 100%);">
+        <h1 style="font-size:40px;margin:10px 0;">&#9989;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Tasks</p>
+    </div>
+    <div class="container" style="max-width:760px;">
+        <div class="seg" id="taskSegBar">
+            <button class="sgb on" id="taskSegMine" onclick="taskSeg('mine')">My Tasks</button>
+            <button class="sgb" id="taskSegAssign" style="display:none;" onclick="taskSeg('assign')">Assign</button>
+        </div>
+        <div id="taskPaneMine"><div id="tasksMineCard"></div></div>
+        <div id="taskPaneAssign" style="display:none;">
+            <button class="menu-btn" onclick="openTaskAssign()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128203;</span><b>Assign a Task</b><small>Send to people, a store, a role, or everyone</small></button>
+            <p style="font-size:13px;color:#888;text-align:center;margin:10px 4px 0;">Assigned tasks show up on each person's Home and here under My Tasks.</p>
+        </div>
     </div>
 </div>
 
@@ -1655,7 +1685,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.19.2108';
+    const APP_VERSION = '2026.06.19.2116';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -1716,7 +1746,43 @@
         if (content) content.classList.add('tab-visible');
         if (tab === 'home' && typeof loadHomeDay === 'function') loadHomeDay();
         if (tab === 'scheduling' && typeof schedInit === 'function') schedInit();
+        if (tab === 'operations' && typeof opsInit === 'function') opsInit();
         syncBottomNav(tab);
+    }
+
+    // ── Maintenance & Damage segment (Report / Board) ──
+    function opsInit() {
+        var board = document.getElementById('maintBoardBtn');
+        var seg = document.getElementById('maintSegBoard');
+        var canBoard = board && board.style.display !== 'none';
+        if (seg) seg.style.display = canBoard ? 'block' : 'none';
+        maintSeg('report');
+    }
+    function maintSeg(which) {
+        var rep = (which === 'report');
+        var pr = document.getElementById('maintPaneReport'); if (pr) pr.style.display = rep ? 'block' : 'none';
+        var pb = document.getElementById('maintPaneBoard'); if (pb) pb.style.display = rep ? 'none' : 'block';
+        var br = document.getElementById('maintSegReport'); if (br) br.classList.toggle('on', rep);
+        var bb = document.getElementById('maintSegBoard'); if (bb) bb.classList.toggle('on', !rep);
+    }
+
+    // ── Merged Tasks screen (My Tasks / Assign) ──
+    function openTasks() {
+        document.getElementById('main-menu').style.display = 'none';
+        document.querySelectorAll('.app-view').forEach(function(v){ v.style.display = 'none'; });
+        document.getElementById('tasksView').style.display = 'block';
+        window.scrollTo(0, 0);
+        var mgr = (typeof schedIsMgr === 'function') && schedIsMgr();
+        var sa = document.getElementById('taskSegAssign'); if (sa) sa.style.display = mgr ? 'block' : 'none';
+        taskSeg('mine');
+        loadMyTasks('tasksMineCard');
+    }
+    function taskSeg(which) {
+        var mine = (which === 'mine');
+        var pm = document.getElementById('taskPaneMine'); if (pm) pm.style.display = mine ? 'block' : 'none';
+        var pa = document.getElementById('taskPaneAssign'); if (pa) pa.style.display = mine ? 'none' : 'block';
+        var bm = document.getElementById('taskSegMine'); if (bm) bm.classList.toggle('on', mine);
+        var ba = document.getElementById('taskSegAssign'); if (ba) ba.classList.toggle('on', !mine);
     }
 
     // ── Merged Schedule screen (My Shifts / Build) ──
@@ -1784,7 +1850,7 @@
     function hubNav(dest) {
         if (dest === 'home') { ensureMenuVisible(); switchMenuTab('home'); window.scrollTo(0,0); }
         else if (dest === 'schedule') { ensureMenuVisible(); switchMenuTab('scheduling'); window.scrollTo(0,0); }
-        else if (dest === 'tasks') { openEmployeeHome(); }
+        else if (dest === 'tasks') { openTasks(); }
         else if (dest === 'more') { ensureMenuVisible(); switchMenuTab('sections'); window.scrollTo(0,0); }
     }
 
@@ -4547,7 +4613,9 @@
                 btn.disabled=false;
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; msg.style.color='#c0264b'; msg.innerText='Error: '+r.error.message; return; }
                 closeTaskAssign();
-                if(document.getElementById('employeeHomeView').style.display==='block') loadMyTasks();
+                var tv=document.getElementById('tasksView');
+                if(document.getElementById('employeeHomeView').style.display==='block') loadMyTasks('empTasksCard');
+                else if(tv && tv.style.display==='block') loadMyTasks('tasksMineCard');
                 else alert('Task assigned.');
             }).catch(function(){ btn.disabled=false; msg.style.color='#c0264b'; msg.innerText='Connection error.'; });
         }, function(){ btn.disabled=false; });
