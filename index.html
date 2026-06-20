@@ -667,9 +667,14 @@
     <div class="container" style="max-width:760px;">
         <div class="seg" id="taskSegBar">
             <button class="sgb on" id="taskSegMine" onclick="taskSeg('mine')">My Tasks</button>
+            <button class="sgb" id="taskSegTeam" style="display:none;" onclick="taskSeg('team')">Team</button>
             <button class="sgb" id="taskSegAssign" style="display:none;" onclick="taskSeg('assign')">Assign</button>
         </div>
         <div id="taskPaneMine"><div id="tasksMineCard"></div></div>
+        <div id="taskPaneTeam" style="display:none;">
+            <div id="teamTasksHint" style="font-size:12px;color:#888;margin:0 2px 10px;"></div>
+            <div id="teamTasksList"></div>
+        </div>
         <div id="taskPaneAssign" style="display:none;">
             <button class="menu-btn" onclick="openTaskAssign()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128203;</span><b>Assign a Task</b><small>Send to people, a store, a role, or everyone</small></button>
             <p style="font-size:13px;color:#888;text-align:center;margin:10px 4px 0;">Assigned tasks show up on each person's Home and here under My Tasks.</p>
@@ -1685,7 +1690,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.19.2124';
+    const APP_VERSION = '2026.06.19.2134';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -1773,16 +1778,51 @@
         document.getElementById('tasksView').style.display = 'block';
         window.scrollTo(0, 0);
         var mgr = (typeof schedIsMgr === 'function') && schedIsMgr();
+        var st = document.getElementById('taskSegTeam'); if (st) st.style.display = mgr ? 'block' : 'none';
         var sa = document.getElementById('taskSegAssign'); if (sa) sa.style.display = mgr ? 'block' : 'none';
         taskSeg('mine');
         loadMyTasks('tasksMineCard');
     }
     function taskSeg(which) {
-        var mine = (which === 'mine');
-        var pm = document.getElementById('taskPaneMine'); if (pm) pm.style.display = mine ? 'block' : 'none';
-        var pa = document.getElementById('taskPaneAssign'); if (pa) pa.style.display = mine ? 'none' : 'block';
-        var bm = document.getElementById('taskSegMine'); if (bm) bm.classList.toggle('on', mine);
-        var ba = document.getElementById('taskSegAssign'); if (ba) ba.classList.toggle('on', !mine);
+        var panes = { mine: 'taskPaneMine', team: 'taskPaneTeam', assign: 'taskPaneAssign' };
+        var segs = { mine: 'taskSegMine', team: 'taskSegTeam', assign: 'taskSegAssign' };
+        Object.keys(panes).forEach(function(k) {
+            var p = document.getElementById(panes[k]); if (p) p.style.display = (k === which) ? 'block' : 'none';
+            var b = document.getElementById(segs[k]); if (b) b.classList.toggle('on', k === which);
+        });
+        if (which === 'team') loadTeamTasks();
+    }
+    function loadTeamTasks() {
+        var c = document.getElementById('teamTasksList'); if (!c) return;
+        var admin = currentUser && (currentUser.isAdminStores === true);
+        var loc = admin ? null : (typeof activeStoreLoc === 'function' ? activeStoreLoc() : '');
+        var hint = document.getElementById('teamTasksHint');
+        if (hint) hint.innerText = admin ? 'Showing tasks for every store.' : ('Showing tasks for ' + (loc || 'your store') + '. Switch stores from the menu.');
+        c.innerHTML = '<p style="text-align:center;color:#888;font-size:13px;padding:14px;">Loading team tasks&hellip;</p>';
+        withPin(function(pin) {
+            supabaseClient.rpc('app_tasks_overview', { p_username: currentUser.username, p_password: pin, p_location: (loc || null) }).then(function(r) {
+                if (r.error) { if (r.error.code === '42501') sessionPin = null; c.innerHTML = '<p style="color:#c0264b;text-align:center;font-size:13px;padding:10px;">' + escapeHtml(r.error.message) + '</p>'; return; }
+                var tasks = r.data || [];
+                if (!tasks.length) { c.innerHTML = '<p style="text-align:center;color:#888;font-size:13px;padding:14px;">No team tasks yet.</p>'; return; }
+                var h = '';
+                tasks.forEach(function(t) {
+                    var doneAll = (t.total > 0 && t.done >= t.total);
+                    h += '<div style="background:#fff;border-radius:12px;padding:13px 15px;margin-bottom:10px;box-shadow:0 2px 4px rgba(0,0,0,0.05);">';
+                    h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><div style="font-size:14px;font-weight:700;color:#333;">' + escapeHtml(t.title) + '</div>' +
+                         '<span style="font-size:11px;font-weight:700;white-space:nowrap;color:' + (doneAll ? '#1d9e75' : (t.total ? '#185FA5' : '#c0264b')) + ';">' + (t.total ? (t.done + '/' + t.total + ' done') : 'no one assigned') + '</span></div>';
+                    if (t.details) h += '<div style="font-size:12px;color:#888;margin-top:2px;">' + escapeHtml(t.details) + '</div>';
+                    h += '<div style="font-size:11px;color:#aab;margin-top:4px;">' + escapeHtml(t.target || '') + (t.due_date ? (' &middot; due ' + escapeHtml(t.due_date)) : '') + ' &middot; from ' + escapeHtml(t['from'] || '') + '</div>';
+                    var asg = t.assignees || [];
+                    if (asg.length) {
+                        h += '<div style="margin-top:7px;display:flex;flex-wrap:wrap;gap:4px;">';
+                        asg.forEach(function(a) { var d = (a.status === 'done'); h += '<span style="font-size:10px;border-radius:8px;padding:1px 7px;background:' + (d ? '#e7f7ef' : '#f1f1f1') + ';color:' + (d ? '#1d7a56' : '#777') + ';">' + (d ? '&#10003; ' : '') + escapeHtml(a.name) + '</span>'; });
+                        h += '</div>';
+                    }
+                    h += '</div>';
+                });
+                c.innerHTML = h;
+            }).catch(function() { c.innerHTML = '<p style="color:#c0264b;text-align:center;font-size:13px;">Connection error.</p>'; });
+        });
     }
 
     // ── Merged Schedule screen (My Shifts / Build) ──
