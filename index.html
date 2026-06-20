@@ -362,6 +362,10 @@
     body.newlook.night [style*="color:#888"], body.newlook.night [style*="color:#999"],
     body.newlook.night [style*="color:#aaa"], body.newlook.night [style*="color:#7a8a98"],
     body.newlook.night [style*="color:#8794a3"]{ color:var(--txt2) !important; }
+    /* All dropdowns / inputs across the app follow the theme (fixes the store switcher in dark) */
+    body.newlook select, body.newlook input[type="text"], body.newlook input[type="number"], body.newlook input[type="date"],
+    body.newlook input[type="password"], body.newlook input[type="tel"], body.newlook input[type="email"], body.newlook textarea,
+    body.newlook .modal-input, body.newlook #storeSwitcher{ background:var(--surface) !important; color:var(--txt) !important; border-color:var(--bd) !important; }
     /* Pink choice: flip the common blue accents to brand pink across pages */
     body.newlook.pinklight [style*="color:#106ab3"], body.newlook.pinklight [style*="color:#185FA5"],
     body.newlook.pinklight [style*="color:#0f4d7e"], body.newlook.pinklight [style*="color:#0f4d27"]{ color:var(--caliches-pink) !important; }
@@ -369,6 +373,22 @@
     body.newlook.pinklight [style*="background:#185FA5"]{ background:var(--caliches-pink) !important; }
     /* Hide the day/night toggle when the new look is off, so the classic design is untouched */
     body:not(.newlook) #nightToggle{ display:none !important; }
+
+    /* ===== DESKTOP (wide screens): left sidebar nav + roomy layout ===== */
+    @media(min-width:900px){
+        #main-menu{ max-width:1180px !important; margin:0 0 40px 232px !important; padding:24px 34px !important; }
+        /* Bottom nav -> left sidebar */
+        .hub-bottom-nav{ top:0; bottom:0; left:0; right:auto; width:212px; height:100vh; flex-direction:column; align-items:stretch; justify-content:flex-start; border-top:none !important; border-right:1px solid var(--bd) !important; box-shadow:2px 0 12px rgba(20,50,80,0.06); padding:22px 0 0; gap:3px; }
+        .hub-bottom-nav::before{ content:"Caliche's Hub"; display:block; font-weight:800; font-size:13px; letter-spacing:.5px; color:var(--caliches-blue); padding:0 22px 14px; opacity:.85; }
+        .hbn-item{ flex:0 0 auto; flex-direction:row; gap:13px; justify-content:flex-start; align-items:center; padding:13px 22px; font-size:14px; border-radius:0; }
+        .hbn-item .hbn-ic{ font-size:20px; }
+        .hbn-item.active{ background:rgba(16,106,179,0.08); box-shadow:inset 4px 0 0 var(--caliches-pink); }
+        /* Personal Home reads best as a centered column; section lists fill the width as a grid */
+        #tab-content-home.tab-visible{ max-width:720px; margin-left:auto; margin-right:auto; }
+        .menu-tab-content.tab-visible{ gap:16px; }
+        /* Forms get a touch more room */
+        .container{ max-width:860px; }
+    }
     </style>
 </head>
 <body>
@@ -1794,7 +1814,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.19.2357';
+    const APP_VERSION = '2026.06.20.0014';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -1839,7 +1859,7 @@
 
     // ── Theme switch: Blue Light → Pink Light → Dark Scoop ──
     var CAL_THEMES=['blue','pink','dark'];
-    var CAL_ICON={ blue:'&#128162;', pink:'&#127800;', dark:'&#127769;' }; // 💢-style blue, 🌸, 🌙
+    var CAL_ICON={ blue:'&#128153;', pink:'&#127800;', dark:'&#127769;' }; // 💙 blue, 🌸 pink, 🌙 dark
     var CAL_TITLE={ blue:'Theme: Blue (light) — tap for Pink', pink:'Theme: Pink (light) — tap for Dark', dark:'Theme: Dark Scoop — tap for Blue' };
     function applyTheme(t){
         if(CAL_THEMES.indexOf(t)<0) t='blue';
