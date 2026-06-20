@@ -682,6 +682,15 @@
     </div>
 </div>
 
+<!-- TASK PHOTO CAPTURE + VIEWER -->
+<input type="file" id="taskPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="onTaskPhotoPicked(event)">
+<div id="taskPhotoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10001;align-items:center;justify-content:center;padding:16px;" onclick="closeTaskPhoto()">
+    <div style="background:#fff;border-radius:14px;padding:12px;max-width:92%;max-height:88%;overflow:auto;text-align:center;" onclick="event.stopPropagation();">
+        <div id="taskPhotoBody" style="min-width:200px;min-height:120px;display:flex;align-items:center;justify-content:center;color:#888;font-size:13px;">Loading photo&hellip;</div>
+        <button onclick="closeTaskPhoto()" style="margin-top:10px;padding:9px 16px;border:none;background:var(--caliches-blue);color:#fff;border-radius:8px;font-weight:bold;cursor:pointer;">Close</button>
+    </div>
+</div>
+
 <!-- TIME-OFF REQUEST MODAL -->
 <div id="timeOffModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;padding:16px;">
   <div style="background:#fff;border-radius:14px;max-width:420px;width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
@@ -736,6 +745,7 @@
       <div id="taRoleWrap" style="display:none;margin-bottom:10px;"><select id="taRole" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;"></select></div>
       <div id="taPeopleWrap" style="display:none;margin-bottom:10px;max-height:200px;overflow:auto;border:1px solid #eee;border-radius:8px;padding:8px;"></div>
       <div id="taStoreSharedWrap" style="display:none;margin-bottom:10px;font-size:13px;color:#555;"><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="taStoreShared"> One person completes it for the whole store (shared)</label></div>
+      <div id="taPhotoReqWrap" style="margin-bottom:10px;font-size:13px;color:#555;"><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="taRequirePhoto"> &#128247; Require a photo to mark it done</label></div>
     </div>
     <div id="taMsg" style="font-size:13px;margin-bottom:10px;"></div>
     <div style="display:flex;gap:10px;">
@@ -1690,7 +1700,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.19.2134';
+    const APP_VERSION = '2026.06.19.2203';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -1808,16 +1818,24 @@
                 tasks.forEach(function(t) {
                     var doneAll = (t.total > 0 && t.done >= t.total);
                     h += '<div style="background:#fff;border-radius:12px;padding:13px 15px;margin-bottom:10px;box-shadow:0 2px 4px rgba(0,0,0,0.05);">';
-                    h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><div style="font-size:14px;font-weight:700;color:#333;">' + escapeHtml(t.title) + '</div>' +
+                    h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><div style="font-size:14px;font-weight:700;color:#333;">' + escapeHtml(t.title) + (t.requires_photo ? ' <span style="font-size:10px;color:#185FA5;white-space:nowrap;">&#128247; photo</span>' : '') + '</div>' +
                          '<span style="font-size:11px;font-weight:700;white-space:nowrap;color:' + (doneAll ? '#1d9e75' : (t.total ? '#185FA5' : '#c0264b')) + ';">' + (t.total ? (t.done + '/' + t.total + ' done') : 'no one assigned') + '</span></div>';
                     if (t.details) h += '<div style="font-size:12px;color:#888;margin-top:2px;">' + escapeHtml(t.details) + '</div>';
                     h += '<div style="font-size:11px;color:#aab;margin-top:4px;">' + escapeHtml(t.target || '') + (t.due_date ? (' &middot; due ' + escapeHtml(t.due_date)) : '') + ' &middot; from ' + escapeHtml(t['from'] || '') + '</div>';
                     var asg = t.assignees || [];
                     if (asg.length) {
                         h += '<div style="margin-top:7px;display:flex;flex-wrap:wrap;gap:4px;">';
-                        asg.forEach(function(a) { var d = (a.status === 'done'); h += '<span style="font-size:10px;border-radius:8px;padding:1px 7px;background:' + (d ? '#e7f7ef' : '#f1f1f1') + ';color:' + (d ? '#1d7a56' : '#777') + ';">' + (d ? '&#10003; ' : '') + escapeHtml(a.name) + '</span>'; });
+                        asg.forEach(function(a) {
+                            var d = (a.status === 'done');
+                            if (d && a.has_photo) {
+                                h += '<button onclick="showTaskPhoto(' + a.assignee_id + ')" style="font-size:10px;border:none;border-radius:8px;padding:2px 8px;background:#e7f7ef;color:#1d7a56;cursor:pointer;">&#128247; ' + escapeHtml(a.name) + '</button>';
+                            } else {
+                                h += '<span style="font-size:10px;border-radius:8px;padding:2px 8px;background:' + (d ? '#e7f7ef' : '#f1f1f1') + ';color:' + (d ? '#1d7a56' : '#777') + ';">' + (d ? '&#10003; ' : '') + escapeHtml(a.name) + '</span>';
+                            }
+                        });
                         h += '</div>';
                     }
+                    h += '<div style="text-align:right;margin-top:8px;"><button onclick="clearTeamTask(' + t.id + ')" style="font-size:11px;border:1px solid #f0c0cc;background:#fff5f8;color:#c0264b;border-radius:8px;padding:4px 10px;font-weight:700;cursor:pointer;">&#128465; Clear</button></div>';
                     h += '</div>';
                 });
                 c.innerHTML = h;
@@ -4593,8 +4611,8 @@
                 else tasks.forEach(function(t){
                     var done=t.status==='done';
                     h+='<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid #f0f0f0;">' +
-                        '<input type="checkbox" '+(done?'checked':'')+' onchange="toggleTask('+t.assignee_id+',this.checked)" style="margin-top:3px;transform:scale(1.3);">' +
-                        '<div style="flex:1;"><div style="font-size:14px;'+(done?'text-decoration:line-through;color:#aaa;':'color:#333;')+'">'+escapeHtml(t.title)+'</div>' +
+                        '<input type="checkbox" '+(done?'checked':'')+' onchange="onTaskCheck('+t.assignee_id+',this.checked,'+(t.requires_photo?'true':'false')+','+(t.has_photo?'true':'false')+',this)" style="margin-top:3px;transform:scale(1.3);">' +
+                        '<div style="flex:1;"><div style="font-size:14px;'+(done?'text-decoration:line-through;color:#aaa;':'color:#333;')+'">'+escapeHtml(t.title)+(t.requires_photo?' <span style="font-size:10px;color:#185FA5;white-space:nowrap;">&#128247; photo</span>':'')+'</div>' +
                         (t.details?'<div style="font-size:12px;color:#888;">'+escapeHtml(t.details)+'</div>':'') +
                         '<div style="font-size:11px;color:#aab;">'+(t.due_date?('Due '+t.due_date+' &bull; '):'')+'from '+escapeHtml(t['from']||'')+'</div></div></div>';
                 });
@@ -4609,11 +4627,60 @@
             });
         });
     }
+    // Photo-proof completion: if a task requires a photo, capture one before marking done.
+    function onTaskCheck(aid, checked, requiresPhoto, hasPhoto, el){
+        if(checked && requiresPhoto && !hasPhoto){
+            if(el) el.checked=false;
+            captureTaskPhoto(aid);
+            return;
+        }
+        toggleTask(aid, checked);
+    }
+    function captureTaskPhoto(aid){
+        window._taskPhotoAid=aid;
+        var inp=document.getElementById('taskPhotoInput');
+        if(inp){ inp.value=''; inp.click(); }
+    }
+    function onTaskPhotoPicked(ev){
+        var f=ev.target.files && ev.target.files[0]; if(!f) return;
+        var aid=window._taskPhotoAid;
+        var rd=new FileReader();
+        rd.onload=function(e){ var img=new Image(); img.onload=function(){ var c=document.createElement('canvas'); var sc=Math.min(700/img.width,1); c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc); c.getContext('2d').drawImage(img,0,0,c.width,c.height); submitTaskPhoto(aid, c.toDataURL('image/jpeg',0.5)); }; img.src=e.target.result; };
+        rd.readAsDataURL(f);
+    }
+    function submitTaskPhoto(aid, b64){
+        withPin(function(pin){
+            supabaseClient.rpc('app_task_complete_photo',{p_username:currentUser.username,p_password:pin,p_assignee_id:aid,p_photo:b64}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
+                loadMyTasks();
+            }).catch(function(){ alert('Could not upload photo. Please try again.'); });
+        });
+    }
+    function showTaskPhoto(aid){
+        var body=document.getElementById('taskPhotoBody'); if(body) body.innerHTML='Loading photo&hellip;';
+        var m=document.getElementById('taskPhotoModal'); if(m) m.style.display='flex';
+        withPin(function(pin){
+            supabaseClient.rpc('app_task_photo',{p_username:currentUser.username,p_password:pin,p_assignee_id:aid}).then(function(r){
+                if(r.error || !r.data){ if(body) body.innerHTML='<span style="color:#c0264b;">No photo available.</span>'; return; }
+                if(body) body.innerHTML='<img src="'+r.data+'" style="max-width:100%;max-height:70vh;border-radius:8px;">';
+            }).catch(function(){ if(body) body.innerHTML='<span style="color:#c0264b;">Could not load photo.</span>'; });
+        });
+    }
+    function closeTaskPhoto(){ var m=document.getElementById('taskPhotoModal'); if(m) m.style.display='none'; }
+    function clearTeamTask(taskId){
+        if(!confirm('Delete this task for everyone? This cannot be undone.')) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_task_delete',{p_username:currentUser.username,p_password:pin,p_task_id:taskId}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
+                loadTeamTasks();
+            }).catch(function(){ alert('Could not delete the task.'); });
+        });
+    }
 
     // ---- Assign / add task modal ----
     var taTargets=null, taSelfOnly=false;
-    function openSelfTask(){ taSelfOnly=true; document.getElementById('taAssignTitle').innerText='Add a task for myself'; document.getElementById('taTargetRow').style.display='none'; document.getElementById('taSaveBtn').innerText='Add'; taResetFields(); document.getElementById('taskAssignModal').style.display='flex'; }
-    function openTaskAssign(){ taSelfOnly=false; document.getElementById('taAssignTitle').innerText='Assign Task'; document.getElementById('taTargetRow').style.display='block'; document.getElementById('taSaveBtn').innerText='Assign'; taResetFields();
+    function openSelfTask(){ taSelfOnly=true; document.getElementById('taAssignTitle').innerText='Add a task for myself'; document.getElementById('taTargetRow').style.display='none'; document.getElementById('taSaveBtn').innerText='Add'; taResetFields(); var pw=document.getElementById('taPhotoReqWrap'); if(pw) pw.style.display='none'; document.getElementById('taskAssignModal').style.display='flex'; }
+    function openTaskAssign(){ taSelfOnly=false; document.getElementById('taAssignTitle').innerText='Assign Task'; document.getElementById('taTargetRow').style.display='block'; document.getElementById('taSaveBtn').innerText='Assign'; taResetFields(); var pw=document.getElementById('taPhotoReqWrap'); if(pw) pw.style.display='block';
         var globalMgr=currentUser&&(currentUser.role==='Admin Manager'||currentUser.role==='Manager'||currentUser.is_developer===true);
         var tsel=document.getElementById('taTarget');
         if(globalMgr){
@@ -4628,7 +4695,7 @@
         }
         taTargetChange();
         document.getElementById('taskAssignModal').style.display='flex'; }
-    function taResetFields(){ document.getElementById('taTitle').value=''; document.getElementById('taDetails').value=''; document.getElementById('taDue').value=''; document.getElementById('taMsg').innerText=''; }
+    function taResetFields(){ document.getElementById('taTitle').value=''; document.getElementById('taDetails').value=''; document.getElementById('taDue').value=''; document.getElementById('taMsg').innerText=''; var rp=document.getElementById('taRequirePhoto'); if(rp) rp.checked=false; }
     function closeTaskAssign(){ document.getElementById('taskAssignModal').style.display='none'; }
     function populateTaTargets(){
         if(!taTargets) return;
@@ -4655,6 +4722,8 @@
             supabaseClient.rpc('app_task_create',{p_username:currentUser.username,p_password:pin,p_title:title,p_details:details,p_due:due,p_target_type:target,p_target_value:tval,p_employee_ids:ids,p_completion_mode:(target==='store'&&document.getElementById('taStoreShared').checked)?'store':'individual'}).then(function(r){
                 btn.disabled=false;
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; msg.style.color='#c0264b'; msg.innerText='Error: '+r.error.message; return; }
+                var rp=document.getElementById('taRequirePhoto');
+                if(rp && rp.checked && r.data){ supabaseClient.rpc('app_task_set_photo_req',{p_username:currentUser.username,p_password:pin,p_task_id:r.data,p_required:true}); }
                 closeTaskAssign();
                 var tv=document.getElementById('tasksView');
                 if(document.getElementById('employeeHomeView').style.display==='block') loadMyTasks('empTasksCard');
