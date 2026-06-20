@@ -278,6 +278,16 @@
         #aiSendBtn { background:var(--caliches-blue); color:#fff; border:none; border-radius:20px; padding:9px 16px; font-weight:bold; cursor:pointer; font-size:13px; white-space:nowrap; }
         @media (max-width:400px) { #aiChatPanel { width:calc(100vw - 32px); } }
     </style>
+    <style id="sched-extra">
+    .sched-chip-conflict{ outline:2px solid #E24B4A; outline-offset:-1px; }
+    .sched-elsewhere{ display:block; margin-top:3px; border-radius:6px; padding:3px 4px; font-size:9.5px; color:#5F5E5A; background:repeating-linear-gradient(45deg,#eceff2,#eceff2 4px,#dfe3e8 4px,#dfe3e8 8px); border:1px dashed #b4b2a9; }
+    .sched-offband{ display:block; border-radius:6px; padding:5px 3px; font-size:9.5px; font-weight:700; color:#633806; background:#FAEEDA; border:1px solid #EF9F27; text-align:center; }
+    .sched-cell.sched-off{ cursor:default; }
+    .sched-weekbar{ margin-top:10px; background:#185FA5; color:#fff; border-radius:10px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; font-size:13px; }
+    .sched-weekbar b{ font-size:16px; }
+    .sched-conflict-banner{ background:#FCEBEB; border:1px solid #E24B4A; color:#A32D2D; border-radius:8px; padding:8px 12px; margin-bottom:10px; font-size:12.5px; font-weight:600; }
+    body.night .sched-elsewhere{ color:#cdd8e6; background:repeating-linear-gradient(45deg,#1b2942,#1b2942 4px,#22324d 4px,#22324d 8px); border-color:#3a4a63; }
+    </style>
     <style id="caliches-theme">
     /* ===== NEW LOOK — Since '96 (day) + Dark Scoop (night) =====
        Everything here is scoped under body.newlook so the ORIGINAL design stays
@@ -1311,7 +1321,7 @@
                 <button onclick="schedShiftWeek(7)" aria-label="Next week" title="Next week">&#9654;</button>
             </div>
             <span class="spacer"></span>
-            <button class="sched-btn publish" onclick="schedPublish()">&#128640; Publish</button>
+            <button class="sched-btn publish" id="schedPublishBtn" onclick="schedPublish()">&#128640; Publish</button>
             <div class="hb-tools-wrap">
                 <button class="sched-btn" id="schedToolsBtn" onclick="toggleSchedTools(event)" aria-haspopup="true" aria-expanded="false">&#9881; Tools &#9662;</button>
                 <div class="hb-tools-menu" id="schedToolsMenu" style="display:none;" role="menu">
@@ -1817,7 +1827,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.20.0110';
+    const APP_VERSION = '2026.06.20.1334';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2771,11 +2781,14 @@
         grid.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading&hellip;</p>';
         const ws = schedFmt(schedState.weekStart);
         withPin(function(pin){
-            supabaseClient.rpc('app_sched_get_week', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_week_start: ws })
+            supabaseClient.rpc('app_sched_week_context', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_week_start: ws })
             .then(({ data, error }) => {
                 if (error && error.code === '42501') sessionPin = null;
                 if (error) { grid.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Error: ' + error.message + '</p>'; return; }
-                schedState.data = data || { positions:[], employees:[], shifts:[] };
+                data = data || {};
+                schedState.data = { positions: data.positions||[], employees: data.employees||[], shifts: data.shifts||[] };
+                schedState.elsewhere = data.elsewhere || [];
+                schedState.timeoff = data.time_off || [];
                 renderScheduleGrid();
             }).catch(() => { grid.innerHTML = '<p style="color:red;text-align:center;">Connection error.</p>'; });
         }, function(){ grid.innerHTML = '<p style="text-align:center;padding:20px;color:#888;">PIN required.</p>'; });
@@ -2797,55 +2810,77 @@
         if (lbl) lbl.innerText = (ws.getMonth()+1)+'/'+ws.getDate()+' – '+(days[6].getMonth()+1)+'/'+days[6].getDate()+', '+ws.getFullYear();
         const shifts = schedState.data.shifts || [];
         const emps = schedState.data.employees || [];
-        const byKey = {}, dayTotals = {}, empTotals = {}, empRoleCount = {};
+        const wageOf = {}; emps.forEach(e => wageOf[e.id] = Number(e.hourly_wage)||0);
+        const money = n => '$'+Math.round(n).toLocaleString();
+        // cross-store + time-off maps
+        const elseMap = {}; (schedState.elsewhere||[]).forEach(x => { const k=x.employee_id+'|'+x.shift_date; (elseMap[k]=elseMap[k]||[]).push(x); });
+        const offMap = {}; (schedState.timeoff||[]).forEach(t => { days.forEach(d => { const ds=schedFmt(d); if(ds>=t.start_date && ds<=t.end_date){ offMap[t.employee_id+'|'+ds]=t.reason||'Time off'; } }); });
+        const byKey = {}, dayHrs = {}, dayCost = {}, empHrs = {}, empRoleCount = {};
         shifts.forEach(s => {
             const k = s.employee_id + '|' + s.shift_date;
             (byKey[k] = byKey[k] || []).push(s);
             const h = schedShiftHours(s);
-            dayTotals[s.shift_date] = (dayTotals[s.shift_date]||0) + h;
+            dayHrs[s.shift_date] = (dayHrs[s.shift_date]||0) + h;
             if (s.employee_id != null) {
-                empTotals[s.employee_id] = (empTotals[s.employee_id]||0) + h;
+                empHrs[s.employee_id] = (empHrs[s.employee_id]||0) + h;
+                dayCost[s.shift_date] = (dayCost[s.shift_date]||0) + h * (wageOf[s.employee_id]||0);
                 const pr = schedPosById(s.position_id);
                 if (pr) { if (!empRoleCount[s.employee_id]) empRoleCount[s.employee_id] = {}; empRoleCount[s.employee_id][pr.name] = (empRoleCount[s.employee_id][pr.name]||0) + 1; }
             }
         });
         const empRole = {};
         Object.keys(empRoleCount).forEach(eid => { let best='', n=-1; Object.keys(empRoleCount[eid]).forEach(r => { if (empRoleCount[eid][r] > n) { n = empRoleCount[eid][r]; best = r; } }); empRole[eid] = best; });
-        const chipHtml = (s) => {
+        let conflicts = 0;
+        const chipHtml = (s, conflict) => {
             const p = schedPosById(s.position_id); const col = p ? p.color : '#6b7280';
             const txt = hbTextOn(col);
             const lblTxt = (p ? p.name : '') + (s.note ? (' · ' + s.note) : '');
             const empArg = (s.employee_id != null ? s.employee_id : 'null');
-            const aria = (s.start_time||'') + ' to ' + (s.end_time||'') + ' ' + lblTxt + (s.published?'':' (unpublished)');
-            return '<div class="sched-chip" tabindex="0" role="button" aria-label="'+escapeHtml(aria)+'" style="background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+(s.start_time||'')+'-'+(s.end_time||'')+'<br>'+escapeHtml(lblTxt)+(s.published?'':' *')+'</div>';
+            return '<div class="sched-chip'+(conflict?' sched-chip-conflict':'')+'" tabindex="0" role="button" style="background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+(s.start_time||'')+'-'+(s.end_time||'')+'<br>'+escapeHtml(lblTxt)+(conflict?' &#9888;':'')+(s.published?'':' *')+'</div>';
         };
         let html = '<div style="overflow-x:auto;"><table class="sched-table"><thead><tr><th class="sched-emp">Employee</th>';
         days.forEach((d,i) => { html += '<th>'+dayNames[i]+'<br><span style="font-weight:normal;color:#888;">'+(d.getMonth()+1)+'/'+d.getDate()+'</span></th>'; });
-        html += '<th>Hrs</th></tr></thead><tbody>';
+        html += '<th>Hrs · $</th></tr></thead><tbody>';
         // Open (unassigned) shifts row
         html += '<tr style="background:#faf7ff;"><td class="sched-emp" style="color:#5b3fb8;">&#9744; Open Shifts</td>';
         days.forEach(d => {
             const ds = schedFmt(d); const oc = byKey['null|'+ds] || [];
             html += '<td class="sched-cell" onclick="schedOpenModal(null,\''+ds+'\',null)">';
-            oc.forEach(s => { html += chipHtml(s); });
+            oc.forEach(s => { html += chipHtml(s,false); });
             html += '</td>';
         });
         html += '<td></td></tr>';
-        if (!emps.length) html += '<tr><td colspan="9" style="text-align:center;padding:20px;color:#888;">No employees yet. Tap &ldquo;Add Employee&rdquo; to add a test employee.</td></tr>';
+        if (!emps.length) html += '<tr><td colspan="9" style="text-align:center;padding:20px;color:#888;">No employees on this store yet. Use Tools &rarr; Add Employee.</td></tr>';
         emps.forEach(e => {
-            html += '<tr><td class="sched-emp">'+escapeHtml(e.name)+(empRole[e.id]?'<small>'+escapeHtml(empRole[e.id])+'</small>':'')+'</td>';
+            const multi = (e.stores && e.stores.length>1) ? '<small style="color:#9aa7b4;">'+escapeHtml(e.stores.join(' · '))+'</small>' : '';
+            html += '<tr><td class="sched-emp">'+escapeHtml(e.name)+(empRole[e.id]?'<small>'+escapeHtml(empRole[e.id])+'</small>':'')+multi+'</td>';
             days.forEach(d => {
-                const ds = schedFmt(d); const cell = byKey[e.id+'|'+ds] || [];
-                html += '<td class="sched-cell" onclick="schedOpenModal('+e.id+",'"+ds+"',null)\">";
-                cell.forEach(s => { html += chipHtml(s); });
-                html += '</td>';
+                const ds = schedFmt(d); const k = e.id+'|'+ds; const cell = byKey[k] || []; const off = offMap[k]; const elsw = elseMap[k] || [];
+                const conflict = (cell.length>0 && elsw.length>0); if (conflict) conflicts++;
+                if (off) {
+                    html += '<td class="sched-cell sched-off"><div class="sched-offband">OFF<br><small>'+escapeHtml(off)+'</small></div></td>';
+                } else {
+                    html += '<td class="sched-cell" onclick="schedOpenModal('+e.id+",'"+ds+"',null)\">";
+                    cell.forEach(s => { html += chipHtml(s, conflict); });
+                    elsw.forEach(x => { html += '<div class="sched-elsewhere">&#128205; '+escapeHtml(x.location)+' '+(x.start_time||'')+'</div>'; });
+                    html += '</td>';
+                }
             });
-            const eh = empTotals[e.id]||0; const ot = eh > 40;
-            html += '<td style="text-align:center;font-weight:bold;color:'+(ot?'#c0392b':'#333')+';" title="'+(ot?'Over 40h this week — overtime':'')+'">'+eh.toFixed(1)+(ot?' &#9888;':'')+'</td></tr>';
+            const eh = empHrs[e.id]||0; const reg=Math.min(eh,40), ot=Math.max(0,eh-40); const cost=reg*(wageOf[e.id]||0)+ot*(wageOf[e.id]||0)*1.5;
+            html += '<td style="text-align:right;font-weight:bold;white-space:nowrap;color:'+(ot>0?'#c0392b':'#333')+';">'+eh.toFixed(1)+'h<br>'+money(cost)+(ot>0?'<br><span style="color:#c0392b;">'+ot.toFixed(1)+' OT</span>':'')+'</td></tr>';
         });
         html += '</tbody><tfoot><tr><td class="sched-emp">Daily total</td>';
-        days.forEach(d => { const ds = schedFmt(d); html += '<td style="text-align:center;font-weight:bold;color:#5b3fb8;">'+(dayTotals[ds]||0).toFixed(1)+'</td>'; });
-        html += '<td></td></tr></tfoot></table></div><p style="font-size:11px;color:#888;margin-top:6px;">Tap a cell to add a shift (top row = unassigned open shifts). <span style="color:#c0392b;">Red hours</span> = over 40 (OT). Chips marked * are unpublished.</p>';
+        let weekHrs=0, weekCost=0;
+        emps.forEach(e=>{ const eh=empHrs[e.id]||0; const reg=Math.min(eh,40),ot=Math.max(0,eh-40); weekCost+=reg*(wageOf[e.id]||0)+ot*(wageOf[e.id]||0)*1.5; });
+        days.forEach(d => { const ds = schedFmt(d); const hh=dayHrs[ds]||0; weekHrs+=hh; html += '<td style="text-align:center;font-weight:bold;color:#5b3fb8;">'+hh.toFixed(1)+'h<br><span style="font-weight:normal;font-size:10px;">'+money(dayCost[ds]||0)+'</span></td>'; });
+        html += '<td></td></tr></tfoot></table></div>';
+        html += '<div class="sched-weekbar"><span>Projected week</span><span><b>'+weekHrs.toFixed(1)+' hrs</b> &middot; <b>'+money(weekCost)+'</b> labor</span></div>';
+        const pb = document.getElementById('schedPublishBtn');
+        if (conflicts>0) {
+            html = '<div class="sched-conflict-banner">&#9888; '+conflicts+' double-book'+(conflicts>1?'s':'')+' across stores — resolve (tap the &#9888; shift) before publishing.</div>' + html;
+            if (pb){ pb.disabled=true; pb.style.opacity=.5; pb.style.cursor='not-allowed'; pb.title='Resolve cross-store conflicts to publish'; }
+        } else if (pb){ pb.disabled=false; pb.style.opacity=1; pb.style.cursor='pointer'; pb.title=''; }
+        html += '<p style="font-size:11px;color:#888;margin-top:6px;">Tap a cell to add a shift &middot; grey &#128205; = working another store (read-only) &middot; amber = time off (blocks all stores) &middot; <span style="color:#c0392b;">red OT</span> = over 40h/week. Chips marked * are unpublished.</p>';
         document.getElementById('schedGrid').innerHTML = html;
     }
 
