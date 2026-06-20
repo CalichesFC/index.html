@@ -240,7 +240,8 @@
         #draftToast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.82);color:white;padding:10px 22px;border-radius:99px;font-size:14px;font-weight:bold;display:none;z-index:99999;pointer-events:none;white-space:nowrap}
         /* Modal Overlay */
         .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:99998;justify-content:center;align-items:center;padding:20px;box-sizing:border-box}
-        .modal-box{background:white;border-radius:16px;padding:30px 25px;width:100%;max-width:380px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.3);max-height:calc(100vh - 40px);overflow-y:auto;-webkit-overflow-scrolling:touch}
+        .modal-box{background:white;border-radius:16px;padding:20px 22px;width:100%;max-width:400px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.3);max-height:calc(100vh - 32px);overflow-y:auto;-webkit-overflow-scrolling:touch}
+        .modal-box h3{margin-top:0}
         .modal-input{width:100%;padding:14px;border:2px solid #eee;border-radius:8px;font-size:16px;margin-bottom:12px;box-sizing:border-box}
         /* ── KNOWLEDGE BASE ── */
         #kbView .kb-category { margin-bottom:28px; }
@@ -1276,8 +1277,8 @@
   .hb-back:focus-visible, .sched-btn:focus-visible, .sched-cell:focus-visible, .sched-chip:focus-visible, .sched-week-nav button:focus-visible, .hb-tools-menu button:focus-visible, #scheduleBuilderView select:focus-visible, #timeClockView select:focus-visible, #timeClockView .save-btn:focus-visible, #timesheetsView input:focus-visible { outline:3px solid var(--caliches-blue); outline-offset:2px; }
   /* Roster management */
   #rosterView { background:#f5f7fa; }
-  .rm-lbl { display:block; font-size:12px; font-weight:700; color:#5b6472; margin:10px 0 4px; }
-  .rm-inp { width:100%; box-sizing:border-box; min-height:44px; border:1px solid #d7dde6; border-radius:8px; padding:8px 12px; font-size:14px; }
+  .rm-lbl { display:block; font-size:12px; font-weight:700; color:#5b6472; margin:8px 0 3px; }
+  .rm-inp { width:100%; box-sizing:border-box; min-height:38px; border:1px solid #d7dde6; border-radius:8px; padding:6px 11px; font-size:14px; }
   .roster-tbl { width:100%; border-collapse:collapse; background:#fff; border:1px solid #e3e8ef; border-radius:12px; overflow:hidden; }
   .roster-tbl th { background:#eef3f8; color:#1f2a44; font-size:12px; text-align:left; padding:10px 12px; }
   .roster-tbl td { border-top:1px solid #eef1f5; padding:9px 12px; font-size:13px; vertical-align:middle; }
@@ -1287,15 +1288,11 @@
   .roster-act { min-height:36px; padding:0 10px; border-radius:7px; border:1px solid #cfe0ef; background:#eaf1f8; color:var(--caliches-blue); font-size:12px; font-weight:700; cursor:pointer; margin-left:4px; }
   .roster-act:focus-visible, .rm-inp:focus-visible { outline:3px solid var(--caliches-blue); outline-offset:2px; }
   .role-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:middle; }
-  /* Compact roster/add-employee modal so it fits at 100% without scrolling */
-  #rosterModal .modal-box { padding:18px 20px; max-width:380px; }
-  #rosterModal h3 { margin:0 0 10px !important; font-size:18px; }
-  #rosterModal .rm-lbl { margin:7px 0 2px; }
-  #rosterModal .rm-inp { min-height:36px; padding:6px 10px; }
+  /* Roster modal has scrollable store lists — cap them so the modal stays compact */
+  #rosterModal h3 { font-size:18px; }
   #rosterModal #rosterAddStoresWrap, #rosterModal #rosterStoresWrap { margin-top:10px !important; padding-top:9px !important; }
-  #rosterModal #rosterAddStoresList { max-height:128px !important; }
-  #rosterModal #rosterStoresList { max-height:150px !important; }
-  #rosterModal .modal-box > div:last-child { margin-top:14px !important; }
+  #rosterModal #rosterAddStoresList { max-height:120px !important; }
+  #rosterModal #rosterStoresList { max-height:140px !important; }
   /* Command Center */
   #commandCenterView { background:#f5f7fa; }
   .cc-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:16px; }
@@ -1869,7 +1866,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.20.1416';
+    const APP_VERSION = '2026.06.20.1422';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
