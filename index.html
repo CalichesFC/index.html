@@ -502,17 +502,45 @@
             <button id="btn-formsDocs" class="menu-btn" onclick="openFormsLinks()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128196;</span><b>Forms &amp; Documents</b><small>Payroll, HR &amp; hiring forms</small></button>
         </div>
 
+        <!-- ── SECTIONS HUB (More) ── -->
+        <div id="tab-content-sections" class="menu-tab-content">
+            <div class="sec-title"><h2>All Sections</h2><span class="tag">Everything in one place</span></div>
+            <div class="quick">
+                <div class="qcard" onclick="switchMenuTab('scheduling')"><div class="ic">&#128197;</div><b>Scheduling</b><small>Shifts, clock &amp; time-off</small></div>
+                <div class="qcard" onclick="switchMenuTab('operations')"><div class="ic">&#127846;</div><b>Store Operations</b><small>Daily tasks &amp; logs</small></div>
+                <div class="qcard" onclick="switchMenuTab('fleet')"><div class="ic">&#128666;</div><b>Driver &amp; Catering</b><small>Checks, quotes &amp; events</small></div>
+                <div class="qcard" onclick="openMessages()"><div class="ic">&#128172;</div><b>Messages</b><small>Team chat &amp; broadcasts</small></div>
+                <div class="qcard" onclick="openFormsLinks()"><div class="ic">&#128196;</div><b>Forms &amp; Documents</b><small>Payroll, HR &amp; hiring</small></div>
+                <div class="qcard" id="sectionsAdminCard" style="display:none;" onclick="switchMenuTab('management')"><div class="ic">&#9889;</div><b>Admin Dashboard</b><small>Metrics &amp; tools</small></div>
+            </div>
+        </div>
+
         <!-- ── SCHEDULING ── -->
         <div id="tab-content-scheduling" class="menu-tab-content">
+            <button class="sec-back" onclick="hubNav('more')">&#8249; All Sections</button>
             <div class="sec-title"><h2>📅 Scheduling</h2><span class="tag">Shifts, tours &amp; checklists</span></div>
-            <button id="btn-scheduling" class="menu-btn" onclick="openScheduling()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#129389;</span><b>Shift Schedules</b><small>Build &amp; view weekly shifts</small></button>
-            <button id="btn-driver" class="menu-btn" onclick="openForm('driverView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128666;</span><b>Driver Checklist</b><small>Pre-trip vehicle &amp; trailer check</small></button>
-            <button id="requestsBtn" class="menu-btn" style="display:none;" onclick="openRequests()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128197;</span><b>Time-Off &amp; Swaps</b><small>Requests &amp; approvals</small></button>
-            <button id="assignTaskBtn" class="menu-btn" style="display:none;" onclick="openTaskAssign()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128203;</span><b>Assign Task</b><small>Send tasks to the crew</small></button>
+            <div class="seg" id="schedSeg">
+                <button class="sgb on" id="schedSegMine" onclick="schedSeg('mine')">My Shifts</button>
+                <button class="sgb" id="schedSegBuild" style="display:none;" onclick="schedSeg('build')">Build</button>
+            </div>
+            <div id="schedPaneMine" class="sched-pane">
+                <div id="schedMyShifts"><p style="text-align:center;color:#888;font-size:13px;padding:14px;">Loading your shifts&hellip;</p></div>
+                <button class="menu-btn" onclick="openTimeOff()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127796;</span><b>Request Time Off</b><small>Submit a time-off request</small></button>
+            </div>
+            <div id="schedPaneBuild" class="sched-pane" style="display:none;">
+                <button id="btn-scheduling" class="menu-btn" onclick="openScheduling()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#129389;</span><b>Open Schedule Builder</b><small>Build &amp; publish weekly shifts</small></button>
+                <button id="requestsBtn" class="menu-btn" style="display:none;" onclick="openRequests()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128197;</span><b>Time-Off &amp; Swap Approvals</b><small>Review &amp; decide requests</small></button>
+                <button id="assignTaskBtn" class="menu-btn" style="display:none;" onclick="openTaskAssign()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128203;</span><b>Assign Task</b><small>Send tasks to the crew</small></button>
+            </div>
+            <div class="sec-title" style="margin-top:8px;"><h2 style="font-size:15px;">More in scheduling</h2></div>
+            <button class="menu-btn" onclick="openTimeClock()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128337;</span><b>Time Clock</b><small>Clock in &amp; out</small></button>
+            <button id="schedTimesheetsBtn" class="menu-btn" style="display:none;" onclick="openTimesheets()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Timesheets</b><small>Hours &amp; overtime</small></button>
+            <button id="schedRosterBtn" class="menu-btn" style="display:none;" onclick="openRoster()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128101;</span><b>Employee Roster</b><small>Staff, logins &amp; stores</small></button>
         </div>
 
         <!-- ── STORE OPERATIONS ── -->
         <div id="tab-content-operations" class="menu-tab-content">
+            <button class="sec-back" onclick="hubNav('more')">&#8249; All Sections</button>
             <div class="sec-title"><h2>&#127846; Store Operations</h2><span class="tag">Daily tasks &amp; logs</span></div>
             <button id="btn-popIn" class="menu-btn" onclick="openPopIn()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128203;</span><b>Store Pop-In Inspection</b><small>Store walk-through</small></button>
             <button id="btn-tempLogs" class="menu-btn" onclick="openTempLogs()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127777;</span><b>Temperature Logs</b><small>Food-safety temp checks</small></button>
@@ -528,8 +556,9 @@
 
         <!-- ── MOBILE VENDING &amp; CATERING ── -->
         <div id="tab-content-fleet" class="menu-tab-content">
+            <button class="sec-back" onclick="hubNav('more')">&#8249; All Sections</button>
             <div class="sec-title"><h2>🚚 Mobile Vending &amp; Catering</h2><span class="tag">Fleet routes &amp; events</span></div>
-            <button class="menu-btn" onclick="openForm('driverView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128666;</span><b>Vehicle &amp; Trailer Check-Out</b><small>Pre-roll safety checklist</small></button>
+            <button id="btn-driver" class="menu-btn" onclick="openForm('driverView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128666;</span><b>Vehicle &amp; Trailer Check-Out</b><small>Pre-roll safety checklist</small></button>
             <button id="quotesBtn" class="menu-btn" style="display:none;" onclick="openForm('quotesView')"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128221;</span><b>Create Catering Quote</b><small>Build &amp; send event quotes</small></button>
             <button id="salesPipelineBtn" class="menu-btn" style="display:none;" onclick="openSalesPipeline()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128202;</span><b>Sales Pipeline</b><small>Catering leads &amp; quotes</small></button>
             <p style="flex-basis:100%;font-size:12.5px;color:#888;text-align:center;margin:8px 4px 0;">Vending revenue by town &amp; catering metrics live in <b>Admin Dashboard &rarr; Live Dashboard</b>.</p>
@@ -537,6 +566,7 @@
 
         <!-- ── ADMIN (Manager+ only) ── -->
         <div id="tab-content-management" class="menu-tab-content">
+            <button class="sec-back" onclick="hubNav('more')">&#8249; All Sections</button>
             <div class="sec-title"><h2>⚡ Admin Dashboard</h2><span class="tag">Metrics &amp; management tools</span></div>
             <button id="adminDashBtn" class="menu-btn" style="display:none;" onclick="openAdminDash()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128225;</span><b>Live Dashboard</b><small>NCR Pulse &amp; Square</small></button>
             <button id="commandCenterBtn" class="menu-btn" style="display:none;" onclick="openCommandCenter()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Command Center</b><small>Live ops at a glance</small></button>
@@ -596,6 +626,11 @@
     .hbn-item .hbn-ic{font-size:20px;line-height:1;}
     .hbn-item.active{color:var(--caliches-blue);}
     #main-menu{padding-bottom:78px;}
+    .menu-tab-bar{display:none;}
+    .sec-back{background:none;border:none;color:var(--caliches-blue);font-weight:800;font-size:13px;cursor:pointer;padding:4px 2px 8px;display:inline-flex;align-items:center;gap:4px;}
+    .seg{display:flex;background:#eef1f6;border-radius:12px;padding:4px;margin-bottom:12px;gap:4px;}
+    .sgb{flex:1;border:none;background:transparent;color:#6a7890;font-size:14px;font-weight:700;padding:9px 4px;border-radius:9px;cursor:pointer;font-family:inherit;}
+    .sgb.on{background:#fff;color:var(--caliches-blue);box-shadow:0 1px 3px rgba(0,0,0,0.08);}
     #aiChatWidget{bottom:90px;right:16px;}
     @media(max-width:400px){ #aiChatToggle{padding:11px 16px;font-size:14px;} }
 </style>
@@ -1620,7 +1655,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.19.2044';
+    const APP_VERSION = '2026.06.19.2108';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -1680,12 +1715,62 @@
         if (btn) btn.classList.add('active');
         if (content) content.classList.add('tab-visible');
         if (tab === 'home' && typeof loadHomeDay === 'function') loadHomeDay();
+        if (tab === 'scheduling' && typeof schedInit === 'function') schedInit();
         syncBottomNav(tab);
+    }
+
+    // ── Merged Schedule screen (My Shifts / Build) ──
+    function schedIsMgr() {
+        var r = currentUser && currentUser.role;
+        if (r === 'Vice President/Co-Owner') r = 'Admin Manager';
+        return (r === 'Admin Manager' || r === 'Manager') ||
+               (currentUser && currentUser.is_developer === true) ||
+               (currentUser && currentUser.isStoreManager === true);
+    }
+    function schedInit() {
+        var mgr = schedIsMgr();
+        var r = currentUser && currentUser.role;
+        if (r === 'Vice President/Co-Owner') r = 'Admin Manager';
+        var admin = (r === 'Admin Manager') || (currentUser && currentUser.is_developer === true);
+        var setD = function(id, on, disp) { var e = document.getElementById(id); if (e) e.style.display = on ? (disp || 'block') : 'none'; };
+        setD('schedSegBuild', mgr, 'block');
+        setD('btn-scheduling', mgr, 'block');
+        setD('schedTimesheetsBtn', mgr, 'block');
+        setD('schedRosterBtn', admin, 'block');
+        schedSeg('mine');
+        loadSchedMyShifts();
+    }
+    function schedSeg(which) {
+        var mine = (which === 'mine');
+        var pm = document.getElementById('schedPaneMine'); if (pm) pm.style.display = mine ? 'block' : 'none';
+        var pb = document.getElementById('schedPaneBuild'); if (pb) pb.style.display = mine ? 'none' : 'block';
+        var bm = document.getElementById('schedSegMine'); if (bm) bm.classList.toggle('on', mine);
+        var bb = document.getElementById('schedSegBuild'); if (bb) bb.classList.toggle('on', !mine);
+    }
+    function loadSchedMyShifts() {
+        var c = document.getElementById('schedMyShifts'); if (!c) return;
+        withPin(function(pin) {
+            supabaseClient.rpc('app_emp_home', { p_username: currentUser.username, p_password: pin }).then(function(res) {
+                if (res.error) { if (res.error.code === '42501') sessionPin = null; c.innerHTML = '<p style="color:#888;font-size:13px;text-align:center;padding:10px;">Could not load shifts.</p>'; return; }
+                var d = res.data || {};
+                if (d.linked !== true) { c.innerHTML = '<div class="home-card"><p style="margin:0;color:#667;font-size:13px;">Your shifts show here once a manager links your login in the Roster.</p></div>'; return; }
+                var sh = d.shifts || [];
+                if (typeof empHomeState === 'object' && empHomeState) empHomeState.shifts = sh;
+                if (!sh.length) { c.innerHTML = '<div class="home-card"><p style="margin:0;color:#445;font-size:13px;">No upcoming shifts scheduled &mdash; enjoy the break! &#127846;</p></div>'; return; }
+                var h = '<div class="home-card"><div class="home-card-label">MY UPCOMING SHIFTS</div>';
+                sh.forEach(function(s, i) {
+                    h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;' + (i < sh.length - 1 ? 'border-bottom:1px solid #eee;' : '') + '">' +
+                        '<span style="font-size:14px;color:#333;">' + escapeHtml((s.date || '') + '  ' + (s.start || '') + '-' + (s.end || '') + (s.location ? ('  @ ' + s.location) : '')) + '</span>' +
+                        '<button onclick="openSwap(' + s.id + ',' + i + ')" style="background:#0d6eaf;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:bold;cursor:pointer;white-space:nowrap;">Request cover</button></div>';
+                });
+                h += '</div>'; c.innerHTML = h;
+            }).catch(function() { c.innerHTML = '<p style="color:#888;font-size:13px;text-align:center;padding:10px;">Connection error.</p>'; });
+        }, function() { c.innerHTML = '<p style="color:#888;font-size:13px;text-align:center;padding:10px;">PIN required to load shifts.</p>'; });
     }
 
     // ── App bottom nav ──
     function syncBottomNav(tab) {
-        var map = { home:'home', scheduling:'schedule', operations:'more', fleet:'more', management:'more' };
+        var map = { home:'home', scheduling:'schedule', operations:'more', fleet:'more', management:'more', sections:'more' };
         var dest = map[tab] || '';
         document.querySelectorAll('.hbn-item').forEach(function(b){ b.classList.remove('active'); });
         var el = document.getElementById('hbn-' + dest);
@@ -1700,7 +1785,7 @@
         if (dest === 'home') { ensureMenuVisible(); switchMenuTab('home'); window.scrollTo(0,0); }
         else if (dest === 'schedule') { ensureMenuVisible(); switchMenuTab('scheduling'); window.scrollTo(0,0); }
         else if (dest === 'tasks') { openEmployeeHome(); }
-        else if (dest === 'more') { ensureMenuVisible(); switchMenuTab('operations'); window.scrollTo(0,0); }
+        else if (dest === 'more') { ensureMenuVisible(); switchMenuTab('sections'); window.scrollTo(0,0); }
     }
 
     // ── Personal Home: next shift + tasks ──
@@ -3303,6 +3388,8 @@
         if (heroNameEl) heroNameEl.textContent = (currentUser.name || '').trim().split(' ')[0] || 'team';
         const quickAdminCard = document.getElementById('quickAdminCard');
         if (quickAdminCard) quickAdminCard.style.display = (devOverride || isManager) ? 'block' : 'none';
+        const sectionsAdminCard = document.getElementById('sectionsAdminCard');
+        if (sectionsAdminCard) sectionsAdminCard.style.display = (devOverride || isManager) ? 'block' : 'none';
         updateBioToggleBtn();
         updatePreviewToggleBtn();
     }
