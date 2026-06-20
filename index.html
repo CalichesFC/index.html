@@ -1287,6 +1287,15 @@
   .roster-act { min-height:36px; padding:0 10px; border-radius:7px; border:1px solid #cfe0ef; background:#eaf1f8; color:var(--caliches-blue); font-size:12px; font-weight:700; cursor:pointer; margin-left:4px; }
   .roster-act:focus-visible, .rm-inp:focus-visible { outline:3px solid var(--caliches-blue); outline-offset:2px; }
   .role-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  /* Compact roster/add-employee modal so it fits at 100% without scrolling */
+  #rosterModal .modal-box { padding:18px 20px; max-width:380px; }
+  #rosterModal h3 { margin:0 0 10px !important; font-size:18px; }
+  #rosterModal .rm-lbl { margin:7px 0 2px; }
+  #rosterModal .rm-inp { min-height:36px; padding:6px 10px; }
+  #rosterModal #rosterAddStoresWrap, #rosterModal #rosterStoresWrap { margin-top:10px !important; padding-top:9px !important; }
+  #rosterModal #rosterAddStoresList { max-height:128px !important; }
+  #rosterModal #rosterStoresList { max-height:150px !important; }
+  #rosterModal .modal-box > div:last-child { margin-top:14px !important; }
   /* Command Center */
   #commandCenterView { background:#f5f7fa; }
   .cc-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:16px; }
@@ -1860,7 +1869,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.20.1412';
+    const APP_VERSION = '2026.06.20.1416';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
