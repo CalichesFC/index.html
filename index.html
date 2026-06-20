@@ -1353,6 +1353,7 @@
             <span class="spacer"></span>
             <button class="sched-btn" onclick="rosterAutolink()">&#128279; Auto-link</button>
             <button class="sched-btn" onclick="openRosterImport()">&#128228; Bulk import</button>
+            <button class="sched-btn" onclick="openRolesModal()">&#127912; Manage roles</button>
             <button class="sched-btn publish" onclick="openRosterModal(null)">&#10133; Add employee</button>
         </div>
         <div id="rosterSummary" class="hb-sub" style="margin:0 0 8px 4px;"></div>
@@ -1371,7 +1372,14 @@
     <select id="rosterHome" class="rm-inp"></select>
     <label class="rm-lbl" for="rosterPos">Default role</label>
     <select id="rosterPos" class="rm-inp"></select>
+    <label class="rm-lbl" for="rosterWage">Hourly wage ($)</label>
+    <input id="rosterWage" type="number" min="0" step="0.25" class="rm-inp" placeholder="e.g. 14.50" inputmode="decimal">
     <label id="rosterActiveWrap" style="display:none;align-items:center;gap:8px;margin:12px 0 0;font-size:14px;"><input type="checkbox" id="rosterActive" checked> Active employee</label>
+    <div id="rosterAddStoresWrap" style="display:none;margin-top:14px;border-top:1px solid #eee;padding-top:12px;">
+      <div style="font-size:13px;font-weight:bold;color:#555;margin-bottom:6px;">Works at stores</div>
+      <div style="font-size:11px;color:#888;margin-bottom:8px;">Check each store this person can be scheduled at. Manager roles (SM/AM) can be set after saving via Edit.</div>
+      <div id="rosterAddStoresList" style="max-height:200px;overflow:auto;"></div>
+    </div>
     <div id="rosterStoresWrap" style="display:none;margin-top:14px;border-top:1px solid #eee;padding-top:12px;">
       <div style="font-size:13px;font-weight:bold;color:#555;margin-bottom:6px;">Stores &amp; manager roles</div>
       <div style="font-size:11px;color:#888;margin-bottom:8px;">Check each store this person works at. SM = Store Manager, AM = Assistant Manager for that store.</div>
@@ -1381,6 +1389,31 @@
     <div style="display:flex;gap:10px;margin-top:18px;">
       <button class="hb-back" style="flex:1;" onclick="closeRosterModal()">Cancel</button>
       <button class="sched-btn publish" style="flex:1;" onclick="saveRoster()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manage roles (positions) modal -->
+<div id="rolesModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:440px;">
+    <h3 style="margin:0 0 6px;color:var(--caliches-blue);">&#127912; Manage Roles</h3>
+    <p class="hb-sub" style="margin:0 0 12px;">Color-coded job roles used on the schedule. Add new ones any time &mdash; they're remembered.</p>
+    <div id="rolesList" style="max-height:260px;overflow:auto;border:1px solid #eee;border-radius:10px;padding:6px 10px;margin-bottom:14px;"></div>
+    <div style="border-top:1px solid #eee;padding-top:12px;">
+      <div style="font-size:13px;font-weight:bold;color:#555;margin-bottom:8px;">Add a role</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input id="roleName" type="text" class="rm-inp" placeholder="Role name (e.g. Pink Apron)" style="flex:1 1 150px;margin:0;">
+        <input id="roleColor" type="color" value="#ec3e7e" aria-label="Role color" style="width:48px;height:44px;border:1px solid #d7dde6;border-radius:8px;padding:2px;cursor:pointer;">
+        <select id="roleDept" class="rm-inp" style="flex:0 0 130px;margin:0;">
+          <option value="store">Store</option>
+          <option value="catering">Catering &amp; Vending</option>
+        </select>
+      </div>
+      <div id="rolesMsg" style="display:none;margin-top:10px;font-size:13px;"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <button class="hb-back" style="flex:1;" onclick="closeRolesModal()">Close</button>
+      <button class="sched-btn publish" style="flex:1;" onclick="saveNewRole()">&#10133; Add role</button>
     </div>
   </div>
 </div>
@@ -1827,7 +1860,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.20.1334';
+    const APP_VERSION = '2026.06.20.1357';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2935,6 +2968,11 @@
         });
     }
     function schedAddEmployee() {
+        if (isAdminManager()) {
+            if ((rosterState.meta.locations||[]).length) { openRosterModal(null); }
+            else { loadRosterMeta(); setTimeout(function(){ openRosterModal(null); }, 600); }
+            return;
+        }
         const name = prompt('New employee name (test roster):'); if (!name) return;
         withPin(function(pin){
             supabaseClient.rpc('app_sched_add_employee', { p_username: currentUser.username, p_password: pin, p_name: name, p_linked_username: '' })
@@ -3013,7 +3051,10 @@
             const pipAct = pip
                 ? '<button class="roster-act" onclick="openDecision('+pip.pip_id+',&quot;'+rosterEsc(nmJs)+'&quot;)">Decision</button>'
                 : '<button class="roster-act" onclick="openPip('+e.id+',&quot;'+rosterEsc(nmJs)+'&quot;,&quot;'+rosterEsc((e.home_location||'').replace(/&/g,'').replace(/"/g,''))+'&quot;,&quot;'+rosterEsc((e.position_name||'').replace(/&/g,'').replace(/"/g,''))+'&quot;)">+PIP</button>';
-            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+pipBadge+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;">'+pipAct+'<button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button></td></tr>';
+            const termBtn = e.active
+                ? '<button class="roster-act" style="color:#c0264b;" onclick="rosterSetActive('+e.id+',false,&quot;'+rosterEsc(nmJs)+'&quot;)">Terminate</button>'
+                : '<button class="roster-act" style="color:#1f7a3d;" onclick="rosterSetActive('+e.id+',true,&quot;'+rosterEsc(nmJs)+'&quot;)">Reactivate</button>';
+            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+pipBadge+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;">'+pipAct+'<button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button>'+termBtn+'</td></tr>';
         });
         html+='</tbody></table>';
         box.innerHTML=html;
@@ -3027,6 +3068,9 @@
         const msg=document.getElementById('rosterModalMsg'); msg.style.display='none';
         document.getElementById('rosterStoresWrap').style.display='none';
         document.getElementById('rosterStoresList').innerHTML='';
+        document.getElementById('rosterAddStoresWrap').style.display='none';
+        document.getElementById('rosterAddStoresList').innerHTML='';
+        document.getElementById('rosterWage').value='';
         if(id){
             const e=rosterState.list.find(x=>x.id===id); if(!e) return;
             document.getElementById('rosterModalTitle').innerText='Edit Employee';
@@ -3036,6 +3080,8 @@
             document.getElementById('rosterPos').value=e.position_id?String(e.position_id):'';
             document.getElementById('rosterActive').checked=!!e.active;
             document.getElementById('rosterActiveWrap').style.display='flex';
+            if(e.hourly_wage!=null) document.getElementById('rosterWage').value=e.hourly_wage;
+            else withPin(function(pin){ supabaseClient.rpc('app_emp_wage',{p_username:currentUser.username,p_password:pin,p_employee_id:e.id}).then(function(r){ if(!r.error && r.data!=null) document.getElementById('rosterWage').value=r.data; }); });
             loadRosterStores(e.id);
         } else {
             document.getElementById('rosterModalTitle').innerText='Add Employee';
@@ -3045,8 +3091,17 @@
             document.getElementById('rosterPos').value='';
             document.getElementById('rosterActive').checked=true;
             document.getElementById('rosterActiveWrap').style.display='none';
+            renderRosterAddStores();
         }
         document.getElementById('rosterModal').style.display='flex';
+    }
+    function renderRosterAddStores(){
+        var locs=(rosterState.meta.locations||[]);
+        var h=locs.map(function(l){ var nm=rosterEsc(l.name);
+            return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0;border-bottom:1px solid #f3f3f3;"><input type="checkbox" class="ras-store" value="'+nm+'"> '+nm+'</label>';
+        }).join('');
+        document.getElementById('rosterAddStoresList').innerHTML=h||'<p style="font-size:12px;color:#888;">No stores defined yet.</p>';
+        document.getElementById('rosterAddStoresWrap').style.display='block';
     }
     function closeRosterModal(){ document.getElementById('rosterModal').style.display='none'; }
     function saveRoster(){
@@ -3055,6 +3110,8 @@
         const home=document.getElementById('rosterHome').value;
         const posV=document.getElementById('rosterPos').value;
         const pos=posV?parseInt(posV,10):null;
+        const wageV=document.getElementById('rosterWage').value;
+        const wage=(wageV!==''&&!isNaN(parseFloat(wageV)))?parseFloat(wageV):null;
         const msg=document.getElementById('rosterModalMsg');
         if(!name){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Name is required.'; return; }
         withPin(function(pin){
@@ -3065,15 +3122,22 @@
                     var locs=[].slice.call(document.querySelectorAll('.rs-store:checked')).map(function(x){return x.value;});
                     var sm=[].slice.call(document.querySelectorAll('.rs-sm:checked')).map(function(x){return x.value;});
                     var am=[].slice.call(document.querySelectorAll('.rs-am:checked')).map(function(x){return x.value;});
-                    supabaseClient.rpc('app_emp_admin_set',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_locations:locs,p_sm:sm,p_am:am}).then(function(r2){
+                    Promise.all([
+                        supabaseClient.rpc('app_emp_admin_set',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_locations:locs,p_sm:sm,p_am:am}),
+                        supabaseClient.rpc('app_emp_set_wage',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_wage:wage})
+                    ]).then(function(rs){
+                        var r2=rs[0];
                         if(r2.error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Saved basics; stores error: '+r2.error.message; return; }
                         closeRosterModal(); loadRoster();
                     });
                 });
             } else {
-                supabaseClient.rpc('app_roster_add',{p_username:currentUser.username,p_password:pin,p_name:name,p_home_location:home,p_position_id:pos}).then(({error})=>{
+                var locs=[].slice.call(document.querySelectorAll('.ras-store:checked')).map(function(x){return x.value;});
+                supabaseClient.rpc('app_emp_add',{p_username:currentUser.username,p_password:pin,p_name:name,p_wage:wage,p_position_id:pos,p_home:home,p_stores:locs}).then(({error})=>{
                     if(error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; }
-                    closeRosterModal(); loadRoster();
+                    closeRosterModal();
+                    var sv=document.getElementById('scheduleBuilderView');
+                    if(sv && sv.style.display==='block'){ fetchScheduleWeek(); } else { loadRoster(); }
                 });
             }
         });
@@ -3122,6 +3186,53 @@
         withPin(function(pin){
             supabaseClient.rpc('app_roster_unlink',{p_username:currentUser.username,p_password:pin,p_employee_id:id})
             .then(({error})=>{ if(error){ alert('Error: '+error.message); if(error.code==='42501') sessionPin=null; return; } loadRosterMeta(); loadRoster(); });
+        });
+    }
+    function rosterSetActive(id, active, name){
+        var verb = active ? 'Reactivate' : 'Terminate';
+        if(!confirm(verb+' '+(name||'this employee')+'?'+(active?'':'\n\nThey will be archived (no schedule access) but their history is kept. You can reactivate any time.'))) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_emp_set_active',{p_username:currentUser.username,p_password:pin,p_employee_id:id,p_active:active})
+            .then(({error})=>{ if(error){ alert('Error: '+error.message); if(error.code==='42501') sessionPin=null; return; } loadRoster(); });
+        });
+    }
+    function openRolesModal(){
+        document.getElementById('rolesMsg').style.display='none';
+        document.getElementById('roleName').value='';
+        renderRolesList();
+        document.getElementById('rolesModal').style.display='flex';
+    }
+    function closeRolesModal(){ document.getElementById('rolesModal').style.display='none'; }
+    function renderRolesList(){
+        var ps=(rosterState.meta.positions||[]);
+        if(!ps.length){ document.getElementById('rolesList').innerHTML='<p style="font-size:12px;color:#888;padding:8px 0;">No roles yet. Add one below.</p>'; return; }
+        var byDept={};
+        ps.forEach(function(p){ var d=p.department||'store'; (byDept[d]=byDept[d]||[]).push(p); });
+        var labels={store:'Store',catering:'Catering & Vending'};
+        var h='';
+        Object.keys(byDept).forEach(function(d){
+            h+='<div style="font-size:11px;font-weight:800;color:#888;text-transform:uppercase;letter-spacing:.4px;margin:8px 0 4px;">'+(labels[d]||rosterEsc(d))+'</div>';
+            byDept[d].forEach(function(p){
+                var c=p.color||'#888780';
+                h+='<div style="display:flex;align-items:center;gap:9px;padding:5px 0;border-bottom:1px solid #f3f3f3;"><span class="role-dot" style="background:'+rosterEsc(c)+';"></span><span style="font-size:13.5px;">'+rosterEsc(p.name)+'</span></div>';
+            });
+        });
+        document.getElementById('rolesList').innerHTML=h;
+    }
+    function saveNewRole(){
+        var name=document.getElementById('roleName').value.trim();
+        var color=document.getElementById('roleColor').value||'#888780';
+        var dept=document.getElementById('roleDept').value||'store';
+        var msg=document.getElementById('rolesMsg');
+        if(!name){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Role name is required.'; return; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_position_add',{p_username:currentUser.username,p_password:pin,p_name:name,p_color:color,p_department:dept}).then(({error})=>{
+                if(error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; }
+                msg.style.display='block'; msg.style.color='#1f7a3d'; msg.innerText='Added "'+name+'".';
+                document.getElementById('roleName').value='';
+                loadRosterMeta();
+                setTimeout(function(){ renderRolesList(); }, 600);
+            });
         });
     }
     function rosterAutolink(){
