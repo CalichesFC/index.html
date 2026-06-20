@@ -242,7 +242,7 @@
         .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:99998;justify-content:center;align-items:center;padding:20px;box-sizing:border-box}
         .modal-box{background:white;border-radius:16px;padding:20px 22px;width:100%;max-width:400px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.3);max-height:calc(100vh - 32px);overflow-y:auto;-webkit-overflow-scrolling:touch}
         .modal-box h3{margin-top:0}
-        .modal-input{width:100%;padding:14px;border:2px solid #eee;border-radius:8px;font-size:16px;margin-bottom:12px;box-sizing:border-box}
+        .modal-input{width:100%;min-height:38px;padding:8px 11px;border:1px solid #d7dde6;border-radius:8px;font-size:15px;margin-bottom:10px;box-sizing:border-box}
         /* ── KNOWLEDGE BASE ── */
         #kbView .kb-category { margin-bottom:28px; }
         #kbView .kb-category-title { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
@@ -1316,38 +1316,103 @@
   .dm-radio { display:flex; align-items:center; gap:8px; padding:10px 12px; border:1.5px solid #e3e8ef; border-radius:10px; margin-bottom:8px; cursor:pointer; font-size:14px; }
   .dm-radio input { width:18px; height:18px; }
   .dm-radio.sel { border-color:var(--caliches-blue); background:#eef4fb; }
+  /* ===== SCHEDULING PORTAL (Homebase-style) ===== */
+  #scheduleBuilderView { background:#fff; padding:0; }
+  .sp { display:flex; min-height:100vh; background:#fff; }
+  .sp-rail { width:178px; flex:none; background:#0f1830; color:#cdd6e6; display:flex; flex-direction:column; font-size:13px; padding:12px 0; }
+  .sp-brand { display:flex; align-items:center; gap:8px; color:#fff; font-weight:800; padding:2px 14px 12px; font-size:15px; }
+  .sp-logo { width:24px; height:24px; border-radius:6px; background:var(--caliches-pink); display:flex; align-items:center; justify-content:center; }
+  .sp-storewrap { padding:0 12px 12px; }
+  .sp-storelbl { font-size:10px; color:#7e90ad; margin:0 2px 4px; letter-spacing:.4px; }
+  .sp-rail select { width:100%; background:#1b2742; border:1px solid #2c3a5c; border-radius:8px; padding:9px; color:#fff; font-size:13px; }
+  .sp-nav { display:flex; flex-direction:column; }
+  .sp-nav a { display:flex; align-items:center; gap:9px; padding:10px 14px; color:#9fb0c9; text-decoration:none; cursor:pointer; border:0; background:none; font-size:13px; text-align:left; width:100%; }
+  .sp-nav a.active { background:var(--caliches-pink); color:#fff; border-radius:0 18px 18px 0; margin-right:10px; font-weight:700; }
+  .sp-nav a:hover:not(.active) { color:#fff; }
+  .sp-toolhdr { margin:10px 12px 4px; border-top:1px solid #28344f; padding-top:9px; font-size:10px; color:#7e90ad; text-transform:uppercase; letter-spacing:.4px; }
+  .sp-back { margin-top:auto; padding:10px 14px 2px; color:#7e90ad; cursor:pointer; display:flex; align-items:center; gap:8px; background:none; border:0; font-size:13px; text-align:left; }
+  .sp-main { flex:1; min-width:0; display:flex; flex-direction:column; }
+  .sp-top { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 14px; border-bottom:1px solid var(--line,#e3e8ef); background:#fff; position:sticky; top:0; z-index:30; }
+  .sp-ham { display:none; border:1px solid #d7dde6; background:#fff; border-radius:8px; padding:8px 11px; font-size:16px; cursor:pointer; }
+  .sp-chip { border:1px solid #d7dde6; background:#fff; border-radius:8px; padding:8px 12px; font-size:13px; cursor:pointer; min-height:40px; }
+  .sp-wknav { display:flex; align-items:center; gap:4px; }
+  .sp-wknav button { border:1px solid #d7dde6; background:#fff; border-radius:7px; padding:7px 10px; cursor:pointer; font-size:14px; }
+  #schedWeekLabel { font-weight:800; font-size:13px; min-width:150px; text-align:center; color:#1f2a44; }
+  .sp-pub { background:var(--caliches-pink); color:#fff; border:none; border-radius:8px; padding:9px 14px; font-weight:800; font-size:13px; cursor:pointer; min-height:40px; }
+  .sp-sub { display:flex; align-items:center; gap:8px; padding:8px 14px; border-bottom:1px solid var(--line,#e3e8ef); background:#fff; }
+  .sp-viewby { font-size:12px; color:#7a828f; } .sp-viewby b { color:#1f2a44; }
+  .sp-search { flex:1; max-width:260px; border:1px solid #d7dde6; border-radius:8px; padding:8px 11px; font-size:13px; min-height:40px; }
+  #schedGrid { flex:1; overflow:auto; }
+  /* grid */
+  table.hbg { border-collapse:collapse; width:100%; min-width:760px; font-size:12px; background:#fff; }
+  .hbg th { position:sticky; top:0; background:#f6f8fb; color:#5b6472; font-weight:700; padding:9px 6px; text-align:center; border-left:1px solid #eef1f5; z-index:2; }
+  .hbg th.hbg-e { text-align:left; min-width:186px; left:0; z-index:3; }
+  .hbg td { border-left:1px solid #eef1f5; border-top:1px solid #eef1f5; padding:5px; vertical-align:top; }
+  .hbg td.hbg-e { position:sticky; left:0; background:#fff; z-index:1; }
+  .hbg .hbg-band td, .hbg .hbg-band .hbg-e { background:#f6f8fb; font-weight:700; color:#5b6472; }
+  .hbg-av { width:30px; height:30px; border-radius:50%; color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; flex:none; }
+  .hbg-nm { font-weight:700; font-size:12.5px; color:#1f2a44; } .hbg-sub { font-size:10.5px; color:#9aa7b4; }
+  .hbg-blk { border-radius:6px; padding:5px 7px; font-size:11px; line-height:1.3; font-weight:700; margin-bottom:4px; cursor:pointer; }
+  .hbg-loc { border-radius:6px; padding:5px 7px; font-size:10.5px; line-height:1.3; background:#f1f4f8; border:1px dashed #c2cbd6; color:#6b7480; margin-bottom:4px; }
+  .hbg-off { border-radius:6px; padding:5px 7px; font-size:10.5px; background:#ECEAFB; color:#3C3489; font-weight:700; }
+  .hbg-add { color:#c8d0da; font-size:17px; cursor:pointer; text-align:center; padding:3px; }
+  .hbg-cell { min-height:40px; cursor:pointer; }
+  .hbg-rowt { text-align:right; font-weight:800; white-space:nowrap; color:#1f2a44; } .hbg-ot { color:#c0392b; }
+  .hbg-conf { outline:2px solid #e24b4a; }
+  .hbg tfoot td { position:sticky; bottom:0; background:#f6f8fb; font-weight:700; text-align:center; border-top:2px solid #dde3ea; font-size:11px; }
+  .hbg tfoot td.hbg-e { text-align:left; }
+  .sp-weekbar { background:#185FA5; color:#fff; padding:11px 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; font-size:14px; }
+  .sp-weekbar b { font-size:17px; }
+  .sp-banner { display:flex; align-items:center; gap:8px; background:#FCEBEB; border:1px solid #e24b4a; color:#a32d2d; border-radius:8px; padding:9px 12px; margin:10px 14px 0; font-size:12.5px; }
+  @media (max-width:820px){
+    .sp-rail { position:fixed; left:0; top:0; bottom:0; z-index:120; transform:translateX(-100%); transition:transform .2s; box-shadow:4px 0 24px rgba(0,0,0,.3); }
+    .sp.railopen .sp-rail { transform:translateX(0); }
+    .sp.railopen::after { content:''; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:110; }
+    .sp-ham { display:inline-block; }
+  }
 </style>
 <div id="scheduleBuilderView" class="app-view">
-    <div class="hb-head">
-        <button class="hb-back" onclick="openMenu()">&#8249; Menu</button>
-        <div class="hb-ico">&#128197;</div>
-        <div><h2>Schedule Builder</h2><div class="hb-sub">Test mode &mdash; test employees</div></div>
+  <div class="sp" id="schedPortal">
+    <aside class="sp-rail" id="schedRail">
+      <div class="sp-brand"><span class="sp-logo">&#127846;</span> Scheduling</div>
+      <div class="sp-storewrap">
+        <div class="sp-storelbl">STORE</div>
+        <select id="schedLocation" onchange="schedChangeLocation()" aria-label="Store location"></select>
+      </div>
+      <nav class="sp-nav" id="schedNavMgr">
+        <a class="active" data-nav="schedule" onclick="schedRailNav('schedule',this)">&#128197; Schedule</a>
+        <a data-nav="timesheets" onclick="schedRailNav('timesheets',this)">&#128347; Timesheets</a>
+        <a data-nav="live" onclick="schedRailNav('live',this)">&#128994; On the clock</a>
+        <a data-nav="clock" onclick="schedRailNav('clock',this)">&#9201;&#65039; Time clock</a>
+        <a data-nav="roster" onclick="schedRailNav('roster',this)">&#128101; Roster</a>
+        <div class="sp-toolhdr">Tools</div>
+        <a data-nav="copy" onclick="schedRailNav('copy',this)">&#128203; Copy last week</a>
+        <a data-nav="addemp" onclick="schedRailNav('addemp',this)">&#10133; Add employee</a>
+        <a data-nav="roles" onclick="schedRailNav('roles',this)">&#127912; Manage roles</a>
+        <a data-nav="print" onclick="schedRailNav('print',this)">&#128424;&#65039; Print</a>
+      </nav>
+      <nav class="sp-nav" id="schedNavStaff" style="display:none;">
+        <a class="active" data-nav="myshifts" onclick="schedRailNav('myshifts',this)">&#128197; My shifts</a>
+        <a data-nav="timeoff" onclick="schedRailNav('timeoff',this)">&#127796; Request time off</a>
+        <a data-nav="availability" onclick="schedRailNav('availability',this)">&#128340; My availability</a>
+      </nav>
+      <button class="sp-back" onclick="openMenu()">&#8249; Back to Hub</button>
+    </aside>
+    <div class="sp-main">
+      <div class="sp-top">
+        <button class="sp-ham" onclick="toggleSchedRail()" aria-label="Open menu">&#9776;</button>
+        <button class="sp-chip" onclick="schedToday()">Today</button>
+        <div class="sp-wknav"><button onclick="schedShiftWeek(-7)" aria-label="Previous week">&#8249;</button><span id="schedWeekLabel" aria-live="polite">&mdash;</span><button onclick="schedShiftWeek(7)" aria-label="Next week">&#8250;</button></div>
+        <span style="flex:1;"></span>
+        <button class="sp-pub" id="schedPublishBtn" onclick="schedPublish()">&#128640; Publish</button>
+      </div>
+      <div class="sp-sub">
+        <span class="sp-viewby">View by <b>First name</b></span>
+        <input class="sp-search" id="schedSearch" placeholder="Search team&hellip;" oninput="renderScheduleGrid()" aria-label="Search team">
+      </div>
+      <div id="schedGrid"><p style="text-align:center;padding:30px;color:#888;">Loading&hellip;</p></div>
     </div>
-    <div class="container" style="max-width:1100px;">
-        <div class="hb-bar">
-            <select id="schedLocation" onchange="schedChangeLocation()" aria-label="Store location"></select>
-            <div class="sched-week-nav">
-                <button onclick="schedShiftWeek(-7)" aria-label="Previous week" title="Previous week">&#9664;</button>
-                <span id="schedWeekLabel" aria-live="polite">&mdash;</span>
-                <button onclick="schedShiftWeek(7)" aria-label="Next week" title="Next week">&#9654;</button>
-            </div>
-            <span class="spacer"></span>
-            <button class="sched-btn publish" id="schedPublishBtn" onclick="schedPublish()">&#128640; Publish</button>
-            <div class="hb-tools-wrap">
-                <button class="sched-btn" id="schedToolsBtn" onclick="toggleSchedTools(event)" aria-haspopup="true" aria-expanded="false">&#9881; Tools &#9662;</button>
-                <div class="hb-tools-menu" id="schedToolsMenu" style="display:none;" role="menu">
-                    <button role="menuitem" onclick="schedToolsAction('copy')">&#128203; Copy Last Week</button>
-                    <button role="menuitem" onclick="schedToolsAction('print')">&#128424; Print Schedule</button>
-                    <button role="menuitem" onclick="schedToolsAction('addemp')">&#10133; Add Employee</button>
-                    <button role="menuitem" onclick="schedToolsAction('clock')">&#128347; Time Clock</button>
-                    <button role="menuitem" onclick="schedToolsAction('live')">&#128994; On the Clock</button>
-                    <button role="menuitem" onclick="schedToolsAction('timesheets')">&#128202; Timesheets</button>
-                    <button role="menuitem" onclick="schedToolsAction('roster')">&#128101; Manage Roster</button>
-                </div>
-            </div>
-        </div>
-        <div id="schedGrid"><p style="text-align:center;padding:30px;color:#888;">Loading&hellip;</p></div>
-    </div>
+  </div>
 </div>
 
 <!-- EMPLOYEE ROSTER (Admin Manager only) -->
@@ -1873,7 +1938,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.20.1455';
+    const APP_VERSION = '2026.06.20.1538';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2805,12 +2870,8 @@
     function openScheduling() {
         triggerTransition(() => {
             document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
-            if (isAdminManager()) {
-                document.getElementById('scheduleBuilderView').style.display = 'block';
-                initScheduleBuilder();
-            } else {
-                document.getElementById('scheduleComingSoonView').style.display = 'block';
-            }
+            document.getElementById('scheduleBuilderView').style.display = 'block';
+            initScheduleBuilder();
         });
     }
 
@@ -2819,14 +2880,40 @@
     function schedAddDays(dt,n){ const x=new Date(dt); x.setDate(x.getDate()+n); return x; }
 
     function initScheduleBuilder() {
+        const mgr = isAdminManager();
+        schedState.mode = mgr ? 'mgr' : 'staff';
+        document.getElementById('schedNavMgr').style.display = mgr ? 'flex' : 'none';
+        document.getElementById('schedNavStaff').style.display = mgr ? 'none' : 'flex';
+        document.getElementById('schedPublishBtn').style.display = mgr ? '' : 'none';
+        document.getElementById('schedLocation').parentElement.style.display = mgr ? '' : 'none';
+        document.getElementById('schedSearch').parentElement.style.display = mgr ? '' : 'none';
         const sel = document.getElementById('schedLocation');
         if (sel && !sel.options.length) sel.innerHTML = SCHED_LOCATIONS.map(l => '<option>'+l+'</option>').join('');
         schedState.location = sel ? sel.value : 'Roadrunner';
         if (!schedState.weekStart) schedState.weekStart = schedMondayOf(new Date());
-        fetchScheduleWeek();
+        if (mgr) fetchScheduleWeek(); else fetchMyShifts();
     }
     function schedChangeLocation(){ schedState.location = document.getElementById('schedLocation').value; fetchScheduleWeek(); }
-    function schedShiftWeek(days){ schedState.weekStart = schedAddDays(schedState.weekStart, days); fetchScheduleWeek(); }
+    function schedShiftWeek(days){ schedState.weekStart = schedAddDays(schedState.weekStart, days); if(schedState.mode==='staff') fetchMyShifts(); else fetchScheduleWeek(); }
+    function schedToday(){ schedState.weekStart = schedMondayOf(new Date()); if(schedState.mode==='staff') fetchMyShifts(); else fetchScheduleWeek(); }
+    function toggleSchedRail(){ document.getElementById('schedPortal').classList.toggle('railopen'); }
+    function schedRailNav(action, el){
+        if (el){ var nav = el.closest('.sp-nav'); if(nav){ nav.querySelectorAll('a').forEach(function(a){ a.classList.remove('active'); }); } el.classList.add('active'); }
+        document.getElementById('schedPortal').classList.remove('railopen');
+        switch(action){
+            case 'schedule': case 'myshifts': initScheduleBuilder(); break;
+            case 'timesheets': openTimesheets(); break;
+            case 'live': openLiveBoard(); break;
+            case 'clock': openTimeClock(); break;
+            case 'roster': openRoster(); break;
+            case 'copy': schedCopyLastWeek(); break;
+            case 'addemp': schedAddEmployee(); break;
+            case 'roles': openRolesModal(); break;
+            case 'print': schedPrint(); break;
+            case 'timeoff': openTimeOff(); break;
+            case 'availability': alert('Availability settings are coming soon — for now your manager sets your shifts and you can request time off here.'); break;
+        }
+    }
 
     function fetchScheduleWeek() {
         const grid = document.getElementById('schedGrid');
@@ -2890,49 +2977,116 @@
             const empArg = (s.employee_id != null ? s.employee_id : 'null');
             return '<div class="sched-chip'+(conflict?' sched-chip-conflict':'')+'" tabindex="0" role="button" style="background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+(s.start_time||'')+'-'+(s.end_time||'')+'<br>'+escapeHtml(lblTxt)+(conflict?' &#9888;':'')+(s.published?'':' *')+'</div>';
         };
-        let html = '<div style="overflow-x:auto;"><table class="sched-table"><thead><tr><th class="sched-emp">Employee</th>';
-        days.forEach((d,i) => { html += '<th>'+dayNames[i]+'<br><span style="font-weight:normal;color:#888;">'+(d.getMonth()+1)+'/'+d.getDate()+'</span></th>'; });
-        html += '<th>Hrs · $</th></tr></thead><tbody>';
+        const hbTime = t => { if(!t) return ''; const p=String(t).split(':'); let h=+p[0]||0; const m=+p[1]||0; const ap=h<12?'a':'p'; let hh=h%12; if(hh===0) hh=12; return hh+(m?(':'+String(m).padStart(2,'0')):'')+ap; };
+        const initialsOf = nm => { const parts=String(nm||'').trim().split(/\s+/); return ((parts[0]||'')[0]||'').toUpperCase()+((parts[1]||'')[0]||'').toUpperCase() || '?'; };
+        const avatarColor = e => { const p=schedPosById(e.default_position_id); return (p && p.color) ? p.color : '#185FA5'; };
+        const blockHtml = (s, conflict) => {
+            const p = schedPosById(s.position_id); const col = p ? p.color : '#6b7280';
+            const txt = hbTextOn(col);
+            const role = (p ? p.name : 'Shift') + (s.note ? (' · ' + s.note) : '');
+            const empArg = (s.employee_id != null ? s.employee_id : 'null');
+            return '<div class="hbg-blk'+(conflict?' hbg-conf':'')+'" tabindex="0" role="button" style="background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+hbTime(s.start_time)+'&ndash;'+hbTime(s.end_time)+(s.published?'':' *')+'<br>'+escapeHtml(role)+(conflict?' &#9888;':'')+'</div>';
+        };
+        const q = (document.getElementById('schedSearch') ? document.getElementById('schedSearch').value : '').toLowerCase().trim();
+        const shownEmps = q ? emps.filter(e => (e.name||'').toLowerCase().indexOf(q) > -1) : emps;
+        // distinct employees & stores seen working elsewhere this week
+        const elseEmpSet = {}, elseStoreSet = {};
+        (schedState.elsewhere||[]).forEach(x => { elseEmpSet[x.employee_id]=1; if(x.location) elseStoreSet[x.location]=1; });
+        const elseEmpN = Object.keys(elseEmpSet).length, elseStoreN = Object.keys(elseStoreSet).length;
+
+        let html = '<table class="hbg"><thead><tr><th class="hbg-e">Team member</th>';
+        days.forEach((d,i) => { html += '<th>'+dayNames[i]+'<br><span style="font-weight:400;color:#9aa7b4;">'+(d.getMonth()+1)+'/'+d.getDate()+'</span></th>'; });
+        html += '<th>Hrs &middot; $</th></tr></thead><tbody>';
         // Open (unassigned) shifts row
-        html += '<tr style="background:#faf7ff;"><td class="sched-emp" style="color:#5b3fb8;">&#9744; Open Shifts</td>';
+        let openN=0, openH=0; days.forEach(d=>{ const oc=byKey['null|'+schedFmt(d)]||[]; oc.forEach(s=>{ openN++; openH+=schedShiftHours(s); }); });
+        html += '<tr class="hbg-band"><td class="hbg-e">&#10753; Open shifts ('+openN+') <span style="font-weight:400;color:#9aa7b4;">'+openH.toFixed(1)+'h</span></td>';
         days.forEach(d => {
             const ds = schedFmt(d); const oc = byKey['null|'+ds] || [];
-            html += '<td class="sched-cell" onclick="schedOpenModal(null,\''+ds+'\',null)">';
-            oc.forEach(s => { html += chipHtml(s,false); });
+            html += '<td class="hbg-cell" onclick="schedOpenModal(null,\''+ds+'\',null)">';
+            oc.forEach(s => { html += blockHtml(s,false); });
+            if(!oc.length) html += '<div class="hbg-add">+</div>';
             html += '</td>';
         });
         html += '<td></td></tr>';
-        if (!emps.length) html += '<tr><td colspan="9" style="text-align:center;padding:20px;color:#888;">No employees on this store yet. Use Tools &rarr; Add Employee.</td></tr>';
-        emps.forEach(e => {
-            const multi = (e.stores && e.stores.length>1) ? '<small style="color:#9aa7b4;">'+escapeHtml(e.stores.join(' · '))+'</small>' : '';
-            html += '<tr><td class="sched-emp">'+escapeHtml(e.name)+(empRole[e.id]?'<small>'+escapeHtml(empRole[e.id])+'</small>':'')+multi+'</td>';
+        // Team members band
+        html += '<tr class="hbg-band"><td class="hbg-e" colspan="9"><span style="color:#1f2a44;">Team members ('+emps.length+')</span>'+(elseEmpN?' &nbsp; <span style="font-weight:400;color:#9aa7b4;">&#128205; '+elseEmpN+' scheduled at '+elseStoreN+' other location'+(elseStoreN>1?'s':'')+'</span>':'')+'</td></tr>';
+        if (!shownEmps.length) html += '<tr><td colspan="9" style="text-align:center;padding:20px;color:#888;">'+(emps.length?'No team members match your search.':'No employees on this store yet. Use Tools &rarr; Add employee.')+'</td></tr>';
+        shownEmps.forEach(e => {
+            const eh = empHrs[e.id]||0; const reg=Math.min(eh,40), ot=Math.max(0,eh-40); const cost=reg*(wageOf[e.id]||0)+ot*(wageOf[e.id]||0)*1.5;
+            const multi = (e.stores && e.stores.length>1) ? '<div class="hbg-sub">'+escapeHtml(e.stores.join(' &middot; '))+'</div>' : '';
+            html += '<tr><td class="hbg-e"><div style="display:flex;align-items:center;gap:9px;"><span class="hbg-av" style="background:'+avatarColor(e)+';">'+initialsOf(e.name)+'</span><div style="min-width:0;"><div class="hbg-nm">'+escapeHtml(e.name)+'</div><div class="hbg-sub">'+(empRole[e.id]?escapeHtml(empRole[e.id])+' &middot; ':'')+eh.toFixed(1)+'h</div>'+multi+'</div></div></td>';
             days.forEach(d => {
                 const ds = schedFmt(d); const k = e.id+'|'+ds; const cell = byKey[k] || []; const off = offMap[k]; const elsw = elseMap[k] || [];
                 const conflict = (cell.length>0 && elsw.length>0); if (conflict) conflicts++;
-                if (off) {
-                    html += '<td class="sched-cell sched-off"><div class="sched-offband">OFF<br><small>'+escapeHtml(off)+'</small></div></td>';
+                if (off && !cell.length) {
+                    html += '<td class="hbg-cell"><div class="hbg-off">&#128197; Time-off<br><small style="font-weight:400;">'+escapeHtml(off)+'</small></div></td>';
                 } else {
-                    html += '<td class="sched-cell" onclick="schedOpenModal('+e.id+",'"+ds+"',null)\">";
-                    cell.forEach(s => { html += chipHtml(s, conflict); });
-                    elsw.forEach(x => { html += '<div class="sched-elsewhere">&#128205; '+escapeHtml(x.location)+' '+(x.start_time||'')+'</div>'; });
+                    html += '<td class="hbg-cell" onclick="schedOpenModal('+e.id+",'"+ds+"',null)\">";
+                    cell.forEach(s => { html += blockHtml(s, conflict); });
+                    elsw.forEach(x => { html += '<div class="hbg-loc">&#128205; '+escapeHtml(x.location)+'<br>'+hbTime(x.start_time)+'&ndash;'+hbTime(x.end_time)+'</div>'; });
+                    if(!cell.length && !elsw.length) html += '<div class="hbg-add">+</div>';
                     html += '</td>';
                 }
             });
-            const eh = empHrs[e.id]||0; const reg=Math.min(eh,40), ot=Math.max(0,eh-40); const cost=reg*(wageOf[e.id]||0)+ot*(wageOf[e.id]||0)*1.5;
-            html += '<td style="text-align:right;font-weight:bold;white-space:nowrap;color:'+(ot>0?'#c0392b':'#333')+';">'+eh.toFixed(1)+'h<br>'+money(cost)+(ot>0?'<br><span style="color:#c0392b;">'+ot.toFixed(1)+' OT</span>':'')+'</td></tr>';
+            html += '<td class="hbg-rowt'+(ot>0?' hbg-ot':'')+'">'+eh.toFixed(1)+'h<br>'+money(cost)+(ot>0?'<br><span class="hbg-ot">'+ot.toFixed(1)+' OT</span>':'')+'</td></tr>';
         });
-        html += '</tbody><tfoot><tr><td class="sched-emp">Daily total</td>';
+        // footer: per-day staff count + hours
+        const dayStaff = {}; shifts.forEach(s => { if(s.employee_id!=null){ (dayStaff[s.shift_date]=dayStaff[s.shift_date]||{})[s.employee_id]=1; } });
+        html += '</tbody><tfoot><tr><td class="hbg-e">Hours <span style="color:#185FA5;">';
         let weekHrs=0, weekCost=0;
         emps.forEach(e=>{ const eh=empHrs[e.id]||0; const reg=Math.min(eh,40),ot=Math.max(0,eh-40); weekCost+=reg*(wageOf[e.id]||0)+ot*(wageOf[e.id]||0)*1.5; });
-        days.forEach(d => { const ds = schedFmt(d); const hh=dayHrs[ds]||0; weekHrs+=hh; html += '<td style="text-align:center;font-weight:bold;color:#5b3fb8;">'+hh.toFixed(1)+'h<br><span style="font-weight:normal;font-size:10px;">'+money(dayCost[ds]||0)+'</span></td>'; });
-        html += '<td></td></tr></tfoot></table></div>';
-        html += '<div class="sched-weekbar"><span>Projected week</span><span><b>'+weekHrs.toFixed(1)+' hrs</b> &middot; <b>'+money(weekCost)+'</b> labor</span></div>';
+        days.forEach(d=>{ weekHrs += dayHrs[schedFmt(d)]||0; });
+        html += weekHrs.toFixed(1)+'</span></td>';
+        days.forEach(d => { const ds = schedFmt(d); const hh=dayHrs[ds]||0; const n=dayStaff[ds]?Object.keys(dayStaff[ds]).length:0; html += '<td>&#128100; '+n+'<br><span style="font-weight:400;font-size:10px;color:#7a828f;">'+hh.toFixed(1)+'h</span></td>'; });
+        html += '<td></td></tr></tfoot></table>';
+        html += '<div class="sp-weekbar"><span>Week of '+(ws.getMonth()+1)+'/'+ws.getDate()+' &middot; '+emps.length+' staff &middot; '+weekHrs.toFixed(1)+' hrs</span><span><b>'+money(weekCost)+'</b> projected labor</span></div>';
         const pb = document.getElementById('schedPublishBtn');
         if (conflicts>0) {
-            html = '<div class="sched-conflict-banner">&#9888; '+conflicts+' double-book'+(conflicts>1?'s':'')+' across stores — resolve (tap the &#9888; shift) before publishing.</div>' + html;
+            html = '<div class="sp-banner">&#9888; '+conflicts+' double-book'+(conflicts>1?'s':'')+' across stores — resolve (tap the &#9888; shift) before publishing.</div>' + html;
             if (pb){ pb.disabled=true; pb.style.opacity=.5; pb.style.cursor='not-allowed'; pb.title='Resolve cross-store conflicts to publish'; }
         } else if (pb){ pb.disabled=false; pb.style.opacity=1; pb.style.cursor='pointer'; pb.title=''; }
-        html += '<p style="font-size:11px;color:#888;margin-top:6px;">Tap a cell to add a shift &middot; grey &#128205; = working another store (read-only) &middot; amber = time off (blocks all stores) &middot; <span style="color:#c0392b;">red OT</span> = over 40h/week. Chips marked * are unpublished.</p>';
+        document.getElementById('schedGrid').innerHTML = html;
+    }
+    function fetchMyShifts() {
+        const grid = document.getElementById('schedGrid');
+        grid.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading&hellip;</p>';
+        const ws = schedFmt(schedState.weekStart);
+        withPin(function(pin){
+            supabaseClient.rpc('app_my_week_shifts', { p_username: currentUser.username, p_password: pin, p_week_start: ws })
+            .then(({ data, error }) => {
+                if (error && error.code === '42501') sessionPin = null;
+                if (error) { grid.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Error: ' + error.message + '</p>'; return; }
+                schedState.mine = data || { shifts: [], time_off: [] };
+                renderMyShifts();
+            }).catch(() => { grid.innerHTML = '<p style="color:red;text-align:center;">Connection error.</p>'; });
+        }, function(){ grid.innerHTML = '<p style="text-align:center;padding:20px;color:#888;">PIN required.</p>'; });
+    }
+    function renderMyShifts() {
+        const ws = schedState.weekStart;
+        const days = []; for (let i=0;i<7;i++) days.push(schedAddDays(ws,i));
+        const dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+        const lbl = document.getElementById('schedWeekLabel');
+        if (lbl) lbl.innerText = (ws.getMonth()+1)+'/'+ws.getDate()+' – '+(days[6].getMonth()+1)+'/'+days[6].getDate()+', '+ws.getFullYear();
+        const hbTime = t => { if(!t) return ''; const p=String(t).split(':'); let h=+p[0]||0; const m=+p[1]||0; const ap=h<12?'a':'p'; let hh=h%12; if(hh===0) hh=12; return hh+(m?(':'+String(m).padStart(2,'0')):'')+ap; };
+        const mine = schedState.mine || { shifts: [], time_off: [] };
+        const byDay = {}; (mine.shifts||[]).forEach(s => { (byDay[s.shift_date]=byDay[s.shift_date]||[]).push(s); });
+        const offMap = {}; (mine.time_off||[]).forEach(t => { days.forEach(d => { const ds=schedFmt(d); if(ds>=t.start_date && ds<=t.end_date) offMap[ds]=t.reason||'Time off'; }); });
+        let total = 0;
+        let html = '<div style="padding:14px;max-width:640px;margin:0 auto;">';
+        html += '<h2 style="margin:4px 0 12px;font-size:18px;color:#1f2a44;">My shifts</h2>';
+        days.forEach((d,i) => {
+            const ds = schedFmt(d); const list = byDay[ds] || []; const off = offMap[ds];
+            html += '<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #eef1f5;">';
+            html += '<div style="width:104px;flex:none;"><div style="font-weight:700;color:#1f2a44;font-size:13px;">'+dayNames[i]+'</div><div style="font-size:11px;color:#9aa7b4;">'+(d.getMonth()+1)+'/'+d.getDate()+'</div></div>';
+            html += '<div style="flex:1;min-width:0;">';
+            if (off && !list.length) { html += '<div class="hbg-off" style="display:inline-block;">&#128197; Time off &middot; '+escapeHtml(off)+'</div>'; }
+            else if (!list.length) { html += '<div style="color:#b3bcc7;font-size:13px;">Off</div>'; }
+            else { list.forEach(s => { const col=s.color||'#185FA5'; const h=((function(x){if(!x.start_time||!x.end_time)return 0;const a=x.start_time.split(":").map(Number),b=x.end_time.split(":").map(Number);let hh=(b[0]*60+b[1]-(a[0]*60+a[1]))/60;if(hh<0)hh+=24;return hh;})(s)); total+=h;
+                html += '<div style="background:'+col+';color:'+hbTextOn(col)+';border-radius:7px;padding:7px 10px;margin-bottom:5px;font-size:13px;"><b>'+hbTime(s.start_time)+'&ndash;'+hbTime(s.end_time)+'</b> &middot; '+escapeHtml(s.position_name||'Shift')+' <span style="opacity:.85;">@ '+escapeHtml(s.location||'')+'</span></div>'; }); }
+            html += '</div></div>';
+        });
+        html += '<div class="sp-weekbar" style="margin-top:14px;border-radius:10px;"><span>This week</span><span><b>'+total.toFixed(1)+' hrs</b> scheduled</span></div>';
+        html += '<p style="font-size:12px;color:#9aa7b4;margin-top:10px;">Only published shifts are shown. Need a day off? Use <b>Request time off</b> in the menu.</p></div>';
         document.getElementById('schedGrid').innerHTML = html;
     }
 
