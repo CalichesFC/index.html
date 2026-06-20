@@ -450,6 +450,7 @@
                 </div>
             </div>
             <button id="announceBtn" class="icon-circle-btn" onclick="openAnnouncementEditor()" title="Announcement" style="display:none;">&#128227;</button>
+            <button id="topMessagesBtn" class="icon-circle-btn" onclick="openMessages()" title="Messages">&#128172;</button>
             <button id="settingsBtn" class="icon-circle-btn" onclick="openSettings()" title="Settings">&#9881;&#65039;</button>
             <button class="logout-btn" onclick="logout()">Logout</button>
         </div>
@@ -475,25 +476,29 @@
             <button class="menu-tab" id="tab-management" style="display:none;" onclick="switchMenuTab('management')">⚡ Admin Dashboard</button>
         </div>
 
-        <!-- ── HOME ── -->
+        <!-- ── HOME (personal) ── -->
         <div id="tab-content-home" class="menu-tab-content tab-visible">
             <div class="hub-hero">
                 <img src="scoopy-wave.png" alt="Mr. Scoopy" onerror="this.style.display='none'">
                 <div>
                     <h2>Welcome back, <span id="heroName">team</span>!</h2>
-                    <p>Your stores, fleet, and team &mdash; all in one place. Mr. Scoopy's got your back.</p>
+                    <p>Here's your day at a glance &mdash; Mr. Scoopy's got your back.</p>
                 </div>
             </div>
-            <div class="sec-title"><h2>Quick Launch</h2><span class="tag">Jump back in</span></div>
-            <div class="quick">
-                <div class="qcard" onclick="switchMenuTab('scheduling')"><div class="ic">&#128197;</div><b>Scheduling</b><small>Shifts, tours &amp; checklists</small></div>
-                <div class="qcard" onclick="switchMenuTab('operations')"><div class="ic">&#127846;</div><b>Store Operations</b><small>Daily tasks &amp; logs</small></div>
-                <div class="qcard" onclick="switchMenuTab('fleet')"><div class="ic">&#128666;</div><b>Mobile Vending &amp; Catering</b><small>Fleet routes &amp; events</small></div>
-                <div class="qcard" id="quickAdminCard" style="display:none;" onclick="switchMenuTab('management')"><div class="ic">&#9889;</div><b>Admin Dashboard</b><small>Metrics &amp; tools</small></div>
-            </div>
+
+            <!-- MY DAY: next shift -->
+            <div id="homeDayCard" style="margin-top:2px;"><p style="text-align:center;color:#888;font-size:13px;padding:14px;">Loading your day&hellip;</p></div>
+
+            <!-- one-tap time clock -->
+            <button class="home-clock-btn" onclick="openTimeClock()"><span style="font-size:20px;">&#128337;</span> Time Clock</button>
+
+            <!-- My Tasks (front and center) -->
+            <div id="homeTasksCard" style="margin-top:14px;"></div>
+
+            <div class="sec-title"><h2>Jump to</h2><span class="tag">Most used</span></div>
+            <div class="quick" id="jumpToGrid"><p style="flex-basis:100%;text-align:center;color:#aab;font-size:12px;margin:0;">Loading your shortcuts&hellip;</p></div>
             <div class="sec-title"><h2>My Shortcuts</h2><span class="tag">Personal</span></div>
             <button id="btn-empHome" class="menu-btn" onclick="openEmployeeHome()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127968;</span><b>My Home</b><small>Your shifts, tasks &amp; updates</small></button>
-            <button id="btn-messages" class="menu-btn" onclick="openMessages()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128172;</span><b>Messages</b><small>Team chat &amp; broadcasts</small></button>
             <button id="btn-formsDocs" class="menu-btn" onclick="openFormsLinks()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128196;</span><b>Forms &amp; Documents</b><small>Payroll, HR &amp; hiring forms</small></button>
         </div>
 
@@ -571,7 +576,29 @@
         <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https://calichesfc.github.io/index.html/" alt="Scan to install" style="border-radius:8px;width:140px;height:140px;">
         <p style="margin:8px 0 0 0;font-size:12px;color:#888;">Scan with your camera → tap "Add to Home Screen"</p>
     </div>
+
+    <!-- ── APP BOTTOM NAV ── -->
+    <nav class="hub-bottom-nav" id="hubBottomNav">
+        <button class="hbn-item active" id="hbn-home" onclick="hubNav('home')"><span class="hbn-ic">&#127968;</span>Home</button>
+        <button class="hbn-item" id="hbn-schedule" onclick="hubNav('schedule')"><span class="hbn-ic">&#128197;</span>Schedule</button>
+        <button class="hbn-item" id="hbn-tasks" onclick="hubNav('tasks')"><span class="hbn-ic">&#9989;</span>Tasks</button>
+        <button class="hbn-item" id="hbn-more" onclick="hubNav('more')"><span class="hbn-ic">&#9776;</span>More</button>
+    </nav>
 </div>
+
+<style>
+    .home-card{background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 4px 6px rgba(0,0,0,0.05);border-left:5px solid var(--caliches-blue);}
+    .home-card-label{font-size:11px;font-weight:800;letter-spacing:1px;color:#9aa7bd;}
+    .home-clock-btn{width:100%;margin-top:14px;background:var(--pass-green);color:#fff;border:none;border-radius:14px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 6px rgba(0,0,0,0.07);}
+    .home-clock-btn:active{transform:scale(0.99);}
+    .hub-bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:9000;display:flex;background:#fff;border-top:1px solid #e7e9f0;box-shadow:0 -2px 10px rgba(0,0,0,0.06);padding-bottom:env(safe-area-inset-bottom,0px);}
+    .hbn-item{flex:1;border:none;background:transparent;padding:8px 0 7px;cursor:pointer;color:#9aa7bd;font-size:10px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit;}
+    .hbn-item .hbn-ic{font-size:20px;line-height:1;}
+    .hbn-item.active{color:var(--caliches-blue);}
+    #main-menu{padding-bottom:78px;}
+    #aiChatWidget{bottom:90px;right:16px;}
+    @media(max-width:400px){ #aiChatToggle{padding:11px 16px;font-size:14px;} }
+</style>
 
 <!-- EMPLOYEE HOME -->
 <div id="employeeHomeView" class="app-view">
@@ -1573,6 +1600,19 @@
     </div>
 </div>
 
+<!-- ── ASK MR. SCOOPY (global floating widget — shows on every page) ── -->
+<div id="aiChatWidget">
+    <div id="aiChatPanel">
+        <div id="aiChatHeader"><span>&#127846; Ask Mr. Scoopy</span><button id="aiChatCloseBtn" onclick="toggleAIChatPanel()" title="Close">&times;</button></div>
+        <div id="aiChatMessages"></div>
+        <div id="aiChatInputRow">
+            <input id="aiChatInput" type="text" placeholder="Ask me anything&hellip;" onkeydown="if(event.key==='Enter'){event.preventDefault();sendAIMessage();}">
+            <button onclick="sendAIMessage()" style="background:var(--caliches-blue);color:#fff;border:none;border-radius:20px;padding:0 16px;font-weight:bold;cursor:pointer;font-size:13.5px;">Send</button>
+        </div>
+    </div>
+    <button id="aiChatToggle" onclick="toggleAIChatPanel()"><span style="font-size:18px;">&#127846;</span> Ask Mr. Scoopy</button>
+</div>
+
 <script>
     const G_URL = 'https://script.google.com/macros/s/AKfycbw7zND3eu3BFEFEfVYU4pW5cEqBcEhd9mUI_FWPZB02BnI8yEup3yemiynKOaaNEp7dBQ/exec';
     const { createClient } = window.supabase;
@@ -1580,7 +1620,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.19.1931';
+    const APP_VERSION = '2026.06.19.2044';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -1639,6 +1679,103 @@
         const content = document.getElementById('tab-content-' + tab);
         if (btn) btn.classList.add('active');
         if (content) content.classList.add('tab-visible');
+        if (tab === 'home' && typeof loadHomeDay === 'function') loadHomeDay();
+        syncBottomNav(tab);
+    }
+
+    // ── App bottom nav ──
+    function syncBottomNav(tab) {
+        var map = { home:'home', scheduling:'schedule', operations:'more', fleet:'more', management:'more' };
+        var dest = map[tab] || '';
+        document.querySelectorAll('.hbn-item').forEach(function(b){ b.classList.remove('active'); });
+        var el = document.getElementById('hbn-' + dest);
+        if (el) el.classList.add('active');
+    }
+    function ensureMenuVisible() {
+        document.querySelectorAll('.app-view').forEach(function(v){ v.style.display = 'none'; });
+        var m = document.getElementById('main-menu');
+        if (m) m.style.display = 'block';
+    }
+    function hubNav(dest) {
+        if (dest === 'home') { ensureMenuVisible(); switchMenuTab('home'); window.scrollTo(0,0); }
+        else if (dest === 'schedule') { ensureMenuVisible(); switchMenuTab('scheduling'); window.scrollTo(0,0); }
+        else if (dest === 'tasks') { openEmployeeHome(); }
+        else if (dest === 'more') { ensureMenuVisible(); switchMenuTab('operations'); window.scrollTo(0,0); }
+    }
+
+    // ── Personal Home: next shift + tasks ──
+    function loadHomeDay() {
+        var el = document.getElementById('homeDayCard');
+        if (!el) return;
+        renderJumpTo();
+        loadMyTasks('homeTasksCard');
+        withPin(function(pin) {
+            supabaseClient.rpc('app_emp_home', { p_username: currentUser.username, p_password: pin }).then(function(res) {
+                if (res.error) { if (res.error.code === '42501') sessionPin = null; renderHomeDay(null); return; }
+                renderHomeDay(res.data || {});
+            }).catch(function(){ renderHomeDay(null); });
+        }, function(){ renderHomeDay(null); });
+    }
+    function renderHomeDay(d) {
+        var el = document.getElementById('homeDayCard');
+        if (!el) return;
+        if (!d || d.linked !== true) {
+            el.innerHTML = '<div class="home-card"><div class="home-card-label">YOUR NEXT SHIFT</div><p style="margin:6px 0 0;color:#667;font-size:13px;">Your shifts show here once a manager links your login in the Roster.</p></div>';
+            return;
+        }
+        var shifts = d.shifts || [];
+        if (!shifts.length) {
+            el.innerHTML = '<div class="home-card"><div class="home-card-label">YOUR NEXT SHIFT</div><p style="margin:6px 0 0;color:#445;font-size:14px;">No upcoming shifts scheduled &mdash; enjoy the break! &#127846;</p></div>';
+            return;
+        }
+        var s = shifts[0];
+        el.innerHTML = '<div class="home-card"><div style="display:flex;justify-content:space-between;align-items:center;"><div class="home-card-label">YOUR NEXT SHIFT</div><span style="font-size:18px;">&#128197;</span></div>' +
+            '<div style="font-size:17px;font-weight:800;color:var(--caliches-blue);margin-top:4px;">' + escapeHtml(s.date || '') + ' &middot; ' + escapeHtml((s.start || '') + '-' + (s.end || '')) + '</div>' +
+            (s.location ? '<div style="font-size:13px;color:#7a8aa0;">' + escapeHtml(s.location) + '</div>' : '') + '</div>';
+    }
+
+    // ── Personalized "Jump to": most-used tools, learned from clicks ──
+    var QUICK_REG = [
+        { key:'scheduling',  btn:'btn-scheduling',  label:'Scheduling',      emoji:'&#128197;', fn:function(){ openScheduling(); } },
+        { key:'driver',      btn:'btn-driver',      label:'Driver Checklist',emoji:'&#128666;', fn:function(){ openForm('driverView'); } },
+        { key:'popin',       btn:'btn-popIn',       label:'Pop-In',          emoji:'&#128203;', fn:function(){ openPopIn(); } },
+        { key:'temp',        btn:'btn-tempLogs',    label:'Temp Logs',       emoji:'&#127777;', fn:function(){ openTempLogs(); } },
+        { key:'checklists',  btn:'btn-checklists',  label:'Checklists',      emoji:'&#9989;',   fn:function(){ openChecklists(); } },
+        { key:'inventory',   btn:'btn-inventory',   label:'Inventory',       emoji:'&#128230;', fn:function(){ openInventory(); } },
+        { key:'shortage',    btn:'btn-shortage',    label:'Report Shortage', emoji:'&#128722;', fn:function(){ openForm('shortageView'); } },
+        { key:'maintenance', btn:'btn-maintenance', label:'Maintenance',     emoji:'&#128295;', fn:function(){ openForm('maintenanceView'); } },
+        { key:'damage',      btn:'btn-damage',      label:'Damage Report',   emoji:'&#9888;',   fn:function(){ openForm('damageView'); } },
+        { key:'messages',    btn:'topMessagesBtn',  label:'Messages',        emoji:'&#128172;', fn:function(){ openMessages(); } },
+        { key:'quotes',      btn:'quotesBtn',       label:'Catering Quote',  emoji:'&#128221;', fn:function(){ openForm('quotesView'); } }
+    ];
+    function getUsage(){ try { return JSON.parse(localStorage.getItem('calichesUsage') || '{}'); } catch(e){ return {}; } }
+    function trackUse(key){ try { var u = getUsage(); u[key] = (u[key] || 0) + 1; localStorage.setItem('calichesUsage', JSON.stringify(u)); } catch(e){} }
+    function wireUsageTracking(){
+        QUICK_REG.forEach(function(it){
+            var b = document.getElementById(it.btn);
+            if (b && !b._usageWired){ b._usageWired = true; b.addEventListener('click', function(){ trackUse(it.key); }); }
+        });
+    }
+    function renderJumpTo(){
+        var grid = document.getElementById('jumpToGrid');
+        if (!grid) return;
+        wireUsageTracking();
+        var u = getUsage();
+        var avail = QUICK_REG.filter(function(it){ var b = document.getElementById(it.btn); return b && b.style.display !== 'none'; });
+        avail.sort(function(a,b){ return (u[b.key] || 0) - (u[a.key] || 0); });
+        var top = avail.slice(0, 4);
+        if (!top.length){ grid.innerHTML = '<p style="flex-basis:100%;text-align:center;color:#aab;font-size:12px;margin:0;">Your most-used tools will show up here.</p>'; return; }
+        grid.innerHTML = top.map(function(it){
+            var n = u[it.key] || 0;
+            return '<div class="qcard" onclick="quickLaunch(\'' + it.key + '\')"><div class="ic">' + it.emoji + '</div><b>' + it.label + '</b><small>' + (n ? ('Used ' + n + '&times;') : 'Tap to open') + '</small></div>';
+        }).join('');
+    }
+    function quickLaunch(key){
+        var it = null;
+        for (var i=0;i<QUICK_REG.length;i++){ if (QUICK_REG[i].key === key){ it = QUICK_REG[i]; break; } }
+        if (!it) return;
+        trackUse(key);
+        if (typeof it.fn === 'function') it.fn();
     }
 
     function updatePreviewToggleBtn() {
@@ -1671,6 +1808,7 @@
             fetchVehicleMaintTracker();
         } else {
             document.getElementById('main-menu').style.display = 'block';
+            switchMenuTab('home');
             applyWeeklyQuotes();
             fetchAnnouncement();
             setTimeout(showScoopyOnboarding, 800);
@@ -2243,7 +2381,7 @@
     // NAVIGATION
     // ============================================================
     function triggerTransition(callback) { const loader = document.getElementById('neon-loader'); loader.style.display = 'flex'; setTimeout(() => { loader.style.opacity = '1'; }, 10); setTimeout(() => { callback(); window.scrollTo(0,0); loader.style.opacity = '0'; setTimeout(() => { loader.style.display = 'none'; }, 300); }, 1200); }
-    function openMenu() { triggerTransition(() => { document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none'); document.getElementById('main-menu').style.display = 'block'; switchMenuTab('operations'); applyPendingReloadIfSafe(); }); }
+    function openMenu() { triggerTransition(() => { document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none'); document.getElementById('main-menu').style.display = 'block'; switchMenuTab('home'); window.scrollTo(0,0); applyPendingReloadIfSafe(); }); }
 
     // ============================================================
     // SCHEDULING (Phase 1, TEST) - Admin Manager builder
@@ -3396,7 +3534,7 @@
             supabaseClient.rpc('app_emp_home', { p_username: currentUser.username, p_password: pin }).then(function(res) {
                 if (res.error) { if (res.error.code === '42501') sessionPin = null; c.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Could not load: ' + escapeHtml(res.error.message) + '</p>'; return; }
                 empHomeRender(res.data || {});
-                if (res.data && res.data.linked) loadMyTasks();
+                if (res.data && res.data.linked) loadMyTasks('empTasksCard');
             }).catch(function() { c.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Connection error.</p>'; });
         }, function() { c.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">PIN required.</p>'; });
     }
@@ -4244,8 +4382,10 @@
     function setActiveStore(loc){ currentUser.activeStore=loc; try{ localStorage.setItem('calichesActiveStore', loc); }catch(e){} var mv=document.getElementById('messagesView'); if(mv&&mv.style.display==='block'&&msgTab==='store') loadStoreFeed(); }
 
     // ---- My Tasks (Employee Home) ----
-    function loadMyTasks(){
-        var c=document.getElementById('empTasksCard'); if(!c) return;
+    var myTasksCardId='empTasksCard';
+    function loadMyTasks(cardId){
+        if(cardId) myTasksCardId=cardId;
+        var c=document.getElementById(myTasksCardId); if(!c) return;
         withPin(function(pin){
             supabaseClient.rpc('app_my_tasks',{p_username:currentUser.username,p_password:pin}).then(function(r){
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; return; }
