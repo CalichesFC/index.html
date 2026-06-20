@@ -1685,7 +1685,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.19.2116';
+    const APP_VERSION = '2026.06.19.2124';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4519,9 +4519,12 @@
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; return; }
                 var d=r.data||{}; if(d.linked===false){ myStores=[]; return; }
                 myStores=d.stores||[];
-                currentUser.isAdminStores=(d.is_admin===true);
-                currentUser.isStoreManager=(d.is_admin===true)||myStores.some(function(s){return s.role==='store_manager'||s.role==='assistant_manager';});
-                var locs=myStores.map(function(s){return s.location;});
+                var role=currentUser.role; if(role==='Vice President/Co-Owner') role='Admin Manager';
+                var isAdmin=(d.is_admin===true)||(role==='Admin Manager')||(currentUser.is_developer===true);
+                currentUser.isAdminStores=isAdmin;
+                currentUser.isStoreManager=isAdmin||myStores.some(function(s){return s.role==='store_manager'||s.role==='assistant_manager';});
+                // Admin managers can view every store, not just their assigned ones
+                var locs=isAdmin?SCHED_LOCATIONS.slice():myStores.map(function(s){return s.location;});
                 var saved=null; try{ saved=localStorage.getItem('calichesActiveStore'); }catch(e){}
                 currentUser.activeStore=(saved&&locs.indexOf(saved)>-1)?saved:(locs[0]||'');
                 var sel=document.getElementById('storeSelect'); if(sel) sel.innerHTML=locs.map(function(l){return '<option value="'+l.replace(/"/g,'')+'"'+(l===currentUser.activeStore?' selected':'')+'>'+escapeHtml(l)+'</option>';}).join('');
