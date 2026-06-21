@@ -642,6 +642,7 @@
             <div class="sec-title"><h2>My Shortcuts</h2><span class="tag">Personal</span></div>
             <button id="btn-empHome" class="menu-btn" onclick="openEmployeeHome()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127968;</span><b>My Home</b><small>Your shifts, tasks &amp; updates</small></button>
             <button id="btn-formsDocs" class="menu-btn" onclick="openFormsLinks()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128196;</span><b>Forms &amp; Documents</b><small>Payroll, HR &amp; hiring forms</small></button>
+            <button id="btn-report" class="menu-btn" onclick="openHarassReport()"><span class="rchip staff" style="background:#ede4fb;color:#5b3aa6;">Private</span><span class="tile-ic">&#128274;</span><b>Report a Concern</b><small>Harassment or misconduct &middot; confidential</small></button>
             <button id="btn-howto" class="menu-btn" style="display:none;" onclick="openAppTour()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128218;</span><b>How to Use the Hub</b><small>Quick guided walkthrough</small></button>
         </div>
 
@@ -685,12 +686,13 @@
         <div id="tab-content-operations" class="menu-tab-content">
             <button class="sec-back" onclick="hubNav('more')">&#8249; All Sections</button>
             <div class="sec-title"><h2>&#127846; Store Operations</h2><span class="tag">Daily tasks &amp; logs</span></div>
-            <button id="btn-popIn" class="menu-btn" onclick="openPopIn()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128203;</span><b>Store Pop-In Inspection</b><small>Store walk-through</small></button>
+            <button id="btn-popIn" class="menu-btn" style="display:none;" onclick="openPopIn()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128203;</span><b>Store Pop-In Inspection</b><small>Store walk-through</small></button>
             <button id="btn-tempLogs" class="menu-btn" onclick="openTempLogs()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127777;</span><b>Temperature Logs</b><small>Food-safety temp checks</small></button>
             <button id="btn-checklists" class="menu-btn" onclick="openChecklists()"><span class="rchip staff">Staff</span><span class="tile-ic">&#9989;</span><b>Shift Checklists</b><small>Open / close / clean</small></button>
-            <button id="btn-inventory" class="menu-btn" onclick="openInventory()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128230;</span><b>Inventory &amp; Supplies</b><small>Counts, par &amp; reorders</small></button>
+            <button id="btn-inventory" class="menu-btn" style="display:none;" onclick="openInventory()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128230;</span><b>Inventory &amp; Supplies</b><small>Counts, par &amp; reorders</small></button>
             <button id="btn-shortage" class="menu-btn" onclick="openForm('shortageView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128722;</span><b>Report Shortages</b><small>Request items from the office</small></button>
             <button id="btn-discipline" class="menu-btn" style="display:none;" onclick="openDiscipline()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#9888;</span><b>Disciplinary Actions</b><small>Verbal &rarr; written &rarr; final</small></button>
+            <button id="btn-attendance" class="menu-btn" style="display:none;" onclick="openAttendance()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128197;</span><b>Attendance &amp; Call-outs</b><small>Mark called out &middot; view records</small></button>
             <div class="sec-title" style="margin-top:8px;"><h2 style="font-size:15px;">Maintenance &amp; Damage</h2></div>
             <div class="seg" id="maintSegBar">
                 <button class="sgb on" id="maintSegReport" onclick="maintSeg('report')">Report</button>
@@ -936,30 +938,23 @@
     </div>
     <div class="container" style="max-width:780px;">
         <div style="background:#fff3f3;border:1px solid #f0caca;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12.5px;color:#7a2222;">
-            Progressive steps: <b>Verbal &rarr; Written &rarr; Final &rarr; Termination</b>. Final warnings and termination can only be issued by Admin Managers. All actions notify management.
+            Progressive steps: <b>Verbal &rarr; Written &rarr; Final</b>. Termination is a separate admin assessment, not an automatic next step. Final warnings &amp; termination are Admin Managers only. Submitting notifies the employee's store managers.
         </div>
         <div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
-            <h3 style="margin:0 0 12px;color:#8a1f1f;font-size:16px;">Log a New Action</h3>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+                <h3 style="margin:0 0 12px;color:#8a1f1f;font-size:16px;">Log a New Action</h3>
+                <div id="discCountBadge" style="display:none;text-align:right;background:#fdeaea;border:1px solid #e8b4b4;border-radius:8px;padding:5px 11px;min-width:78px;">
+                    <div id="discCountNum" style="font-size:20px;font-weight:800;line-height:1;color:#c0264b;">0</div>
+                    <div id="discCountLbl" style="font-size:10px;color:#c0264b;">priors on file</div>
+                </div>
+            </div>
             <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Employee</label>
             <select id="discEmp" onchange="discEmpChange()" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:10px;"><option value="">Loading...</option></select>
             <div id="discStanding" style="display:none;font-size:12.5px;color:#555;background:#f7f7f7;border-radius:8px;padding:8px 10px;margin-bottom:10px;"></div>
-            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Action level</label>
-            <select id="discLevel" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:10px;"></select>
-            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Category</label>
-            <select id="discCategory" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:10px;">
-                <option value="Attendance">Attendance / Punctuality</option>
-                <option value="Conduct">Conduct / Behavior</option>
-                <option value="Performance">Job Performance</option>
-                <option value="Policy">Policy Violation</option>
-                <option value="Safety">Safety</option>
-                <option value="Cash Handling">Cash Handling</option>
-                <option value="Other">Other</option>
-            </select>
-            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Date</label>
-            <input type="date" id="discDate" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:10px;">
-            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Details / what happened</label>
-            <textarea id="discDetails" rows="3" placeholder="Describe the incident, expectations discussed, and next steps." style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:12px;resize:vertical;"></textarea>
-            <button onclick="saveDisciplineAction()" style="width:100%;background:#8a1f1f;color:#fff;border:none;border-radius:9px;padding:12px;font-size:15px;font-weight:bold;cursor:pointer;">Log Action</button>
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Which form?</label>
+            <div id="discFormPicker" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px;"></div>
+            <div id="discFormBody"></div>
+            <button onclick="discSubmitForm()" id="discSubmitBtn" style="width:100%;background:#8a1f1f;color:#fff;border:none;border-radius:9px;padding:12px;font-size:15px;font-weight:bold;cursor:pointer;margin-top:8px;">Submit &amp; Notify</button>
         </div>
         <div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
             <h3 style="margin:0 0 10px;color:#8a1f1f;font-size:16px;">Recent Actions</h3>
@@ -977,6 +972,98 @@
     </div>
     <div id="discHistBody"><p style="color:#888;">Loading...</p></div>
   </div>
+</div>
+
+<!-- ATTENDANCE & CALL-OUTS -->
+<div id="attendanceView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
+    <div class="header" style="background:linear-gradient(135deg,#0d6eaf 0%,#0a4f7e 100%);">
+        <h1 style="font-size:40px;margin:10px 0;">&#128197;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Attendance &amp; Call-outs</p>
+    </div>
+    <div class="container" style="max-width:780px;">
+        <div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+                <h3 style="margin:0 0 12px;color:#0a4f7e;font-size:16px;">Attendance record</h3>
+                <div id="attCountBadge" style="display:none;text-align:right;background:#e8f2fb;border:1px solid #b6d4ef;border-radius:8px;padding:5px 11px;min-width:78px;">
+                    <div id="attCountNum" style="font-size:20px;font-weight:800;line-height:1;color:#0d6eaf;">0</div>
+                    <div style="font-size:10px;color:#0d6eaf;">in last 90 days</div>
+                </div>
+            </div>
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Employee</label>
+            <select id="attEmp" onchange="attRecord()" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:10px;"><option value="">Loading...</option></select>
+            <div id="attFlags"></div>
+            <div id="attRecordBody"></div>
+        </div>
+        <div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+            <h3 style="margin:0 0 4px;color:#0a4f7e;font-size:16px;">Mark called out</h3>
+            <p style="font-size:12px;color:#888;margin:0 0 10px;">Logs the event and adds it to the attendance record.</p>
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:5px;">This report is a&hellip;</label>
+            <div id="attTypePicker" style="display:flex;gap:7px;margin-bottom:10px;"></div>
+            <div style="display:flex;gap:10px;">
+                <div style="flex:1;"><label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;" id="attDateLbl">Date of absence</label><input type="date" id="attDate" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;"></div>
+                <div style="flex:1;"><label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Time of call</label><input type="time" id="attTime" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;"></div>
+            </div>
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin:10px 0 4px;">Scheduled shift</label>
+            <input type="text" id="attShift" placeholder="e.g. 8:00a – 4:00p" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;">
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin:10px 0 5px;">Reason</label>
+            <div id="attReason">
+                <label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;margin:0 6px 6px 0;"><input type="radio" name="attReason" value="Illness" checked>Illness</label>
+                <label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;margin:0 6px 6px 0;"><input type="radio" name="attReason" value="Accident">Accident</label>
+                <label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;margin:0 6px 6px 0;"><input type="radio" name="attReason" value="Personal">Personal</label>
+                <label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;margin:0 6px 6px 0;"><input type="radio" name="attReason" value="Bereavement">Bereavement</label>
+                <label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;margin:0 6px 6px 0;"><input type="radio" name="attReason" value="Other">Other</label>
+            </div>
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin:10px 0 4px;">Comments</label>
+            <textarea id="attComments" rows="2" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;resize:vertical;"></textarea>
+            <div style="display:flex;gap:10px;margin-top:10px;">
+                <div style="flex:1;"><label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Covered by</label><input type="text" id="attCoveredBy" placeholder="Name (if covered)" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;"></div>
+                <div style="flex:1;"><label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Documentation</label><select id="attDoc" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;"><option value="">None</option><option value="Doctor's note">Doctor's note</option><option value="Letter">Letter</option><option value="Other">Other</option></select></div>
+            </div>
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin:12px 0 5px;">Call taken by &mdash; signature</label>
+            <div style="background:#faf7f2;border-radius:9px;padding:8px;">
+                <canvas id="attSigPad" style="width:100%;height:70px;background:#fff;border:1px solid #cfcfcf;border-radius:7px;touch-action:none;display:block;cursor:crosshair;"></canvas>
+                <div style="text-align:right;margin-top:3px;"><button type="button" onclick="attClearSig()" style="background:#eee;border:none;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;">Clear</button></div>
+            </div>
+            <button onclick="attSubmit()" id="attSubmitBtn" style="width:100%;background:#0d6eaf;color:#fff;border:none;border-radius:9px;padding:12px;font-size:15px;font-weight:bold;cursor:pointer;margin-top:12px;">Log Call-out</button>
+        </div>
+    </div>
+</div>
+
+<!-- REPORT A CONCERN (confidential) -->
+<div id="harassReportView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
+    <div class="header" style="background:linear-gradient(135deg,#5b3aa6 0%,#3a2470 100%);">
+        <h1 style="font-size:40px;margin:10px 0;">&#128274;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Report a Concern</p>
+    </div>
+    <div class="container" style="max-width:680px;">
+        <div style="background:#f3effb;border:1px solid #d8cdf0;border-radius:10px;padding:11px 14px;margin-bottom:14px;font-size:12.5px;color:#4a2f80;">
+            &#128274; This report is <b>confidential</b>. It goes only to Admin Managers as a priority task &mdash; it is not visible to store management. You may report anonymously.
+        </div>
+        <div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;background:#faf7ff;border-radius:8px;padding:9px 11px;">
+                <input type="checkbox" id="harassAnon" onchange="harassAnonToggle()" style="width:auto;margin:0;">
+                <label for="harassAnon" style="margin:0;font-weight:bold;color:#4a2f80;font-size:13px;">Submit anonymously (don't attach my name)</label>
+            </div>
+            <div id="harassNameWrap"><label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Your name</label><input type="text" id="harassName" placeholder="Optional" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:10px;"></div>
+            <div style="display:flex;gap:10px;">
+                <div style="flex:1;"><label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Store</label><select id="harassStore" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;"></select></div>
+                <div style="flex:1;"><label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Date it happened</label><input type="date" id="harassDate" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;"></div>
+            </div>
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin:10px 0 4px;">Who is this about?</label>
+            <input type="text" id="harassAbout" placeholder="Name or description" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;">
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin:10px 0 4px;">What happened?</label>
+            <textarea id="harassDetails" rows="5" placeholder="Describe what happened in your own words." style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;resize:vertical;"></textarea>
+            <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin:10px 0 4px;">Witnesses (if any)</label>
+            <input type="text" id="harassWitnesses" placeholder="Names, if any" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;">
+            <button onclick="harassSubmit()" id="harassSubmitBtn" style="width:100%;background:#5b3aa6;color:#fff;border:none;border-radius:9px;padding:12px;font-size:15px;font-weight:bold;cursor:pointer;margin-top:14px;">Submit Confidential Report</button>
+        </div>
+        <div id="harassAdminPanel" style="display:none;background:#fff;border-radius:12px;padding:16px;margin-top:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+            <h3 style="margin:0 0 10px;color:#4a2f80;font-size:16px;">Reports on file <span style="font-size:11px;color:#999;font-weight:normal;">(Admin Managers only)</span></h3>
+            <div id="harassAdminList"><p style="color:#888;font-size:13px;margin:0;">Loading&hellip;</p></div>
+        </div>
+    </div>
 </div>
 
 <!-- TEMPERATURE LOGS -->
@@ -1997,7 +2084,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.20.2316';
+    const APP_VERSION = '2026.06.21.0117';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3639,6 +3726,9 @@
     // MANAGER COMMAND CENTER (live ops, managers+)
     // ============================================================
     function isManagerRole(){ return currentUser && (currentUser.role==='Admin Manager' || currentUser.role==='Manager' || currentUser.role==='Vice President/Co-Owner' || currentUser.is_developer===true); }
+    // Broad "management" gate: Shift Lead and above, store/assistant managers, admins, or developer.
+    // Used to lock management-only tools (Pop-In, Inventory, HR forms) away from line staff.
+    function isMgmt(){ return currentUser && (currentUser.is_developer===true || isManagerRole() || currentUser.role==='Shift Lead' || currentUser.isStoreManager===true); }
     function openCommandCenter(){
         if(!isManagerRole()){ alert('Managers only.'); return; }
         triggerTransition(()=>{
@@ -4083,6 +4173,7 @@
     function openForm(formId) { triggerTransition(() => { document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none'); document.getElementById(formId).style.display = 'block'; }); }
 
     function openPopIn() {
+        if (!isMgmt()) { alert('Store Pop-In Inspections are for management only.'); return; }
         triggerTransition(() => {
             document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
             document.getElementById('popInView').style.display = 'block';
@@ -4136,6 +4227,14 @@
         // ── Disciplinary Actions: Shift Lead and above ──
         const disciplineBtn = document.getElementById('btn-discipline');
         if (disciplineBtn) disciplineBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
+        const attendanceBtn = document.getElementById('btn-attendance');
+        if (attendanceBtn) attendanceBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
+        // ── Pop-In & Inventory: management only (Shift Lead and above / store managers) ──
+        const mgmtTools = (devOverride || isManager || role === 'Shift Lead');
+        const popInBtn = document.getElementById('btn-popIn');
+        if (popInBtn) popInBtn.style.display = mgmtTools ? 'block' : 'none';
+        const inventoryBtn = document.getElementById('btn-inventory');
+        if (inventoryBtn) inventoryBtn.style.display = mgmtTools ? 'block' : 'none';
         if (typeof refreshMyStores === 'function') refreshMyStores();
         document.getElementById('managerBtn').style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
         const kbBtn = document.getElementById('knowledgeBaseBtn');
@@ -4611,13 +4710,14 @@
         sel.innerHTML=opts.map(function(l){ var m=discLevelMeta(l); return '<option value="'+l+'"'+(l===pick?' selected':'')+'>'+m.label+'</option>'; }).join('');
     }
     function openDiscipline(){
+        if(typeof isMgmt==='function' && !isMgmt()){ alert('Disciplinary Actions are for management only.'); return; }
         document.getElementById('main-menu').style.display='none';
         document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
         document.getElementById('disciplineView').style.display='block';
         window.scrollTo(0,0);
-        try{ document.getElementById('discDate').value=new Date().toISOString().slice(0,10); }catch(e){}
         document.getElementById('discStanding').style.display='none';
-        discFillLevels(null);
+        var b=document.getElementById('discCountBadge'); if(b) b.style.display='none';
+        discInitForms();
         discLoadEmployees();
         discLoadFeed();
     }
@@ -4636,17 +4736,27 @@
     function discEmpChange(){
         var id=document.getElementById('discEmp').value;
         var box=document.getElementById('discStanding');
-        if(!id){ box.style.display='none'; discFillLevels(null); return; }
+        var badge=document.getElementById('discCountBadge');
+        if(!id){ box.style.display='none'; if(badge) badge.style.display='none'; return; }
         withPin(function(pin){
             supabaseClient.rpc('app_discipline_history',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10)}).then(function(r){
-                if(r.error){ box.style.display='none'; return; }
+                if(r.error){ box.style.display='none'; if(badge) badge.style.display='none'; return; }
                 var d=r.data||{}; var c=d.counts||{};
-                var m=discLevelMeta(d.next_level);
+                var total=(c.verbal||0)+(c.written||0)+(c.final||0);
+                // Suggested next step never escalates to termination (that is a separate admin assessment).
+                var nx=d.next_level; if(nx==='termination') nx='final';
+                var m=discLevelMeta(nx);
                 box.style.display='block';
-                box.innerHTML='Current standing: '+(c.verbal||0)+' verbal, '+(c.written||0)+' written, '+(c.final||0)+' final.'+
+                box.innerHTML='On file: '+(c.verbal||0)+' verbal, '+(c.written||0)+' written, '+(c.final||0)+' final.'+
                     ' &nbsp;Suggested next step: <b style="color:'+m.color+';">'+m.label+'</b>'+
                     ' &nbsp;<a href="#" onclick="openDiscHistory('+id+',\''+discSafe((d.employee&&d.employee.name)||'')+'\');return false;" style="color:#0d6eaf;">View full history</a>';
-                discFillLevels(d.next_level);
+                if(badge){
+                    badge.style.display='block';
+                    var num=document.getElementById('discCountNum'), lbl=document.getElementById('discCountLbl');
+                    num.textContent=total;
+                    if(total===0){ badge.style.background='#e7f6ec'; badge.style.borderColor='#b6e0c2'; num.style.color='#1f7a3d'; lbl.style.color='#1f7a3d'; lbl.textContent='no priors'; }
+                    else { badge.style.background='#fdeaea'; badge.style.borderColor='#e8b4b4'; num.style.color='#c0264b'; lbl.style.color='#c0264b'; lbl.textContent=(total===1?'prior on file':'priors on file'); }
+                }
             });
         });
     }
@@ -4694,6 +4804,87 @@
             }).catch(function(){ alert('Connection error.'); });
         });
     }
+    // ===== Multi-form disciplinary builder (verbal / write-up / final / termination) =====
+    var discCurForm='written';
+    var DISC_FORMS={
+        verbal:{level:'verbal',title:'Notice of Verbal Warning',label:'Verbal',reasons:['Performance','Conduct/Behavior','Carelessness','Dress Code','Attendance/Tardies','Other'],sigs:['Employee','Shift Lead','Store Manager']},
+        written:{level:'written',title:'Disciplinary Action Form (Write-up)',label:'Write-up',reasons:['Carelessness','Attendance','Dress Code','Conduct','Other'],rec:true,sigs:['Employee','Shift Leader','Store Manager']},
+        final:{level:'final',title:'Final Warning',label:'Final',admin:true,reasons:['Performance','Conduct/Behavior','Attendance/Tardies','Policy','Safety','Other'],sigs:['Employee','Store Manager','Admin Manager']},
+        termination:{level:'termination',title:'Termination Assessment',label:'Termination',admin:true,term:true,sigs:['Manager']}
+    };
+    function discInitForms(){
+        var admin=(typeof isDiscAdmin==='function' && isDiscAdmin());
+        if(DISC_FORMS[discCurForm].admin && !admin) discCurForm='written';
+        var picker=document.getElementById('discFormPicker'); if(!picker) return;
+        picker.innerHTML=['verbal','written','final','termination'].map(function(k){
+            var f=DISC_FORMS[k]; var dis=(f.admin&&!admin);
+            return '<button type="button" onclick="discSetForm(\''+k+'\')"'+(dis?' disabled':'')+' style="flex:1;min-width:80px;border:1px solid #cfcfcf;background:'+(k===discCurForm?'#8a1f1f':'#fff')+';color:'+(k===discCurForm?'#fff':(dis?'#bbb':'#555'))+';border-radius:8px;padding:8px 6px;font-size:12px;font-weight:bold;cursor:'+(dis?'not-allowed':'pointer')+';">'+f.label+(f.admin?' · admin':'')+'</button>';
+        }).join('');
+        discRenderForm();
+    }
+    function discSetForm(k){ if(DISC_FORMS[k].admin && !(typeof isDiscAdmin==='function' && isDiscAdmin())){ alert('Final warnings and termination can only be issued by Admin Managers.'); return; } discCurForm=k; discInitForms(); }
+    function discPad(role){ return '<div style="background:#faf7f2;border-radius:9px;padding:8px;margin-bottom:7px;"><div style="font-size:12px;color:#777;margin-bottom:4px;">'+escapeHtml(role)+'</div><canvas class="disc-pad" data-role="'+escapeHtml(role)+'" style="width:100%;height:70px;background:#fff;border:1px solid #cfcfcf;border-radius:7px;touch-action:none;display:block;cursor:crosshair;"></canvas><div style="text-align:right;margin-top:3px;"><button type="button" onclick="discClearPad(this)" style="background:#eee;border:none;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;">Clear</button></div></div>'; }
+    function discClearPad(btn){ var box=btn.parentNode.parentNode; var cv=box.querySelector('canvas'); if(cv){ cv.getContext('2d').clearRect(0,0,cv.width,cv.height); cv._has=false; } }
+    function discInitPad(cv){ var ctx=cv.getContext('2d'),draw=false; cv.width=cv.offsetWidth; cv.height=cv.offsetHeight; ctx.strokeStyle='#222'; ctx.lineWidth=2; ctx.lineCap='round'; ctx.lineJoin='round';
+        function pos(e){ var r=cv.getBoundingClientRect(); var t=e.touches?e.touches[0]:e; return [t.clientX-r.left,t.clientY-r.top]; }
+        cv.addEventListener('pointerdown',function(e){ draw=true; cv._has=true; var p=pos(e); ctx.beginPath(); ctx.moveTo(p[0],p[1]); e.preventDefault(); });
+        cv.addEventListener('pointermove',function(e){ if(!draw)return; var p=pos(e); ctx.lineTo(p[0],p[1]); ctx.stroke(); e.preventDefault(); });
+        window.addEventListener('pointerup',function(){ draw=false; });
+    }
+    function discRenderForm(){
+        var f=DISC_FORMS[discCurForm]; var lab='font-size:13px;font-weight:bold;color:#555;display:block;margin:10px 0 5px;'; var inp='width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;'; var h='';
+        h+='<div style="font-size:12.5px;background:'+(f.admin?'#fbf1df':'#e8f2fb')+';color:'+(f.admin?'#8a5a00':'#0d6eaf')+';border-radius:8px;padding:7px 10px;"><b>'+f.title+'</b>'+(f.admin?' · Admin Managers only':'')+'</div>';
+        h+='<label style="'+lab+'">Date</label><input type="date" id="discFDate" style="'+inp+'">';
+        if(f.term){
+            h+='<label style="'+lab+'">Separation reason</label><div id="discSep">'+['Voluntary (attach resignation)','Indefinite layoff','Reduction-in-force','Contract expiration','Involuntary (explain)'].map(function(r,i){return '<label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;margin:0 6px 6px 0;"><input type="radio" name="discSep" value="'+escapeHtml(r)+'"'+(i===4?' checked':'')+'>'+r+'</label>';}).join('')+'</div>';
+            h+='<label style="'+lab+'">Final employee assessment</label><table id="discMx" style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #eee;"><tr style="background:#f7f3ee;"><th style="padding:6px 9px;text-align:left;">Criteria</th><th>Unsat.</th><th>Fair</th><th>Satis.</th><th>Good</th><th>Exc.</th></tr>'+['Punctuality','Cooperation','Initiative','Job knowledge','Quality of work'].map(function(c,i){var t='<td style="padding:6px 9px;font-weight:bold;">'+c+'</td>';for(var j=0;j<5;j++)t+='<td style="text-align:center;border-top:1px solid #eee;"><input type="radio" name="discMx'+i+'" value="'+['Unsatisfactory','Fair','Satisfactory','Good','Excellent'][j]+'"></td>';return '<tr>'+t+'</tr>';}).join('')+'</table>';
+            h+='<div style="display:flex;gap:10px;"><div style="flex:1;"><label style="'+lab+'">Eligible for re-hire?</label><select id="discRehire" style="'+inp+'"><option>No</option><option>Yes</option></select></div><div style="flex:1;"><label style="'+lab+'">Property returned?</label><select id="discProp" style="'+inp+'"><option>Yes</option><option>No</option></select></div></div>';
+            h+='<label style="'+lab+'">Comments</label><textarea id="discComments" rows="2" style="'+inp+'resize:vertical;"></textarea>';
+        } else {
+            h+='<label style="'+lab+'">'+(discCurForm==='written'?'Violation':'Reason(s)')+'</label><div id="discReasons">'+f.reasons.map(function(r){return '<label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;margin:0 6px 6px 0;"><input type="checkbox" value="'+escapeHtml(r)+'">'+r+'</label>';}).join('')+'</div>';
+            if(f.rec){ h+='<label style="'+lab+'">Recommended action</label><div id="discRec"><label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;margin-right:6px;"><input type="radio" name="discRec" value="Only Written Warning">Only written warning</label><label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;"><input type="radio" name="discRec" value="Write-Up" checked>Write-up</label></div>'; }
+            h+='<label style="'+lab+'">Company statement</label><textarea id="discCompany" rows="3" placeholder="Describe the incident and the expectation set." style="'+inp+'resize:vertical;"></textarea>';
+            h+='<div style="font-size:12px;background:#e8f2fb;color:#0d6eaf;border-radius:8px;padding:7px 10px;margin-top:8px;">The employee can add their own statement before signing.</div>';
+            h+='<label style="'+lab+'">Employee statement</label><textarea id="discEmpStmt" rows="2" placeholder="Employee response (optional)." style="'+inp+'resize:vertical;"></textarea>';
+        }
+        h+='<label style="'+lab+'">'+(f.term?'Prepared by &amp; signature':'Signatures')+'</label>'+f.sigs.map(discPad).join('');
+        var body=document.getElementById('discFormBody'); body.innerHTML=h;
+        try{ document.getElementById('discFDate').value=new Date().toISOString().slice(0,10); }catch(e){}
+        body.querySelectorAll('canvas.disc-pad').forEach(discInitPad);
+    }
+    function discCollectSigs(){ var out={}; document.querySelectorAll('#discFormBody canvas.disc-pad').forEach(function(cv){ if(cv._has){ out[cv.getAttribute('data-role')]=cv.toDataURL('image/png'); } }); return out; }
+    function discSubmitForm(){
+        var id=document.getElementById('discEmp').value;
+        if(!id){ alert('Please select an employee.'); return; }
+        var f=DISC_FORMS[discCurForm];
+        var date=document.getElementById('discFDate').value||null;
+        var sigs=discCollectSigs();
+        var fd={ form:discCurForm }; var cat='Other'; var company=''; var empStmt='';
+        if(f.term){
+            var sep=document.querySelector('#discSep input:checked'); fd.separation_reason=sep?sep.value:'';
+            var ratings={}; ['Punctuality','Cooperation','Initiative','Job knowledge','Quality of work'].forEach(function(c,i){ var rr=document.querySelector('input[name=discMx'+i+']:checked'); ratings[c]=rr?rr.value:''; }); fd.ratings=ratings;
+            fd.eligible_rehire=document.getElementById('discRehire').value; fd.property_returned=document.getElementById('discProp').value;
+            company=document.getElementById('discComments').value.trim(); cat='Termination';
+        } else {
+            var reasons=[]; document.querySelectorAll('#discReasons input:checked').forEach(function(c){ reasons.push(c.value); }); fd.violations=reasons; if(reasons.length) cat=reasons[0];
+            if(f.rec){ var rec=document.querySelector('input[name=discRec]:checked'); fd.recommended_action=rec?rec.value:''; }
+            company=document.getElementById('discCompany').value.trim();
+            empStmt=document.getElementById('discEmpStmt').value.trim();
+        }
+        if(!f.term && !sigs['Employee']){ if(!confirm('No employee signature captured yet. Submit anyway?')) return; }
+        var lvlName=discLevelMeta(f.level).label;
+        if(!confirm('Submit '+f.title+' for this employee?')) return;
+        var btn=document.getElementById('discSubmitBtn'); btn.disabled=true; var old=btn.textContent; btn.textContent='Submitting...';
+        withPin(function(pin){
+            supabaseClient.rpc('app_discipline_create_v2',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_level:f.level,p_category:cat,p_company_statement:company,p_employee_statement:empStmt,p_action_date:date,p_signatures:sigs,p_form_data:fd,p_pdf_url:null,p_form_type:discCurForm}).then(function(r){
+                btn.disabled=false; btn.textContent=old;
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
+                try{ fetch(G_URL+'?action=discipline_notify&level='+encodeURIComponent(f.level)+'&by='+encodeURIComponent(currentUser.name||currentUser.username),{mode:'no-cors'}); }catch(e){}
+                alert(f.title+' submitted.'+(f.term?' Admin Managers notified.':' Store managers notified and a follow-up task was created for the Store Manager.'));
+                discRenderForm(); discEmpChange(); discLoadFeed(); discLoadEmployees();
+            }).catch(function(){ btn.disabled=false; btn.textContent=old; alert('Connection error.'); });
+        }, function(){ btn.disabled=false; btn.textContent=old; });
+    }
     function openDiscHistory(empId,name){
         var modal=document.getElementById('discHistModal');
         document.getElementById('discHistName').textContent=(name||'Employee')+' — History';
@@ -4730,6 +4921,158 @@
                 openDiscHistory(empId,name);
                 discLoadFeed();
                 if(document.getElementById('discEmp').value==String(empId)) discEmpChange();
+            }).catch(function(){ alert('Connection error.'); });
+        });
+    }
+
+    // ============================================================
+    // ATTENDANCE & CALL-OUTS
+    // ============================================================
+    var attType='callin'; var attCtx=null;
+    function openAttendance(){
+        if(typeof isMgmt==='function' && !isMgmt()){ alert('Attendance is for management only.'); return; }
+        document.getElementById('main-menu').style.display='none';
+        document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
+        document.getElementById('attendanceView').style.display='block';
+        window.scrollTo(0,0);
+        try{ document.getElementById('attDate').value=new Date().toISOString().slice(0,10); }catch(e){}
+        attRenderTypePicker();
+        attInitSig();
+        attLoadEmployees();
+    }
+    function attRenderTypePicker(){
+        var picker=document.getElementById('attTypePicker'); if(!picker) return;
+        var opts=[['callin','Call-in'],['tardy','Tardy'],['early','Left early']];
+        picker.innerHTML=opts.map(function(o){ var on=(o[0]===attType); return '<button type="button" onclick="attSetType(\''+o[0]+'\')" style="flex:1;border:1px solid #cfcfcf;background:'+(on?'#0d6eaf':'#fff')+';color:'+(on?'#fff':'#555')+';border-radius:8px;padding:8px 6px;font-size:12px;font-weight:bold;cursor:pointer;">'+o[1]+'</button>'; }).join('');
+        var lbl=document.getElementById('attDateLbl'); if(lbl) lbl.textContent=(attType==='tardy'?'Date of tardy':(attType==='early'?'Date left early':'Date of absence'));
+    }
+    function attSetType(t){ attType=t; attRenderTypePicker(); }
+    function attInitSig(){ var cv=document.getElementById('attSigPad'); if(!cv) return; attCtx=cv.getContext('2d'); cv.width=cv.offsetWidth; cv.height=cv.offsetHeight; attCtx.strokeStyle='#222'; attCtx.lineWidth=2; attCtx.lineCap='round'; attCtx.lineJoin='round'; cv._has=false;
+        var draw=false; function pos(e){ var r=cv.getBoundingClientRect(); var t=e.touches?e.touches[0]:e; return [t.clientX-r.left,t.clientY-r.top]; }
+        cv.onpointerdown=function(e){ draw=true; cv._has=true; var p=pos(e); attCtx.beginPath(); attCtx.moveTo(p[0],p[1]); e.preventDefault(); };
+        cv.onpointermove=function(e){ if(!draw)return; var p=pos(e); attCtx.lineTo(p[0],p[1]); attCtx.stroke(); e.preventDefault(); };
+        window.addEventListener('pointerup',function(){ draw=false; });
+    }
+    function attClearSig(){ var cv=document.getElementById('attSigPad'); if(cv&&attCtx){ attCtx.clearRect(0,0,cv.width,cv.height); cv._has=false; } }
+    function attLoadEmployees(){
+        var sel=document.getElementById('attEmp');
+        withPin(function(pin){
+            supabaseClient.rpc('app_discipline_employees',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; sel.innerHTML='<option value="">Could not load</option>'; return; }
+                var list=r.data||[];
+                sel.innerHTML='<option value="">— Select employee —</option>'+list.map(function(e){ return '<option value="'+e.id+'">'+escapeHtml(e.name)+(e.location?' ('+escapeHtml(e.location)+')':'')+'</option>'; }).join('');
+            }).catch(function(){ sel.innerHTML='<option value="">Connection error</option>'; });
+        }, function(){ sel.innerHTML='<option value="">PIN required</option>'; });
+    }
+    function attRecord(){
+        var id=document.getElementById('attEmp').value;
+        var body=document.getElementById('attRecordBody'); var flags=document.getElementById('attFlags'); var badge=document.getElementById('attCountBadge');
+        if(!id){ body.innerHTML=''; flags.innerHTML=''; if(badge) badge.style.display='none'; return; }
+        body.innerHTML='<p style="color:#888;font-size:13px;">Loading…</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_attendance_record',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10)}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; body.innerHTML='<p style="color:red;font-size:13px;">Could not load.</p>'; return; }
+                var d=r.data||{}; var c=d.counts||{}; var evs=d.events||[]; var fl=d.flags||[];
+                if(badge){ badge.style.display='block'; document.getElementById('attCountNum').textContent=d.total90||0; }
+                flags.innerHTML=fl.length? fl.map(function(f){ return '<div style="font-size:12.5px;background:#fdeaea;color:#c0264b;border-radius:8px;padding:8px 10px;margin-bottom:8px;">&#9873; '+escapeHtml(f.text)+'</div>'; }).join('') : '<div style="font-size:12.5px;background:#e7f6ec;color:#1f7a3d;border-radius:8px;padding:8px 10px;margin-bottom:8px;">No concerning pattern.</div>';
+                var tn={callin:'Call-in',tardy:'Tardy',early:'Left early'};
+                var head='<div style="font-size:12px;color:#777;margin-bottom:6px;">'+(c.callin||0)+' call-ins &middot; '+(c.tardy||0)+' tardies &middot; '+(c.early||0)+' early-outs (90 days)</div>';
+                body.innerHTML=head+(evs.length? evs.map(function(e){ return '<div style="padding:8px 0;border-bottom:1px solid #eee;font-size:13px;"><b>'+(tn[e.type]||e.type)+'</b> <span style="color:#888;">'+escapeHtml(e.reason||'')+'</span><div style="color:#888;font-size:12px;">'+escapeHtml(e.date||'')+(e.covered?' &middot; covered by '+escapeHtml(e.covered_by||'someone'):'')+'</div></div>'; }).join('') : '<p style="color:#888;font-size:13px;">No attendance events on record.</p>');
+            }).catch(function(){ body.innerHTML='<p style="color:red;font-size:13px;">Connection error.</p>'; });
+        }, function(){ body.innerHTML='<p style="color:#888;font-size:13px;">PIN required.</p>'; });
+    }
+    function attSubmit(){
+        var id=document.getElementById('attEmp').value;
+        if(!id){ alert('Please select an employee.'); return; }
+        var date=document.getElementById('attDate').value||null;
+        var time=document.getElementById('attTime').value||'';
+        var shift=document.getElementById('attShift').value||'';
+        var reason=(document.querySelector('input[name=attReason]:checked')||{}).value||'';
+        var comments=document.getElementById('attComments').value||'';
+        var coveredBy=document.getElementById('attCoveredBy').value||'';
+        var docType=document.getElementById('attDoc').value||'';
+        var cv=document.getElementById('attSigPad'); var sigs={}; if(cv&&cv._has){ sigs['Call taken by']=cv.toDataURL('image/png'); }
+        var btn=document.getElementById('attSubmitBtn'); btn.disabled=true; var old=btn.textContent; btn.textContent='Logging…';
+        withPin(function(pin){
+            supabaseClient.rpc('app_attendance_create',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_event_type:attType,p_event_date:date,p_call_time:time,p_scheduled_shift:shift,p_reason:reason,p_comments:comments,p_covered:!!coveredBy.trim(),p_covered_by:coveredBy,p_documentation:!!docType,p_doc_type:docType,p_signatures:sigs,p_pdf_url:null,p_shift_id:null}).then(function(r){
+                btn.disabled=false; btn.textContent=old;
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
+                alert('Logged. The attendance record has been updated.');
+                document.getElementById('attComments').value=''; document.getElementById('attCoveredBy').value=''; attClearSig();
+                attRecord();
+            }).catch(function(){ btn.disabled=false; btn.textContent=old; alert('Connection error.'); });
+        }, function(){ btn.disabled=false; btn.textContent=old; });
+    }
+
+    // ============================================================
+    // REPORT A CONCERN (confidential harassment/misconduct)
+    // ============================================================
+    function openHarassReport(){
+        document.getElementById('main-menu').style.display='none';
+        document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
+        document.getElementById('harassReportView').style.display='block';
+        window.scrollTo(0,0);
+        try{ document.getElementById('harassDate').value=new Date().toISOString().slice(0,10); }catch(e){}
+        var locs=(typeof SCHED_LOCATIONS!=='undefined'?SCHED_LOCATIONS:['Roadrunner','Valley','Lenox','Alamogordo','Roswell','Catering & Vending']);
+        var cur=(currentUser&&(currentUser.activeStore||currentUser.home_location))||'';
+        document.getElementById('harassStore').innerHTML=locs.map(function(l){ return '<option'+(l===cur?' selected':'')+'>'+escapeHtml(l)+'</option>'; }).join('');
+        document.getElementById('harassAnon').checked=false; harassAnonToggle();
+        document.getElementById('harassName').value=(currentUser&&currentUser.name)||'';
+        var panel=document.getElementById('harassAdminPanel');
+        if(typeof isAdminManager==='function' && isAdminManager()){ panel.style.display='block'; harassLoadAdmin(); } else { panel.style.display='none'; }
+    }
+    function harassAnonToggle(){ var anon=document.getElementById('harassAnon').checked; document.getElementById('harassNameWrap').style.display=anon?'none':'block'; }
+    function harassSubmit(){
+        var anon=document.getElementById('harassAnon').checked;
+        var store=document.getElementById('harassStore').value||'';
+        var date=document.getElementById('harassDate').value||null;
+        var about=document.getElementById('harassAbout').value||'';
+        var details=document.getElementById('harassDetails').value||'';
+        var wit=document.getElementById('harassWitnesses').value||'';
+        if(!details.trim()){ alert('Please describe what happened.'); return; }
+        var btn=document.getElementById('harassSubmitBtn'); btn.disabled=true; var old=btn.textContent; btn.textContent='Submitting…';
+        withPin(function(pin){
+            supabaseClient.rpc('app_harassment_create',{p_username:currentUser.username,p_password:pin,p_anonymous:anon,p_location:store,p_incident_date:date,p_about_who:about,p_details:details,p_witnesses:wit}).then(function(r){
+                btn.disabled=false; btn.textContent=old;
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
+                alert('Your report was submitted privately to Admin Managers. Thank you for speaking up.');
+                document.getElementById('harassAbout').value=''; document.getElementById('harassDetails').value=''; document.getElementById('harassWitnesses').value='';
+                if(typeof isAdminManager==='function' && isAdminManager()) harassLoadAdmin();
+            }).catch(function(){ btn.disabled=false; btn.textContent=old; alert('Connection error.'); });
+        }, function(){ btn.disabled=false; btn.textContent=old; });
+    }
+    function harassLoadAdmin(){
+        var c=document.getElementById('harassAdminList');
+        withPin(function(pin){
+            supabaseClient.rpc('app_harassment_list',{p_admin_username:currentUser.username,p_admin_password:pin}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;font-size:13px;">Could not load.</p>'; return; }
+                var list=r.data||[];
+                if(!list.length){ c.innerHTML='<p style="color:#888;font-size:13px;margin:0;">No reports on file.</p>'; return; }
+                c.innerHTML=list.map(function(a){
+                    var st=(a.status||'new');
+                    return '<div style="border:1px solid #eee;border-radius:10px;padding:11px;margin-bottom:9px;">'+
+                        '<div style="display:flex;justify-content:space-between;gap:8px;"><b style="font-size:13px;color:#4a2f80;">Report #'+a.id+'</b><span style="font-size:11px;background:'+(st==='resolved'?'#1f7a3d':'#b06a00')+';color:#fff;border-radius:10px;padding:2px 9px;">'+escapeHtml(st)+'</span></div>'+
+                        '<div style="font-size:12px;color:#888;margin-top:3px;">From: '+escapeHtml(a.reporter||'-')+(a.location?' · '+escapeHtml(a.location):'')+(a.incident_date?' · '+escapeHtml(a.incident_date):'')+'</div>'+
+                        (a.about_who?'<div style="font-size:12.5px;margin-top:5px;"><b>About:</b> '+escapeHtml(a.about_who)+'</div>':'')+
+                        '<div style="font-size:13px;color:#333;margin-top:5px;white-space:pre-wrap;">'+escapeHtml(a.details||'')+'</div>'+
+                        (a.witnesses?'<div style="font-size:12px;color:#666;margin-top:5px;"><b>Witnesses:</b> '+escapeHtml(a.witnesses)+'</div>':'')+
+                        (a.assigned_to?'<div style="font-size:12px;color:#0d6eaf;margin-top:5px;">Assigned to: '+escapeHtml(a.assigned_to)+'</div>':'')+
+                        '<div style="margin-top:8px;display:flex;gap:7px;flex-wrap:wrap;">'+
+                          '<button onclick="harassAssign('+a.id+')" style="background:#eef;border:none;border-radius:7px;padding:5px 11px;font-size:12px;cursor:pointer;">Assign / reassign</button>'+
+                          '<button onclick="harassResolve('+a.id+')" style="background:#e7f6ec;border:none;border-radius:7px;padding:5px 11px;font-size:12px;color:#1f7a3d;font-weight:bold;cursor:pointer;">Mark resolved</button>'+
+                        '</div>'+
+                    '</div>';
+                }).join('');
+            }).catch(function(){ c.innerHTML='<p style="color:red;font-size:13px;">Connection error.</p>'; });
+        }, function(){ c.innerHTML='<p style="color:#888;font-size:13px;">PIN required.</p>'; });
+    }
+    function harassAssign(id){ var who=prompt('Assign this report to (name):'); if(who===null) return; harassDoUpdate(id,'in progress',who,''); }
+    function harassResolve(id){ var note=prompt('Resolution note (optional):'); if(note===null) return; harassDoUpdate(id,'resolved','',note); }
+    function harassDoUpdate(id,status,assignee,notes){
+        withPin(function(pin){
+            supabaseClient.rpc('app_harassment_update',{p_admin_username:currentUser.username,p_admin_password:pin,p_id:id,p_status:status,p_assigned_to:assignee,p_notes:notes}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
+                harassLoadAdmin();
             }).catch(function(){ alert('Connection error.'); });
         });
     }
@@ -4869,6 +5212,7 @@
     // INVENTORY & SUPPLIES
     // ============================================================
     function openInventory(){
+        if (!isMgmt()) { alert('Inventory & Supplies is for management only.'); return; }
         document.getElementById('main-menu').style.display='none';
         document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
         document.getElementById('inventoryView').style.display='block';
@@ -5283,7 +5627,10 @@
                 currentUser.activeStore=(saved&&locs.indexOf(saved)>-1)?saved:(locs[0]||'');
                 var sel=document.getElementById('storeSelect'); if(sel) sel.innerHTML=locs.map(function(l){return '<option value="'+l.replace(/"/g,'')+'"'+(l===currentUser.activeStore?' selected':'')+'>'+escapeHtml(l)+'</option>';}).join('');
                 var sw=document.getElementById('storeSwitcher'); if(sw) sw.style.display=(locs.length>1)?'flex':'none';
-                if(currentUser.isStoreManager){ var mt=document.getElementById('tab-management'); if(mt) mt.style.display='flex'; }
+                if(currentUser.isStoreManager){ var mt=document.getElementById('tab-management'); if(mt) mt.style.display='flex';
+                    var pib=document.getElementById('btn-popIn'); if(pib) pib.style.display='block';
+                    var inb=document.getElementById('btn-inventory'); if(inb) inb.style.display='block';
+                    var atb2=document.getElementById('btn-attendance'); if(atb2) atb2.style.display='block'; }
                 var atb=document.getElementById('assignTaskBtn'); if(atb&&currentUser.isStoreManager) atb.style.display='block';
                 var rqb=document.getElementById('requestsBtn'); if(rqb&&currentUser.isStoreManager) rqb.style.display='block';
             });
