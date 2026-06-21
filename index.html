@@ -642,7 +642,7 @@
             <div class="sec-title"><h2>My Shortcuts</h2><span class="tag">Personal</span></div>
             <button id="btn-empHome" class="menu-btn" onclick="openEmployeeHome()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127968;</span><b>My Home</b><small>Your shifts, tasks &amp; updates</small></button>
             <button id="btn-formsDocs" class="menu-btn" onclick="openFormsLinks()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128196;</span><b>Forms &amp; Documents</b><small>Payroll, HR &amp; hiring forms</small></button>
-            <button id="btn-howto" class="menu-btn" onclick="openAppTour()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128218;</span><b>How to Use the Hub</b><small>Quick guided walkthrough</small></button>
+            <button id="btn-howto" class="menu-btn" style="display:none;" onclick="openAppTour()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128218;</span><b>How to Use the Hub</b><small>Quick guided walkthrough</small></button>
         </div>
 
         <!-- ── SECTIONS HUB (More) ── -->
@@ -1997,7 +1997,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.20.1749';
+    const APP_VERSION = '2026.06.20.1902';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -6889,9 +6889,10 @@
         }
         // On launch: tour on first run, then hand off to the Scoopy "Teach me" nudge.
         function showAppTour() {
-            if (currentUser && currentUser.role === 'Maintenance') return;
-            if (localStorage.getItem('app_tour_completed')) { if (typeof showScoopyOnboarding === 'function') showScoopyOnboarding(); return; }
-            openAppTour();
+            // "How to Use the Hub" tour is still in progress - NOT released to users yet.
+            // Auto-popup disabled; falls back to prior onboarding. Re-enable when ready.
+            if (typeof showScoopyOnboarding === 'function') showScoopyOnboarding();
+            return;
         }
         function openAppTour() {
             buildAppTourSteps();
