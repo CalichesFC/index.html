@@ -726,7 +726,7 @@
             <button class="sec-back" onclick="hubNav('more')">&#8249; All Sections</button>
             <div class="sec-title"><h2>🚚 Mobile Vending &amp; Catering</h2><span class="tag">Fleet routes &amp; events</span></div>
             <button id="btn-driver" class="menu-btn" onclick="openForm('driverView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128666;</span><b>Vehicle &amp; Trailer Check-Out</b><small>Pre-roll safety checklist</small></button>
-            <button id="quotesBtn" class="menu-btn" style="display:none;" onclick="openForm('quotesView')"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128221;</span><b>Create Catering Quote</b><small>Build &amp; send event quotes</small></button>
+            <button id="quotesBtn" class="menu-btn" style="display:none;" onclick="if(typeof clearQuoteEdit==='function')clearQuoteEdit();openForm('quotesView')"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128221;</span><b>Create Catering Quote</b><small>Build &amp; send event quotes</small></button>
             <button id="salesPipelineBtn" class="menu-btn" style="display:none;" onclick="openSalesPipeline()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128202;</span><b>Sales Pipeline</b><small>Catering leads &amp; quotes</small></button>
             <p style="flex-basis:100%;font-size:12.5px;color:#888;text-align:center;margin:8px 4px 0;">Vending revenue by town &amp; catering metrics live in <b>Admin Dashboard &rarr; Live Dashboard</b>.</p>
         </div>
@@ -2096,7 +2096,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.21.0311';
+    const APP_VERSION = '2026.06.21.0323';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2374,7 +2374,7 @@
         { key:'maintenance', btn:'btn-maintenance', label:'Maintenance',     emoji:'&#128295;', fn:function(){ openForm('maintenanceView'); } },
         { key:'damage',      btn:'btn-damage',      label:'Damage Report',   emoji:'&#9888;',   fn:function(){ openForm('damageView'); } },
         { key:'messages',    btn:'topMessagesBtn',  label:'Messages',        emoji:'&#128172;', fn:function(){ openMessages(); } },
-        { key:'quotes',      btn:'quotesBtn',       label:'Catering Quote',  emoji:'&#128221;', fn:function(){ openForm('quotesView'); } }
+        { key:'quotes',      btn:'quotesBtn',       label:'Catering Quote',  emoji:'&#128221;', fn:function(){ if(typeof clearQuoteEdit==='function')clearQuoteEdit(); openForm('quotesView'); } }
     ];
     function getUsage(){ try { return JSON.parse(localStorage.getItem('calichesUsage') || '{}'); } catch(e){ return {}; } }
     function trackUse(key){ try { var u = getUsage(); u[key] = (u[key] || 0) + 1; localStorage.setItem('calichesUsage', JSON.stringify(u)); } catch(e){} }
@@ -6600,7 +6600,8 @@
         const email = form.querySelector('input[name="ContactEmail"]').value;
         const eventType = form.querySelector('input[name="EventType"]').value;
         const notes = form.querySelector('textarea[name="Notes"]').value;
-        const orderNum = Math.floor(1000 + Math.random() * 9000);
+        const editing = window._editingQuote || null;
+        const orderNum = (editing && editing.order_num) ? editing.order_num : Math.floor(1000 + Math.random() * 9000);
         const eventDateStr = new Date(eventDate + 'T00:00:00').toLocaleDateString();
 
         let pdfHtml = getBrandHeader('Catering Quote', '#7b2d8b');
@@ -6643,45 +6644,34 @@
             }
             linkDiv.style.display = 'block';
 
-            // Persist quote to Supabase for status tracking / pipeline
-            supabaseClient.rpc('app_quote_create', {
-                p_order_num: orderNum,
-                p_contact_name: contactName,
-                p_company: company || null,
-                p_contact_phone: phone || null,
-                p_contact_email: email || null,
-                p_event_date: eventDate,
-                p_event_type: eventType || null,
-                p_notes: notes || null,
-                p_line_items: lineItemsArr,
-                p_subtotal: subtotal,
-                p_tax: tax,
-                p_total: total,
-                p_pdf_url: pdfUrl,
-                p_submitted_by: currentUser.name || null
-            })
-            .then(({ data, error }) => {
-                if (error) { console.error('[Quote] Supabase insert error:', error.code, error.message); }
-                else {
-                    console.log('[Quote] Saved to quotes table:', data);
-                    if (data && data[0] && data[0].accept_token) {
-                        const acceptUrl = window.location.origin + window.location.pathname + '?accept=' + data[0].accept_token;
-                        const linkBtn = document.createElement('button');
-                        linkBtn.className = 'save-btn blue-btn';
-                        linkBtn.style.marginTop = '12px';
-                        linkBtn.style.marginBottom = '0';
-                        linkBtn.innerText = '\u{1F517} Copy Customer Acceptance Link';
-                        linkBtn.onclick = function() {
-                            navigator.clipboard.writeText(acceptUrl).then(() => {
-                                linkBtn.innerText = '✅ Link Copied!';
-                                setTimeout(() => { linkBtn.innerText = '\u{1F517} Copy Customer Acceptance Link'; }, 2000);
-                            }).catch(() => { alert('Acceptance link:\n' + acceptUrl); });
-                        };
-                        linkDiv.appendChild(document.createElement('br'));
-                        linkDiv.appendChild(linkBtn);
-                    }
-                }
-            }).catch(err => console.error('[Quote] Unexpected Supabase error:', err));
+            // Persist quote to Supabase — create new, or UPDATE the existing row if editing
+            var qfields = { p_contact_name: contactName, p_company: company || null, p_contact_phone: phone || null, p_contact_email: email || null, p_event_date: eventDate, p_event_type: eventType || null, p_notes: notes || null, p_line_items: lineItemsArr, p_subtotal: subtotal, p_tax: tax, p_total: total, p_pdf_url: pdfUrl };
+            var afterSaved = function(token) {
+                if (!token) return;
+                const acceptUrl = window.location.origin + window.location.pathname + '?accept=' + token;
+                const linkBtn = document.createElement('button');
+                linkBtn.className = 'save-btn blue-btn'; linkBtn.style.marginTop = '12px'; linkBtn.style.marginBottom = '0';
+                linkBtn.innerText = '\u{1F517} Copy Customer Acceptance Link';
+                linkBtn.onclick = function() { navigator.clipboard.writeText(acceptUrl).then(() => { linkBtn.innerText = '✅ Link Copied!'; setTimeout(() => { linkBtn.innerText = '\u{1F517} Copy Customer Acceptance Link'; }, 2000); }).catch(() => { alert('Acceptance link:\n' + acceptUrl); }); };
+                linkDiv.appendChild(document.createElement('br')); linkDiv.appendChild(linkBtn);
+            };
+            if (editing) {
+                withPin(function(pin) {
+                    var args = { p_admin_username: currentUser.username, p_admin_password: pin, p_id: editing.id };
+                    Object.keys(qfields).forEach(function(k){ args[k] = qfields[k]; });
+                    supabaseClient.rpc('app_quote_update', args).then(({ data, error }) => {
+                        if (error) { if (error.code === '42501') sessionPin = null; console.error('[Quote] update error:', error.message); alert('The PDF was made, but updating the quote failed: ' + error.message); }
+                        else { clearQuoteEdit(); afterSaved(data && data.accept_token); }
+                    }).catch(err => console.error('[Quote] update unexpected:', err));
+                });
+            } else {
+                var cargs = { p_order_num: orderNum, p_submitted_by: currentUser.name || null };
+                Object.keys(qfields).forEach(function(k){ cargs[k] = qfields[k]; });
+                supabaseClient.rpc('app_quote_create', cargs).then(({ data, error }) => {
+                    if (error) { console.error('[Quote] Supabase insert error:', error.code, error.message); }
+                    else { afterSaved(data && data[0] && data[0].accept_token); }
+                }).catch(err => console.error('[Quote] Unexpected Supabase error:', err));
+            }
         })
         .catch(err => { console.error('[Quote] GAS error:', err); alert('Could not reach PDF server: ' + err.message); btn.disabled = false; btn.innerText = '\u{1F680} GENERATE QUOTE PDF'; });
     }
@@ -6706,6 +6696,41 @@
             btn.innerText = '✅ Copied!';
             setTimeout(() => { btn.innerText = orig; }, 2000);
         }).catch(() => alert('Acceptance link:\n' + url));
+    }
+
+    // ===== Edit & resend an existing quote =====
+    function editQuote(id){
+        var list=window._pipelineQuotes||[]; var q=null;
+        for(var i=0;i<list.length;i++){ if(list[i].id===id){ q=list[i]; break; } }
+        if(!q){ alert('Quote not found. Refresh the pipeline and try again.'); return; }
+        window._editingQuote=q;
+        triggerTransition(function(){
+            document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
+            document.getElementById('quotesView').style.display='block';
+            fillQuoteForm(q);
+        });
+    }
+    function fillQuoteForm(q){
+        var form=document.getElementById('quoteForm'); if(!form) return;
+        function setv(name,val){ var el=form.querySelector('[name="'+name+'"]'); if(el) el.value=(val==null?'':val); }
+        setv('ContactName',q.contact_name); setv('Company',q.company); setv('ContactPhone',q.contact_phone); setv('ContactEmail',q.contact_email); setv('EventType',q.event_type); setv('Notes',q.notes);
+        setv('EventDate', q.event_date? String(q.event_date).slice(0,10):'');
+        var cont=document.getElementById('quoteItemsContainer'); if(cont) cont.innerHTML='';
+        var items=q.line_items; if(typeof items==='string'){ try{ items=JSON.parse(items); }catch(e){ items=[]; } } items=items||[];
+        if(!items.length){ addQuoteRow(); } else { items.forEach(function(it){ addQuoteRow(it.qty!=null?it.qty:(it.quantity||1), it.desc||it.description||'', it.price!=null?it.price:(it.unit_price||'')); }); }
+        recalcQuoteTotals();
+        var b=document.getElementById('submitQuoteBtn'); if(b) b.innerHTML='\u{1F504} UPDATE &amp; RESEND QUOTE #'+escapeHtml(String(q.order_num));
+        var rl=document.getElementById('quoteResultLink'); if(rl){ rl.style.display='none'; rl.innerHTML=''; }
+        var bn=document.getElementById('quoteEditBanner');
+        if(!bn){ bn=document.createElement('div'); bn.id='quoteEditBanner'; bn.style.cssText='background:#f3e8fb;border:1px solid #d9b8ec;color:#7b2d8b;border-radius:8px;padding:10px 13px;margin-bottom:14px;font-size:13px;font-weight:bold;'; if(form.parentNode) form.parentNode.insertBefore(bn, form); }
+        bn.innerHTML='✏️ Editing quote #'+escapeHtml(String(q.order_num))+' for '+escapeHtml(q.contact_name||'')+'. Adjust anything below and tap Update &amp; Resend &mdash; the customer’s accept link stays the same.';
+        bn.style.display='block';
+        window.scrollTo(0,0);
+    }
+    function clearQuoteEdit(){
+        window._editingQuote=null;
+        var b=document.getElementById('submitQuoteBtn'); if(b) b.innerHTML='\u{1F680} GENERATE QUOTE PDF';
+        var bn=document.getElementById('quoteEditBanner'); if(bn) bn.style.display='none';
     }
 
     function updateQuoteStatus(id, status) {
@@ -6839,6 +6864,7 @@
                 html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">';
                 if (q.pdf_url) html += '<a href="' + q.pdf_url + '" target="_blank" style="background:#7b2d8b;color:white;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;text-decoration:none;">&#128196; View PDF</a>';
                 if (q.accept_token) html += '<button onclick="copyAcceptLink(\'' + q.accept_token + '\', this)" style="background:var(--caliches-blue);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">&#128279; Copy Accept Link</button>';
+                html += '<button onclick="editQuote(' + q.id + ')" style="background:#7b2d8b;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">&#9999;&#65039; Edit &amp; Resend</button>';
                 if (st === 'Pending') {
                     html += '<button onclick="updateQuoteStatus(' + q.id + ', \'Accepted\')" style="background:var(--pass-green);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">Mark Accepted</button>';
                     html += '<button onclick="updateQuoteStatus(' + q.id + ', \'Declined\')" style="background:var(--fail-red);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">Mark Declined</button>';
