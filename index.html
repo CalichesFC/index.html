@@ -473,20 +473,6 @@
         </div>
 
         <div class="settings-section">
-            <h3>Profile Photo</h3>
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-                <div id="photoPreview" style="width:54px;height:54px;border-radius:50%;background:#e6edf5 center/cover no-repeat;display:flex;align-items:center;justify-content:center;color:#9aa7b4;font-size:20px;flex:none;">&#128100;</div>
-                <div style="flex:1;">
-                    <input type="file" id="photoFile" accept="image/*" style="display:none;" onchange="onPhotoPicked(event)">
-                    <button class="settings-btn" style="width:100%;" onclick="document.getElementById('photoFile').click()">&#128247; Add / change photo</button>
-                    <button class="settings-btn" id="photoRemoveBtn" style="width:100%;margin-top:6px;color:var(--fail-red);display:none;" onclick="removeMyPhoto()">Remove photo</button>
-                </div>
-            </div>
-            <p style="font-size:11.5px;color:#888;margin:0;">This is for work. Please use a clear, appropriate photo <b>of yourself</b> &mdash; not a meme, logo, or someone else. Managers can ask you to change it.</p>
-            <p id="photoMsg" class="settings-msg"></p>
-        </div>
-
-        <div class="settings-section">
             <h3>Account Info</h3>
             <input type="text" id="settingsName" class="modal-input" placeholder="Full Name" style="margin-bottom:8px;">
             <input type="email" id="settingsEmail" class="modal-input" placeholder="Email Address" style="margin-bottom:8px;">
@@ -642,7 +628,7 @@
             <div class="sec-title"><h2>My Shortcuts</h2><span class="tag">Personal</span></div>
             <button id="btn-empHome" class="menu-btn" onclick="openEmployeeHome()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127968;</span><b>My Home</b><small>Your shifts, tasks &amp; updates</small></button>
             <button id="btn-formsDocs" class="menu-btn" onclick="openFormsLinks()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128196;</span><b>Forms &amp; Documents</b><small>Payroll, HR &amp; hiring forms</small></button>
-            <button id="btn-howto" class="menu-btn" style="display:none;" onclick="openAppTour()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128218;</span><b>How to Use the Hub</b><small>Quick guided walkthrough</small></button>
+            <button id="btn-howto" class="menu-btn" onclick="openAppTour()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128218;</span><b>How to Use the Hub</b><small>Quick guided walkthrough</small></button>
         </div>
 
         <!-- ── SECTIONS HUB (More) ── -->
@@ -1379,25 +1365,6 @@
   .sp-weekbar { background:#185FA5; color:#fff; padding:11px 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; font-size:14px; }
   .sp-weekbar b { font-size:17px; }
   .sp-banner { display:flex; align-items:center; gap:8px; background:#FCEBEB; border:1px solid #e24b4a; color:#a32d2d; border-radius:8px; padding:9px 12px; margin:10px 14px 0; font-size:12.5px; }
-  .sp-sortsel { min-height:36px; border:1px solid #d7dde6; border-radius:8px; padding:4px 8px; font-size:13px; }
-  .hbg-tag { background:#eef1f5; border-radius:3px; padding:0 4px; font-size:9.5px; color:#5b6472; font-weight:700; margin-right:4px; }
-  .hbg-arrows { display:flex; flex-direction:column; gap:1px; }
-  .hbg-arrows button { width:18px; height:16px; line-height:1; border:1px solid #d7dde6; background:#fff; border-radius:4px; font-size:8px; cursor:pointer; color:#5b6472; padding:0; }
-  .sp-daypick { display:flex; gap:5px; padding:9px 10px; overflow-x:auto; border-bottom:1px solid #eef1f5; position:sticky; top:0; background:#fff; z-index:5; }
-  .sp-daypick button { flex:none; min-width:44px; text-align:center; border:1px solid #e3e8ef; background:#f6f8fb; color:#5b6472; border-radius:9px; padding:6px 8px; font-size:11px; cursor:pointer; line-height:1.3; }
-  .sp-daypick button.on { background:var(--caliches-pink); color:#fff; border-color:var(--caliches-pink); font-weight:700; }
-  .sp-mrow { display:flex; align-items:center; gap:10px; padding:9px 12px; border-bottom:1px solid #eef1f5; }
-  .sp-addbtn { border:1px dashed #c2cbd6; color:#7a828f; background:#fff; border-radius:8px; padding:7px 12px; font-size:12px; cursor:pointer; }
-  .sp-laborbar { position:sticky; bottom:0; background:#0f1830; color:#fff; padding:9px 14px; display:flex; justify-content:space-between; align-items:center; gap:10px; z-index:8; }
-  .sp-laborbar.wide { overflow-x:auto; }
-  .sp-laborbar .lbl { font-size:10px; color:#9fb0c9; }
-  .sp-laborbar b { font-size:14px; }
-  .sp-laborbar .lcell { flex:1; min-width:84px; text-align:center; border-left:1px solid #28344f; padding:0 4px; }
-  .sp-pred { width:64px; background:#1b2742; border:1px solid #2c3a5c; border-radius:6px; color:#fff; font-size:12px; padding:3px 6px; text-align:center; }
-  .sched-ctx { position:fixed; z-index:99999; background:#fff; border:1px solid #d7dde6; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.18); width:168px; overflow:hidden; }
-  .sched-ctx button { display:block; width:100%; text-align:left; border:0; border-bottom:1px solid #f0f2f5; background:#fff; padding:10px 13px; font-size:13px; cursor:pointer; color:#1f2a44; }
-  .sched-ctx button:last-child { border-bottom:0; }
-  .sched-ctx button:hover { background:#f5f7fa; }
   @media (max-width:820px){
     .sp-rail { position:fixed; left:0; top:0; bottom:0; z-index:120; transform:translateX(-100%); transition:transform .2s; box-shadow:4px 0 24px rgba(0,0,0,.3); }
     .sp.railopen .sp-rail { transform:translateX(0); }
@@ -1441,12 +1408,7 @@
         <button class="sp-pub" id="schedPublishBtn" onclick="schedPublish()">&#128640; Publish</button>
       </div>
       <div class="sp-sub">
-        <label class="sp-viewby" for="schedSort">Sort</label>
-        <select class="sp-sortsel" id="schedSort" onchange="schedSetSort(this.value)" aria-label="Sort team">
-          <option value="first">First name</option>
-          <option value="last">Last name</option>
-          <option value="custom">Custom (arrange)</option>
-        </select>
+        <span class="sp-viewby">View by <b>First name</b></span>
         <input class="sp-search" id="schedSearch" placeholder="Search team&hellip;" oninput="renderScheduleGrid()" aria-label="Search team">
       </div>
       <div id="schedGrid"><p style="text-align:center;padding:30px;color:#888;">Loading&hellip;</p></div>
@@ -1997,7 +1959,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.20.1902';
+    const APP_VERSION = '2026.06.20.1538';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2866,7 +2828,6 @@
         document.getElementById('appVersionLabel').innerText = APP_VERSION;
         document.getElementById('privacyPolicyText').style.display = 'none';
         updateBioToggleBtn();
-        loadMyPhoto();
         document.getElementById('settingsModal').style.display = 'flex';
     }
     function closeSettings() {
@@ -2910,55 +2871,6 @@
                 document.getElementById('greetingName').innerText = 'Hello, ' + name;
                 msg.innerText = 'Account info updated!'; msg.className = 'settings-msg ok'; msg.style.display = 'block';
             }).catch(() => { msg.innerText = 'Connection error. Please try again.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; });
-        });
-    }
-
-    function setPhotoPreview(url){
-        const pv=document.getElementById('photoPreview'); const rm=document.getElementById('photoRemoveBtn');
-        if(url){ pv.style.backgroundImage='url('+url+')'; pv.innerHTML=''; rm.style.display='block'; }
-        else { pv.style.backgroundImage='none'; pv.innerHTML='&#128100;'; rm.style.display='none'; }
-    }
-    function loadMyPhoto(){
-        setPhotoPreview(null);
-        document.getElementById('photoMsg').style.display='none';
-        withPin(function(pin){
-            supabaseClient.rpc('app_my_photo',{p_username:currentUser.username,p_password:pin}).then(function(r){ if(!r.error && r.data) setPhotoPreview(r.data); });
-        });
-    }
-    function onPhotoPicked(ev){
-        const f=ev.target.files && ev.target.files[0]; if(!f) return;
-        const msg=document.getElementById('photoMsg'); msg.style.display='none';
-        if(!/^image\//.test(f.type)){ msg.innerText='Please choose an image.'; msg.className='settings-msg err'; msg.style.display='block'; return; }
-        const reader=new FileReader();
-        reader.onload=function(e){
-            const img=new Image();
-            img.onload=function(){
-                const S=160; const c=document.createElement('canvas'); c.width=S; c.height=S; const ctx=c.getContext('2d');
-                const scale=Math.max(S/img.width, S/img.height); const w=img.width*scale, h=img.height*scale;
-                ctx.drawImage(img,(S-w)/2,(S-h)/2,w,h);
-                const dataUrl=c.toDataURL('image/jpeg',0.82);
-                setPhotoPreview(dataUrl);
-                msg.innerText='Saving…'; msg.className='settings-msg'; msg.style.display='block';
-                withPin(function(pin){
-                    supabaseClient.rpc('app_set_my_photo',{p_username:currentUser.username,p_password:pin,p_photo:dataUrl}).then(function(r){
-                        if(r.error){ msg.innerText='Error: '+r.error.message; msg.className='settings-msg err'; if(r.error.code==='42501') sessionPin=null; return; }
-                        msg.innerText='Photo saved! Reminder: it must be an appropriate photo of you.'; msg.className='settings-msg ok';
-                    });
-                });
-            };
-            img.src=e.target.result;
-        };
-        reader.readAsDataURL(f);
-        ev.target.value='';
-    }
-    function removeMyPhoto(){
-        if(!confirm('Remove your profile photo?')) return;
-        const msg=document.getElementById('photoMsg');
-        withPin(function(pin){
-            supabaseClient.rpc('app_set_my_photo',{p_username:currentUser.username,p_password:pin,p_photo:null}).then(function(r){
-                if(r.error){ msg.innerText='Error: '+r.error.message; msg.className='settings-msg err'; msg.style.display='block'; return; }
-                setPhotoPreview(null); msg.innerText='Photo removed.'; msg.className='settings-msg ok'; msg.style.display='block';
-            });
         });
     }
 
@@ -3028,68 +2940,18 @@
         const grid = document.getElementById('schedGrid');
         grid.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading&hellip;</p>';
         const ws = schedFmt(schedState.weekStart);
-        const loc = schedState.location;
         withPin(function(pin){
-            Promise.all([
-                supabaseClient.rpc('app_sched_week_context', { p_username: currentUser.username, p_password: pin, p_location: loc, p_week_start: ws }),
-                supabaseClient.rpc('app_emp_photos', { p_username: currentUser.username, p_password: pin, p_location: loc }),
-                supabaseClient.rpc('app_sched_layout_get', { p_username: currentUser.username, p_password: pin, p_location: loc }),
-                supabaseClient.rpc('app_labor_get', { p_username: currentUser.username, p_password: pin, p_location: loc, p_week_start: ws })
-            ]).then(function(res){
-                const r0 = res[0];
-                if (r0.error && r0.error.code === '42501') sessionPin = null;
-                if (r0.error) { grid.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Error: ' + r0.error.message + '</p>'; return; }
-                const data = r0.data || {};
+            supabaseClient.rpc('app_sched_week_context', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_week_start: ws })
+            .then(({ data, error }) => {
+                if (error && error.code === '42501') sessionPin = null;
+                if (error) { grid.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Error: ' + error.message + '</p>'; return; }
+                data = data || {};
                 schedState.data = { positions: data.positions||[], employees: data.employees||[], shifts: data.shifts||[] };
                 schedState.elsewhere = data.elsewhere || [];
                 schedState.timeoff = data.time_off || [];
-                schedState.photos = (res[1] && res[1].data) || {};
-                const lay = (res[2] && res[2].data) || {};
-                schedState.sortMode = lay.sort_mode || 'first';
-                schedState.empOrder = lay.emp_order || [];
-                schedState.forecast = (res[3] && res[3].data) || {};
-                if (!schedState.selectedDay) schedState.selectedDay = 0;
                 renderScheduleGrid();
             }).catch(() => { grid.innerHTML = '<p style="color:red;text-align:center;">Connection error.</p>'; });
         }, function(){ grid.innerHTML = '<p style="text-align:center;padding:20px;color:#888;">PIN required.</p>'; });
-    }
-    var SCHED_STORE_ABBR = { 'Roadrunner':'RR','Valley':'V','Lenox':'L','Alamogordo':'A','Roswell':'R','Catering & Vending':'C&V' };
-    function schedAbbr(name){ return SCHED_STORE_ABBR[name] || (name||'').slice(0,2).toUpperCase(); }
-    function schedSortedEmps(emps){
-        const mode = schedState.sortMode || 'first';
-        const arr = emps.slice();
-        if (mode === 'custom' && (schedState.empOrder||[]).length){
-            const order = schedState.empOrder; const idx = {}; order.forEach((id,i)=>idx[id]=i);
-            arr.sort((a,b)=>{ const ai=(a.id in idx)?idx[a.id]:9999, bi=(b.id in idx)?idx[b.id]:9999; return ai-bi || (a.name||'').localeCompare(b.name||''); });
-        } else if (mode === 'last'){
-            const last = n => { const p=String(n||'').trim().split(/\s+/); return (p[p.length-1]||'').toLowerCase(); };
-            arr.sort((a,b)=> last(a.name).localeCompare(last(b.name)) || (a.name||'').localeCompare(b.name||''));
-        } else {
-            arr.sort((a,b)=> (a.name||'').localeCompare(b.name||''));
-        }
-        return arr;
-    }
-    function schedSetSort(mode){ schedState.sortMode = mode; schedSaveLayout(); renderScheduleGrid(); }
-    function schedSaveLayout(){
-        withPin(function(pin){
-            supabaseClient.rpc('app_sched_layout_set', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_sort_mode: schedState.sortMode||'first', p_emp_order: schedState.empOrder||[] }).then(function(){});
-        });
-    }
-    function schedMoveEmp(id, dir){
-        const emps = schedSortedEmps(schedState.data.employees||[]);
-        let order = emps.map(e=>e.id);
-        const i = order.indexOf(id); const j = i + dir;
-        if (i<0 || j<0 || j>=order.length) return;
-        const t = order[i]; order[i]=order[j]; order[j]=t;
-        schedState.empOrder = order; schedState.sortMode = 'custom';
-        schedSaveLayout(); renderScheduleGrid();
-    }
-    function schedSetForecast(ds, val){
-        const amt = parseFloat(val); if (isNaN(amt)) return;
-        schedState.forecast = schedState.forecast || {}; schedState.forecast[ds] = amt;
-        withPin(function(pin){
-            supabaseClient.rpc('app_labor_set', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_date: ds, p_amount: amt }).then(function(){});
-        });
     }
 
     function schedPosById(id){ return (schedState.data.positions || []).find(p => p.id === id); }
@@ -3147,105 +3009,65 @@
             return '<div class="hbg-blk'+(conflict?' hbg-conf':'')+'" tabindex="0" role="button" style="background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+hbTime(s.start_time)+'&ndash;'+hbTime(s.end_time)+(s.published?'':' *')+'<br>'+escapeHtml(role)+(conflict?' &#9888;':'')+'</div>';
         };
         const q = (document.getElementById('schedSearch') ? document.getElementById('schedSearch').value : '').toLowerCase().trim();
-        let shownEmps = schedSortedEmps(emps);
-        if (q) shownEmps = shownEmps.filter(e => (e.name||'').toLowerCase().indexOf(q) > -1);
-        const custom = (schedState.sortMode === 'custom');
-        const ssel = document.getElementById('schedSort'); if (ssel) ssel.value = schedState.sortMode || 'first';
+        const shownEmps = q ? emps.filter(e => (e.name||'').toLowerCase().indexOf(q) > -1) : emps;
+        // distinct employees & stores seen working elsewhere this week
         const elseEmpSet = {}, elseStoreSet = {};
         (schedState.elsewhere||[]).forEach(x => { elseEmpSet[x.employee_id]=1; if(x.location) elseStoreSet[x.location]=1; });
         const elseEmpN = Object.keys(elseEmpSet).length, elseStoreN = Object.keys(elseStoreSet).length;
-        const photoOf = id => (schedState.photos||{})[id];
-        const avatarHtml = e => { const ph=photoOf(e.id); return ph ? '<span class="hbg-av" style="background-image:url('+ph+');background-size:cover;background-position:center;"></span>' : '<span class="hbg-av" style="background:'+avatarColor(e)+';">'+initialsOf(e.name)+'</span>'; };
-        const tagOf = e => { const list=(e.stores&&e.stores.length)?e.stores:(e.home_location?[e.home_location]:[]); return list.length?'<span class="hbg-tag">'+list.map(schedAbbr).join('&middot;')+'</span> ':''; };
+
+        let html = '<table class="hbg"><thead><tr><th class="hbg-e">Team member</th>';
+        days.forEach((d,i) => { html += '<th>'+dayNames[i]+'<br><span style="font-weight:400;color:#9aa7b4;">'+(d.getMonth()+1)+'/'+d.getDate()+'</span></th>'; });
+        html += '<th>Hrs &middot; $</th></tr></thead><tbody>';
+        // Open (unassigned) shifts row
+        let openN=0, openH=0; days.forEach(d=>{ const oc=byKey['null|'+schedFmt(d)]||[]; oc.forEach(s=>{ openN++; openH+=schedShiftHours(s); }); });
+        html += '<tr class="hbg-band"><td class="hbg-e">&#10753; Open shifts ('+openN+') <span style="font-weight:400;color:#9aa7b4;">'+openH.toFixed(1)+'h</span></td>';
+        days.forEach(d => {
+            const ds = schedFmt(d); const oc = byKey['null|'+ds] || [];
+            html += '<td class="hbg-cell" onclick="schedOpenModal(null,\''+ds+'\',null)">';
+            oc.forEach(s => { html += blockHtml(s,false); });
+            if(!oc.length) html += '<div class="hbg-add">+</div>';
+            html += '</td>';
+        });
+        html += '<td></td></tr>';
+        // Team members band
+        html += '<tr class="hbg-band"><td class="hbg-e" colspan="9"><span style="color:#1f2a44;">Team members ('+emps.length+')</span>'+(elseEmpN?' &nbsp; <span style="font-weight:400;color:#9aa7b4;">&#128205; '+elseEmpN+' scheduled at '+elseStoreN+' other location'+(elseStoreN>1?'s':'')+'</span>':'')+'</td></tr>';
+        if (!shownEmps.length) html += '<tr><td colspan="9" style="text-align:center;padding:20px;color:#888;">'+(emps.length?'No team members match your search.':'No employees on this store yet. Use Tools &rarr; Add employee.')+'</td></tr>';
+        shownEmps.forEach(e => {
+            const eh = empHrs[e.id]||0; const reg=Math.min(eh,40), ot=Math.max(0,eh-40); const cost=reg*(wageOf[e.id]||0)+ot*(wageOf[e.id]||0)*1.5;
+            const multi = (e.stores && e.stores.length>1) ? '<div class="hbg-sub">'+escapeHtml(e.stores.join(' &middot; '))+'</div>' : '';
+            html += '<tr><td class="hbg-e"><div style="display:flex;align-items:center;gap:9px;"><span class="hbg-av" style="background:'+avatarColor(e)+';">'+initialsOf(e.name)+'</span><div style="min-width:0;"><div class="hbg-nm">'+escapeHtml(e.name)+'</div><div class="hbg-sub">'+(empRole[e.id]?escapeHtml(empRole[e.id])+' &middot; ':'')+eh.toFixed(1)+'h</div>'+multi+'</div></div></td>';
+            days.forEach(d => {
+                const ds = schedFmt(d); const k = e.id+'|'+ds; const cell = byKey[k] || []; const off = offMap[k]; const elsw = elseMap[k] || [];
+                const conflict = (cell.length>0 && elsw.length>0); if (conflict) conflicts++;
+                if (off && !cell.length) {
+                    html += '<td class="hbg-cell"><div class="hbg-off">&#128197; Time-off<br><small style="font-weight:400;">'+escapeHtml(off)+'</small></div></td>';
+                } else {
+                    html += '<td class="hbg-cell" onclick="schedOpenModal('+e.id+",'"+ds+"',null)\">";
+                    cell.forEach(s => { html += blockHtml(s, conflict); });
+                    elsw.forEach(x => { html += '<div class="hbg-loc">&#128205; '+escapeHtml(x.location)+'<br>'+hbTime(x.start_time)+'&ndash;'+hbTime(x.end_time)+'</div>'; });
+                    if(!cell.length && !elsw.length) html += '<div class="hbg-add">+</div>';
+                    html += '</td>';
+                }
+            });
+            html += '<td class="hbg-rowt'+(ot>0?' hbg-ot':'')+'">'+eh.toFixed(1)+'h<br>'+money(cost)+(ot>0?'<br><span class="hbg-ot">'+ot.toFixed(1)+' OT</span>':'')+'</td></tr>';
+        });
+        // footer: per-day staff count + hours
         const dayStaff = {}; shifts.forEach(s => { if(s.employee_id!=null){ (dayStaff[s.shift_date]=dayStaff[s.shift_date]||{})[s.employee_id]=1; } });
+        html += '</tbody><tfoot><tr><td class="hbg-e">Hours <span style="color:#185FA5;">';
         let weekHrs=0, weekCost=0;
         emps.forEach(e=>{ const eh=empHrs[e.id]||0; const reg=Math.min(eh,40),ot=Math.max(0,eh-40); weekCost+=reg*(wageOf[e.id]||0)+ot*(wageOf[e.id]||0)*1.5; });
         days.forEach(d=>{ weekHrs += dayHrs[schedFmt(d)]||0; });
-        const fc = schedState.forecast||{};
-        const mobile = window.innerWidth < 760;
-        shownEmps.forEach(e=>{ days.forEach(d=>{ const ds=schedFmt(d); if((byKey[e.id+'|'+ds]||[]).length>0 && (elseMap[e.id+'|'+ds]||[]).length>0) conflicts++; }); });
-
-        let html='';
-        if (mobile) {
-            const di = Math.max(0, Math.min(6, schedState.selectedDay||0));
-            const dd = days[di], ds = schedFmt(dd);
-            const longNames=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-            html += '<div class="sp-daypick">'+days.map((d,i)=>'<button class="'+(i===di?'on':'')+'" onclick="schedPickDay('+i+')">'+dayNames[i]+'<br><b>'+d.getDate()+'</b></button>').join('')+'</div>';
-            html += '<div style="padding:7px 12px;font-size:12px;color:#5b6472;background:#f6f8fb;display:flex;justify-content:space-between;border-bottom:1px solid #eef1f5;"><span>'+longNames[di]+', '+(dd.getMonth()+1)+'/'+dd.getDate()+'</span><span>'+(dayStaff[ds]?Object.keys(dayStaff[ds]).length:0)+' scheduled &middot; '+(dayHrs[ds]||0).toFixed(1)+'h</span></div>';
-            const oc = byKey['null|'+ds]||[];
-            if(oc.length){ html += '<div class="sp-mrow" style="background:#faf7ff;"><div style="flex:1;font-weight:700;color:#5b3fb8;font-size:12px;">&#10753; Open shifts</div><div style="text-align:right;">'; oc.forEach(s=>{ html+=blockHtml(s,false); }); html+='</div></div>'; }
-            if(!shownEmps.length) html += '<div style="text-align:center;padding:24px;color:#888;font-size:13px;">'+(emps.length?'No team members match your search.':'No employees yet — add one from the menu.')+'</div>';
-            shownEmps.forEach(e=>{
-                const k=e.id+'|'+ds; const cell=byKey[k]||[]; const off=offMap[k]; const elsw=elseMap[k]||[]; const conflict=(cell.length>0&&elsw.length>0);
-                let right='';
-                if(off && !cell.length){ right='<div class="hbg-off">&#128197; Time-off &middot; '+escapeHtml(off)+'</div>'; }
-                else { cell.forEach(s=>{ right+=blockHtml(s,conflict); }); elsw.forEach(x=>{ right+='<div class="hbg-loc">&#128205; '+escapeHtml(x.location)+' '+hbTime(x.start_time)+'</div>'; }); if(!cell.length&&!elsw.length) right='<button class="sp-addbtn" onclick="schedOpenModal('+e.id+",'"+ds+"',null)\">+ Add</button>"; }
-                html += '<div class="sp-mrow" oncontextmenu="schedCtx(event,'+e.id+",'"+ds+"',"+(cell[0]?cell[0].id:'null')+')">'+avatarHtml(e)+'<div style="flex:1;min-width:0;"><div class="hbg-nm">'+escapeHtml(e.name)+'</div><div class="hbg-sub">'+tagOf(e)+(empRole[e.id]?escapeHtml(empRole[e.id]):'')+'</div></div><div style="text-align:right;max-width:48%;">'+right+'</div></div>';
-            });
-            const pv=(ds in fc)?fc[ds]:'';
-            html += '<div class="sp-laborbar"><div><div class="lbl">'+dayNames[di]+' labor</div><b>'+money(dayCost[ds]||0)+'</b></div><div style="text-align:center;"><div class="lbl">Predicted</div><input type="number" class="sp-pred" value="'+pv+'" placeholder="$" onchange="schedSetForecast(\''+ds+'\',this.value)"></div><div style="text-align:right;"><div class="lbl">Week</div><b>'+money(weekCost)+'</b></div></div>';
-        } else {
-            html += '<table class="hbg"><thead><tr><th class="hbg-e">Team member'+(custom?' <span style="font-weight:400;color:#9aa7b4;font-size:10px;">(use &#9650;&#9660; to arrange)</span>':'')+'</th>';
-            days.forEach((d,i) => { html += '<th>'+dayNames[i]+'<br><span style="font-weight:400;color:#9aa7b4;">'+(d.getMonth()+1)+'/'+d.getDate()+'</span></th>'; });
-            html += '<th>Hrs &middot; $</th></tr></thead><tbody>';
-            let openN=0, openH=0; days.forEach(d=>{ const oc=byKey['null|'+schedFmt(d)]||[]; oc.forEach(s=>{ openN++; openH+=schedShiftHours(s); }); });
-            html += '<tr class="hbg-band"><td class="hbg-e">&#10753; Open shifts ('+openN+') <span style="font-weight:400;color:#9aa7b4;">'+openH.toFixed(1)+'h</span></td>';
-            days.forEach(d => { const ds=schedFmt(d); const oc=byKey['null|'+ds]||[]; html+='<td class="hbg-cell" onclick="schedOpenModal(null,\''+ds+'\',null)" oncontextmenu="schedCtx(event,null,\''+ds+'\','+(oc[0]?oc[0].id:'null')+')">'; oc.forEach(s=>{html+=blockHtml(s,false);}); if(!oc.length)html+='<div class="hbg-add">+</div>'; html+='</td>'; });
-            html += '<td></td></tr>';
-            html += '<tr class="hbg-band"><td class="hbg-e" colspan="9"><span style="color:#1f2a44;">Team members ('+emps.length+')</span>'+(elseEmpN?' &nbsp; <span style="font-weight:400;color:#9aa7b4;">&#128205; '+elseEmpN+' scheduled at '+elseStoreN+' other location'+(elseStoreN>1?'s':'')+'</span>':'')+'</td></tr>';
-            if (!shownEmps.length) html += '<tr><td colspan="9" style="text-align:center;padding:20px;color:#888;">'+(emps.length?'No team members match your search.':'No employees on this store yet. Use Tools &rarr; Add employee.')+'</td></tr>';
-            shownEmps.forEach(e => {
-                const eh = empHrs[e.id]||0; const reg=Math.min(eh,40), ot=Math.max(0,eh-40); const cost=reg*(wageOf[e.id]||0)+ot*(wageOf[e.id]||0)*1.5;
-                const arrows = custom ? '<div class="hbg-arrows"><button onclick="event.stopPropagation();schedMoveEmp('+e.id+',-1)" aria-label="Move up">&#9650;</button><button onclick="event.stopPropagation();schedMoveEmp('+e.id+',1)" aria-label="Move down">&#9660;</button></div>' : '';
-                html += '<tr><td class="hbg-e"><div style="display:flex;align-items:center;gap:8px;">'+arrows+avatarHtml(e)+'<div style="min-width:0;"><div class="hbg-nm">'+escapeHtml(e.name)+'</div><div class="hbg-sub">'+tagOf(e)+(empRole[e.id]?escapeHtml(empRole[e.id]):'')+'</div></div></div></td>';
-                days.forEach(d => {
-                    const ds=schedFmt(d); const k=e.id+'|'+ds; const cell=byKey[k]||[]; const off=offMap[k]; const elsw=elseMap[k]||[]; const conflict=(cell.length>0&&elsw.length>0);
-                    if (off && !cell.length) {
-                        html += '<td class="hbg-cell" oncontextmenu="schedCtx(event,'+e.id+",'"+ds+"',null)\"><div class=\"hbg-off\">&#128197; Time-off<br><small style=\"font-weight:400;\">"+escapeHtml(off)+'</small></div></td>';
-                    } else {
-                        html += '<td class="hbg-cell" onclick="schedOpenModal('+e.id+",'"+ds+"',null)\" oncontextmenu=\"schedCtx(event,"+e.id+",'"+ds+"',"+(cell[0]?cell[0].id:'null')+')">';
-                        cell.forEach(s=>{html+=blockHtml(s,conflict);});
-                        elsw.forEach(x=>{html+='<div class="hbg-loc">&#128205; '+escapeHtml(x.location)+'<br>'+hbTime(x.start_time)+'&ndash;'+hbTime(x.end_time)+'</div>';});
-                        if(!cell.length&&!elsw.length)html+='<div class="hbg-add">+</div>';
-                        html += '</td>';
-                    }
-                });
-                html += '<td class="hbg-rowt'+(ot>0?' hbg-ot':'')+'">'+eh.toFixed(1)+'h<br>'+money(cost)+(ot>0?'<br><span class="hbg-ot">'+ot.toFixed(1)+' OT</span>':'')+'</td></tr>';
-            });
-            html += '</tbody><tfoot><tr><td class="hbg-e">Hours <span style="color:#185FA5;">'+weekHrs.toFixed(1)+'</span></td>';
-            days.forEach(d => { const ds=schedFmt(d); const hh=dayHrs[ds]||0; const n=dayStaff[ds]?Object.keys(dayStaff[ds]).length:0; html += '<td>&#128100; '+n+'<br><span style="font-weight:400;font-size:10px;color:#7a828f;">'+hh.toFixed(1)+'h</span></td>'; });
-            html += '<td></td></tr></tfoot></table>';
-            html += '<div class="sp-laborbar wide"><div class="lbl" style="min-width:88px;">Labor / day</div>';
-            days.forEach((d,di2)=>{ const ds=schedFmt(d); const pv=(ds in fc)?fc[ds]:''; html += '<div class="lcell"><div class="lbl">'+dayNames[di2]+' &middot; '+money(dayCost[ds]||0)+'</div><input type="number" class="sp-pred" value="'+pv+'" placeholder="pred" onchange="schedSetForecast(\''+ds+'\',this.value)"></div>'; });
-            html += '<div style="text-align:right;min-width:78px;"><div class="lbl">Week</div><b>'+money(weekCost)+'</b></div></div>';
-        }
+        html += weekHrs.toFixed(1)+'</span></td>';
+        days.forEach(d => { const ds = schedFmt(d); const hh=dayHrs[ds]||0; const n=dayStaff[ds]?Object.keys(dayStaff[ds]).length:0; html += '<td>&#128100; '+n+'<br><span style="font-weight:400;font-size:10px;color:#7a828f;">'+hh.toFixed(1)+'h</span></td>'; });
+        html += '<td></td></tr></tfoot></table>';
+        html += '<div class="sp-weekbar"><span>Week of '+(ws.getMonth()+1)+'/'+ws.getDate()+' &middot; '+emps.length+' staff &middot; '+weekHrs.toFixed(1)+' hrs</span><span><b>'+money(weekCost)+'</b> projected labor</span></div>';
         const pb = document.getElementById('schedPublishBtn');
         if (conflicts>0) {
-            html = '<div class="sp-banner">&#9888; '+conflicts+' double-book'+(conflicts>1?'s':'')+' across stores — resolve before publishing.</div>' + html;
+            html = '<div class="sp-banner">&#9888; '+conflicts+' double-book'+(conflicts>1?'s':'')+' across stores — resolve (tap the &#9888; shift) before publishing.</div>' + html;
             if (pb){ pb.disabled=true; pb.style.opacity=.5; pb.style.cursor='not-allowed'; pb.title='Resolve cross-store conflicts to publish'; }
         } else if (pb){ pb.disabled=false; pb.style.opacity=1; pb.style.cursor='pointer'; pb.title=''; }
         document.getElementById('schedGrid').innerHTML = html;
     }
-    function schedPickDay(i){ schedState.selectedDay=i; renderScheduleGrid(); }
-    function schedCloseCtx(){ var m=document.getElementById('schedCtxMenu'); if(m) m.remove(); }
-    function schedCtx(ev, empId, ds, shiftId){
-        ev.preventDefault(); ev.stopPropagation(); schedCloseCtx();
-        var m=document.createElement('div'); m.id='schedCtxMenu'; m.className='sched-ctx';
-        var items='';
-        if(shiftId && shiftId!=='null') items += '<button onclick="schedCopyShift('+shiftId+')">&#128203; Copy shift</button>';
-        if(schedState.clip) items += '<button style="color:#185FA5;" onclick="schedPasteShift('+(empId==null?'null':empId)+',\''+ds+'\')">&#128229; Paste here</button>';
-        if(shiftId && shiftId!=='null') items += '<button onclick="schedOpenModal('+(empId==null?'null':empId)+',\''+ds+'\','+shiftId+')">&#9999;&#65039; Edit</button>';
-        if(shiftId && shiftId!=='null') items += '<button style="color:#c0392b;" onclick="schedClearShift('+shiftId+')">&#128465;&#65039; Clear</button>';
-        if(!items) items='<button disabled style="color:#aaa;">Right-click a shift to copy it</button>';
-        m.innerHTML=items; document.body.appendChild(m);
-        var x=Math.min(ev.clientX||ev.pageX||100, window.innerWidth-172), y=Math.min(ev.clientY||ev.pageY||100, window.innerHeight-170);
-        m.style.left=x+'px'; m.style.top=y+'px';
-    }
-    function schedCopyShift(id){ var s=(schedState.data.shifts||[]).find(x=>x.id===id); if(s){ schedState.clip={start_time:s.start_time,end_time:s.end_time,position_id:s.position_id,note:s.note}; } schedCloseCtx(); }
-    function schedPasteShift(empId, ds){ var c=schedState.clip; if(!c) return; schedCloseCtx(); withPin(function(pin){ supabaseClient.rpc('app_sched_upsert_shift',{p_username:currentUser.username,p_password:pin,p_id:null,p_location:schedState.location,p_shift_date:ds,p_employee_id:empId,p_position_id:c.position_id||null,p_start:c.start_time,p_end:c.end_time,p_note:c.note||null}).then(function(r){ if(r.error){alert('Error: '+r.error.message);return;} fetchScheduleWeek(); }); }); }
-    function schedClearShift(id){ schedCloseCtx(); withPin(function(pin){ supabaseClient.rpc('app_sched_delete_shift',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){ if(r.error){alert('Error: '+r.error.message);return;} fetchScheduleWeek(); }); }); }
-    document.addEventListener('click', schedCloseCtx);
-    window.addEventListener('resize', function(){ var v=document.getElementById('scheduleBuilderView'); if(v && v.style.display==='block' && schedState.mode==='mgr'){ clearTimeout(schedState._rt); schedState._rt=setTimeout(renderScheduleGrid, 200); } });
     function fetchMyShifts() {
         const grid = document.getElementById('schedGrid');
         grid.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading&hellip;</p>';
@@ -6805,18 +6627,15 @@
         // -- APP HOW-TO TOUR (role-aware first-launch walkthrough) --
         var appTourSteps = [];
         var appTourIdx = 0;
-
         function buildAppTourSteps() {
             var name = (currentUser && currentUser.name) ? currentUser.name.split(' ')[0] : 'there';
             var steps = [
                 { img:'scoopy-wave.png', title:'Welcome to the Hub, ' + name + '! \uD83C\uDF66',
-                  body:"This is Caliche's Operations Hub \u2014 your one place for shifts, clocking in, daily tasks, checklists, messages, and reports. This quick tour shows you where everything lives. Tap Next to begin!" },
+                  body:"This is Caliche's Operations Hub \u2014 your one place for shifts, daily tasks, checklists, messages, and reports. This quick tour shows you where everything lives. Tap Next to begin!" },
                 { img:'scoopy-point.png', title:'Getting around',
                   body:"Use the tabs at the top: \uD83C\uDFE0 Home, \uD83D\uDCC5 Scheduling, \uD83C\uDF66 Store Operations, and \uD83D\uDE9A Mobile Vending & Catering. The Home tab also has quick-tap cards for the things you use most." },
                 { img:'scoopy-hero.png', title:'Your Home base',
                   body:"Tap \uD83C\uDFE0 My Home to see your upcoming shifts, any tasks assigned to you, and team updates. Check it at the start of every shift so nothing slips by." },
-                { img:'scoopy-thumbsup.png', title:'Clocking in & out',
-                  body:"Go to Scheduling \u2192 \u23F1\uFE0F Time Clock to clock in and out. Your ID is the last 4 digits of your SSN. Clock in within 5 minutes of your shift start (or when a manager tells you to)." },
                 { img:'scoopy-point.png', title:'Requesting time off',
                   body:"Scheduling \u2192 \uD83C\uDF34 Request Time Off. Submit at least 14 days ahead and always include a reason. You'll see your requests update once a manager reviews them." },
                 { img:'scoopy-cheer.png', title:'Daily store tasks',
@@ -6846,7 +6665,6 @@
             }
             appTourSteps = steps;
         }
-
         function renderAppTourStep() {
             var s = appTourSteps[appTourIdx];
             if (!s) return;
@@ -6869,14 +6687,11 @@
                 dots.innerHTML = h;
             }
         }
-
         function appTourNext() {
             if (appTourIdx >= appTourSteps.length - 1) { finishAppTour(); return; }
             appTourIdx++; renderAppTourStep();
         }
-        function appTourPrev() {
-            if (appTourIdx > 0) { appTourIdx--; renderAppTourStep(); }
-        }
+        function appTourPrev() { if (appTourIdx > 0) { appTourIdx--; renderAppTourStep(); } }
         function finishAppTour() {
             var m = document.getElementById('appTourModal');
             if (m) m.style.display = 'none';
@@ -6887,12 +6702,10 @@
             if (m) m.style.display = 'none';
             localStorage.setItem('app_tour_completed', '1');
         }
-        // On launch: tour on first run, then hand off to the Scoopy "Teach me" nudge.
         function showAppTour() {
-            // "How to Use the Hub" tour is still in progress - NOT released to users yet.
-            // Auto-popup disabled; falls back to prior onboarding. Re-enable when ready.
-            if (typeof showScoopyOnboarding === 'function') showScoopyOnboarding();
-            return;
+            if (currentUser && currentUser.role === 'Maintenance') return;
+            if (localStorage.getItem('app_tour_completed')) { if (typeof showScoopyOnboarding === 'function') showScoopyOnboarding(); return; }
+            openAppTour();
         }
         function openAppTour() {
             buildAppTourSteps();
@@ -7009,6 +6822,7 @@
             panel.style.display = aiChatOpen ? 'flex' : 'none';
             if (aiChatOpen && aiChatHistory.length === 0) {
                 appendAIMessage('bot', "Hi! I'm Mr. Scoopy 🍦 Ask me anything about Caliche's operations, policies, or procedures!");
+                appendTourChip();
             }
         }
 
@@ -7020,6 +6834,23 @@
             div.style.cssText = 'max-width:85%;padding:9px 13px;border-radius:' + (isBot ? '4px 14px 14px 14px' : '14px 4px 14px 14px') + ';font-size:13.5px;line-height:1.45;word-break:break-word;' + (isBot ? 'background:#f0f4ff;color:#222;align-self:flex-start;' : 'background:var(--caliches-pink);color:#fff;align-self:flex-end;');
             div.innerText = text;
             msgs.appendChild(div);
+            msgs.scrollTop = msgs.scrollHeight;
+        }
+
+        // A tappable "Take the tour" chip shown when the chat first opens.
+        function appendTourChip() {
+            if (localStorage.getItem('app_tour_completed')) return;
+            var msgs = document.getElementById('aiChatMessages');
+            if (!msgs) return;
+            var chip = document.createElement('button');
+            chip.type = 'button';
+            chip.innerHTML = "\uD83C\uDF66 New here? Take the quick tour";
+            chip.style.cssText = 'align-self:flex-start;margin-top:2px;background:#fff;color:var(--caliches-pink);border:1.5px solid var(--caliches-pink);border-radius:16px;padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;';
+            chip.onclick = function() {
+                if (aiChatOpen) toggleAIChatPanel();
+                if (typeof openAppTour === 'function') openAppTour();
+            };
+            msgs.appendChild(chip);
             msgs.scrollTop = msgs.scrollHeight;
         }
 
