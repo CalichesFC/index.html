@@ -938,7 +938,7 @@
     </div>
     <div class="container" style="max-width:780px;">
         <div style="background:#fff3f3;border:1px solid #f0caca;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12.5px;color:#7a2222;">
-            Progressive steps: <b>Verbal &rarr; Written &rarr; Final</b>. Termination is a separate admin assessment, not an automatic next step. Final warnings &amp; termination are Admin Managers only. Submitting notifies the employee's store managers.
+            Progressive steps: <b>Verbal &rarr; Written &rarr; Write-up</b>. Written and Write-up share one Disciplinary Action Form &mdash; the radio on it picks which. Termination is a separate assessment, issued only by Admin Managers. Submitting notifies the employee's store managers.
         </div>
         <div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
@@ -2084,7 +2084,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.21.0117';
+    const APP_VERSION = '2026.06.21.0138';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4697,7 +4697,7 @@
         switch(l){
             case 'verbal': return {label:'Verbal Warning', color:'#b8860b'};
             case 'written': return {label:'Written Warning', color:'#d9730d'};
-            case 'final': return {label:'Final Warning', color:'#c0392b'};
+            case 'final': return {label:'Write-Up', color:'#c0392b'};
             case 'termination': return {label:'Termination', color:'#7a1010'};
             default: return {label:l||'', color:'#888'};
         }
@@ -4747,7 +4747,7 @@
                 var nx=d.next_level; if(nx==='termination') nx='final';
                 var m=discLevelMeta(nx);
                 box.style.display='block';
-                box.innerHTML='On file: '+(c.verbal||0)+' verbal, '+(c.written||0)+' written, '+(c.final||0)+' final.'+
+                box.innerHTML='On file: '+(c.verbal||0)+' verbal, '+(c.written||0)+' written, '+(c.final||0)+' write-up.'+
                     ' &nbsp;Suggested next step: <b style="color:'+m.color+';">'+m.label+'</b>'+
                     ' &nbsp;<a href="#" onclick="openDiscHistory('+id+',\''+discSafe((d.employee&&d.employee.name)||'')+'\');return false;" style="color:#0d6eaf;">View full history</a>';
                 if(badge){
@@ -4806,17 +4806,19 @@
     }
     // ===== Multi-form disciplinary builder (verbal / write-up / final / termination) =====
     var discCurForm='written';
+    // Written and Write-up are the SAME Disciplinary Action Form; the form's radio
+    // (Only Written Warning vs Write-Up) decides the level on submit.
     var DISC_FORMS={
         verbal:{level:'verbal',title:'Notice of Verbal Warning',label:'Verbal',reasons:['Performance','Conduct/Behavior','Carelessness','Dress Code','Attendance/Tardies','Other'],sigs:['Employee','Shift Lead','Store Manager']},
-        written:{level:'written',title:'Disciplinary Action Form (Write-up)',label:'Write-up',reasons:['Carelessness','Attendance','Dress Code','Conduct','Other'],rec:true,sigs:['Employee','Shift Leader','Store Manager']},
-        final:{level:'final',title:'Final Warning',label:'Final',admin:true,reasons:['Performance','Conduct/Behavior','Attendance/Tardies','Policy','Safety','Other'],sigs:['Employee','Store Manager','Admin Manager']},
+        written:{level:'written',title:'Disciplinary Action Form',label:'Written',reasons:['Carelessness','Attendance','Dress Code','Conduct','Other'],rec:true,recDefault:'Only Written Warning',sigs:['Employee','Shift Leader','Store Manager']},
+        writeup:{level:'final',title:'Disciplinary Action Form',label:'Write-up',reasons:['Carelessness','Attendance','Dress Code','Conduct','Other'],rec:true,recDefault:'Write-Up',sigs:['Employee','Shift Leader','Store Manager']},
         termination:{level:'termination',title:'Termination Assessment',label:'Termination',admin:true,term:true,sigs:['Manager']}
     };
     function discInitForms(){
         var admin=(typeof isDiscAdmin==='function' && isDiscAdmin());
         if(DISC_FORMS[discCurForm].admin && !admin) discCurForm='written';
         var picker=document.getElementById('discFormPicker'); if(!picker) return;
-        picker.innerHTML=['verbal','written','final','termination'].map(function(k){
+        picker.innerHTML=['verbal','written','writeup','termination'].map(function(k){
             var f=DISC_FORMS[k]; var dis=(f.admin&&!admin);
             return '<button type="button" onclick="discSetForm(\''+k+'\')"'+(dis?' disabled':'')+' style="flex:1;min-width:80px;border:1px solid #cfcfcf;background:'+(k===discCurForm?'#8a1f1f':'#fff')+';color:'+(k===discCurForm?'#fff':(dis?'#bbb':'#555'))+';border-radius:8px;padding:8px 6px;font-size:12px;font-weight:bold;cursor:'+(dis?'not-allowed':'pointer')+';">'+f.label+(f.admin?' · admin':'')+'</button>';
         }).join('');
@@ -4842,7 +4844,7 @@
             h+='<label style="'+lab+'">Comments</label><textarea id="discComments" rows="2" style="'+inp+'resize:vertical;"></textarea>';
         } else {
             h+='<label style="'+lab+'">'+(discCurForm==='written'?'Violation':'Reason(s)')+'</label><div id="discReasons">'+f.reasons.map(function(r){return '<label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;margin:0 6px 6px 0;"><input type="checkbox" value="'+escapeHtml(r)+'">'+r+'</label>';}).join('')+'</div>';
-            if(f.rec){ h+='<label style="'+lab+'">Recommended action</label><div id="discRec"><label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;margin-right:6px;"><input type="radio" name="discRec" value="Only Written Warning">Only written warning</label><label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;"><input type="radio" name="discRec" value="Write-Up" checked>Write-up</label></div>'; }
+            if(f.rec){ var rd=f.recDefault||'Write-Up'; h+='<label style="'+lab+'">Recommended action</label><div id="discRec" style="font-size:11.5px;color:#888;margin-bottom:2px;">This sets the level: Written warning or Write-up.</div><div><label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;margin-right:6px;"><input type="radio" name="discRec" value="Only Written Warning"'+(rd==='Only Written Warning'?' checked':'')+'>Only written warning</label><label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;"><input type="radio" name="discRec" value="Write-Up"'+(rd==='Write-Up'?' checked':'')+'>Write-up</label></div>'; }
             h+='<label style="'+lab+'">Company statement</label><textarea id="discCompany" rows="3" placeholder="Describe the incident and the expectation set." style="'+inp+'resize:vertical;"></textarea>';
             h+='<div style="font-size:12px;background:#e8f2fb;color:#0d6eaf;border-radius:8px;padding:7px 10px;margin-top:8px;">The employee can add their own statement before signing.</div>';
             h+='<label style="'+lab+'">Employee statement</label><textarea id="discEmpStmt" rows="2" placeholder="Employee response (optional)." style="'+inp+'resize:vertical;"></textarea>';
@@ -4857,6 +4859,7 @@
         var id=document.getElementById('discEmp').value;
         if(!id){ alert('Please select an employee.'); return; }
         var f=DISC_FORMS[discCurForm];
+        var lvl=f.level;
         var date=document.getElementById('discFDate').value||null;
         var sigs=discCollectSigs();
         var fd={ form:discCurForm }; var cat='Other'; var company=''; var empStmt='';
@@ -4867,7 +4870,7 @@
             company=document.getElementById('discComments').value.trim(); cat='Termination';
         } else {
             var reasons=[]; document.querySelectorAll('#discReasons input:checked').forEach(function(c){ reasons.push(c.value); }); fd.violations=reasons; if(reasons.length) cat=reasons[0];
-            if(f.rec){ var rec=document.querySelector('input[name=discRec]:checked'); fd.recommended_action=rec?rec.value:''; }
+            if(f.rec){ var rec=document.querySelector('input[name=discRec]:checked'); fd.recommended_action=rec?rec.value:''; lvl=(rec && rec.value==='Write-Up')?'final':'written'; }
             company=document.getElementById('discCompany').value.trim();
             empStmt=document.getElementById('discEmpStmt').value.trim();
         }
@@ -4876,7 +4879,7 @@
         if(!confirm('Submit '+f.title+' for this employee?')) return;
         var btn=document.getElementById('discSubmitBtn'); btn.disabled=true; var old=btn.textContent; btn.textContent='Submitting...';
         withPin(function(pin){
-            supabaseClient.rpc('app_discipline_create_v2',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_level:f.level,p_category:cat,p_company_statement:company,p_employee_statement:empStmt,p_action_date:date,p_signatures:sigs,p_form_data:fd,p_pdf_url:null,p_form_type:discCurForm}).then(function(r){
+            supabaseClient.rpc('app_discipline_create_v2',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_level:lvl,p_category:cat,p_company_statement:company,p_employee_statement:empStmt,p_action_date:date,p_signatures:sigs,p_form_data:fd,p_pdf_url:null,p_form_type:discCurForm}).then(function(r){
                 btn.disabled=false; btn.textContent=old;
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
                 try{ fetch(G_URL+'?action=discipline_notify&level='+encodeURIComponent(f.level)+'&by='+encodeURIComponent(currentUser.name||currentUser.username),{mode:'no-cors'}); }catch(e){}
@@ -4895,7 +4898,7 @@
                 if(r.error){ document.getElementById('discHistBody').innerHTML='<p style="color:red;">Could not load.</p>'; return; }
                 var d=r.data||{}; var acts=d.actions||[]; var c=d.counts||{};
                 var admin=isDiscAdmin();
-                var html='<div style="font-size:12.5px;color:#555;background:#f7f7f7;border-radius:8px;padding:8px 10px;margin-bottom:12px;">On file: '+(c.verbal||0)+' verbal, '+(c.written||0)+' written, '+(c.final||0)+' final'+((c.termination||0)?', '+c.termination+' termination':'')+'.</div>';
+                var html='<div style="font-size:12.5px;color:#555;background:#f7f7f7;border-radius:8px;padding:8px 10px;margin-bottom:12px;">On file: '+(c.verbal||0)+' verbal, '+(c.written||0)+' written, '+(c.final||0)+' write-up'+((c.termination||0)?', '+c.termination+' termination':'')+'.</div>';
                 if(!acts.length){ html+='<p style="color:#888;">No actions recorded.</p>'; }
                 else acts.forEach(function(a){
                     var m=discLevelMeta(a.level); var voided=(a.status!=='active');
