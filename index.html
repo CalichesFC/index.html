@@ -628,6 +628,9 @@
                 </div>
             </div>
 
+            <!-- Admin: train Scoopy prompt -->
+            <div id="scoopyTrainCard" style="display:none;"></div>
+
             <!-- MY DAY: next shift -->
             <div id="homeDayCard" style="margin-top:2px;"><p style="text-align:center;color:#888;font-size:13px;padding:14px;">Loading your day&hellip;</p></div>
 
@@ -875,8 +878,8 @@
     <input id="taTitle" type="text" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;" placeholder="What needs doing">
     <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Details (optional)</label>
     <textarea id="taDetails" rows="2" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;"></textarea>
-    <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Due date (optional)</label>
-    <input id="taDue" type="date" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;">
+    <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Due date <span style="color:#c0264b;">*required</span></label>
+    <input id="taDue" type="date" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;">
     <div id="taTargetRow">
       <label style="font-size:13px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Assign to</label>
       <select id="taTarget" onchange="taTargetChange()" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;">
@@ -2084,7 +2087,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.21.0138';
+    const APP_VERSION = '2026.06.21.0145';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4264,6 +4267,7 @@
         if (announceBtn) announceBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         if (devOverride || role === 'Admin Manager') {
             setTimeout(updateScoopyGapBadge, 500);
+            setTimeout(renderScoopyTrainPrompt, 700);
         }
         const heroNameEl = document.getElementById('heroName');
         if (heroNameEl) heroNameEl.textContent = (currentUser.name || '').trim().split(' ')[0] || 'team';
@@ -5660,7 +5664,8 @@
                         '<input type="checkbox" '+(done?'checked':'')+' onchange="onTaskCheck('+t.assignee_id+',this.checked,'+(t.requires_photo?'true':'false')+','+(t.has_photo?'true':'false')+',this)" style="margin-top:3px;transform:scale(1.3);">' +
                         '<div style="flex:1;"><div style="font-size:14px;'+(done?'text-decoration:line-through;color:#aaa;':'color:#333;')+'">'+escapeHtml(t.title)+(t.requires_photo?' <span style="font-size:10px;color:#185FA5;white-space:nowrap;">&#128247; photo</span>':'')+'</div>' +
                         (t.details?'<div style="font-size:12px;color:#888;">'+escapeHtml(t.details)+'</div>':'') +
-                        '<div style="font-size:11px;color:#aab;">'+(t.due_date?('Due '+t.due_date+' &bull; '):'')+'from '+escapeHtml(t['from']||'')+'</div></div></div>';
+                        '<div style="font-size:11px;color:#aab;">'+(t.due_date?('Due '+t.due_date+' &bull; '):'')+'from '+escapeHtml(t['from']||'')+'</div>'+
+                        ((done&&t.completed_at)?'<div style="font-size:11px;color:#1f7a3d;">&#10003; Completed '+socFmt(t.completed_at)+'</div>':'')+'</div></div>';
                 });
                 h+='</div>'; c.innerHTML=h;
             });
@@ -5758,6 +5763,7 @@
         var due=document.getElementById('taDue').value||null;
         var msg=document.getElementById('taMsg');
         if(!title){ msg.style.color='#c0264b'; msg.innerText='Task title is required.'; return; }
+        if(!due){ msg.style.color='#c0264b'; msg.innerText='A due date is required — every task is time-sensitive.'; return; }
         var target = taSelfOnly ? 'self' : document.getElementById('taTarget').value;
         var tval=null, ids=null;
         if(target==='store') tval=document.getElementById('taStore').value;
@@ -7121,6 +7127,20 @@
         // ============================================================
         // KNOWLEDGE BASE
         // ============================================================
+        function renderScoopyTrainPrompt(){
+            var card=document.getElementById('scoopyTrainCard'); if(!card) return;
+            if(!(typeof isAdminManager==='function' && isAdminManager())){ card.style.display='none'; return; }
+            supabaseClient.rpc('get_knowledge_base').then(function(r){
+                if(r.error||!r.data){ return; }
+                var pending=r.data.filter(function(row){ return String(row.category||'').indexOf('HR Policy')===0 && !(row.answer && String(row.answer).trim()); }).length;
+                if(pending<=0){ card.style.display='none'; return; }
+                card.style.display='block';
+                card.innerHTML='<div onclick="openKnowledgeBase()" style="cursor:pointer;background:linear-gradient(135deg,#fff0d6,#ffe2ad);border:1px solid #e9b84e;border-radius:14px;padding:14px 16px;margin:2px 0 14px;display:flex;align-items:center;gap:12px;">'+
+                    '<img src="scoopy-point.png" onerror="this.style.display=\'none\'" style="height:46px;">'+
+                    '<div style="flex:1;"><div style="font-weight:800;color:#8a5a00;font-size:14.5px;">Help train Mr. Scoopy</div>'+
+                    '<div style="font-size:12.5px;color:#8a5a00;">'+pending+' HR question'+(pending===1?'':'s')+' waiting for your answer &rarr;</div></div></div>';
+            }).catch(function(){});
+        }
         function openKnowledgeBase() {
             closeScoopyOnboarding();
             triggerTransition(() => {
