@@ -12,6 +12,7 @@
     <link rel="apple-touch-icon" href="icon-192.png">
     <title>Caliche's Hub 🍦</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <style>
         :root { --caliches-blue:#106ab3; --caliches-pink:#ec3e7e; --caliches-yellow:#eee441; --light-gray:#f0f4f8; --white:#ffffff; --pass-green:#28a745; --fail-red:#dc3545; --maint-orange:#e67e22; --damage-red:#e74c3c; --na-gray:#9e9e9e; }
         html { overflow-x:hidden; }
@@ -742,6 +743,7 @@
             <button id="managerBtn" class="menu-btn" style="display:none;" onclick="openDashboard()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128200;</span><b>Manager Dashboard</b><small>Submissions &amp; activity</small></button>
             <button id="knowledgeBaseBtn" class="menu-btn" style="display:none;" onclick="openKnowledgeBase()"><span class="rchip admin">Admin</span><span class="tile-ic">&#129504;</span><b>Teach Mr. Scoopy</b><small>AI knowledge base</small></button>
             <button id="rosterBtn" class="menu-btn" style="display:none;" onclick="openRoster()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128101;</span><b>Employee Roster</b><small>Staff, logins &amp; stores</small></button>
+            <button id="celebrationsBtn" class="menu-btn" style="display:none;" onclick="openCelebrations()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#127881;</span><b>Celebrations</b><small>Birthdays, anniversaries &amp; awards</small></button>
             <button id="shortageTrendsBtn" class="menu-btn" style="display:none;" onclick="openShortageTrends()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128200;</span><b>Shortage Trends</b><small>What runs low, often</small></button>
             <button id="developerBtn" class="menu-btn" style="display:none;" onclick="openTrainingPortal()"><span class="rchip admin">Dev</span><span class="tile-ic">&#128187;</span><b>Training Portal</b><small>Developer tools</small></button>
             <button id="previewToggleBtn" class="menu-btn" style="display:none;" onclick="togglePreviewMode()"><span class="rchip admin">Dev</span><span class="tile-ic">&#128065;</span><b>Preview as Staff</b><small>Hide dev tabs</small></button>
@@ -1575,6 +1577,38 @@
     </div>
 </div>
 
+<div id="celebrationsView" class="app-view">
+    <div class="hb-head">
+        <button class="hb-back" onclick="openMenu()">&#8249; Menu</button>
+        <div class="hb-ico">&#127881;</div>
+        <div><h2>Celebrations</h2><div class="hb-sub">Birthdays, work anniversaries &amp; awards</div></div>
+    </div>
+    <div class="container" style="max-width:760px;">
+        <div style="background:#fff;border:1px solid #e7e2f0;border-radius:14px;padding:16px 18px;margin-bottom:16px;box-shadow:0 2px 10px rgba(0,0,0,.04);">
+            <div style="font-weight:800;font-size:15px;color:#7d1d4b;margin-bottom:10px;">&#128197; Upcoming (next 30 days)</div>
+            <div id="celebUpcomingList"><p style="color:#888;font-size:13px;">Loading&hellip;</p></div>
+        </div>
+        <div id="celebAddCard" style="display:none;background:#fff;border:1px solid #e7e2f0;border-radius:14px;padding:16px 18px;box-shadow:0 2px 10px rgba(0,0,0,.04);">
+            <div style="font-weight:800;font-size:15px;color:#7d1d4b;margin-bottom:4px;">&#127894; Give an achievement</div>
+            <div class="hb-sub" style="margin-bottom:12px;">The employee gets a celebratory popup next time they open the Hub.</div>
+            <label class="rm-lbl" for="celebEmp">Employee</label>
+            <select id="celebEmp" class="rm-inp"><option value="">Select&hellip;</option></select>
+            <label class="rm-lbl" for="celebLabel" style="margin-top:10px;">Achievement</label>
+            <input id="celebLabel" type="text" class="rm-inp" placeholder="e.g. Employee of the Month" maxlength="80">
+            <label class="rm-lbl" for="celebMascot" style="margin-top:10px;">Mascot</label>
+            <select id="celebMascot" class="rm-inp">
+                <option value="scoopy">&#127846; Scoopy</option>
+                <option value="cherry">&#127826; Cherry</option>
+                <option value="poochie">&#128054; Poochie</option>
+            </select>
+            <label class="rm-lbl" for="celebMsg" style="margin-top:10px;">Message (optional)</label>
+            <textarea id="celebMsg" class="rm-inp" rows="2" placeholder="Leave blank for a friendly default" style="resize:vertical;"></textarea>
+            <div id="celebAddMsg" style="font-size:13px;margin-top:8px;"></div>
+            <button class="sched-btn publish" style="margin-top:12px;width:100%;" onclick="celebAddAchievement()">&#11088; Add achievement</button>
+        </div>
+    </div>
+</div>
+
 <!-- Roster add/edit modal -->
 <div id="rosterModal" class="modal-overlay">
   <div class="modal-box" style="text-align:left;max-width:560px;">
@@ -1589,6 +1623,10 @@
         <select id="rosterPos" class="rm-inp"></select></div>
       <div><label class="rm-lbl" for="rosterWage">Hourly wage ($)</label>
         <input id="rosterWage" type="number" min="0" step="0.25" class="rm-inp" placeholder="e.g. 14.50" inputmode="decimal"></div>
+      <div><label class="rm-lbl" for="rosterStart">Start date</label>
+        <input id="rosterStart" type="date" class="rm-inp"><div id="rosterStartLock" style="display:none;font-size:10px;color:#999;margin-top:2px;">&#128274; Admin Managers only can change this once set</div></div>
+      <div id="rosterBdayWrap" style="display:none;"><label class="rm-lbl" for="rosterBday">Birthday <span style="background:#fdeaea;color:#c0264b;font-size:10px;padding:1px 6px;border-radius:8px;">Admin only</span></label>
+        <input id="rosterBday" type="date" class="rm-inp"></div>
     </div>
     <label id="rosterActiveWrap" style="display:none;align-items:center;gap:8px;margin:12px 0 0;font-size:14px;"><input type="checkbox" id="rosterActive" checked> Active employee</label>
     <div id="rosterAddStoresWrap" style="display:none;margin-top:14px;border-top:1px solid #eee;padding-top:12px;">
@@ -2096,7 +2134,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.21.0323';
+    const APP_VERSION = '2026.06.21.2320';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3488,7 +3526,8 @@
         withPin(function(pin){
             Promise.all([
                 supabaseClient.rpc('app_roster_list',{p_username:currentUser.username,p_password:pin}),
-                supabaseClient.rpc('app_pip_active',{p_username:currentUser.username,p_password:pin})
+                supabaseClient.rpc('app_pip_active',{p_username:currentUser.username,p_password:pin}),
+                supabaseClient.rpc('app_upcoming_celebrations',{p_username:currentUser.username,p_password:pin})
             ]).then(function(res){
                 const error=res[0].error;
                 if(error){ if(error.code==='42501') sessionPin=null; box.innerHTML='<p style="color:red;text-align:center;padding:20px;">Error: '+error.message+'</p>'; return; }
@@ -3496,10 +3535,15 @@
                 rosterState.pips={};
                 var pips=(res[1] && res[1].data) ? res[1].data : [];
                 pips.forEach(function(p){ rosterState.pips[p.employee_id]=p; });
+                celebRosterMap={};
+                var celeb=(res[2] && res[2].data) ? res[2].data : [];
+                if(celeb && celeb[0] && celeb[0].items) celeb=celeb[0].items;
+                (celeb||[]).forEach(function(c){ var eid=c.employee_id||c.id; if(eid!=null && !celebRosterMap[eid]) celebRosterMap[eid]=(c.kind||'').toLowerCase(); });
                 renderRosterTable();
             }).catch(()=>{ box.innerHTML='<p style="color:red;text-align:center;">Connection error.</p>'; });
         }, function(){ box.innerHTML='<p style="text-align:center;padding:20px;color:#888;">PIN required.</p>'; });
     }
+    var celebRosterMap={};
     function renderRosterTable(){
         const box=document.getElementById('rosterList');
         const q=(document.getElementById('rosterSearch').value||'').toLowerCase();
@@ -3525,7 +3569,8 @@
             const termBtn = e.active
                 ? '<button class="roster-act" style="color:#c0264b;" onclick="rosterSetActive('+e.id+',false,&quot;'+rosterEsc(nmJs)+'&quot;)">Terminate</button>'
                 : '<button class="roster-act" style="color:#1f7a3d;" onclick="rosterSetActive('+e.id+',true,&quot;'+rosterEsc(nmJs)+'&quot;)">Reactivate</button>';
-            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+pipBadge+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;">'+pipAct+'<button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button>'+termBtn+'</td></tr>';
+            const celIc = celebRosterMap[e.id]==='birthday' ? ' <span title="Birthday coming up">🎂</span>' : (celebRosterMap[e.id] ? ' <span title="Work anniversary coming up">🎉</span>' : '');
+            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+celIc+pipBadge+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;">'+pipAct+'<button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button>'+termBtn+'</td></tr>';
         });
         html+='</tbody></table>';
         box.innerHTML=html;
@@ -3542,6 +3587,10 @@
         document.getElementById('rosterAddStoresWrap').style.display='none';
         document.getElementById('rosterAddStoresList').innerHTML='';
         document.getElementById('rosterWage').value='';
+        var rmAdm=(typeof isAdminManager==='function' && isAdminManager());
+        document.getElementById('rosterBdayWrap').style.display=rmAdm?'block':'none';
+        document.getElementById('rosterStart').value=''; document.getElementById('rosterBday').value='';
+        document.getElementById('rosterStart').disabled=false; document.getElementById('rosterStartLock').style.display='none';
         if(id){
             const e=rosterState.list.find(x=>x.id===id); if(!e) return;
             document.getElementById('rosterModalTitle').innerText='Edit Employee';
@@ -3554,6 +3603,7 @@
             if(e.hourly_wage!=null) document.getElementById('rosterWage').value=e.hourly_wage;
             else withPin(function(pin){ supabaseClient.rpc('app_emp_wage',{p_username:currentUser.username,p_password:pin,p_employee_id:e.id}).then(function(r){ if(!r.error && r.data!=null) document.getElementById('rosterWage').value=r.data; }); });
             loadRosterStores(e.id);
+            withPin(function(pin){ supabaseClient.rpc('app_emp_dates_get',{p_username:currentUser.username,p_password:pin,p_employee_id:e.id}).then(function(r){ if(r.error||!r.data) return; var d=r.data; if(d.start_date){ document.getElementById('rosterStart').value=String(d.start_date).slice(0,10); if(!rmAdm){ document.getElementById('rosterStart').disabled=true; document.getElementById('rosterStartLock').style.display='block'; } } if(rmAdm && d.birthday){ document.getElementById('rosterBday').value=String(d.birthday).slice(0,10); } }).catch(function(){}); });
         } else {
             document.getElementById('rosterModalTitle').innerText='Add Employee';
             document.getElementById('rosterEditId').value='';
@@ -3583,6 +3633,9 @@
         const pos=posV?parseInt(posV,10):null;
         const wageV=document.getElementById('rosterWage').value;
         const wage=(wageV!==''&&!isNaN(parseFloat(wageV)))?parseFloat(wageV):null;
+        const srAdm=(typeof isAdminManager==='function' && isAdminManager());
+        const startD=document.getElementById('rosterStart').value||null;
+        const bdayD=srAdm?(document.getElementById('rosterBday').value||null):null;
         const msg=document.getElementById('rosterModalMsg');
         if(!name){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Name is required.'; return; }
         withPin(function(pin){
@@ -3595,7 +3648,8 @@
                     var am=[].slice.call(document.querySelectorAll('.rs-am:checked')).map(function(x){return x.value;});
                     Promise.all([
                         supabaseClient.rpc('app_emp_admin_set',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_locations:locs,p_sm:sm,p_am:am}),
-                        supabaseClient.rpc('app_emp_set_wage',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_wage:wage})
+                        supabaseClient.rpc('app_emp_set_wage',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_wage:wage}),
+                        supabaseClient.rpc('app_emp_set_dates',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_start_date:startD,p_birthday:bdayD})
                     ]).then(function(rs){
                         var r2=rs[0];
                         if(r2.error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Saved basics; stores error: '+r2.error.message; return; }
@@ -3604,8 +3658,10 @@
                 });
             } else {
                 var locs=[].slice.call(document.querySelectorAll('.ras-store:checked')).map(function(x){return x.value;});
-                supabaseClient.rpc('app_emp_add',{p_username:currentUser.username,p_password:pin,p_name:name,p_wage:wage,p_position_id:pos,p_home:home,p_stores:locs}).then(({error})=>{
+                supabaseClient.rpc('app_emp_add',{p_username:currentUser.username,p_password:pin,p_name:name,p_wage:wage,p_position_id:pos,p_home:home,p_stores:locs}).then(({data,error})=>{
                     if(error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; }
+                    var newId=(typeof data==='number')?data:((data&&data.id)||(data&&data[0]&&data[0].id));
+                    if(newId && (startD||bdayD)){ supabaseClient.rpc('app_emp_set_dates',{p_username:currentUser.username,p_password:pin,p_employee_id:newId,p_start_date:startD,p_birthday:bdayD}).catch(function(){}); }
                     closeRosterModal();
                     var sv=document.getElementById('scheduleBuilderView');
                     if(sv && sv.style.display==='block'){ fetchScheduleWeek(); } else { loadRoster(); }
@@ -4253,6 +4309,8 @@
         if (kbBtn) kbBtn.style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
         const rosterBtn = document.getElementById('rosterBtn');
         if (rosterBtn) rosterBtn.style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
+        const celebrationsBtn = document.getElementById('celebrationsBtn');
+        if (celebrationsBtn) celebrationsBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
         const shortageTrendsBtn = document.getElementById('shortageTrendsBtn');
         if (shortageTrendsBtn) shortageTrendsBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         const formsLinksBtn = document.getElementById('formsLinksBtn');
@@ -5705,6 +5763,77 @@
 
     // ---- My Tasks (Employee Home) ----
     var myTasksCardId='empTasksCard';
+    // ===== Celebrations (birthdays, anniversaries, achievements) =====
+    var celebQueue=[]; var celebIndex=0; var celebConfetti=null; var _celChecked=false;
+    function celebMascotImg(m){ var map={scoopy:'scoopy-cheer.png',cherry:'cherry-thumbsup.png',poochie:'poochie-point.png'}; return map[(m||'scoopy').toLowerCase()]||'scoopy-cheer.png'; }
+    function celebCapWords(s){ return (s||'').replace(/\b\w/g,function(ch){return ch.toUpperCase();}); }
+    function celebTitle(c){ var first=c.first||((c.name||'').split(' ')[0])||''; if(c.kind==='birthday') return '🎂 Happy Birthday, '+first+'!'; if(c.kind==='milestone'){ var l=(c.label||''); if(l.indexOf('year')>-1) return "🎉 "+celebCapWords(l)+" with Caliche's!"; return '🏅 '+celebCapWords(l)+' strong!'; } return '⭐ '+(c.label||'Achievement')+'!'; }
+    function celebFire(){ try{ var cv=document.getElementById('celebCanvas'); if(!celebConfetti && window.confetti && window.confetti.create){ celebConfetti=window.confetti.create(cv,{resize:true,useWorker:true}); } var C=['#ec3e7e','#106ab3','#eee441','#7b2d8b','#ff2e8a']; if(celebConfetti){ celebConfetti({particleCount:130,spread:90,startVelocity:46,origin:{y:0.6},colors:C,zIndex:5}); celebConfetti({particleCount:60,angle:60,spread:70,origin:{x:0,y:0.7},colors:C}); celebConfetti({particleCount:60,angle:120,spread:70,origin:{x:1,y:0.7},colors:C}); } }catch(e){} }
+    function celebShow(){ var c=celebQueue[celebIndex]; var ov=document.getElementById('celebrationOverlay'); if(!c){ if(ov) ov.style.display='none'; return; } var im=document.getElementById('celebImg'); im.src=celebMascotImg(c.mascot); im.style.display='block'; document.getElementById('celebTitle').textContent=celebTitle(c); document.getElementById('celebBody').textContent=c.message||''; ov.style.display='flex'; var card=document.getElementById('celebCard'); card.style.animation='none'; void card.offsetWidth; card.style.animation='calPop .5s cubic-bezier(.18,1.5,.4,1) both'; setTimeout(celebFire,160); }
+    function celebNext(){ var c=celebQueue[celebIndex]; if(c){ withPin(function(pin){ supabaseClient.rpc('app_celebration_seen',{p_username:currentUser.username,p_password:pin,p_id:c.id}).catch(function(){}); }); } celebIndex++; if(celebIndex<celebQueue.length){ celebShow(); } else { var ov=document.getElementById('celebrationOverlay'); if(ov) ov.style.display='none'; } }
+    function checkCelebrations(){ if(!currentUser||!currentUser.username||!sessionPin) return; supabaseClient.rpc('app_my_celebrations',{p_username:currentUser.username,p_password:sessionPin}).then(function(r){ if(r.error||!r.data||!r.data.length) return; celebQueue=r.data; celebIndex=0; celebShow(); }).catch(function(){}); }
+    // ---- Celebrations management view (managers) ----
+    var celebKindIcon={birthday:'🎂',anniversary:'🎉',milestone:'🎉',custom:'⭐'};
+    function openCelebrations(){
+        openForm('celebrationsView');
+        var addCard=document.getElementById('celebAddCard');
+        var adm=(typeof isAdminManager==='function' && isAdminManager());
+        if(addCard) addCard.style.display=adm?'block':'none';
+        loadUpcomingCelebrations();
+        if(adm) celebFillEmployees();
+    }
+    function loadUpcomingCelebrations(){
+        var box=document.getElementById('celebUpcomingList'); if(!box) return;
+        box.innerHTML='<p style="color:#888;font-size:13px;">Loading&hellip;</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_upcoming_celebrations',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ box.innerHTML='<p style="color:#c0264b;font-size:13px;">Could not load ('+(r.error.message||'error')+').</p>'; return; }
+                var rows=r.data||[]; if(rows.length&&rows[0]&&rows[0].items) rows=rows[0].items;
+                if(!rows.length){ box.innerHTML='<p style="color:#888;font-size:13px;">Nothing in the next 30 days.</p>'; return; }
+                var h=''; var today=new Date(); today.setHours(0,0,0,0);
+                rows.forEach(function(c){
+                    var nm=c.name||c.employee_name||'—';
+                    var kind=(c.kind||'').toLowerCase();
+                    var ic=celebKindIcon[kind]||'🎉';
+                    var lbl=c.label||(kind==='birthday'?'Birthday':'Anniversary');
+                    var dateStr=c.on_date||c.event_date||c.next_date||'';
+                    var d=null; if(dateStr){ var dt=new Date(dateStr+'T00:00:00'); if(!isNaN(dt)) d=Math.round((dt-today)/86400000); }
+                    var when=(d==null?'':(d<=0?'<b style="color:#c0264b;">Today</b>':(d===1?'Tomorrow':'in '+d+' days')));
+                    h+='<div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #f0edf5;">'+
+                       '<span style="font-size:20px;">'+ic+'</span>'+
+                       '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:14px;color:#26242b;">'+escapeHtml(nm)+'</div>'+
+                       '<div style="font-size:12px;color:#8a8594;">'+escapeHtml(lbl)+(dateStr?' &middot; '+escapeHtml(dateStr):'')+'</div></div>'+
+                       '<div style="font-size:12px;color:#5b6472;white-space:nowrap;">'+when+'</div></div>';
+                });
+                box.innerHTML=h;
+            }).catch(function(e){ box.innerHTML='<p style="color:#c0264b;font-size:13px;">Could not load.</p>'; });
+        });
+    }
+    function celebFillEmployees(){
+        var sel=document.getElementById('celebEmp'); if(!sel) return;
+        var list=(typeof rosterState!=='undefined'&&rosterState&&rosterState.list)?rosterState.list:null;
+        function fill(arr){ var cur=sel.value; sel.innerHTML='<option value="">Select&hellip;</option>'+arr.filter(function(e){return e.active!==false;}).map(function(e){ return '<option value="'+e.id+'">'+escapeHtml(e.name||('#'+e.id))+'</option>'; }).join(''); sel.value=cur; }
+        if(list&&list.length){ fill(list); return; }
+        withPin(function(pin){ supabaseClient.rpc('app_roster_list',{p_username:currentUser.username,p_password:pin}).then(function(r){ if(r.error||!r.data) return; var arr=r.data.employees||r.data||[]; fill(arr); }).catch(function(){}); });
+    }
+    function celebAddAchievement(){
+        var emp=document.getElementById('celebEmp').value;
+        var label=(document.getElementById('celebLabel').value||'').trim();
+        var mascot=document.getElementById('celebMascot').value||'scoopy';
+        var msg=(document.getElementById('celebMsg').value||'').trim();
+        var out=document.getElementById('celebAddMsg');
+        if(!emp){ out.style.color='#c0264b'; out.textContent='Pick an employee.'; return; }
+        if(!label){ out.style.color='#c0264b'; out.textContent='Enter an achievement name.'; return; }
+        out.style.color='#5b6472'; out.textContent='Saving…';
+        withPin(function(pin){
+            supabaseClient.rpc('app_achievement_add',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(emp,10),p_label:label,p_mascot:mascot,p_message:msg||null}).then(function(r){
+                if(r.error){ out.style.color='#c0264b'; out.textContent='Error: '+(r.error.message||'failed'); return; }
+                out.style.color='#1c7c3a'; out.textContent='✓ Added — '+ (document.getElementById('celebEmp').selectedOptions[0]||{}).text +' will see it on next open.';
+                document.getElementById('celebLabel').value=''; document.getElementById('celebMsg').value='';
+                loadUpcomingCelebrations();
+            }).catch(function(e){ out.style.color='#c0264b'; out.textContent='Error saving.'; });
+        });
+    }
     function loadMyTasks(cardId){
         if(cardId) myTasksCardId=cardId;
         var c=document.getElementById(myTasksCardId); if(!c) return;
@@ -5726,6 +5855,7 @@
                         ((done&&t.completed_at)?'<div style="font-size:11px;color:#1f7a3d;">&#10003; Completed '+socFmt(t.completed_at)+'</div>':'')+'</div></div>';
                 });
                 h+='</div>'; c.innerHTML=h;
+                if(!_celChecked && sessionPin){ _celChecked=true; setTimeout(checkCelebrations, 600); }
             });
         });
     }
@@ -7556,6 +7686,21 @@
         <img src="scoopy-hero.png" alt="" style="width:22px;height:22px;object-fit:contain;" onerror="this.style.display='none'">
         Ask Mr. Scoopy
     </button>
+</div>
+
+<!-- CELEBRATION POPUP (birthdays, anniversaries, achievements) -->
+<style>
+@keyframes calShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes calPop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
+</style>
+<div id="celebrationOverlay" style="display:none;position:fixed;inset:0;z-index:100050;align-items:center;justify-content:center;padding:18px;overflow:hidden;background:linear-gradient(125deg,#ec3e7e,#ff2e8a,#7b2d8b,#106ab3,#eee441);background-size:300% 300%;animation:calShift 7s ease infinite;">
+  <canvas id="celebCanvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;"></canvas>
+  <div id="celebCard" style="position:relative;z-index:2;width:100%;max-width:360px;text-align:center;border-radius:24px;padding:26px 22px;background:#fff;box-shadow:0 0 0 6px rgba(255,255,255,.25),0 22px 60px rgba(40,0,40,.5);border:5px solid transparent;background-image:linear-gradient(#fff,#fff),linear-gradient(120deg,#ec3e7e,#106ab3,#eee441,#7b2d8b,#ec3e7e);background-origin:border-box;background-clip:padding-box,border-box;">
+    <img id="celebImg" src="" alt="" style="width:96px;height:96px;object-fit:contain;margin:0 auto;display:block;filter:drop-shadow(0 6px 10px rgba(0,0,0,.2));" onerror="this.style.display='none'">
+    <div id="celebTitle" style="font-size:25px;font-weight:900;margin-top:10px;background:linear-gradient(90deg,#ec3e7e,#7b2d8b,#106ab3);-webkit-background-clip:text;background-clip:text;color:transparent;"></div>
+    <div id="celebBody" style="font-size:14px;color:#3a2150;margin-top:9px;line-height:1.55;font-weight:500;"></div>
+    <button onclick="celebNext()" style="margin-top:18px;border:none;background:linear-gradient(90deg,#ec3e7e,#7b2d8b);color:#fff;font-weight:800;padding:11px 22px;border-radius:12px;cursor:pointer;font-size:14px;box-shadow:0 6px 16px rgba(123,45,139,.45);">&#127881; Thank you!</button>
+  </div>
 </div>
 
 </body>
