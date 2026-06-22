@@ -1,7 +1,7 @@
 // Caliche's Operations Hub - Service Worker
 // Provides basic offline caching so the app shell loads even with a flaky connection.
 
-const CACHE_NAME = 'caliches-hub-2026.06.21.2338';
+const CACHE_NAME = 'caliches-hub-2026.06.22.0031';
 const CORE_ASSETS = [
   './index.html',
   './manifest.json',
@@ -39,5 +39,36 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => caches.match(event.request))
+  );
+});
+
+// ── Web Push ───────────────────────────────────────────────
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; }
+  catch (e) { data = { title: "Caliche's Hub", body: event.data ? event.data.text() : '' }; }
+  const title = data.title || "Caliche's Hub";
+  const options = {
+    body: data.body || '',
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    data: { url: data.url || './index.html' },
+    vibrate: [80, 40, 80],
+    tag: data.tag || undefined,
+    renotify: !!data.tag
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || './index.html';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) { client.focus(); return; }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
+    })
   );
 });

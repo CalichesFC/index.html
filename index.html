@@ -475,6 +475,17 @@
         </div>
 
         <div class="settings-section">
+            <h3>Notifications</h3>
+            <div class="settings-row">
+                <p>Get push alerts for new tasks, schedules, messages &amp; more — even when the app is closed.</p>
+                <span id="pushStatusBadge" class="settings-status off">Off</span>
+            </div>
+            <button id="pushToggleBtn" class="settings-btn" style="width:100%;" onclick="togglePush()">Enable Push Notifications</button>
+            <p id="pushMsg" class="settings-msg"></p>
+            <p id="pushIosHint" style="display:none;font-size:12px;color:#8a8594;margin-top:6px;line-height:1.5;">On iPhone/iPad: tap the Share icon → <b>Add to Home Screen</b>, open the Hub from that new icon, then turn alerts on here.</p>
+        </div>
+
+        <div class="settings-section">
             <h3>Change PIN / Password</h3>
             <input type="password" id="settingsCurrentPin" class="modal-input" placeholder="Current PIN / Password" style="margin-bottom:8px;">
             <input type="password" id="settingsNewPin" class="modal-input" placeholder="New PIN / Password" style="margin-bottom:8px;">
@@ -2135,7 +2146,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.21.2338';
+    const APP_VERSION = '2026.06.22.0031';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2908,6 +2919,102 @@
     }
 
     // ============================================================
+    // WEB PUSH NOTIFICATIONS
+    // ============================================================
+    var VAPID_PUBLIC_KEY = 'BHwILHEGPVpgUlnzwNUaOYtu78s210ErmPBEOZ7w2eNf_PBD8ouIsEsk4D1p82KZg8qY7jdiAZVNFaJQHaIIfJk';
+    function urlBase64ToUint8Array(base64String) {
+        var padding = '='.repeat((4 - base64String.length % 4) % 4);
+        var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        var raw = atob(base64); var arr = new Uint8Array(raw.length);
+        for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+        return arr;
+    }
+    function pushSupported() { return ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window); }
+    function isStandalonePWA() { return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (window.navigator.standalone === true); }
+    function isIOSdevice() { return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+    function pushSetMsg(t, color) { var el = document.getElementById('pushMsg'); if (el) { el.innerText = t || ''; el.style.color = color || '#8a8594'; } }
+    function updatePushToggleBtn() {
+        var btn = document.getElementById('pushToggleBtn'); var badge = document.getElementById('pushStatusBadge'); var iosHint = document.getElementById('pushIosHint');
+        if (!btn) return;
+        if (!pushSupported()) {
+            btn.style.display = 'none';
+            if (badge) { badge.innerText = 'Unsupported'; badge.className = 'settings-status off'; }
+            if (iosHint && isIOSdevice() && !isStandalonePWA()) iosHint.style.display = 'block';
+            return;
+        }
+        btn.style.display = 'block';
+        if (iosHint) iosHint.style.display = (isIOSdevice() && !isStandalonePWA()) ? 'block' : 'none';
+        navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
+            var on = !!sub && Notification.permission === 'granted';
+            btn.innerText = on ? 'Disable Push Notifications' : 'Enable Push Notifications';
+            if (badge) { badge.innerText = on ? 'On' : 'Off'; badge.className = 'settings-status ' + (on ? 'on' : 'off'); }
+        }).catch(function () {});
+    }
+    function togglePush() {
+        navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
+            if (sub && Notification.permission === 'granted') { return pushDisable(); }
+            return pushEnable();
+        }).catch(function () { pushEnable(); });
+    }
+    function pushEnable() {
+        if (!pushSupported()) { pushSetMsg('This browser does not support push notifications.', '#c0264b'); return; }
+        if (isIOSdevice() && !isStandalonePWA()) {
+            pushSetMsg('On iPhone/iPad, add the Hub to your Home Screen first, then enable alerts.', '#c0264b');
+            var h = document.getElementById('pushIosHint'); if (h) h.style.display = 'block'; return;
+        }
+        pushSetMsg('Enabling…');
+        Notification.requestPermission().then(function (perm) {
+            if (perm !== 'granted') { pushSetMsg('Notifications were not allowed. You can turn them on in your browser settings.', '#c0264b'); updatePushToggleBtn(); return; }
+            navigator.serviceWorker.ready.then(function (reg) {
+                return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+            }).then(function (sub) {
+                var j = sub.toJSON();
+                withPin(function (pin) {
+                    supabaseClient.rpc('app_push_subscribe', { p_username: currentUser.username, p_password: pin, p_endpoint: sub.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_ua: navigator.userAgent }).then(function (r) {
+                        if (r.error) { pushSetMsg('Saved on device, but server error: ' + r.error.message, '#c0264b'); }
+                        else { pushSetMsg('✓ Push notifications are on for this device.', '#1c7c3a'); }
+                        updatePushToggleBtn();
+                    }).catch(function () { pushSetMsg('Could not reach the server.', '#c0264b'); });
+                });
+            }).catch(function (e) { pushSetMsg('Could not subscribe: ' + (e && e.message ? e.message : e), '#c0264b'); });
+        });
+    }
+    function pushDisable() {
+        navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
+            if (!sub) { updatePushToggleBtn(); return; }
+            var ep = sub.endpoint;
+            sub.unsubscribe().then(function () {
+                supabaseClient.rpc('app_push_unsubscribe', { p_endpoint: ep }).catch(function () {});
+                pushSetMsg('Push notifications turned off for this device.'); updatePushToggleBtn();
+            });
+        }).catch(function () {});
+    }
+    function pushEnableSilent() {
+        navigator.serviceWorker.ready.then(function (reg) {
+            return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+        }).then(function (sub) {
+            var j = sub.toJSON();
+            if (!sessionPin) return;
+            supabaseClient.rpc('app_push_subscribe', { p_username: currentUser.username, p_password: sessionPin, p_endpoint: sub.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_ua: navigator.userAgent }).catch(function () {});
+        }).catch(function () {});
+    }
+    var _pushChecked = false;
+    function maybePromptPush() {
+        if (_pushChecked || !pushSupported() || !currentUser || !currentUser.username) return;
+        _pushChecked = true;
+        if (Notification.permission === 'granted') {
+            navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) { if (!sub) pushEnableSilent(); }).catch(function () {});
+            return;
+        }
+        if (Notification.permission === 'denied') return;
+        if (localStorage.getItem('pushPromptDismissed') === '1') return;
+        if (isIOSdevice() && !isStandalonePWA()) return;
+        var bar = document.getElementById('pushPromptBar'); if (bar) bar.style.display = 'flex';
+    }
+    function pushPromptYes() { var b = document.getElementById('pushPromptBar'); if (b) b.style.display = 'none'; pushEnable(); }
+    function pushPromptNo() { var b = document.getElementById('pushPromptBar'); if (b) b.style.display = 'none'; localStorage.setItem('pushPromptDismissed', '1'); }
+
+    // ============================================================
     // BIOMETRIC (FACE ID / TOUCH ID / FINGERPRINT) APP LOCK
     // ============================================================
     function bufferToBase64(buf) {
@@ -3004,6 +3111,7 @@
         document.getElementById('appVersionLabel').innerText = APP_VERSION;
         document.getElementById('privacyPolicyText').style.display = 'none';
         updateBioToggleBtn();
+        updatePushToggleBtn();
         loadMyPhoto();
         document.getElementById('settingsModal').style.display = 'flex';
     }
@@ -5857,6 +5965,7 @@
                 });
                 h+='</div>'; c.innerHTML=h;
                 if(!_celChecked && sessionPin){ _celChecked=true; setTimeout(checkCelebrations, 600); }
+                if(typeof maybePromptPush==='function'){ setTimeout(maybePromptPush, 1800); }
             });
         });
     }
@@ -7412,6 +7521,8 @@
                   body:"Tap the \uD83D\uDCAC Messages card on Home for team chat and broadcasts from the office. It's the fastest way to reach your team and stay in the loop." },
                 { img:'scoopy-point.png', title:'Forms & Documents',
                   body:"Need a payroll, HR, or hiring form? Tap \uD83D\uDCC4 Forms & Documents on Home for direct links to everything \u2014 W-4/I-9, direct deposit, applications and more." },
+                { img:'cherry-peace.png', title:'Report a Concern \uD83D\uDD12',
+                  body:"Something not right? Tap \uD83D\uDD12 Report a Concern on Home to confidentially report harassment or misconduct. It goes straight to the Admin Managers \u2014 not your store manager \u2014 and you can even submit it anonymously." },
                 { img:'scoopy-thumbsup.png', title:'Ask Mr. Scoopy anytime \uD83C\uDF66',
                   body:"See the floating \uD83C\uDF66 Ask Mr. Scoopy button in the corner of every screen? Tap it to ask about store policies, recipes, or how to use the Hub. I'm always here to help!" }
             ];
@@ -7426,7 +7537,15 @@
                     { img:'scoopy-thumbsup.png', title:'Manager: Admin Dashboard',
                       body:"The \u26A1 Admin Dashboard tab brings together the Live Dashboard, Command Center, Daily Sales & Labor, Weekly Prime Cost, Manager Dashboard, and Employee Roster." },
                     { img:'scoopy-wave.png', title:'Admin: Teach Mr. Scoopy',
-                      body:"Admins can open \uD83E\uDDE0 Teach Mr. Scoopy (Admin Dashboard) to add answers to the Knowledge Base. The more you teach me, the better I help the whole team." }
+                      body:"Admins can open \uD83E\uDDE0 Teach Mr. Scoopy (Admin Dashboard) to add answers to the Knowledge Base. The more you teach me, the better I help the whole team." },
+                    { img:'scoopy-point.png', title:'Manager: Attendance & call-outs',
+                      body:"Store Operations \u2192 \uD83D\uDCC5 Attendance & Call-outs. Tap 'Mark called out' to log a call-in, tardy, or early-out \u2014 it builds each employee's attendance record and flags patterns like repeat same-day absences." },
+                    { img:'scoopy-cheer.png', title:'Manager: Disciplinary, step by step',
+                      body:"\u26A0\uFE0F Disciplinary Actions follows the progressive path \u2014 Verbal \u2192 Written \u2192 Write-up. Pick the form, capture statements and signatures, and submitting notifies that employee's store managers and opens a follow-up task. Termination is a separate, Admin-only assessment." },
+                    { img:'cherry-thumbsup.png', title:'Celebrations \uD83C\uDF89',
+                      body:"Admin Dashboard \u2192 \uD83C\uDF89 Celebrations shows upcoming birthdays and work anniversaries. Admin Managers can also hand out a custom achievement \u2014 the employee gets a fun mascot pop-up next time they open the Hub." },
+                    { img:'scoopy-point.png', title:'Admin: Start dates & birthdays',
+                      body:"On the Employee Roster, open any employee's Edit to set their Start date (back-date it for staff who started before the app) and Birthday. Those power the automatic anniversary and birthday celebrations \u2014 and birthdays are visible to Admin Managers only." }
                 );
             }
             appTourSteps = steps;
@@ -7694,6 +7813,13 @@
 @keyframes calShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 @keyframes calPop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
 </style>
+<div id="pushPromptBar" style="display:none;position:fixed;left:12px;right:12px;bottom:16px;z-index:99990;background:#fff;border:1px solid #e7e2f0;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:12px 14px;align-items:center;gap:10px;max-width:520px;margin:0 auto;">
+  <span style="font-size:22px;">&#128276;</span>
+  <div style="flex:1;font-size:13px;color:#26242b;line-height:1.4;">Turn on alerts for new tasks, schedules &amp; messages?</div>
+  <button onclick="pushPromptNo()" style="background:none;border:none;color:#8a8594;font-size:13px;padding:8px;cursor:pointer;">Not now</button>
+  <button onclick="pushPromptYes()" style="background:linear-gradient(120deg,#7d1d4b,#b3245f);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">Turn on</button>
+</div>
+
 <div id="celebrationOverlay" style="display:none;position:fixed;inset:0;z-index:100050;align-items:center;justify-content:center;padding:18px;overflow:hidden;background:linear-gradient(125deg,#ec3e7e,#ff2e8a,#7b2d8b,#106ab3,#eee441);background-size:300% 300%;animation:calShift 7s ease infinite;">
   <canvas id="celebCanvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;"></canvas>
   <div id="celebCard" style="position:relative;z-index:2;width:100%;max-width:360px;text-align:center;border-radius:24px;padding:26px 22px;background:#fff;box-shadow:0 0 0 6px rgba(255,255,255,.25),0 22px 60px rgba(40,0,40,.5);border:5px solid transparent;background-image:linear-gradient(#fff,#fff),linear-gradient(120deg,#ec3e7e,#106ab3,#eee441,#7b2d8b,#ec3e7e);background-origin:border-box;background-clip:padding-box,border-box;">
