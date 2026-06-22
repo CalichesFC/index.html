@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#ec3e7e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -2146,7 +2146,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.22.0047';
+    const APP_VERSION = '2026.06.22.0135';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3573,6 +3573,7 @@
         });
     }
     function schedPublish() {
+        if (!confirm('Publish this week’s schedule for ' + schedState.location + '? Staff with shifts will be notified.')) return;
         const ws = schedFmt(schedState.weekStart);
         withPin(function(pin){
             supabaseClient.rpc('app_sched_publish_week', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_week_start: ws })
@@ -6824,14 +6825,16 @@
     function recalcQuoteTotals() {
         let subtotal = 0;
         document.querySelectorAll('#quoteItemsContainer .quote-row').forEach(row => {
-            const qty = parseFloat(row.querySelector('.quote-qty').value) || 0;
-            const price = parseFloat(row.querySelector('.quote-price').value) || 0;
+            const qty = Math.max(0, parseFloat(row.querySelector('.quote-qty').value) || 0);
+            const price = Math.max(0, parseFloat(row.querySelector('.quote-price').value) || 0);
             const lineSub = qty * price;
             row.querySelector('.quote-line-subtotal').innerText = '$' + lineSub.toFixed(2);
             subtotal += lineSub;
         });
-        const tax = subtotal * QUOTE_TAX_RATE;
-        const total = subtotal + tax;
+        // Round to cents so Subtotal + Tax always equals Grand Total exactly.
+        subtotal = Math.round(subtotal * 100) / 100;
+        const tax = Math.round(subtotal * QUOTE_TAX_RATE * 100) / 100;
+        const total = Math.round((subtotal + tax) * 100) / 100;
         document.getElementById('quoteSubtotal').innerText = '$' + subtotal.toFixed(2);
         document.getElementById('quoteTax').innerText = '$' + tax.toFixed(2);
         document.getElementById('quoteTotal').innerText = '$' + total.toFixed(2);
@@ -6861,9 +6864,9 @@
         let subtotal = 0;
         let lineItemsArr = [];
         document.querySelectorAll('#quoteItemsContainer .quote-row').forEach(row => {
-            const qty = parseFloat(row.querySelector('.quote-qty').value) || 0;
+            const qty = Math.max(0, parseFloat(row.querySelector('.quote-qty').value) || 0);
             const desc = row.querySelector('.quote-desc').value || '';
-            const price = parseFloat(row.querySelector('.quote-price').value) || 0;
+            const price = Math.max(0, parseFloat(row.querySelector('.quote-price').value) || 0);
             if (!desc) return;
             const lineSub = qty * price;
             subtotal += lineSub;
@@ -6871,8 +6874,10 @@
             pdfHtml += '<tr><td>' + qty + '</td><td>' + desc + '</td><td style="text-align:right;">$' + price.toFixed(2) + '</td><td style="text-align:right;">$' + lineSub.toFixed(2) + '</td></tr>';
         });
         pdfHtml += '</table>';
-        const tax = subtotal * QUOTE_TAX_RATE;
-        const total = subtotal + tax;
+        // Round to cents so the PDF/stored Subtotal + Tax always equals the Grand Total.
+        subtotal = Math.round(subtotal * 100) / 100;
+        const tax = Math.round(subtotal * QUOTE_TAX_RATE * 100) / 100;
+        const total = Math.round((subtotal + tax) * 100) / 100;
         pdfHtml += '<table border="1" cellpadding="10" style="border-collapse:collapse;width:100%;font-size:13px;border-color:#ccc;border-top:none;margin-bottom:20px;"><tr><td style="width:60%;vertical-align:top;"><strong>Notes:</strong> ' + (notes || '&mdash;') + '</td><td style="width:40%;padding:0;vertical-align:top;"><table style="width:100%;border-collapse:collapse;font-size:14px;"><tr><td style="padding:8px;font-weight:bold;border-bottom:1px solid #ccc;">Subtotal</td><td style="padding:8px;text-align:right;border-bottom:1px solid #ccc;">$' + subtotal.toFixed(2) + '</td></tr><tr><td style="padding:8px;font-weight:bold;border-bottom:1px solid #ccc;">Tax (8.39%)</td><td style="padding:8px;text-align:right;border-bottom:1px solid #ccc;">$' + tax.toFixed(2) + '</td></tr><tr><td style="padding:8px;font-weight:900;font-size:16px;">Grand Total</td><td style="padding:8px;text-align:right;font-weight:900;font-size:16px;">$' + total.toFixed(2) + '</td></tr></table></td></tr></table>';
         pdfHtml += '<div style="font-size:12px;color:#666;line-height:1.6;border-top:1px solid #eee;padding-top:15px;"><strong>Updated Booking and Payment Policy:</strong> At Caliche\'s Frozen Custard, we\'ve updated our booking and payment terms to better serve our clients. We no longer require a 50% non-refundable deposit to secure your event. To confirm your booking, simply respond with your approval to your Caliche\'s Frozen Custard contact, and we will take care of scheduling your event. The full balance is due on the day of the event, offering you greater flexibility. We accept payments in cash, by check, or online via credit card, according to what\'s most convenient for you.</div>';
         pdfHtml += '<p style="text-align:center;color:#bbb;font-size:11px;margin-top:25px;border-top:1px solid #eee;padding-top:10px;">Caliche\'s Catering Quote</p>';
@@ -6893,6 +6898,7 @@
                 linkDiv.innerHTML = '<p style="color:#e74c3c;">PDF generation failed. Please try again.</p>';
             }
             linkDiv.style.display = 'block';
+            try { linkDiv.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e) {}
 
             // Persist quote to Supabase — create new, or UPDATE the existing row if editing
             var qfields = { p_contact_name: contactName, p_company: company || null, p_contact_phone: phone || null, p_contact_email: email || null, p_event_date: eventDate, p_event_type: eventType || null, p_notes: notes || null, p_line_items: lineItemsArr, p_subtotal: subtotal, p_tax: tax, p_total: total, p_pdf_url: pdfUrl };
