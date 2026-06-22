@@ -2146,7 +2146,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.22.0031';
+    const APP_VERSION = '2026.06.22.0047';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2282,7 +2282,9 @@
             supabaseClient.rpc('app_tasks_overview', { p_username: currentUser.username, p_password: pin, p_location: (loc || null) }).then(function(r) {
                 if (r.error) { if (r.error.code === '42501') sessionPin = null; c.innerHTML = '<p style="color:#c0264b;text-align:center;font-size:13px;padding:10px;">' + escapeHtml(r.error.message) + '</p>'; return; }
                 var tasks = r.data || [];
-                if (!tasks.length) { c.innerHTML = '<p style="text-align:center;color:#888;font-size:13px;padding:14px;">No team tasks yet.</p>'; return; }
+                // Auto-clear: once everyone assigned has finished a task, drop it off the active board (record stays in the database).
+                tasks = tasks.filter(function(t) { return !(t.total > 0 && t.done >= t.total); });
+                if (!tasks.length) { c.innerHTML = '<p style="text-align:center;color:#888;font-size:13px;padding:14px;">No open team tasks. &#127881;</p>'; return; }
                 var h = '';
                 tasks.forEach(function(t) {
                     var doneAll = (t.total > 0 && t.done >= t.total);
@@ -5950,6 +5952,14 @@
             supabaseClient.rpc('app_my_tasks',{p_username:currentUser.username,p_password:pin}).then(function(r){
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; return; }
                 var tasks=(r.data&&r.data.tasks)||[];
+                // Auto-clear: hide tasks completed more than 24h ago (kept in the database).
+                var _nowMs=Date.now();
+                tasks=tasks.filter(function(t){
+                    if(t.status!=='done') return true;
+                    if(!t.completed_at) return true;
+                    var ct=new Date(t.completed_at).getTime();
+                    return isNaN(ct) ? true : (_nowMs - ct) < 86400000;
+                });
                 var h='<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
                     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-size:15px;font-weight:500;color:#185FA5;">&#9989; My Tasks</span>' +
                     '<button onclick="openSelfTask()" style="background:var(--caliches-pink);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:bold;cursor:pointer;">+ Add</button></div>';
