@@ -2315,7 +2315,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.22.2333';
+    const APP_VERSION = '2026.06.22.2347';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -6857,8 +6857,8 @@
         var h=status;
         AVAIL_ORDER.forEach(function(o){
             var dow=o[1], dd=window._availDays[dow];
-            h+='<div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #ececf2;border-radius:10px;padding:8px 10px;margin-bottom:6px;flex-wrap:wrap;">'+
-               '<b style="width:42px;font-size:13.5px;color:#26242b;">'+o[0]+'</b>'+
+            h+='<div style="display:flex;align-items:center;gap:8px;background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:10px;padding:8px 10px;margin-bottom:6px;flex-wrap:wrap;">'+
+               '<b style="width:42px;font-size:13.5px;color:var(--txt,#26242b);">'+o[0]+'</b>'+
                '<select onchange="availSetMode('+dow+',this.value)" style="padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;">'+
                '<option value="all"'+(dd.mode==='all'?' selected':'')+'>Available all day</option>'+
                '<option value="window"'+(dd.mode==='window'?' selected':'')+'>Specific hours</option>'+
@@ -6895,8 +6895,8 @@
                 var list=r.data||[];
                 if(!list.length){ box.innerHTML='<p style="text-align:center;color:#888;padding:18px;">No availability requests waiting.</p>'; return; }
                 box.innerHTML=list.map(function(rq){
-                    return '<div style="background:#fff;border:1px solid #ececf2;border-radius:11px;padding:12px;margin-bottom:10px;">'+
-                      '<b style="font-size:14.5px;color:#26242b;">'+escapeHtml(rq.employee_name||'Employee')+'</b>'+
+                    return '<div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:11px;padding:12px;margin-bottom:10px;">'+
+                      '<b style="font-size:14.5px;color:var(--txt,#26242b);">'+escapeHtml(rq.employee_name||'Employee')+'</b>'+
                       '<div style="font-size:12.5px;color:#5b6472;line-height:1.6;margin:6px 0;">'+escapeHtml(availSummary(rq.days))+'</div>'+
                       (rq.note?'<div style="font-size:12.5px;color:#8a8594;margin-bottom:6px;">Note: “'+escapeHtml(rq.note)+'”</div>':'')+
                       '<input id="availCmt'+rq.id+'" type="text" placeholder="Comment (optional, sent to them)" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:12.5px;box-sizing:border-box;margin-bottom:8px;">'+
