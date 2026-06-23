@@ -1496,7 +1496,7 @@
   .hbg-off { border-radius:6px; padding:5px 7px; font-size:10.5px; background:#ECEAFB; color:#3C3489; font-weight:700; }
   .hbg-add { color:#c8d0da; font-size:17px; cursor:pointer; text-align:center; padding:3px; }
   .hbg-cell { min-height:40px; cursor:pointer; }
-  .hbg-rowt { text-align:right; font-weight:800; white-space:nowrap; color:#1f2a44; } .hbg-ot { color:#c0392b; }
+  .hbg-rowt { text-align:right; font-weight:800; white-space:nowrap; color:#1f2a44; } .hbg-ot { color:#c0392b; } .hbg-near { color:#b8650b; }
   .hbg-conf { outline:2px solid #e24b4a; }
   .hbg tfoot td { position:sticky; bottom:0; background:#f6f8fb; font-weight:700; text-align:center; border-top:2px solid #dde3ea; font-size:11px; }
   .hbg tfoot td.hbg-e { text-align:left; }
@@ -1909,6 +1909,7 @@
         <div id="shiftCompMsg" style="display:none;font-size:12.5px;margin-top:6px;padding:7px 10px;border-radius:7px;background:#fdf3e8;color:#854F0B;"></div>
         <label class="form-label" style="margin-top:12px;">Note (optional):</label>
         <input type="text" id="shiftNote" placeholder="e.g., AM duties, register" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;">
+        <div id="shiftRepeatWrap" style="margin-top:12px;"><label class="form-label">Repeat weekly:</label><select id="shiftRepeat" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;"><option value="0">No — just this day</option><option value="1">This + next week</option><option value="3">This + next 3 weeks</option><option value="7">This + next 7 weeks</option></select></div>
         <div style="display:flex;gap:8px;margin-top:18px;">
             <button class="save-btn blue-btn" style="flex:1;margin:0;" onclick="schedSaveShift()">Save</button>
             <button id="shiftDeleteBtn" class="save-btn red-btn" style="flex:0 0 90px;margin:0;display:none;" onclick="schedDeleteShift()">Delete</button>
@@ -1966,7 +1967,9 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
             <button id="equipAddBtn" onclick="openEquipmentEdit(null)" style="display:none;flex:1;min-width:150px;background:var(--caliches-pink);color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#10133; Add equipment</button>
             <button id="equipPrintAllBtn" onclick="printStoreQRSheet()" style="display:none;flex:1;min-width:150px;background:#fff;border:1px solid #d8cfc2;border-radius:10px;padding:10px;font-size:13px;font-weight:700;color:#854F0B;cursor:pointer;">&#128424;&#65039; Print all QR codes</button>
+            <button id="equipMaintDueBtn" onclick="openMaintDue()" style="flex:1;min-width:150px;background:#fff4e0;border:1px solid #f0d9a8;border-radius:10px;padding:10px;font-size:13px;font-weight:700;color:#9a5b00;cursor:pointer;">&#128295; Maintenance due</button>
         </div>
+        <div id="maintDueBox" data-open="0" style="display:none;margin-bottom:12px;"></div>
         <div id="equipList"><p style="text-align:center;color:#888;padding:30px;">Loading&hellip;</p></div>
     </div>
 </div>
@@ -2330,7 +2333,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.23.0024';
+    const APP_VERSION = '2026.06.23.0229';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3633,6 +3636,8 @@
             schedSaveLayout(); renderScheduleGrid();
         }});
     }
+    function schedLaborTarget(){ var t=parseFloat(localStorage.getItem('laborTargetPct')); return (isNaN(t)||t<=0)?25:t; }
+    function schedSetLaborTarget(v){ var t=parseFloat(v); if(!isNaN(t)&&t>0){ try{ localStorage.setItem('laborTargetPct',t); }catch(e){} renderScheduleGrid(); } }
     function schedSetForecast(ds, val){
         const amt = parseFloat(val); if (isNaN(amt)) return;
         schedState.forecast = schedState.forecast || {}; schedState.forecast[ds] = amt;
@@ -3759,14 +3764,18 @@
                         html += '</td>';
                     }
                 });
-                html += '<td class="hbg-rowt'+(ot>0?' hbg-ot':'')+'">'+eh.toFixed(1)+'h<br>'+money(cost)+(ot>0?'<br><span class="hbg-ot">'+ot.toFixed(1)+' OT</span>':'')+'</td></tr>';
+                var otCls = ot>0?' hbg-ot':(eh>=36?' hbg-near':'');
+                html += '<td class="hbg-rowt'+otCls+'" title="'+(ot>0?'In overtime':(eh>=36?'Approaching 40h overtime':''))+'">'+eh.toFixed(1)+'h<br>'+money(cost)+(ot>0?'<br><span class="hbg-ot">'+ot.toFixed(1)+' OT</span>':(eh>=36?'<br><span class="hbg-near">near OT</span>':''))+'</td></tr>';
             });
             html += '</tbody><tfoot><tr><td class="hbg-e">Hours <span style="color:#185FA5;">'+weekHrs.toFixed(1)+'</span></td>';
             days.forEach(d => { const ds=schedFmt(d); const hh=dayHrs[ds]||0; const n=dayStaff[ds]?Object.keys(dayStaff[ds]).length:0; html += '<td>&#128100; '+n+'<br><span style="font-weight:400;font-size:10px;color:#7a828f;">'+hh.toFixed(1)+'h</span></td>'; });
             html += '<td></td></tr></tfoot></table>';
-            html += '<div class="sp-laborbar wide"><div class="lbl" style="min-width:88px;">Labor / day</div>';
-            days.forEach((d,di2)=>{ const ds=schedFmt(d); const pv=(ds in fc)?fc[ds]:''; html += '<div class="lcell"><div class="lbl">'+dayNames[di2]+' &middot; '+money(dayCost[ds]||0)+'</div><input type="number" class="sp-pred" value="'+pv+'" placeholder="pred" onchange="schedSetForecast(\''+ds+'\',this.value)"></div>'; });
-            html += '<div style="text-align:right;min-width:78px;"><div class="lbl">Week</div><b>'+money(weekCost)+'</b></div></div>';
+            var _tgt=schedLaborTarget();
+            html += '<div class="sp-laborbar wide"><div class="lbl" style="min-width:96px;">Labor / day<br><span style="font-weight:400;font-size:10px;color:#9aa7b4;">target <input type="number" value="'+_tgt+'" onchange="schedSetLaborTarget(this.value)" style="width:34px;padding:1px 3px;font-size:10px;">%</span></div>';
+            var _weekPred=0;
+            days.forEach((d,di2)=>{ const ds=schedFmt(d); const pv=(ds in fc)?fc[ds]:''; const cst=dayCost[ds]||0; const pred=parseFloat(pv)||0; _weekPred+=pred; const pct=pred>0?(cst/pred*100):null; const ph=(pct!=null)?'<div style="font-size:10px;font-weight:700;color:'+(pct>_tgt?'#c0392b':'#1f7a3d')+';">'+pct.toFixed(0)+'% labor</div>':''; html += '<div class="lcell"><div class="lbl">'+dayNames[di2]+' &middot; '+money(cst)+'</div><input type="number" class="sp-pred" value="'+pv+'" placeholder="pred" onchange="schedSetForecast(\''+ds+'\',this.value)">'+ph+'</div>'; });
+            var _wpct=_weekPred>0?(weekCost/_weekPred*100):null;
+            html += '<div style="text-align:right;min-width:78px;"><div class="lbl">Week</div><b>'+money(weekCost)+'</b>'+(_wpct!=null?'<div style="font-size:10px;font-weight:700;color:'+(_wpct>_tgt?'#c0392b':'#1f7a3d')+';">'+_wpct.toFixed(0)+'%</div>':'')+'</div></div>';
         }
         const pb = document.getElementById('schedPublishBtn');
         if (conflicts>0) {
@@ -3851,6 +3860,8 @@
         document.getElementById('shiftNote').value = s ? (s.note||'') : '';
         posSel.value = (s && s.position_id) ? String(s.position_id) : '';
         document.getElementById('shiftDeleteBtn').style.display = shiftId ? 'block' : 'none';
+        var _rw=document.getElementById('shiftRepeatWrap'); if(_rw) _rw.style.display = shiftId ? 'none' : 'block';
+        var _rs=document.getElementById('shiftRepeat'); if(_rs) _rs.value='0';
         document.getElementById('shiftModal').style.display = 'flex';
         schedValidateShift();
         var am=document.getElementById('shiftAvailMsg');
@@ -3873,9 +3884,13 @@
         const en = document.getElementById('shiftEnd').value;
         const note = document.getElementById('shiftNote').value;
         if (!st || !en) { alert('Please enter start and end times.'); return; }
+        var repeat = (!ed.shiftId) ? (parseInt((document.getElementById('shiftRepeat')||{}).value,10)||0) : 0;
         withPin(function(pin){
             supabaseClient.rpc('app_sched_upsert_shift', { p_username: currentUser.username, p_password: pin, p_id: ed.shiftId, p_location: schedState.location, p_shift_date: ed.date, p_employee_id: ed.employeeId, p_position_id: pos ? parseInt(pos,10) : null, p_start: st, p_end: en, p_note: note })
-            .then(({ error }) => { if (error) { alert('Error: ' + error.message); return; } schedCloseModal(); fetchScheduleWeek(); });
+            .then(({ error }) => { if (error) { alert('Error: ' + error.message); return; }
+                if(repeat>0){ for(var i=1;i<=repeat;i++){ var nd=schedFmt(schedAddDays(new Date(ed.date+'T00:00:00'), 7*i)); supabaseClient.rpc('app_sched_upsert_shift', { p_username: currentUser.username, p_password: pin, p_id:null, p_location: schedState.location, p_shift_date: nd, p_employee_id: ed.employeeId, p_position_id: pos ? parseInt(pos,10) : null, p_start: st, p_end: en, p_note: note }).then(function(){}); } }
+                schedCloseModal(); fetchScheduleWeek();
+            });
         });
     }
     function schedDeleteShift() {
@@ -6637,7 +6652,134 @@
         if(admin){ h+='<button onclick="openEquipmentEdit('+e.id+')" style="flex:1;min-width:120px;background:#f3eede;color:#854F0B;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#9998; Edit</button>'+
            '<button onclick="deleteEquipment('+e.id+')" style="background:#fdeaea;color:#c0264b;border:none;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;">Remove</button>'; }
         h+='</div></div>';
+        h+='<div id="pmSection" style="margin-top:14px;"></div>';
         box.innerHTML=h;
+        if(typeof loadPmFor==='function') loadPmFor(e.id);
+    }
+    /* ===== Preventive Maintenance ===== */
+    function pmStatusBadge(st){
+        var m={overdue:['#fdeaea','#a01b3e','Overdue'],due_soon:['#fff4e0','#9a5b00','Due soon'],ok:['#e8f5ec','#1b7a3d','On track']};
+        var c=m[st]||m.ok;
+        return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:3px 8px;border-radius:99px;white-space:nowrap;">'+c[2]+'</span>';
+    }
+    function pmIsMgr(){ return (typeof isManagerRole==='function'?isManagerRole():(typeof isAdminManager==='function'&&isAdminManager())); }
+    function loadPmFor(equipId){
+        window._pmEquipId=equipId;
+        var box=document.getElementById('pmSection'); if(!box) return;
+        box.innerHTML='<div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:14px;padding:16px;color:var(--txt2,#8a8594);font-size:13px;">Loading maintenance&hellip;</div>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_pm_for_equipment',{p_username:currentUser.username,p_password:pin,p_equipment_id:equipId}).then(function(r){
+                if(r.error){ box.innerHTML=''; return; }
+                renderPmSection(r.data||{schedules:[],log:[]},equipId);
+            }).catch(function(){ box.innerHTML=''; });
+        });
+    }
+    function renderPmSection(data,equipId){
+        var box=document.getElementById('pmSection'); if(!box) return;
+        var mgr=pmIsMgr(); var scheds=data.schedules||[], log=data.log||[];
+        window._pmScheds=scheds; window._pmEquipId=equipId;
+        var h='<div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);">';
+        h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><span style="font-size:18px;">&#128295;</span><b style="flex:1;font-size:15px;color:var(--txt,#26242b);">Preventive maintenance</b>';
+        if(mgr){ h+='<button onclick="openPmEdit('+equipId+',null)" style="background:var(--caliches-pink);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;">&#10133; Add</button>'; }
+        h+='</div>';
+        if(!scheds.length){
+            h+='<div style="color:var(--txt2,#8a8594);font-size:13px;padding:4px 0;">No service schedules yet'+(mgr?'. Tap &#10133; Add to set one (e.g. "Sanitize every 7 days").':'.')+'</div>';
+        } else {
+            scheds.forEach(function(sc){
+                var d=sc.days_until; var dt=(d<0?Math.abs(d)+'d overdue':(d===0?'due today':'in '+d+'d'));
+                h+='<div style="border:1px solid var(--bd,#f0eef4);border-radius:11px;padding:11px 12px;margin-bottom:8px;">'+
+                   '<div style="display:flex;align-items:flex-start;gap:8px;"><div style="flex:1;min-width:0;">'+
+                   '<div style="font-weight:700;font-size:14px;color:var(--txt,#26242b);">'+escapeHtml(sc.title)+'</div>'+
+                   '<div style="font-size:12px;color:var(--txt2,#8a8594);margin-top:2px;">Every '+sc.interval_days+' days &middot; next '+escapeHtml(sc.next_due||'')+' &middot; '+dt+'</div>'+
+                   (sc.instructions?'<div style="font-size:12px;color:var(--txt2,#8a8594);margin-top:4px;white-space:pre-wrap;">'+escapeHtml(sc.instructions)+'</div>':'')+
+                   '</div>'+pmStatusBadge(sc.status)+'</div>'+
+                   '<div style="display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;">'+
+                   '<button onclick="completePm('+sc.id+','+equipId+')" style="flex:1;min-width:120px;background:var(--pass-green);color:#fff;border:none;border-radius:8px;padding:8px;font-size:12.5px;font-weight:700;cursor:pointer;">&#9989; Mark serviced</button>'+
+                   (mgr?'<button onclick="openPmEdit('+equipId+','+sc.id+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:8px 11px;font-size:12.5px;font-weight:700;cursor:pointer;">&#9998;</button>'+
+                        '<button onclick="deletePmSched('+sc.id+','+equipId+')" style="background:#fdeaea;color:#c0264b;border:none;border-radius:8px;padding:8px 11px;font-size:12.5px;font-weight:700;cursor:pointer;">&#128465;&#65039;</button>':'')+
+                   '</div></div>';
+            });
+        }
+        if(log.length){
+            h+='<div style="margin-top:6px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--txt2,#9a93a4);">Service history</div>';
+            log.forEach(function(l){
+                h+='<div style="font-size:12px;color:var(--txt2,#8a8594);padding:4px 0;border-bottom:1px solid var(--bd,#f0eef4);">'+escapeHtml(l.done_on||'')+' &middot; '+escapeHtml(l.title||'')+(l.by?' &middot; '+escapeHtml(l.by):'')+(l.notes?' &middot; '+escapeHtml(l.notes):'')+'</div>';
+            });
+        }
+        h+='</div>';
+        box.innerHTML=h;
+    }
+    function completePm(pmId,equipId){
+        var notes=prompt('Log this service as done today?\n\nOptional note (e.g. parts replaced):','');
+        if(notes===null) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_pm_complete',{p_username:currentUser.username,p_password:pin,p_id:pmId,p_done_on:null,p_notes:notes||null}).then(function(r){
+                if(r.error){ alert('Could not log: '+r.error.message); return; }
+                loadPmFor(equipId);
+            }).catch(function(){ alert('Could not log the service.'); });
+        });
+    }
+    function openPmEdit(equipId,pmId){
+        window._pmEquipId=equipId; window._pmEditId=pmId;
+        var sc=(window._pmScheds||[]).filter(function(x){return x.id===pmId;})[0]||null;
+        document.getElementById('pmEditTitle').value=sc?sc.title:'';
+        document.getElementById('pmEditInterval').value=sc?sc.interval_days:7;
+        document.getElementById('pmEditNext').value=sc?(sc.next_due||''):'';
+        document.getElementById('pmEditInstr').value=sc?(sc.instructions||''):'';
+        document.getElementById('pmEditH').textContent=sc?'Edit schedule':'New service schedule';
+        document.getElementById('pmEditMsg').textContent='';
+        document.getElementById('pmEditModal').style.display='flex';
+    }
+    function closePmEdit(){ document.getElementById('pmEditModal').style.display='none'; }
+    function savePmEdit(){
+        var title=(document.getElementById('pmEditTitle').value||'').trim();
+        var msg=document.getElementById('pmEditMsg');
+        if(!title){ msg.style.color='#c0264b'; msg.textContent='Give the service a name.'; return; }
+        var interval=parseInt(document.getElementById('pmEditInterval').value,10)||7;
+        var next=document.getElementById('pmEditNext').value||null;
+        var instr=document.getElementById('pmEditInstr').value||null;
+        msg.style.color='#5b6472'; msg.textContent='Saving…';
+        withPin(function(pin){
+            supabaseClient.rpc('app_pm_save',{p_username:currentUser.username,p_password:pin,p_id:window._pmEditId||null,p_equipment_id:window._pmEquipId,p_title:title,p_interval_days:interval,p_instructions:instr,p_next_due:next}).then(function(r){
+                if(r.error){ msg.style.color='#c0264b'; msg.textContent='Error: '+r.error.message; return; }
+                closePmEdit(); loadPmFor(window._pmEquipId);
+            }).catch(function(){ msg.style.color='#c0264b'; msg.textContent='Could not save.'; });
+        });
+    }
+    function deletePmSched(pmId,equipId){
+        if(!confirm('Remove this service schedule? (It will be archived.)')) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_pm_delete',{p_username:currentUser.username,p_password:pin,p_id:pmId}).then(function(r){
+                if(r.error){ alert('Could not remove: '+r.error.message); return; }
+                loadPmFor(equipId);
+            }).catch(function(){ alert('Could not remove.'); });
+        });
+    }
+    function openMaintDue(){
+        var box=document.getElementById('maintDueBox'); if(!box) return;
+        if(box.getAttribute('data-open')==='1'){ box.style.display='none'; box.setAttribute('data-open','0'); return; }
+        box.style.display='block'; box.setAttribute('data-open','1'); loadMaintDue();
+    }
+    function loadMaintDue(){
+        var box=document.getElementById('maintDueBox'); if(!box) return;
+        var store=document.getElementById('equipStoreSel').value;
+        box.innerHTML='<p style="text-align:center;color:var(--txt2,#888);padding:10px;">Loading&hellip;</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_pm_list',{p_username:currentUser.username,p_password:pin,p_store:store}).then(function(r){
+                if(r.error){ box.innerHTML='<p style="color:#c0264b;text-align:center;padding:10px;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var list=r.data||[];
+                if(!list.length){ box.innerHTML='<div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:12px;padding:14px;text-align:center;color:var(--txt2,#8a8594);font-size:13px;">&#9989; Nothing due in the next 2 weeks for '+escapeHtml(store)+'.</div>'; return; }
+                var h='<div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:12px;padding:4px 12px;">';
+                list.forEach(function(it){
+                    var d=it.days_until; var dt=(d<0?Math.abs(d)+'d overdue':(d===0?'due today':'in '+d+'d'));
+                    h+='<button onclick="openEquipmentDetail('+it.equipment_id+')" style="width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--bd,#f0eef4);padding:10px 2px;cursor:pointer;display:flex;align-items:center;gap:9px;">'+
+                       '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13.5px;color:var(--txt,#26242b);">'+escapeHtml(it.equipment||'')+'</div>'+
+                       '<div style="font-size:11.5px;color:var(--txt2,#8a8594);">'+escapeHtml(it.title||'')+' &middot; '+dt+'</div></div>'+pmStatusBadge(it.status)+'</button>';
+                });
+                h+='</div>';
+                box.innerHTML=h;
+            }).catch(function(){ box.innerHTML='<p style="color:#c0264b;text-align:center;padding:10px;">Could not load.</p>'; });
+        });
     }
     function printEquipmentQR(){
         var e=window._equipCur; if(!e) return;
@@ -9137,6 +9279,24 @@
   </div>
 </div>
 
+<div id="pmEditModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:460px;max-height:88vh;overflow-y:auto;">
+    <h3 id="pmEditH" style="margin:0 0 12px;color:#854F0B;">New service schedule</h3>
+    <label class="rm-lbl" for="pmEditTitle">Service name</label>
+    <input id="pmEditTitle" type="text" class="rm-inp" placeholder="e.g. Sanitize &amp; clean condenser">
+    <div style="display:flex;gap:10px;">
+      <div style="flex:1;"><label class="rm-lbl" for="pmEditInterval" style="margin-top:10px;">Repeat every (days)</label><input id="pmEditInterval" type="number" min="1" value="7" class="rm-inp"></div>
+      <div style="flex:1;"><label class="rm-lbl" for="pmEditNext" style="margin-top:10px;">Next due (optional)</label><input id="pmEditNext" type="date" class="rm-inp"></div>
+    </div>
+    <label class="rm-lbl" for="pmEditInstr" style="margin-top:10px;">Instructions (optional)</label>
+    <textarea id="pmEditInstr" class="rm-inp" rows="3" placeholder="What to do / what to check" style="resize:vertical;"></textarea>
+    <div id="pmEditMsg" style="font-size:12.5px;margin-top:8px;"></div>
+    <div style="display:flex;gap:10px;margin-top:12px;">
+      <button onclick="closePmEdit()" class="sched-btn" style="flex:1;">Cancel</button>
+      <button onclick="savePmEdit()" class="sched-btn publish" style="flex:2;">Save schedule</button>
+    </div>
+  </div>
+</div>
 <div id="equipEditModal" class="modal-overlay">
   <div class="modal-box" style="text-align:left;max-width:560px;max-height:88vh;overflow-y:auto;">
     <h3 id="equipEditTitleH" style="margin:0 0 12px;color:#854F0B;">Add equipment</h3>
