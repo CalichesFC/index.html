@@ -1555,6 +1555,7 @@
         <a data-nav="roster" onclick="schedRailNav('roster',this)">&#128101; Roster</a>
         <div class="sp-toolhdr">Tools</div>
         <a data-nav="copy" onclick="schedRailNav('copy',this)">&#128203; Copy last week</a>
+        <a data-nav="templates" onclick="schedRailNav('templates',this)">&#128209; Templates</a>
         <a data-nav="addemp" onclick="schedRailNav('addemp',this)">&#10133; Add employee</a>
         <a data-nav="roles" onclick="schedRailNav('roles',this)">&#127912; Manage roles</a>
         <a data-nav="print" onclick="schedRailNav('print',this)">&#128424;&#65039; Print</a>
@@ -2338,7 +2339,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.23.1217';
+    const APP_VERSION = '2026.06.23.1307';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3525,6 +3526,7 @@
             case 'clock': openTimeClock(); break;
             case 'roster': openRoster(); break;
             case 'copy': schedCopyLastWeek(); break;
+            case 'templates': openSchedTemplates(); break;
             case 'addemp': schedAddEmployee(); break;
             case 'roles': openRolesModal(); break;
             case 'print': schedPrint(); break;
@@ -4036,6 +4038,83 @@
         withPin(function(pin){
             supabaseClient.rpc('app_sched_copy_week', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_from_week: from, p_to_week: to })
             .then(({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } alert('Copied ' + (data||0) + ' shift(s) into this week.'); fetchScheduleWeek(); });
+        });
+    }
+    /* ===== Scheduler: named templates ===== */
+    function openSchedTemplates(){
+        document.getElementById('schedTplName').value='';
+        document.getElementById('schedTplMsg').textContent='';
+        document.getElementById('schedTplList').innerHTML='<p style="color:#8a8594;font-size:13px;">Loading&hellip;</p>';
+        document.getElementById('schedTplModal').style.display='flex';
+        withPin(function(pin){
+            supabaseClient.rpc('app_template_list',{p_username:currentUser.username,p_password:pin,p_location:schedState.location}).then(function(r){
+                if(r.error){ document.getElementById('schedTplList').innerHTML='<p style="color:#c0264b;font-size:13px;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                window._schedTpls=r.data||[]; renderSchedTemplates();
+            }).catch(function(){ document.getElementById('schedTplList').innerHTML='<p style="color:#c0264b;font-size:13px;">Could not load.</p>'; });
+        });
+    }
+    function closeSchedTemplates(){ document.getElementById('schedTplModal').style.display='none'; }
+    function renderSchedTemplates(){
+        var box=document.getElementById('schedTplList'); var list=window._schedTpls||[];
+        if(!list.length){ box.innerHTML='<p style="color:#8a8594;font-size:13px;">No templates yet. Save this week below.</p>'; return; }
+        box.innerHTML=list.map(function(t,i){
+            return '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #f0eef4;">'+
+                '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13.5px;color:#26242b;">'+escapeHtml(t.name||'')+'</div>'+
+                '<div style="font-size:12px;color:#8a8594;">'+(t.shifts||0)+' shift'+((t.shifts===1)?'':'s')+(t.location?(' &middot; '+escapeHtml(t.location)):' &middot; all stores')+'</div></div>'+
+                '<button onclick="applySchedTemplate('+i+')" style="background:#e8f5ec;color:#1b7a3d;border:none;border-radius:8px;padding:6px 11px;font-size:12.5px;font-weight:700;cursor:pointer;">Load</button>'+
+                '<button onclick="renameSchedTemplate('+i+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:6px 9px;font-size:12.5px;font-weight:700;cursor:pointer;">&#9998;</button>'+
+                '<button onclick="deleteSchedTemplate('+i+')" style="background:#fdeaea;color:#c0264b;border:none;border-radius:8px;padding:6px 9px;font-size:12.5px;font-weight:700;cursor:pointer;">&#128465;&#65039;</button></div>';
+        }).join('');
+    }
+    function saveSchedTemplate(){
+        var name=(document.getElementById('schedTplName').value||'').trim(); var msg=document.getElementById('schedTplMsg');
+        if(!name){ msg.style.color='#c0264b'; msg.textContent='Name the template.'; return; }
+        var shifts=(schedState.data&&schedState.data.shifts)||[];
+        if(!shifts.length){ msg.style.color='#c0264b'; msg.textContent='This week has no shifts to save.'; return; }
+        var ws=schedState.weekStart;
+        var pattern=shifts.map(function(s){ var d=new Date(s.shift_date+'T00:00:00'); var dow=Math.round((d-ws)/86400000);
+            return {dow:dow, emp:s.employee_id, pos:s.position_id||null, start:s.start_time, end:s.end_time, note:s.note||null}; })
+            .filter(function(p){ return p.dow>=0 && p.dow<=6; });
+        msg.style.color='#5b6472'; msg.textContent='Saving&hellip;';
+        withPin(function(pin){
+            supabaseClient.rpc('app_template_save',{p_username:currentUser.username,p_password:pin,p_id:null,p_name:name,p_location:schedState.location,p_pattern:pattern}).then(function(r){
+                if(r.error){ msg.style.color='#c0264b'; msg.textContent='Error: '+r.error.message; return; }
+                document.getElementById('schedTplName').value=''; openSchedTemplates();
+            }).catch(function(){ msg.style.color='#c0264b'; msg.textContent='Could not save.'; });
+        });
+    }
+    function applySchedTemplate(i){
+        var t=(window._schedTpls||[])[i]; if(!t) return;
+        if(!confirm('Load "'+(t.name||'')+'" into the week of '+schedFmt(schedState.weekStart)+'? It adds the template shifts to this week.')) return;
+        var msg=document.getElementById('schedTplMsg'); msg.style.color='#5b6472'; msg.textContent='Loading template&hellip;';
+        withPin(function(pin){
+            supabaseClient.rpc('app_template_get',{p_username:currentUser.username,p_password:pin,p_id:t.id}).then(function(r){
+                if(r.error||!r.data){ msg.style.color='#c0264b'; msg.textContent='Could not load template.'; return; }
+                var pattern=(r.data.pattern)||[]; if(!pattern.length){ msg.style.color='#c0264b'; msg.textContent='Template is empty.'; return; }
+                var ws=schedState.weekStart; var done=0, total=pattern.length;
+                pattern.forEach(function(p){
+                    var ds=schedFmt(schedAddDays(ws, p.dow||0));
+                    supabaseClient.rpc('app_sched_upsert_shift',{p_username:currentUser.username,p_password:pin,p_id:null,p_location:schedState.location,p_shift_date:ds,p_employee_id:p.emp,p_position_id:p.pos||null,p_start:p.start,p_end:p.end,p_note:p.note||null}).then(function(){ done++; if(done===total){ closeSchedTemplates(); fetchScheduleWeek(); } }).catch(function(){ done++; if(done===total){ closeSchedTemplates(); fetchScheduleWeek(); } });
+                });
+            }).catch(function(){ msg.style.color='#c0264b'; msg.textContent='Could not load template.'; });
+        });
+    }
+    function renameSchedTemplate(i){
+        var t=(window._schedTpls||[])[i]; if(!t) return;
+        var nn=prompt('Rename template:', t.name||''); if(nn===null) return; nn=(nn||'').trim(); if(!nn) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_template_save',{p_username:currentUser.username,p_password:pin,p_id:t.id,p_name:nn,p_location:t.location||null,p_pattern:null}).then(function(r){
+                if(r.error){ alert('Error: '+r.error.message); return; } openSchedTemplates();
+            }).catch(function(){ alert('Could not rename.'); });
+        });
+    }
+    function deleteSchedTemplate(i){
+        var t=(window._schedTpls||[])[i]; if(!t) return;
+        if(!confirm('Delete template "'+(t.name||'')+'"?')) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_template_delete',{p_username:currentUser.username,p_password:pin,p_id:t.id}).then(function(r){
+                if(r.error){ alert('Error: '+r.error.message); return; } openSchedTemplates();
+            }).catch(function(){ alert('Could not delete.'); });
         });
     }
     function schedAddEmployee() {
@@ -7288,7 +7367,86 @@
         document.getElementById('main-menu').style.display='none';
         document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';});
         document.getElementById('adminConsoleView').style.display='block'; window.scrollTo(0,0);
-        loadAdminContacts();
+        loadAdminContacts(); loadAdminList();
+    }
+    function admListType(){ var s=document.getElementById('admListType'); return s?s.value:'positions'; }
+    function admListTypeName(t){ return ({positions:'position',checklist:'checklist item',inventory:'inventory item',temp:'temp point'})[t]||'item'; }
+    function loadAdminList(){
+        var box=document.getElementById('admListBox'); if(!box) return; var list=admListType();
+        box.innerHTML='<p style="color:var(--txt2,#8a8594);font-size:13px;">Loading&hellip;</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_list_get',{p_username:currentUser.username,p_password:pin,p_list:list}).then(function(r){
+                if(r.error){ box.innerHTML='<p style="color:#c0264b;font-size:13px;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                window._admList=r.data||[]; renderAdminList();
+            }).catch(function(){ box.innerHTML='<p style="color:#c0264b;font-size:13px;">Could not load.</p>'; });
+        });
+    }
+    function renderAdminList(){
+        var box=document.getElementById('admListBox'); if(!box) return; var list=window._admList||[]; var type=admListType();
+        if(!list.length){ box.innerHTML='<p style="color:var(--txt2,#8a8594);font-size:13px;">Nothing here yet. Tap &#10133; Add.</p>'; return; }
+        box.innerHTML=list.map(function(c,i){
+            var sub='';
+            if(type==='positions') sub='<span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:'+(c.color||'#888')+';margin-right:5px;vertical-align:middle;"></span>position';
+            else if(type==='checklist') sub=escapeHtml(c.shift||'');
+            else if(type==='inventory') sub=escapeHtml((c.loc||'')+(c.par!=null?(' &middot; par '+c.par+(c.unit?(' '+c.unit):'')):''));
+            else if(type==='temp') sub=escapeHtml((c.loc||'')+(c.min!=null?(' &middot; '+c.min+'-'+c.max+'F'):''));
+            return '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--bd,#f0eef4);">'+
+                '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13.5px;color:var(--txt,#26242b);">'+escapeHtml(c.name||'')+'</div>'+
+                '<div style="font-size:12px;color:var(--txt2,#8a8594);">'+sub+'</div></div>'+
+                '<button onclick="openAdmList('+i+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;">Edit</button>'+
+                '<button onclick="deleteAdmList('+i+')" style="background:#fdeaea;color:#c0264b;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;">Remove</button></div>';
+        }).join('');
+    }
+    function admListShowFields(type){
+        ['admlf_color','admlf_shift','admlf_loc','admlf_unit','admlf_par','admlf_min','admlf_max'].forEach(function(id){ var e=document.getElementById(id); if(e) e.style.display='none'; });
+        function sh(id){ var e=document.getElementById(id); if(e) e.style.display='block'; }
+        if(type==='positions') sh('admlf_color');
+        else if(type==='checklist') sh('admlf_shift');
+        else if(type==='inventory'){ sh('admlf_loc'); sh('admlf_unit'); sh('admlf_par'); }
+        else if(type==='temp'){ sh('admlf_loc'); sh('admlf_min'); sh('admlf_max'); }
+    }
+    function openAdmList(i){
+        var type=admListType(); var c=(i>=0)?(window._admList||[])[i]:null;
+        window._admListEditId=c?c.id:null; admListShowFields(type);
+        document.getElementById('admListName').value=c?(c.name||''):'';
+        document.getElementById('admListColor').value=(c&&c.color)?c.color:'#106ab3';
+        document.getElementById('admListShift').value=(c&&c.shift)?c.shift:'Opening';
+        document.getElementById('admListLoc').value=(c&&c.loc)?c.loc:'Roadrunner';
+        document.getElementById('admListUnit').value=(c&&c.unit)?c.unit:'';
+        document.getElementById('admListPar').value=(c&&c.par!=null)?c.par:'';
+        document.getElementById('admListMin').value=(c&&c.min!=null)?c.min:'';
+        document.getElementById('admListMax').value=(c&&c.max!=null)?c.max:'';
+        document.getElementById('admListTitle').textContent=(c?'Edit ':'Add ')+admListTypeName(type);
+        document.getElementById('admListMsg').textContent='';
+        document.getElementById('admListModal').style.display='flex';
+    }
+    function closeAdmList(){ document.getElementById('admListModal').style.display='none'; }
+    function saveAdmList(){
+        var type=admListType(); var msg=document.getElementById('admListMsg');
+        var name=(document.getElementById('admListName').value||'').trim();
+        if(!name){ msg.style.color='#c0264b'; msg.textContent='Give it a name.'; return; }
+        var f={name:name};
+        if(type==='positions'){ f.color=document.getElementById('admListColor').value; }
+        else if(type==='checklist'){ f.shift=document.getElementById('admListShift').value; }
+        else if(type==='inventory'){ f.loc=document.getElementById('admListLoc').value; f.unit=document.getElementById('admListUnit').value; f.par=document.getElementById('admListPar').value; }
+        else if(type==='temp'){ f.loc=document.getElementById('admListLoc').value; f.min=document.getElementById('admListMin').value; f.max=document.getElementById('admListMax').value; }
+        msg.style.color='#5b6472'; msg.textContent='Saving&hellip;';
+        withPin(function(pin){
+            supabaseClient.rpc('app_list_save',{p_username:currentUser.username,p_password:pin,p_list:type,p_id:window._admListEditId||null,p_fields:f}).then(function(r){
+                if(r.error){ msg.style.color='#c0264b'; msg.textContent='Error: '+r.error.message; return; }
+                closeAdmList(); loadAdminList();
+            }).catch(function(){ msg.style.color='#c0264b'; msg.textContent='Could not save.'; });
+        });
+    }
+    function deleteAdmList(i){
+        var c=(window._admList||[])[i]; if(!c) return;
+        if(!confirm('Remove "'+(c.name||'this')+'"?')) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_list_delete',{p_username:currentUser.username,p_password:pin,p_list:admListType(),p_id:c.id}).then(function(r){
+                if(r.error){ alert('Could not remove: '+r.error.message); return; }
+                loadAdminList();
+            }).catch(function(){ alert('Could not remove.'); });
+        });
     }
     function loadAdminContacts(){
         var box=document.getElementById('admContactsList'); if(!box) return;
@@ -9327,7 +9485,31 @@
       <div style="font-size:12.5px;color:var(--txt2,#8a8594);margin-bottom:8px;">These show on the Emergency screen for everyone. Add vendors, after-hours numbers, police / utility lines, etc.</div>
       <div id="admContactsList"><p style="color:var(--txt2,#8a8594);font-size:13px;">Loading&hellip;</p></div>
     </div>
+    <div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);margin-top:14px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:18px;">&#128221;</span><b style="flex:1;font-size:15px;color:var(--txt,#26242b);">Manage lists</b><button onclick="openAdmList(-1)" style="background:var(--caliches-pink);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;">&#10133; Add</button></div>
+      <select id="admListType" onchange="loadAdminList()" style="width:100%;padding:9px;border:1px solid var(--bd,#ddd);border-radius:8px;font-size:14px;margin-bottom:8px;background:var(--surface,#fff);color:var(--txt,#26242b);"><option value="positions">Job positions</option><option value="checklist">Shift checklist items</option><option value="inventory">Inventory items</option><option value="temp">Temperature points</option></select>
+      <div id="admListBox"><p style="color:var(--txt2,#8a8594);font-size:13px;">Loading&hellip;</p></div>
+    </div>
     <p style="font-size:12px;color:var(--txt2,#8a8594);margin:14px 2px 0;line-height:1.5;">More management tools (roster, roles, equipment, training, Teach&nbsp;Scoopy, announcements) live in the <b>&#9889; Admin Dashboard</b> menu. More controls are coming to this console.</p>
+  </div>
+</div>
+<div id="admListModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:440px;">
+    <h3 id="admListTitle" style="margin:0 0 12px;color:#3b2f6b;">Add item</h3>
+    <label class="rm-lbl" for="admListName">Name</label>
+    <input id="admListName" type="text" class="rm-inp" placeholder="Name">
+    <div id="admlf_color" style="display:none;"><label class="rm-lbl" for="admListColor" style="margin-top:10px;">Color</label><input id="admListColor" type="color" value="#106ab3" class="rm-inp" style="height:42px;padding:4px;"></div>
+    <div id="admlf_shift" style="display:none;"><label class="rm-lbl" for="admListShift" style="margin-top:10px;">Shift</label><select id="admListShift" class="rm-inp"><option>Opening</option><option>Closing</option><option>Cleaning</option></select></div>
+    <div id="admlf_loc" style="display:none;"><label class="rm-lbl" for="admListLoc" style="margin-top:10px;">Store</label><select id="admListLoc" class="rm-inp"><option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option></select></div>
+    <div id="admlf_unit" style="display:none;"><label class="rm-lbl" for="admListUnit" style="margin-top:10px;">Unit</label><input id="admListUnit" type="text" class="rm-inp" placeholder="e.g. case, lb, each"></div>
+    <div id="admlf_par" style="display:none;"><label class="rm-lbl" for="admListPar" style="margin-top:10px;">Par level</label><input id="admListPar" type="number" class="rm-inp" placeholder="e.g. 4"></div>
+    <div id="admlf_min" style="display:none;"><label class="rm-lbl" for="admListMin" style="margin-top:10px;">Min &deg;F</label><input id="admListMin" type="number" class="rm-inp" placeholder="e.g. 33"></div>
+    <div id="admlf_max" style="display:none;"><label class="rm-lbl" for="admListMax" style="margin-top:10px;">Max &deg;F</label><input id="admListMax" type="number" class="rm-inp" placeholder="e.g. 40"></div>
+    <div id="admListMsg" style="font-size:12.5px;margin-top:8px;"></div>
+    <div style="display:flex;gap:10px;margin-top:12px;">
+      <button onclick="closeAdmList()" class="sched-btn" style="flex:1;">Cancel</button>
+      <button onclick="saveAdmList()" class="sched-btn publish" style="flex:2;">Save</button>
+    </div>
   </div>
 </div>
 <div id="admSettingModal" class="modal-overlay">
@@ -9414,6 +9596,23 @@
       <button onclick="closePmEdit()" class="sched-btn" style="flex:1;">Cancel</button>
       <button onclick="savePmEdit()" class="sched-btn publish" style="flex:2;">Save schedule</button>
     </div>
+  </div>
+</div>
+<div id="schedTplModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:460px;max-height:86vh;overflow-y:auto;">
+    <h3 style="margin:0 0 4px;color:#7d1d4b;">Schedule templates</h3>
+    <p style="font-size:12px;color:#8a8594;margin:0 0 12px;">Save the current week&rsquo;s layout and reuse it any week.</p>
+    <div style="display:flex;gap:8px;">
+      <input id="schedTplName" type="text" class="rm-inp" placeholder="Name this week &mdash; e.g. Standard summer week" style="flex:1;">
+      <button onclick="saveSchedTemplate()" class="sched-btn publish" style="white-space:nowrap;">&#128190; Save</button>
+    </div>
+    <div id="schedTplMsg" style="font-size:12.5px;margin:8px 0;min-height:14px;"></div>
+    <div style="border-top:1px solid #ececf2;padding-top:10px;">
+      <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#9a93a4;margin-bottom:4px;">Your templates</div>
+      <div id="schedTplList"></div>
+    </div>
+    <p style="font-size:11.5px;color:#9aa3af;margin:12px 0 0;line-height:1.5;">Loading a template adds its shifts to the week you&rsquo;re viewing &mdash; you can still edit before publishing.</p>
+    <button onclick="closeSchedTemplates()" class="sched-btn" style="width:100%;margin-top:12px;">Close</button>
   </div>
 </div>
 <div id="equipEditModal" class="modal-overlay">
