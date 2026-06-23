@@ -765,6 +765,7 @@
             <button id="primeCostBtn" class="menu-btn" style="display:none;" onclick="openPrimeCost()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Weekly Prime Cost</b><small>Auto-builds your master xlsx</small></button>
             <button id="managerBtn" class="menu-btn" style="display:none;" onclick="openDashboard()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128200;</span><b>Manager Dashboard</b><small>Submissions &amp; activity</small></button>
             <button id="knowledgeBaseBtn" class="menu-btn" style="display:none;" onclick="openKnowledgeBase()"><span class="rchip admin">Admin</span><span class="tile-ic">&#129504;</span><b>Teach Mr. Scoopy</b><small>AI knowledge base</small></button>
+            <button id="btn-admin-console" class="menu-btn" style="display:none;" onclick="openAdminConsole()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128736;</span><b>Admin Console</b><small>Manage contacts, content &amp; settings</small></button>
             <button id="rosterBtn" class="menu-btn" style="display:none;" onclick="openRoster()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128101;</span><b>Employee Roster</b><small>Staff, logins &amp; stores</small></button>
             <button id="celebrationsBtn" class="menu-btn" style="display:none;" onclick="openCelebrations()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#127881;</span><b>Celebrations</b><small>Birthdays, anniversaries &amp; awards</small></button>
             <button id="shortageTrendsBtn" class="menu-btn" style="display:none;" onclick="openShortageTrends()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128200;</span><b>Shortage Trends</b><small>What runs low, often</small></button>
@@ -2337,7 +2338,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.23.1144';
+    const APP_VERSION = '2026.06.23.1217';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4845,6 +4846,7 @@
         if (commandCenterBtn) commandCenterBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         const adminDashBtn = document.getElementById('adminDashBtn');
         if (adminDashBtn) adminDashBtn.style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
+        var _adminConsoleBtn = document.getElementById('btn-admin-console'); if (_adminConsoleBtn) _adminConsoleBtn.style.display = (devOverride || role === 'Admin Manager' || role === 'Vice President/Co-Owner') ? 'block' : 'none';
         const salesBtn = document.getElementById('salesBtn');
         if (salesBtn) salesBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         const primeCostBtn = document.getElementById('primeCostBtn');
@@ -7281,11 +7283,93 @@
         'Follow management direction on discarding or keeping product.'
       ]}
     ];
+    /* ===== Admin Console ===== */
+    function openAdminConsole(){
+        document.getElementById('main-menu').style.display='none';
+        document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';});
+        document.getElementById('adminConsoleView').style.display='block'; window.scrollTo(0,0);
+        loadAdminContacts();
+    }
+    function loadAdminContacts(){
+        var box=document.getElementById('admContactsList'); if(!box) return;
+        box.innerHTML='<p style="color:var(--txt2,#8a8594);font-size:13px;">Loading&hellip;</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_settings_get',{p_username:currentUser.username,p_password:pin,p_group:'contacts'}).then(function(r){
+                if(r.error){ box.innerHTML='<p style="color:#c0264b;font-size:13px;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                window._admContacts=r.data||[]; renderAdminContacts();
+            }).catch(function(){ box.innerHTML='<p style="color:#c0264b;font-size:13px;">Could not load.</p>'; });
+        });
+    }
+    function renderAdminContacts(){
+        var box=document.getElementById('admContactsList'); if(!box) return;
+        var list=window._admContacts||[];
+        if(!list.length){ box.innerHTML='<p style="color:var(--txt2,#8a8594);font-size:13px;">No contacts yet. Tap &#10133; Add to put one here (and on the Emergency screen).</p>'; return; }
+        box.innerHTML=list.map(function(c,i){
+            return '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--bd,#f0eef4);">'+
+                '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13.5px;color:var(--txt,#26242b);">'+escapeHtml(c.label||'(no label)')+'</div>'+
+                '<div style="font-size:12.5px;color:var(--txt2,#8a8594);">'+escapeHtml(c.value||'')+'</div></div>'+
+                '<button onclick="openAdmSetting('+i+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;">Edit</button>'+
+                '<button onclick="deleteAdmSetting('+i+')" style="background:#fdeaea;color:#c0264b;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;">Remove</button></div>';
+        }).join('');
+    }
+    function openAdmSetting(i){
+        var c=(i>=0)?(window._admContacts||[])[i]:null;
+        document.getElementById('admSettingKey').value=c?c.key:'';
+        document.getElementById('admSettingLabel').value=c?(c.label||''):'';
+        document.getElementById('admSettingValue').value=c?(c.value||''):'';
+        document.getElementById('admSettingTitle').textContent=c?'Edit contact':'Add contact';
+        document.getElementById('admSettingMsg').textContent='';
+        document.getElementById('admSettingModal').style.display='flex';
+    }
+    function closeAdmSetting(){ document.getElementById('admSettingModal').style.display='none'; }
+    function saveAdmSetting(){
+        var label=(document.getElementById('admSettingLabel').value||'').trim();
+        var value=(document.getElementById('admSettingValue').value||'').trim();
+        var key=document.getElementById('admSettingKey').value||('contacts_'+Date.now());
+        var msg=document.getElementById('admSettingMsg');
+        if(!label){ msg.style.color='#c0264b'; msg.textContent='Give it a label.'; return; }
+        msg.style.color='#5b6472'; msg.textContent='Saving&hellip;';
+        withPin(function(pin){
+            supabaseClient.rpc('app_settings_set',{p_username:currentUser.username,p_password:pin,p_key:key,p_group:'contacts',p_label:label,p_value:value,p_sort:0}).then(function(r){
+                if(r.error){ msg.style.color='#c0264b'; msg.textContent='Error: '+r.error.message; return; }
+                closeAdmSetting(); loadAdminContacts();
+            }).catch(function(){ msg.style.color='#c0264b'; msg.textContent='Could not save.'; });
+        });
+    }
+    function deleteAdmSetting(i){
+        var c=(window._admContacts||[])[i]; if(!c) return;
+        if(!confirm('Remove "'+(c.label||'this entry')+'"?')) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_settings_delete',{p_username:currentUser.username,p_password:pin,p_key:c.key}).then(function(r){
+                if(r.error){ alert('Could not remove: '+r.error.message); return; }
+                loadAdminContacts();
+            }).catch(function(){ alert('Could not remove.'); });
+        });
+    }
+    function loadEmgContacts(){
+        var box=document.getElementById('emgContacts'); if(!box) return;
+        try{ var cached=JSON.parse(localStorage.getItem('emgContacts')||'[]'); if(cached.length) renderEmgContacts(cached); }catch(e){}
+        if(!currentUser) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_settings_get',{p_username:currentUser.username,p_password:pin,p_group:'contacts'}).then(function(r){
+                if(r.error||!r.data) return;
+                try{ localStorage.setItem('emgContacts',JSON.stringify(r.data)); }catch(e){}
+                renderEmgContacts(r.data);
+            }).catch(function(){});
+        });
+    }
+    function renderEmgContacts(list){
+        var box=document.getElementById('emgContacts'); if(!box) return;
+        if(!list||!list.length){ box.innerHTML=''; return; }
+        box.innerHTML='<div style="background:#fff;border:1px solid #f0d0d0;border-radius:12px;padding:12px 14px;margin-bottom:12px;box-shadow:0 2px 6px rgba(0,0,0,.05);">'+
+            '<div style="font-size:13px;font-weight:800;color:#a01b3c;margin-bottom:6px;">&#128222; Key contacts</div>'+
+            list.map(function(c){ return '<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid #f7eaea;font-size:13.5px;"><b style="flex:1;color:#26242b;">'+escapeHtml(c.label||'')+'</b><span style="color:#185FA5;font-weight:700;white-space:nowrap;">'+escapeHtml(c.value||'')+'</span></div>'; }).join('')+'</div>';
+    }
     function openEmergency(){
         document.getElementById('main-menu').style.display='none';
         document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';});
         document.getElementById('emergencyView').style.display='block'; window.scrollTo(0,0);
-        renderEmergency();
+        renderEmergency(); loadEmgContacts();
     }
     function renderEmergency(){
         var box=document.getElementById('emergencyList'); if(!box) return;
@@ -9231,6 +9315,36 @@
 @keyframes calShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 @keyframes calPop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
 </style>
+<div id="adminConsoleView" class="app-view">
+  <div class="hb-head" style="background:linear-gradient(120deg,#3b2f6b,#106ab3);">
+    <button class="hb-back" onclick="goBack()">&#8249; Menu</button>
+    <div class="hb-ico">&#128736;</div>
+    <div><h2>Admin Console</h2><div class="hb-sub">Manage the Hub yourself</div></div>
+  </div>
+  <div class="container" style="max-width:680px;">
+    <div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:18px;">&#128222;</span><b style="flex:1;font-size:15px;color:var(--txt,#26242b);">Key contacts &amp; info</b><button onclick="openAdmSetting(-1)" style="background:var(--caliches-pink);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;">&#10133; Add</button></div>
+      <div style="font-size:12.5px;color:var(--txt2,#8a8594);margin-bottom:8px;">These show on the Emergency screen for everyone. Add vendors, after-hours numbers, police / utility lines, etc.</div>
+      <div id="admContactsList"><p style="color:var(--txt2,#8a8594);font-size:13px;">Loading&hellip;</p></div>
+    </div>
+    <p style="font-size:12px;color:var(--txt2,#8a8594);margin:14px 2px 0;line-height:1.5;">More management tools (roster, roles, equipment, training, Teach&nbsp;Scoopy, announcements) live in the <b>&#9889; Admin Dashboard</b> menu. More controls are coming to this console.</p>
+  </div>
+</div>
+<div id="admSettingModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:440px;">
+    <h3 id="admSettingTitle" style="margin:0 0 12px;color:#3b2f6b;">Add contact</h3>
+    <input type="hidden" id="admSettingKey">
+    <label class="rm-lbl" for="admSettingLabel">Label</label>
+    <input id="admSettingLabel" type="text" class="rm-inp" placeholder="e.g. After-hours manager">
+    <label class="rm-lbl" for="admSettingValue" style="margin-top:10px;">Details / number</label>
+    <input id="admSettingValue" type="text" class="rm-inp" placeholder="e.g. (575) 555-0123">
+    <div id="admSettingMsg" style="font-size:12.5px;margin-top:8px;"></div>
+    <div style="display:flex;gap:10px;margin-top:12px;">
+      <button onclick="closeAdmSetting()" class="sched-btn" style="flex:1;">Cancel</button>
+      <button onclick="saveAdmSetting()" class="sched-btn publish" style="flex:2;">Save</button>
+    </div>
+  </div>
+</div>
 <div id="emergencyView" class="app-view">
   <div class="hb-head" style="background:linear-gradient(120deg,#a01b3c,#c0264b);">
     <button class="hb-back" onclick="openMenu()">&#8249; Menu</button>
@@ -9240,6 +9354,7 @@
   <div class="container" style="max-width:680px;">
     <p style="background:#fff7ed;border:1px solid #fde4c8;border-radius:10px;padding:10px 13px;font-size:12.5px;color:#9a5a00;line-height:1.5;margin:0 0 8px;">In a real emergency, <b>people come first</b>. If life or safety is at risk, call <b>911</b> first. These are quick reminders, not a substitute for training.</p>
     <p style="font-size:11.5px;color:#9aa3af;margin:0 0 14px;text-align:center;">&#128679; Being finalized with management &mdash; phone numbers still being added.</p>
+    <div id="emgContacts"></div>
     <div id="emergencyList"></div>
   </div>
 </div>
