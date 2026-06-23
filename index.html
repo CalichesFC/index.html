@@ -2064,6 +2064,10 @@
       <p><b>Where:</b> In Cherry (the assistant), <b>Ask Cherry.</b></p>
       <ol><li>Forward or paste a Pick n&rsquo; Take order email into Ask Cherry.</li><li>Review what she&rsquo;ll do and approve.</li><li>She creates <b>two tasks</b> on that store&rsquo;s board &mdash; a <b>&#127846; PREP</b> task and a <b>&#128722; PICKUP</b> task, both dated to the pickup.</li></ol></div>
 
+    <div class="howto-sec"><h3>&#128295; Preventive Maintenance</h3>
+      <p><b>Where:</b> Store Operations &rarr; Equipment History &rarr; open any machine.</p>
+      <ol><li>Scroll to <b>&#128295; Preventive maintenance</b> on the machine&rsquo;s record. Managers tap <b>&#10133; Add</b> to set a recurring service (e.g. &ldquo;Sanitize &amp; clean every 7 days&rdquo;).</li><li>When it&rsquo;s done, anyone on shift taps <b>&#9989; Mark serviced</b> &mdash; it logs who &amp; when and rolls the next-due date forward.</li><li>Overdue or due-soon items show a red/amber badge, and the <b>&#128295; Maintenance due</b> button at the top of Equipment History lists everything due for that store.</li><li>Managers also get a <b>daily push</b> each morning when machines are due.</li></ol></div>
+
     <button onclick="closeHowTo()" class="save-btn" style="margin-top:16px;background:var(--caliches-blue);">Got it &mdash; let&rsquo;s go</button>
   </div>
 </div>
@@ -2333,7 +2337,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.23.0229';
+    const APP_VERSION = '2026.06.23.1144';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -7167,7 +7171,7 @@
     }
 
     // ----- What's New / How-To popup -----
-    var HOWTO_VERSION = '2026.06.22.feat'; // bump to re-show after future how-to updates
+    var HOWTO_VERSION = '2026.06.23.pm'; // bump to re-show after future how-to updates
     function openHowTo(){ var m=document.getElementById('howtoModal'); if(m) m.style.display='flex'; }
     function closeHowTo(){ var m=document.getElementById('howtoModal'); if(m) m.style.display='none'; try{ localStorage.setItem('howtoSeen_'+HOWTO_VERSION,'1'); }catch(e){} }
     function maybeShowHowTo(){
