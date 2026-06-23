@@ -1899,13 +1899,14 @@
     <div style="background:#fff;border-radius:16px;padding:24px;max-width:380px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,0.3);">
         <h2 id="shiftModalTitle" style="color:var(--caliches-blue);margin-top:0;font-size:20px;">Add Shift</h2>
         <label class="form-label">Position:</label>
-        <select id="shiftPosition" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;margin-bottom:12px;"></select>
+        <select id="shiftPosition" onchange="schedShiftComplianceMsg()" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;margin-bottom:12px;"></select>
         <div style="display:flex;gap:10px;">
             <div style="flex:1;"><label class="form-label">Start:</label><input type="time" id="shiftStart" oninput="schedValidateShift()" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;"></div>
             <div style="flex:1;"><label class="form-label">End:</label><input type="time" id="shiftEnd" oninput="schedValidateShift()" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;"></div>
         </div>
         <div id="shiftValMsg" style="display:none;font-size:12.5px;margin-top:8px;"></div>
         <div id="shiftAvailMsg" style="display:none;font-size:12.5px;margin-top:6px;padding:7px 10px;border-radius:7px;"></div>
+        <div id="shiftCompMsg" style="display:none;font-size:12.5px;margin-top:6px;padding:7px 10px;border-radius:7px;background:#fdf3e8;color:#854F0B;"></div>
         <label class="form-label" style="margin-top:12px;">Note (optional):</label>
         <input type="text" id="shiftNote" placeholder="e.g., AM duties, register" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;">
         <div style="display:flex;gap:8px;margin-top:18px;">
@@ -2097,6 +2098,19 @@
     <div style="display:flex;gap:8px;margin-top:14px;">
       <button onclick="schedClosePubGate()" class="sched-btn" style="flex:1;">Cancel</button>
       <button id="pubGateBtn" onclick="schedPubGatePublish()" class="sched-btn publish" style="flex:2;">Publish</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLEARANCE & CERT MODAL (managers) -->
+<div id="clearModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:440px;max-height:86vh;overflow-y:auto;">
+    <h3 style="margin:0 0 2px;color:#185FA5;">Cleared positions &amp; cert</h3>
+    <p style="margin:0 0 10px;font-size:12.5px;color:#8a8594;"><b id="clearName">Employee</b></p>
+    <div id="clearBody"><p style="text-align:center;color:#888;padding:18px;">Loading&hellip;</p></div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button onclick="closeClearance()" class="sched-btn" style="flex:1;">Cancel</button>
+      <button onclick="saveClearance()" class="sched-btn publish" style="flex:2;">Save</button>
     </div>
   </div>
 </div>
@@ -2316,7 +2330,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.22.2353';
+    const APP_VERSION = '2026.06.23.0024';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3522,7 +3536,8 @@
                 supabaseClient.rpc('app_emp_photos', { p_username: currentUser.username, p_password: pin, p_location: loc }),
                 supabaseClient.rpc('app_sched_layout_get', { p_username: currentUser.username, p_password: pin, p_location: loc }),
                 supabaseClient.rpc('app_labor_get', { p_username: currentUser.username, p_password: pin, p_location: loc, p_week_start: ws }),
-                supabaseClient.rpc('app_availability_all', { p_username: currentUser.username, p_password: pin, p_location: loc })
+                supabaseClient.rpc('app_availability_all', { p_username: currentUser.username, p_password: pin, p_location: loc }),
+                supabaseClient.rpc('app_compliance_all', { p_username: currentUser.username, p_password: pin, p_location: loc })
             ]).then(function(res){
                 const r0 = res[0];
                 if (r0.error && r0.error.code === '42501') sessionPin = null;
@@ -3537,6 +3552,7 @@
                 schedState.empOrder = lay.emp_order || [];
                 schedState.forecast = (res[3] && res[3].data) || {};
                 schedState.avail = (res[4] && res[4].data) || {};
+                schedState.compliance = (res[5] && !res[5].error && res[5].data) || {};
                 if (!schedState.selectedDay) schedState.selectedDay = 0;
                 renderScheduleGrid();
             }).catch(() => { grid.innerHTML = '<p style="color:red;text-align:center;">Connection error.</p>'; });
@@ -3677,8 +3693,8 @@
             const txt = hbTextOn(col);
             const role = (p ? p.name : 'Shift') + (s.note ? (' · ' + s.note) : '');
             const empArg = (s.employee_id != null ? s.employee_id : 'null');
-            var aw = (s.employee_id!=null && typeof availCheck==='function') ? availCheck(s.employee_id, s.shift_date, s.start_time, s.end_time) : null;
-            return '<div class="hbg-blk'+(conflict?' hbg-conf':'')+(aw?' avail-flag':'')+'" data-shiftid="'+s.id+'" tabindex="0" role="button" style="position:relative;background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+(aw?'<span class="avail-badge" title="Outside availability ('+escapeHtml(aw)+')">&#9888;</span>':'')+hbTime(s.start_time)+'&ndash;'+hbTime(s.end_time)+(s.published?'':' *')+'<br>'+escapeHtml(role)+(conflict?' &#9888;':'')+'</div>';
+            var sw = (typeof shiftWarnings==='function') ? shiftWarnings(s) : [];
+            return '<div class="hbg-blk'+(conflict?' hbg-conf':'')+(sw.length?' avail-flag':'')+'" data-shiftid="'+s.id+'" tabindex="0" role="button" style="position:relative;background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+(sw.length?'<span class="avail-badge" title="'+escapeHtml(sw.join('; '))+'">&#9888;</span>':'')+hbTime(s.start_time)+'&ndash;'+hbTime(s.end_time)+(s.published?'':' *')+'<br>'+escapeHtml(role)+(conflict?' &#9888;':'')+'</div>';
         };
         const q = (document.getElementById('schedSearch') ? document.getElementById('schedSearch').value : '').toLowerCase().trim();
         let shownEmps = schedSortedEmps(emps);
@@ -3893,8 +3909,18 @@
             });
         });
     }
+    function schedShiftComplianceMsg(){
+        var m=document.getElementById('shiftCompMsg'); if(!m) return;
+        var ed=schedState.editing||{}; if(ed.employeeId==null || typeof complianceCheck!=='function'){ m.style.display='none'; return; }
+        var st=(document.getElementById('shiftStart')||{}).value, en=(document.getElementById('shiftEnd')||{}).value;
+        var pos=(document.getElementById('shiftPosition')||{}).value;
+        var w=complianceCheck(ed.employeeId, ed.date, st, en, pos?parseInt(pos,10):null);
+        if(!w.length){ m.style.display='none'; return; }
+        m.style.display='block'; m.innerHTML='&#9888; '+w.map(escapeHtml).join('<br>&#9888; ');
+    }
     function schedValidateShift(){
         var st=(document.getElementById('shiftStart')||{}).value, en=(document.getElementById('shiftEnd')||{}).value;
+        if(typeof schedShiftComplianceMsg==='function') schedShiftComplianceMsg();
         var m=document.getElementById('shiftValMsg'); if(!m) return;
         if(!st||!en){ m.style.display='none'; return; }
         var a=st.split(':').map(Number), b=en.split(':').map(Number);
@@ -3952,7 +3978,7 @@
     function schedDayName(ds){ var dn=['Sun','Mon','Tue','Wed','Thu','Fri','Sat']; return dn[availDowOf(ds)]+' '+String(ds).slice(5); }
     function schedPublish() {
         var conflicts=[];
-        (schedState.data.shifts||[]).forEach(function(s){ if(s.employee_id!=null){ var aw=(typeof availCheck==='function')?availCheck(s.employee_id,s.shift_date,s.start_time,s.end_time):null; if(aw){ var e=(schedState.data.employees||[]).find(function(x){return x.id===s.employee_id;}); conflicts.push({s:s,name:e?e.name:'Employee',why:aw}); } } });
+        (schedState.data.shifts||[]).forEach(function(s){ if(s.employee_id!=null){ var w=(typeof shiftWarnings==='function')?shiftWarnings(s):[]; if(w.length){ var e=(schedState.data.employees||[]).find(function(x){return x.id===s.employee_id;}); conflicts.push({s:s,name:e?e.name:'Employee',why:w.join('; ')}); } } });
         if(conflicts.length){ schedShowPublishGate(conflicts); return; }
         schedDoPublish();
     }
@@ -6807,8 +6833,62 @@
                 var by=d.days_by_position||{}; var parts=Object.keys(by).map(function(k){ return escapeHtml(k)+': '+by[k]; });
                 if(parts.length) h+='<br>By position — '+parts.join(' &middot; ');
                 h+='</div>';
+                if(typeof isManagerRole==='function' ? isManagerRole() : true){
+                    h+='<button onclick="openClearance('+empId+','+JSON.stringify(name||'')+')" style="margin-top:12px;width:100%;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#9881;&#65039; Cleared positions &amp; food-handler card</button>';
+                }
                 body.innerHTML=h;
             }).catch(function(){ document.getElementById('posProgressBody').innerHTML='<p style="color:#c0264b;text-align:center;padding:14px;">Could not load progress.</p>'; });
+        });
+    }
+    // ----- Clearance & cert setup (managers) -----
+    function ensurePositions(cb){
+        if(window._allPositions && window._allPositions.length){ cb(window._allPositions); return; }
+        if(schedState.data && schedState.data.positions && schedState.data.positions.length){ window._allPositions=schedState.data.positions; cb(window._allPositions); return; }
+        var loc=(currentUser&&(currentUser.store||currentUser.location))||'Roadrunner';
+        var d=new Date(); var day=(d.getDay()+6)%7; d.setDate(d.getDate()-day); var ws=schedFmt(d);
+        withPin(function(pin){ supabaseClient.rpc('app_sched_week_context',{p_username:currentUser.username,p_password:pin,p_location:loc,p_week_start:ws}).then(function(r){ window._allPositions=(r.data&&r.data.positions)||[]; cb(window._allPositions); }).catch(function(){ cb([]); }); });
+    }
+    function openClearance(empId, name){
+        window._clearEmp=empId;
+        document.getElementById('clearName').textContent=(name||'Employee');
+        document.getElementById('clearBody').innerHTML='<p style="text-align:center;color:#888;padding:18px;">Loading…</p>';
+        document.getElementById('clearModal').style.display='flex';
+        ensurePositions(function(positions){
+            withPin(function(pin){
+                Promise.all([
+                    supabaseClient.rpc('app_clearance_get',{p_username:currentUser.username,p_password:pin,p_employee_id:empId}),
+                    supabaseClient.rpc('app_compliance_all',{p_username:currentUser.username,p_password:pin,p_location:(currentUser.store||'')})
+                ]).then(function(res){
+                    var cleared=((res[0]&&!res[0].error&&res[0].data)||[]).map(Number);
+                    var comp=(res[1]&&!res[1].error&&res[1].data)||{}; var me=comp[empId]||comp[String(empId)]||{};
+                    var h='<div style="font-size:12.5px;color:#5b6472;margin-bottom:8px;">Tick the positions this person is cleared to be scheduled on.</div>';
+                    if(!positions.length){ h+='<p style="color:#854F0B;font-size:13px;">No positions found — add roles in “Manage roles” first.</p>'; }
+                    positions.forEach(function(p){
+                        var on=cleared.indexOf(Number(p.id))>=0;
+                        h+='<label style="display:flex;align-items:center;gap:9px;padding:7px 4px;border-bottom:1px solid #f0eef4;cursor:pointer;"><input type="checkbox" class="clearchk" value="'+p.id+'"'+(on?' checked':'')+' style="width:17px;height:17px;"><span style="font-size:14px;color:var(--txt,#26242b);">'+escapeHtml(p.name)+'</span></label>';
+                    });
+                    h+='<label class="rm-lbl" style="margin-top:12px;">Food-handler card expires</label><input id="clearCert" type="date" value="'+(me.cert_expires||'')+'" class="rm-inp">';
+                    h+='<div id="clearMsg" style="font-size:12.5px;margin-top:8px;"></div>';
+                    document.getElementById('clearBody').innerHTML=h;
+                });
+            });
+        });
+    }
+    function closeClearance(){ document.getElementById('clearModal').style.display='none'; }
+    function saveClearance(){
+        var empId=window._clearEmp; var ids=[]; document.querySelectorAll('#clearBody .clearchk:checked').forEach(function(c){ ids.push(parseInt(c.value,10)); });
+        var cert=(document.getElementById('clearCert')||{}).value||null;
+        var msg=document.getElementById('clearMsg'); if(msg){ msg.style.color='#5b6472'; msg.textContent='Saving…'; }
+        withPin(function(pin){
+            Promise.all([
+                supabaseClient.rpc('app_clearance_set',{p_username:currentUser.username,p_password:pin,p_employee_id:empId,p_position_ids:ids}),
+                supabaseClient.rpc('app_cert_set',{p_username:currentUser.username,p_password:pin,p_employee_id:empId,p_expires:cert})
+            ]).then(function(res){
+                var err=(res[0]&&res[0].error)||(res[1]&&res[1].error);
+                if(err){ if(msg){ msg.style.color='#c0264b'; msg.textContent='Error: '+err.message; } return; }
+                closeClearance();
+                if(typeof fetchScheduleWeek==='function' && document.getElementById('schedGrid')) { try{ fetchScheduleWeek(); }catch(e){} }
+            });
         });
     }
 
@@ -6826,6 +6906,33 @@
         if(d.mode==='off') return 'unavailable';
         if(d.mode==='window'){ if(!d.from||!d.to) return null; if(st<d.from || en>d.to) return 'outside '+availFmt(d.from)+'–'+availFmt(d.to); }
         return null;
+    }
+    // ----- Phase 3 compliance: readiness + NM teen-hours + cert -----
+    function hhmmToMin(t){ var p=String(t||'').split(':'); return (+p[0]||0)*60+(+p[1]||0); }
+    function ageOn(bd, ds){ if(!bd) return null; var b=new Date(bd), d=new Date(ds); if(isNaN(b)||isNaN(d)) return null; var a=d.getFullYear()-b.getFullYear(); var mm=d.getMonth()-b.getMonth(); if(mm<0||(mm===0&&d.getDate()<b.getDate())) a--; return a; }
+    function isSchoolInSession(ds){ var d=new Date(ds); var m=d.getMonth(), day=d.getDate(); if(m===5||m===6) return false; if(m===7) return day>=15; return true; }
+    function isSchoolDay(ds){ var dow=availDowOf(ds); return isSchoolInSession(ds) && dow>=1 && dow<=5; }
+    function weekHoursFor(empId){ var t=0; (schedState.data.shifts||[]).forEach(function(s){ if(s.employee_id===empId) t+=schedShiftHours(s); }); return t; }
+    function complianceCheck(empId, ds, st, en, posId){
+        var warns=[]; var c=(schedState.compliance||{})[empId]||(schedState.compliance||{})[String(empId)]; if(!c) return warns;
+        if(posId){ var cleared=(c.cleared||[]).map(Number); if(cleared.indexOf(Number(posId))<0){ var p=schedPosById(Number(posId)); warns.push('not cleared for '+(p?p.name:'this position')); } }
+        if(c.cert_expires && String(c.cert_expires) < String(ds)){ warns.push('food-handler card expired '+c.cert_expires); }
+        if(c.birthday){ var age=ageOn(c.birthday, ds);
+            if(age!=null && age<16 && st && en){
+                var mins=hhmmToMin(en)-hhmmToMin(st); if(mins<0) mins+=1440; var hrs=mins/60;
+                if(isSchoolDay(ds)){ if(hrs>3) warns.push('minor: over 3h on a school day'); if(st<'07:00'||en>'19:00') warns.push('minor: school-day hours are 7a–7p'); }
+                else { if(hrs>8) warns.push('minor: over 8h'); if(st<'07:00'||en>'21:00') warns.push('minor: hours are 7a–9p'); }
+                var cap=isSchoolInSession(ds)?18:40; if(weekHoursFor(empId)>cap) warns.push('minor: over '+cap+'h this week');
+            }
+        }
+        return warns;
+    }
+    // unified per-shift warnings (availability + compliance)
+    function shiftWarnings(s){
+        var w=[]; if(s.employee_id==null) return w;
+        if(typeof availCheck==='function'){ var a=availCheck(s.employee_id,s.shift_date,s.start_time,s.end_time); if(a) w.push(a); }
+        if(typeof complianceCheck==='function'){ complianceCheck(s.employee_id,s.shift_date,s.start_time,s.end_time,s.position_id).forEach(function(x){ w.push(x); }); }
+        return w;
     }
     function openAvailability(){
         document.getElementById('main-menu').style.display='none';
