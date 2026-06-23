@@ -1515,6 +1515,7 @@
   .reorder-drag td { background:#eef3fb !important; }
   .avail-badge { position:absolute; top:-6px; right:-5px; background:#fdf3e8; color:#b8650b; border:1px solid #f1c98a; border-radius:99px; font-size:10px; width:16px; height:16px; line-height:14px; text-align:center; }
   .avail-flag { outline:1.5px solid #e8a14a; }
+  body.newlook [style*="color:#26242b"], body.newlook [style*="color:#33303a"], body.newlook [style*="color:#2c2933"], body.newlook [style*="color:#23303a"] { color:var(--txt) !important; }
   .sp-daypick { display:flex; gap:5px; padding:9px 10px; overflow-x:auto; border-bottom:1px solid #eef1f5; position:sticky; top:0; background:#fff; z-index:5; }
   .sp-daypick button { flex:none; min-width:44px; text-align:center; border:1px solid #e3e8ef; background:#f6f8fb; color:#5b6472; border-radius:9px; padding:6px 8px; font-size:11px; cursor:pointer; line-height:1.3; }
   .sp-daypick button.on { background:var(--caliches-pink); color:#fff; border-color:var(--caliches-pink); font-weight:700; }
@@ -2315,7 +2316,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.22.2347';
+    const APP_VERSION = '2026.06.22.2353';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
