@@ -2266,7 +2266,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.22.2133';
+    const APP_VERSION = '2026.06.22.2156';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3339,6 +3339,70 @@
     // ============================================================
     function triggerTransition(callback) { const loader = document.getElementById('neon-loader'); loader.style.display = 'flex'; setTimeout(() => { loader.style.opacity = '1'; }, 10); setTimeout(() => { callback(); window.scrollTo(0,0); loader.style.opacity = '0'; setTimeout(() => { loader.style.display = 'none'; }, 300); }, 1200); }
     function openMenu() { triggerTransition(() => { document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none'); document.getElementById('main-menu').style.display = 'block'; switchMenuTab('home'); window.scrollTo(0,0); applyPendingReloadIfSafe(); }); }
+
+    // ============================================================
+    // ONE-STEP BACK NAVIGATION (history of screens)
+    // ============================================================
+    var _navStack = [], _navCurrent = null, _navSuppress = false;
+    function _navScreenId(){
+        var views = document.querySelectorAll('.app-view');
+        for (var i=0;i<views.length;i++){ if (views[i].style.display==='block') return 'view:'+views[i].id; }
+        var menu = document.getElementById('main-menu');
+        if (menu && menu.style.display==='block') return 'menu';
+        return null;
+    }
+    function _navOnChange(){
+        if (_navSuppress) return;
+        var s=_navScreenId();
+        if (!s || s===_navCurrent) return;
+        if (_navCurrent){ _navStack.push(_navCurrent); if(_navStack.length>50) _navStack.shift(); }
+        _navCurrent=s;
+    }
+    function _navApply(screen){
+        if (screen.indexOf('view:')===0){
+            var id=screen.slice(5);
+            var m=document.getElementById('main-menu'); if(m) m.style.display='none';
+            document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
+            var el=document.getElementById(id); if(el) el.style.display='block';
+            window.scrollTo(0,0);
+        } else if (screen==='menu'){
+            document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
+            var m2=document.getElementById('main-menu'); if(m2) m2.style.display='block';
+            window.scrollTo(0,0);
+        }
+    }
+    function goBack(){
+        // If a modal is open, a Back just closes it
+        var openM=null; document.querySelectorAll('.modal-overlay').forEach(function(x){ var d=x.style.display; if(d==='flex'||d==='block') openM=x; });
+        if (openM){ openM.style.display='none'; return; }
+        if (!_navStack.length){ if(typeof openMenu==='function') openMenu(); return; }
+        var prev=_navStack.pop();
+        _navSuppress=true;
+        _navApply(prev);
+        _navCurrent=prev;
+        setTimeout(function(){ _navSuppress=false; }, 60);
+    }
+    function _navRepointBacks(){
+        document.querySelectorAll('.back-btn').forEach(function(b){
+            var oc=b.getAttribute('onclick')||'';
+            if (/openMenu\(\)/.test(oc) && !b.getAttribute('data-back1')){
+                b.setAttribute('onclick','goBack()');
+                b.setAttribute('data-back1','1');
+                b.innerHTML='&#8249; Back';
+            }
+        });
+    }
+    (function(){
+        if (!window.MutationObserver) return;
+        var obs=new MutationObserver(function(){ _navOnChange(); });
+        function startNav(){
+            document.querySelectorAll('.app-view').forEach(function(v){ obs.observe(v,{attributes:true,attributeFilter:['style']}); });
+            var m=document.getElementById('main-menu'); if(m) obs.observe(m,{attributes:true,attributeFilter:['style']});
+            _navCurrent=_navScreenId();
+            _navRepointBacks();
+        }
+        if (document.readyState!=='loading') startNav(); else document.addEventListener('DOMContentLoaded', startNav);
+    })();
 
     // ============================================================
     // SCHEDULING (Phase 1, TEST) - Admin Manager builder
