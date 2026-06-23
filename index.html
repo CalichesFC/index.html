@@ -671,6 +671,7 @@
             <button id="btn-emergency" class="menu-btn" style="background:#fff1f1;border:1.5px solid #f3b4b4;" onclick="openEmergency()"><span class="rchip" style="background:#c0264b;color:#fff;">Emergency</span><span class="tile-ic">&#128680;</span><b style="color:#a01b3c;">Emergency Procedures</b><small>Power, fire, robbery, food-safety &amp; more</small></button>
             <button id="btn-empHome" class="menu-btn" onclick="openEmployeeHome()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127968;</span><b>My Home</b><small>Your shifts, tasks &amp; updates</small></button>
             <button id="btn-formsDocs" class="menu-btn" onclick="openFormsLinks()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128196;</span><b>Forms &amp; Documents</b><small>Payroll, HR &amp; hiring forms</small></button>
+            <button id="btn-training" class="menu-btn" onclick="openTrainingPortal()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128218;</span><b>Training &amp; Resources</b><small>Recipes, how-tos &amp; guides</small></button>
             <button id="btn-report" class="menu-btn" onclick="openHarassReport()"><span class="rchip staff" style="background:#ede4fb;color:#5b3aa6;">Private</span><span class="tile-ic">&#128274;</span><b>Report a Concern</b><small>Harassment or misconduct &middot; confidential</small></button>
             <button id="btn-howto" class="menu-btn" style="display:none;" onclick="openAppTour()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128218;</span><b>How to Use the Hub</b><small>Quick guided walkthrough</small></button>
         </div>
@@ -684,6 +685,7 @@
                 <div class="qcard" onclick="switchMenuTab('fleet')"><div class="ic">&#128666;</div><b>Driver &amp; Catering</b><small>Checks, quotes &amp; events</small></div>
                 <div class="qcard" onclick="openMessages()"><div class="ic">&#128172;</div><b>Messages</b><small>Team chat &amp; broadcasts</small></div>
                 <div class="qcard" onclick="openFormsLinks()"><div class="ic">&#128196;</div><b>Forms &amp; Documents</b><small>Payroll, HR &amp; hiring</small></div>
+                <div class="qcard" onclick="openTrainingPortal()"><div class="ic">&#128218;</div><b>Training &amp; Resources</b><small>Recipes, how-tos &amp; guides</small></div>
                 <div class="qcard" id="sectionsAdminCard" style="display:none;" onclick="switchMenuTab('management')"><div class="ic">&#9889;</div><b>Admin Dashboard</b><small>Metrics &amp; tools</small></div>
             </div>
         </div>
@@ -1913,35 +1915,18 @@
 <!-- TRAINING PORTAL VIEW (DEVELOPER ONLY) -->
 <div id="trainingPortalView" class="app-view">
     <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
-    <div class="header" style="background:repeating-linear-gradient(45deg,#222,#222 15px,#444 15px,#444 30px);">
+    <div class="header" style="background:linear-gradient(120deg,#185FA5,#1f7a3d);">
         <h1 style="font-size:40px;margin:10px 0;">&#128218;</h1>
-        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Training Portal</p>
-        <p style="font-size:12px;margin:6px 0 0 0;opacity:0.8;">Developer-only &mdash; under construction</p>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Training &amp; Resources</p>
+        <p style="font-size:12px;margin:6px 0 0 0;opacity:0.85;">Recipes, how-tos &amp; reference for the whole team</p>
     </div>
-    <div class="container" style="max-width:700px;">
-        <p style="text-align:center;color:#888;font-size:13px;margin-bottom:20px;">This is a work-in-progress training portal, visible only to your account. Tap a category to start building it out.</p>
-        <div class="training-grid">
-            <div class="training-card" onclick="alert('Coming soon: Onboarding content for new hires.')">
-                <span class="training-icon">&#127881;</span>
-                <h3>Onboarding</h3>
-                <p>New hire guides & checklists</p>
-            </div>
-            <div class="training-card" onclick="alert('Coming soon: Role-specific guides.')">
-                <span class="training-icon">&#127919;</span>
-                <h3>Role Guides</h3>
-                <p>Blue Apron, Shift Lead, Manager</p>
-            </div>
-            <div class="training-card" onclick="alert('Coming soon: Recipes & SOPs.')">
-                <span class="training-icon">&#128221;</span>
-                <h3>Recipes / SOPs</h3>
-                <p>Standard procedures & recipes</p>
-            </div>
-            <div class="training-card" onclick="alert('Coming soon: Quizzes & assessments.')">
-                <span class="training-icon">&#9989;</span>
-                <h3>Quizzes</h3>
-                <p>Knowledge checks & certifications</p>
-            </div>
+    <div class="container" style="max-width:760px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+            <button onclick="if(typeof toggleAIChatPanel==='function')toggleAIChatPanel();" style="flex:1;min-width:140px;background:#fff;border:1px solid #e7e2f0;border-radius:10px;padding:10px;font-size:13px;font-weight:600;color:#7d1d4b;cursor:pointer;">&#127846; Ask Mr. Scoopy</button>
+            <button onclick="openFormsLinks()" style="flex:1;min-width:140px;background:#fff;border:1px solid #e7e2f0;border-radius:10px;padding:10px;font-size:13px;font-weight:600;color:#185FA5;cursor:pointer;">&#128196; Forms &amp; Documents</button>
+            <button id="trainingAddBtn" onclick="openTrainingEdit(null)" style="display:none;flex:1;min-width:140px;background:var(--caliches-pink);color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#10133; Add module</button>
         </div>
+        <div id="trainingList"><p style="text-align:center;color:#888;padding:30px;">Loading&hellip;</p></div>
     </div>
 </div>
 
@@ -2150,7 +2135,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.22.2005';
+    const APP_VERSION = '2026.06.22.2020';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4375,11 +4360,11 @@
     }
 
     function openTrainingPortal() {
-        if (currentUser.is_developer !== true) return;
-        triggerTransition(() => {
-            document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
-            document.getElementById('trainingPortalView').style.display = 'block';
-        });
+        document.getElementById('main-menu').style.display = 'none';
+        document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
+        document.getElementById('trainingPortalView').style.display = 'block';
+        window.scrollTo(0,0);
+        loadTraining();
     }
 
     // ============================================================
@@ -6044,6 +6029,79 @@
         });
     }
 
+    // ===== Training & Resources Library =====
+    function loadTraining(){
+        var box=document.getElementById('trainingList'); if(!box) return;
+        var admin=(typeof isAdminManager==='function' && isAdminManager());
+        var addBtn=document.getElementById('trainingAddBtn'); if(addBtn) addBtn.style.display=admin?'block':'none';
+        withPin(function(pin){
+            supabaseClient.rpc('app_training_list',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; box.innerHTML='<p style="color:#c0264b;text-align:center;padding:20px;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var mods=r.data||[]; window._trainingMods=mods;
+                if(!mods.length){ box.innerHTML='<p style="text-align:center;color:#888;padding:20px;">No training modules yet.'+(admin?' Tap &ldquo;Add module&rdquo; to start.':'')+'</p>'; return; }
+                var groups={}, order=[];
+                mods.forEach(function(m){ var c=m.category||'General'; if(!groups[c]){ groups[c]=[]; order.push(c); } groups[c].push(m); });
+                var h='';
+                order.forEach(function(cat){
+                    h+='<div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#8a8594;margin:14px 0 6px;">'+escapeHtml(cat)+'</div>';
+                    groups[cat].forEach(function(m){
+                        h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.04);">'+
+                           '<button onclick="toggleTraining('+m.id+')" style="width:100%;text-align:left;background:none;border:none;padding:13px 15px;cursor:pointer;display:flex;align-items:center;gap:10px;">'+
+                           '<b style="flex:1;font-size:14.5px;color:#26242b;">'+escapeHtml(m.title)+'</b><span style="color:#aab;font-size:20px;">&rsaquo;</span></button>'+
+                           '<div id="trn'+m.id+'" style="display:none;padding:0 15px 14px;"></div></div>';
+                    });
+                });
+                box.innerHTML=h;
+            });
+        });
+    }
+    function toggleTraining(id){
+        var d=document.getElementById('trn'+id); if(!d) return;
+        if(d.style.display==='block'){ d.style.display='none'; return; }
+        var m=(window._trainingMods||[]).filter(function(x){return x.id===id;})[0]; if(!m) return;
+        var admin=(typeof isAdminManager==='function' && isAdminManager());
+        var body=((m.body||'').trim())||'(No content yet.)';
+        var h='<div style="font-size:13.5px;color:#333;line-height:1.6;white-space:pre-wrap;">'+escapeHtml(body)+'</div>';
+        if(admin){ h+='<div style="margin-top:10px;display:flex;gap:8px;"><button onclick="openTrainingEdit('+m.id+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;">Edit</button>'+
+           '<button onclick="deleteTrainingModule('+m.id+')" style="background:#fdeaea;color:#c0264b;border:none;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;">Remove</button></div>'; }
+        d.innerHTML=h; d.style.display='block';
+    }
+    function openTrainingEdit(id){
+        var m=id?((window._trainingMods||[]).filter(function(x){return x.id===id;})[0]||null):null;
+        document.getElementById('trainingEditId').value = id||'';
+        document.getElementById('trainingEditTitle').value = m?m.title:'';
+        document.getElementById('trainingEditCat').value = m?(m.category||''):'';
+        document.getElementById('trainingEditBody').value = m?(m.body||''):'';
+        document.getElementById('trainingEditMsg').textContent='';
+        document.getElementById('trainingEditTitleH').textContent = id?'Edit module':'Add training module';
+        document.getElementById('trainingEditModal').style.display='flex';
+    }
+    function closeTrainingEdit(){ document.getElementById('trainingEditModal').style.display='none'; }
+    function saveTrainingModule(){
+        var id=document.getElementById('trainingEditId').value;
+        var title=(document.getElementById('trainingEditTitle').value||'').trim();
+        var cat=(document.getElementById('trainingEditCat').value||'').trim();
+        var body=document.getElementById('trainingEditBody').value;
+        var msg=document.getElementById('trainingEditMsg');
+        if(!title){ msg.style.color='#c0264b'; msg.textContent='Give it a title.'; return; }
+        msg.style.color='#5b6472'; msg.textContent='Saving…';
+        withPin(function(pin){
+            supabaseClient.rpc('app_training_save',{p_username:currentUser.username,p_password:pin,p_id:(id?parseInt(id,10):null),p_category:cat,p_title:title,p_body:body}).then(function(r){
+                if(r.error){ msg.style.color='#c0264b'; msg.textContent='Error: '+r.error.message; return; }
+                closeTrainingEdit(); loadTraining();
+            }).catch(function(){ msg.style.color='#c0264b'; msg.textContent='Could not save.'; });
+        });
+    }
+    function deleteTrainingModule(id){
+        if(!confirm('Remove this training module from the library?')) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_training_delete',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){
+                if(r.error){ alert('Error: '+r.error.message); return; }
+                loadTraining();
+            });
+        });
+    }
+
     // ===== Emergency Mode (static, works offline) =====
     var EMERGENCY = [
       {icon:'⚡', title:'Power outage', steps:[
@@ -6126,8 +6184,7 @@
         if(d.style.display==='block'){ d.style.display='none'; return; }
         document.querySelectorAll('[id^="emg"]').forEach(function(e){ if(/^emg\d+$/.test(e.id)) e.style.display='none'; });
         var s=EMERGENCY[idx];
-        var h='<div style="background:#fff7ed;border:1px solid #fde4c8;border-radius:8px;padding:9px 11px;font-size:12px;color:#9a5a00;margin-bottom:10px;line-height:1.5;">⚠️ <b>Heads up before you rely on this:</b> this is a starter draft. Review it with management and fill in the real phone numbers (shown as [____]) before a real emergency.</div>';
-        h+='<ol style="margin:0;padding-left:20px;font-size:13.5px;color:#26242b;line-height:1.6;">'+s.steps.map(function(st){ return '<li style="margin-bottom:6px;">'+escapeHtml(st)+'</li>'; }).join('')+'</ol>';
+        var h='<ol style="margin:0;padding-left:20px;font-size:13.5px;color:#26242b;line-height:1.6;">'+s.steps.map(function(st){ return '<li style="margin-bottom:6px;">'+escapeHtml(st)+'</li>'; }).join('')+'</ol>';
         d.innerHTML=h; d.style.display='block';
     }
 
@@ -8064,7 +8121,8 @@
     <div><h2>Emergency</h2><div class="hb-sub">Quick steps for urgent situations</div></div>
   </div>
   <div class="container" style="max-width:680px;">
-    <p style="background:#fff7ed;border:1px solid #fde4c8;border-radius:10px;padding:10px 13px;font-size:12.5px;color:#9a5a00;line-height:1.5;margin:0 0 14px;">In a real emergency, <b>people come first</b>. If life or safety is at risk, call <b>911</b> first. These are quick reminders, not a substitute for training.</p>
+    <p style="background:#fff7ed;border:1px solid #fde4c8;border-radius:10px;padding:10px 13px;font-size:12.5px;color:#9a5a00;line-height:1.5;margin:0 0 8px;">In a real emergency, <b>people come first</b>. If life or safety is at risk, call <b>911</b> first. These are quick reminders, not a substitute for training.</p>
+    <p style="font-size:11.5px;color:#9aa3af;margin:0 0 14px;text-align:center;">&#128679; Being finalized with management &mdash; phone numbers still being added.</p>
     <div id="emergencyList"></div>
   </div>
 </div>
@@ -8085,6 +8143,25 @@
     <div style="display:flex;gap:10px;margin-top:12px;">
       <button onclick="closeCorrective()" class="sched-btn" style="flex:1;">Skip for now</button>
       <button onclick="submitCorrective()" class="sched-btn publish" style="flex:2;">Create fix tasks</button>
+    </div>
+  </div>
+</div>
+
+<div id="trainingEditModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:540px;">
+    <h3 id="trainingEditTitleH" style="margin:0 0 12px;color:#185FA5;">Add training module</h3>
+    <input type="hidden" id="trainingEditId">
+    <label class="rm-lbl" for="trainingEditTitle">Title</label>
+    <input id="trainingEditTitle" type="text" class="rm-inp" placeholder="e.g. How to Scoop">
+    <label class="rm-lbl" for="trainingEditCat" style="margin-top:10px;">Category</label>
+    <input id="trainingEditCat" type="text" class="rm-inp" placeholder="e.g. Recipes, How-To, Policies" list="trainingCats">
+    <datalist id="trainingCats"><option value="Recipes"></option><option value="How-To"></option><option value="Policies"></option><option value="Customer Service"></option><option value="Onboarding"></option></datalist>
+    <label class="rm-lbl" for="trainingEditBody" style="margin-top:10px;">Content</label>
+    <textarea id="trainingEditBody" class="rm-inp" rows="8" placeholder="Write the lesson, recipe, or steps here. You can paste links too." style="resize:vertical;"></textarea>
+    <div id="trainingEditMsg" style="font-size:12.5px;margin-top:8px;"></div>
+    <div style="display:flex;gap:10px;margin-top:12px;">
+      <button onclick="closeTrainingEdit()" class="sched-btn" style="flex:1;">Cancel</button>
+      <button onclick="saveTrainingModule()" class="sched-btn publish" style="flex:2;">Save module</button>
     </div>
   </div>
 </div>
