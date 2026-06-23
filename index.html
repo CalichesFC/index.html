@@ -701,6 +701,7 @@
             <div id="schedPaneMine" class="sched-pane">
                 <div id="schedMyShifts"><p style="text-align:center;color:#888;font-size:13px;padding:14px;">Loading your shifts&hellip;</p></div>
                 <button class="menu-btn" onclick="openTimeOff()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127796;</span><b>Request Time Off</b><small>Submit a time-off request</small></button>
+                <button id="btn-preshift" class="menu-btn" style="display:none;" onclick="openPreshift()"><span class="rchip mgr">Shift Lead</span><span class="tile-ic">&#128221;</span><b>Pre-Shift Lineup</b><small>Set positions &amp; goals &middot; track progress</small></button>
             </div>
             <div id="schedPaneBuild" class="sched-pane" style="display:none;">
                 <button id="btn-scheduling" class="menu-btn" onclick="openScheduling()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#129389;</span><b>Open Schedule Builder</b><small>Build &amp; publish weekly shifts</small></button>
@@ -1963,6 +1964,47 @@
     </div>
 </div>
 
+<!-- PRE-SHIFT LINEUP VIEW -->
+<div id="preshiftView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
+    <div class="header" style="background:linear-gradient(120deg,#185FA5,#7d1d4b);">
+        <h1 style="font-size:40px;margin:10px 0;">&#128221;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Pre-Shift Lineup</p>
+        <p style="font-size:12px;margin:6px 0 0 0;opacity:0.85;">Assign positions, set goals, track progress</p>
+    </div>
+    <div class="container" style="max-width:760px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+            <div style="flex:1;min-width:130px;"><label class="form-label">Store</label>
+              <select id="psStore" onchange="loadPreshift()" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+                <option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option>
+              </select></div>
+            <div style="flex:1;min-width:120px;"><label class="form-label">Date</label>
+              <input type="date" id="psDate" onchange="loadPreshift()" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;"></div>
+            <div style="flex:1;min-width:100px;"><label class="form-label">Shift</label>
+              <select id="psType" onchange="loadPreshift()" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;"><option>Day</option><option>Night</option></select></div>
+        </div>
+        <div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:12px;margin-bottom:12px;">
+            <label class="form-label" style="margin-top:0;">Shift goals (2)</label>
+            <input id="psGoal1" type="text" placeholder="Goal 1 — e.g. clean condenser by close" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:6px;box-sizing:border-box;">
+            <input id="psGoal2" type="text" placeholder="Goal 2 — e.g. push the new shake" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box;">
+        </div>
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#8a8594;margin:6px 0;">Who&rsquo;s on &amp; where</div>
+        <div id="psRoster"><p style="text-align:center;color:#888;padding:20px;">Pick a store to load the crew&hellip;</p></div>
+        <button onclick="savePreshift()" class="save-btn" style="margin-top:14px;background:var(--caliches-blue);">&#128190; Save Lineup</button>
+        <div id="psMsg" style="text-align:center;font-size:13px;margin-top:8px;"></div>
+    </div>
+</div>
+
+<!-- POSITION PROGRESS MODAL -->
+<div id="posProgressModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:460px;">
+    <h3 id="posProgressName" style="margin:0 0 4px;color:#185FA5;">Training Progress</h3>
+    <p style="margin:0 0 12px;font-size:12.5px;color:#8a8594;">Onboarding path: 7 days each stage (~1 month)</p>
+    <div id="posProgressBody"><p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p></div>
+    <button onclick="document.getElementById('posProgressModal').style.display='none'" class="sched-btn" style="width:100%;margin-top:12px;">Close</button>
+  </div>
+</div>
+
 <!-- POP-IN VIEW -->
 <div id="popInView" class="app-view">
     <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
@@ -2021,7 +2063,7 @@
 <div id="shortageView" class="app-view"><button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button><div class="header green-theme"><div style="display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;"><img src="splash-logo.png" alt="Main Logo" class="logo-img" onerror="this.style.display='none'"><img src="cherry-thumbsup.png" alt="Cherry" class="header-mascot" onerror="this.style.display='none'"></div><h1 style="font-size:40px;margin:10px 0;">&#128230;</h1><p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">STORE SHORTAGE REPORT</p><div class="header-stripe"></div></div><div class="container"><form id="shortageForm"><div class="info-group"><div class="full-width"><label class="form-label">Select Store:</label><select name="Store" required><option value="" disabled selected>Select Store...</option><option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option></select></div><div><label class="form-label">Date:</label><input type="date" id="shortageDt" name="OrderDate" required></div><div><label class="form-label">Manager Name:</label><input type="text" name="ManagerName" placeholder="Your Name" required></div></div><div class="category"><h2>Item Requests</h2><div class="form-spacer"><label class="form-label">Item 1 Name:</label><input type="text" name="Item1" placeholder="e.g., Seasonal Fruit, Cups"></div><div class="form-spacer" style="border-bottom:1px solid #eee;padding-bottom:20px;"><label class="form-label">Item 1 Quantity:</label><input type="text" name="Qty1" placeholder="e.g., 5 cases"></div><div class="form-spacer" style="margin-top:20px;"><label class="form-label">Item 2 Name:</label><input type="text" name="Item2" placeholder="Item name"></div><div class="form-spacer"><label class="form-label">Item 2 Quantity:</label><input type="text" name="Qty2" placeholder="Quantity"></div></div><div class="category"><h2>Urgency / Notes</h2><textarea name="Notes" rows="3" placeholder="Is this needed urgently?"></textarea></div><input type="hidden" id="shortageReportHtml" name="ReportHTML"><button type="button" id="submitShortageBtn" class="save-btn green-btn" onclick="submitShortage()">&#128640; SUBMIT SHORTAGE REPORT</button></form></div></div>
 
 <!-- MAINTENANCE VIEW -->
-<div id="maintenanceView" class="app-view"><button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button><div class="header orange-theme"><div style="display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;"><img src="splash-logo.png" alt="Main Logo" class="logo-img" onerror="this.style.display='none'"><img src="scoopy-point.png" alt="Scoopy" class="header-mascot" onerror="this.style.display='none'"></div><h1 style="font-size:40px;margin:10px 0;">&#128295;</h1><p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">REQUIRED MAINTENANCE</p><div class="header-stripe"></div></div><div class="container"><form id="maintenanceForm"><div class="info-group"><div class="full-width"><label class="form-label">Store Location:</label><select name="Location" required><option value="" disabled selected>Select Store...</option><option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option><option>Warehouse</option></select></div><div><label class="form-label">Date:</label><input type="date" id="maintDt" name="ReportDate" required></div><div><label class="form-label">Reported By:</label><input type="text" name="ReporterName" placeholder="Your Name" required></div></div><div class="category"><h2>Issue Details</h2><div class="form-spacer"><label class="form-label">Equipment / Item Name:</label><input type="text" name="MaintenanceItem" placeholder="e.g., Shake Machine, AC Unit" required></div><div class="form-spacer"><label class="form-label">Urgency Level:</label><select name="Urgency" required><option value="" disabled selected>Select Urgency...</option><option>Low (Fix when possible)</option><option>Medium (Needs attention soon)</option><option>High (Critical / Safety Issue)</option></select></div><div class="form-spacer"><label class="form-label">Description of Problem:</label><textarea name="IssueDescription" rows="4" placeholder="What exactly is broken?" required></textarea></div><div class="form-spacer"><label class="form-label">Photo of the Issue:</label><label class="photo-btn">&#128248; Attach Photo<input type="file" accept="image/*" multiple onchange="compressToGlobal(event,'maintPrev',maintPhotos)" style="display:none;"></label><div id="maintPrev" style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;"></div></div></div><input type="hidden" id="maintenanceReportHtml" name="ReportHTML"><input type="hidden" id="maintenanceSubmittedBy" name="submitted_by"><button type="button" id="submitMaintBtn" class="save-btn orange-btn" onclick="submitMaintenance()">&#128640; SUBMIT MAINTENANCE REQUEST</button></form></div></div>
+<div id="maintenanceView" class="app-view"><button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button><div class="header orange-theme"><div style="display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;"><img src="splash-logo.png" alt="Main Logo" class="logo-img" onerror="this.style.display='none'"><img src="scoopy-point.png" alt="Scoopy" class="header-mascot" onerror="this.style.display='none'"></div><h1 style="font-size:40px;margin:10px 0;">&#128295;</h1><p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">REQUIRED MAINTENANCE</p><div class="header-stripe"></div></div><div class="container"><form id="maintenanceForm"><div class="info-group"><div class="full-width"><label class="form-label">Store Location:</label><select id="maintLoc" name="Location" required onchange="maintLoadEquip()"><option value="" disabled selected>Select Store...</option><option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option><option>Warehouse</option></select></div><div><label class="form-label">Date:</label><input type="date" id="maintDt" name="ReportDate" required></div><div><label class="form-label">Reported By:</label><input type="text" name="ReporterName" placeholder="Your Name" required></div></div><div class="category"><h2>Issue Details</h2><div class="form-spacer"><label class="form-label">Equipment (pick from registry):</label><select id="maintEquipSel" onchange="maintEquipPicked()"><option value="">Select a store first&hellip;</option></select></div><div class="form-spacer" id="maintItemWrap"><label class="form-label">Equipment / Item Name:</label><input type="text" id="maintItemInput" name="MaintenanceItem" placeholder="e.g., Shake Machine, AC Unit" required></div><div class="form-spacer"><label class="form-label">Urgency Level:</label><select name="Urgency" required><option value="" disabled selected>Select Urgency...</option><option>Low (Fix when possible)</option><option>Medium (Needs attention soon)</option><option>High (Critical / Safety Issue)</option></select></div><div class="form-spacer"><label class="form-label">Description of Problem:</label><textarea name="IssueDescription" rows="4" placeholder="What exactly is broken?" required></textarea></div><div class="form-spacer"><label class="form-label">Photo of the Issue:</label><label class="photo-btn">&#128248; Attach Photo<input type="file" accept="image/*" multiple onchange="compressToGlobal(event,'maintPrev',maintPhotos)" style="display:none;"></label><div id="maintPrev" style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;"></div></div></div><input type="hidden" id="maintenanceReportHtml" name="ReportHTML"><input type="hidden" id="maintenanceSubmittedBy" name="submitted_by"><button type="button" id="submitMaintBtn" class="save-btn orange-btn" onclick="submitMaintenance()">&#128640; SUBMIT MAINTENANCE REQUEST</button></form></div></div>
 
 <!-- DAMAGE VIEW -->
 <div id="damageView" class="app-view"><button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button><div class="header red-theme"><div style="display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;"><img src="catering-logo.png" alt="Catering Logo" class="logo-img" onerror="this.src='splash-logo.png'"><img src="scoopy-sad.png" alt="Scoopy" class="header-mascot" onerror="this.style.display='none'"></div><h1 style="font-size:40px;margin:10px 0;">&#9888;</h1><p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">VEHICLE / TRAILER DAMAGE</p><div class="header-stripe"></div></div><div class="container"><form id="damageForm"><div class="info-group"><div class="full-width"><label class="form-label">Select Asset:</label><select name="DamageAsset" required><option value="" disabled selected>Choose Vehicle, Trailer or Cart...</option><optgroup label="Vehicles"><option>Truck 2500</option><option>Truck 3500</option><option>Caliche's Cruiser</option></optgroup><optgroup label="Trailers"><option>Scoopy Trailer</option><option>Poochie Trailer</option></optgroup><optgroup label="Catering Carts"><option>Catering Cart 0</option><option>Catering Cart 1</option><option>Catering Cart 2</option><option>Catering Cart 3</option><option>Catering Cart 4</option><option>Catering Cart 5</option></optgroup></select></div><div><label class="form-label">Date of Incident:</label><input type="date" id="damageDt" name="IncidentDate" required></div><div><label class="form-label">Reported By:</label><input type="text" name="ReporterName" placeholder="Your Name" required></div></div><div class="category"><h2>Damage Details</h2><div class="form-spacer"><label class="form-label">What Happened? (Cause):</label><input type="text" name="IncidentCause" placeholder="e.g., Backed into pole, Hit pothole" required></div><div class="form-spacer"><label class="form-label">Description of Damage:</label><textarea name="DamageDescription" rows="4" placeholder="Describe the damage in detail..." required></textarea></div><div class="form-spacer"><label class="form-label">Photo of the Damage:</label><label class="photo-btn" style="background-color:#fceceb;border-color:var(--damage-red);color:var(--damage-red);">&#128248; Attach Damage Photos<input type="file" accept="image/*" multiple onchange="compressToGlobal(event,'damagePrev',damagePhotos)" style="display:none;"></label><div id="damagePrev" style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;"></div></div></div><input type="hidden" id="damageReportHtml" name="ReportHTML"><button type="button" id="submitDamageBtn" class="save-btn red-btn" onclick="submitDamage()">&#128640; SUBMIT DAMAGE REPORT</button></form></div></div>
@@ -2168,7 +2210,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.22.2039';
+    const APP_VERSION = '2026.06.22.2104';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4434,6 +4476,8 @@
         if (disciplineBtn) disciplineBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
         const attendanceBtn = document.getElementById('btn-attendance');
         if (attendanceBtn) attendanceBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
+        const preshiftBtn = document.getElementById('btn-preshift');
+        if (preshiftBtn) preshiftBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
         // ── Pop-In & Inventory: management only (Shift Lead and above / store managers) ──
         const mgmtTools = (devOverride || isManager || role === 'Shift Lead');
         const popInBtn = document.getElementById('btn-popIn');
@@ -6224,7 +6268,7 @@
            '<button onclick="printEquipmentQR()" style="margin-top:10px;background:#854F0B;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;">&#128424;&#65039; Print QR label</button></div>';
         h+=row('Model',e.model)+row('Serial #',e.serial)+row('Vendor / service',e.vendor)+row('Warranty',e.warranty)+row('Manuals / links',e.manuals)+row('Troubleshooting',e.troubleshooting)+row('Notes / repair history',e.notes);
         h+='<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">'+
-           '<button onclick="openForm(\'maintenanceView\')" style="flex:1;min-width:140px;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#128295; Report maintenance</button>';
+           '<button onclick="openMaintenanceForEquipment('+JSON.stringify(e.store||'')+','+JSON.stringify(e.name||'')+')" style="flex:1;min-width:140px;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#128295; Report maintenance</button>';
         if(admin){ h+='<button onclick="openEquipmentEdit('+e.id+')" style="flex:1;min-width:120px;background:#f3eede;color:#854F0B;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#9998; Edit</button>'+
            '<button onclick="deleteEquipment('+e.id+')" style="background:#fdeaea;color:#c0264b;border:none;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;">Remove</button>'; }
         h+='</div></div>';
@@ -6326,6 +6370,144 @@
                 closeEquipmentEdit(); openEquipment();
             });
         });
+    }
+
+    // ============================================================
+    // PRE-SHIFT LINEUP + POSITION PROGRESS (Phase 3)
+    // ============================================================
+    var PS_POSITIONS = ['Shift Leader','Front Register','Drive Register','Machine','Scooper','Item Maker'];
+    function psTodayStr(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+    function openPreshift(){
+        document.getElementById('main-menu').style.display='none';
+        document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
+        document.getElementById('preshiftView').style.display='block';
+        window.scrollTo(0,0);
+        var sel=document.getElementById('psStore');
+        if(sel && !sel.getAttribute('data-init')){
+            var s=(currentUser&&(currentUser.store||currentUser.location))||'';
+            for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===s){ sel.selectedIndex=i; break; } }
+            sel.setAttribute('data-init','1');
+        }
+        var dt=document.getElementById('psDate'); if(dt && !dt.value) dt.value=psTodayStr();
+        loadPreshift();
+    }
+    function loadPreshift(){
+        var box=document.getElementById('psRoster'); if(!box) return;
+        var store=document.getElementById('psStore').value, date=document.getElementById('psDate').value||psTodayStr(), type=document.getElementById('psType').value;
+        box.innerHTML='<p style="text-align:center;color:#888;padding:20px;">Loading crew&hellip;</p>';
+        document.getElementById('psMsg').textContent='';
+        withPin(function(pin){
+            Promise.all([
+                supabaseClient.rpc('app_preshift_roster',{p_username:currentUser.username,p_password:pin,p_location:store}),
+                supabaseClient.rpc('app_preshift_get',{p_username:currentUser.username,p_password:pin,p_location:store,p_date:date,p_type:type})
+            ]).then(function(res){
+                var rr=res[0], gg=res[1];
+                if(rr.error){ if(rr.error.code==='42501') sessionPin=null; box.innerHTML='<p style="color:#c0264b;text-align:center;padding:20px;">'+escapeHtml(rr.error.message)+'</p>'; return; }
+                var roster=rr.data||[];
+                var existing=(gg&&!gg.error&&gg.data)?gg.data:{exists:false,assignments:[]};
+                if(existing.exists){ document.getElementById('psGoal1').value=existing.goal1||''; document.getElementById('psGoal2').value=existing.goal2||''; }
+                else { document.getElementById('psGoal1').value=''; document.getElementById('psGoal2').value=''; }
+                var amap={}; (existing.assignments||[]).forEach(function(a){ amap[a.employee_id]=a.position; });
+                renderPreshiftRoster(roster, amap);
+            }).catch(function(){ box.innerHTML='<p style="color:#c0264b;text-align:center;padding:20px;">Could not load the crew.</p>'; });
+        });
+    }
+    function renderPreshiftRoster(roster, amap){
+        var box=document.getElementById('psRoster');
+        if(!roster.length){ box.innerHTML='<p style="text-align:center;color:#888;padding:20px;">No active crew for this store. Add them in Roster first.</p>'; return; }
+        var opts='<option value="">— not on this shift —</option>'+PS_POSITIONS.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+        var h='';
+        roster.forEach(function(e){
+            var cur=amap[e.id]||'';
+            h+='<div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #ececf2;border-radius:10px;padding:8px 10px;margin-bottom:6px;">'+
+               '<b style="flex:1;font-size:14px;color:#26242b;">'+escapeHtml(e.name)+'</b>'+
+               '<select id="psPos_'+e.id+'" style="padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;max-width:150px;">'+opts.replace('value="'+cur+'"','value="'+cur+'" selected')+'</select>'+
+               '<button onclick="openPositionProgress('+e.id+','+JSON.stringify(e.name)+')" title="Training progress" style="background:#eef3fb;color:#185FA5;border:none;border-radius:7px;padding:7px 9px;font-size:13px;cursor:pointer;">&#128200;</button>'+
+               '</div>';
+        });
+        box.innerHTML=h;
+        window._psRoster=roster;
+    }
+    function savePreshift(){
+        var store=document.getElementById('psStore').value, date=document.getElementById('psDate').value||psTodayStr(), type=document.getElementById('psType').value;
+        var roster=window._psRoster||[]; var assignments=[];
+        roster.forEach(function(e){
+            var sel=document.getElementById('psPos_'+e.id); if(sel && sel.value){ assignments.push({employee_id:e.id, employee_name:e.name, position:sel.value}); }
+        });
+        var msg=document.getElementById('psMsg'); msg.style.color='#5b6472'; msg.textContent='Saving…';
+        withPin(function(pin){
+            supabaseClient.rpc('app_preshift_save',{p_username:currentUser.username,p_password:pin,p_location:store,p_date:date,p_type:type,
+                p_goal1:document.getElementById('psGoal1').value, p_goal2:document.getElementById('psGoal2').value, p_assignments:assignments}).then(function(r){
+                if(r.error){ msg.style.color='#c0264b'; msg.textContent='Error: '+r.error.message; return; }
+                msg.style.color='#1f7a3d'; msg.textContent='✓ Lineup saved ('+assignments.length+' assigned).';
+            }).catch(function(){ msg.style.color='#c0264b'; msg.textContent='Could not save.'; });
+        });
+    }
+    function psBar(label, done, goal){
+        var pct=Math.min(100, Math.round((done/goal)*100));
+        var doneStage=done>=goal;
+        return '<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px;"><b style="color:#33303a;">'+label+'</b>'+
+               '<span style="color:'+(doneStage?'#1f7a3d':'#8a8594')+';font-weight:700;">'+done+' / '+goal+' days'+(doneStage?' ✓':'')+'</span></div>'+
+               '<div style="background:#eee;border-radius:99px;height:9px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+(doneStage?'#1f7a3d':'#185FA5')+';"></div></div></div>';
+    }
+    function openPositionProgress(empId, name){
+        document.getElementById('posProgressName').textContent=(name||'Employee')+' — Training Progress';
+        document.getElementById('posProgressBody').innerHTML='<p style="text-align:center;color:#888;padding:20px;">Loading…</p>';
+        document.getElementById('posProgressModal').style.display='flex';
+        withPin(function(pin){
+            supabaseClient.rpc('app_position_tally',{p_username:currentUser.username,p_password:pin,p_employee_id:empId}).then(function(r){
+                var body=document.getElementById('posProgressBody');
+                if(r.error){ body.innerHTML='<p style="color:#c0264b;text-align:center;padding:14px;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var d=r.data||{}; var m=d.milestones||{};
+                var h=psBar('1. Training',(m.training||{}).done||0,(m.training||{}).goal||7)+
+                      psBar('2. Scooping',(m.scooping||{}).done||0,(m.scooping||{}).goal||7)+
+                      psBar('3. Register',(m.register||{}).done||0,(m.register||{}).goal||7)+
+                      psBar('4. Machine',(m.machine||{}).done||0,(m.machine||{}).goal||7);
+                var total=d.total_days||0;
+                h+='<div style="margin-top:8px;padding-top:10px;border-top:1px solid #f0eef4;font-size:12.5px;color:#8a8594;">Total days on the floor: <b style="color:#33303a;">'+total+'</b>';
+                var by=d.days_by_position||{}; var parts=Object.keys(by).map(function(k){ return escapeHtml(k)+': '+by[k]; });
+                if(parts.length) h+='<br>By position — '+parts.join(' &middot; ');
+                h+='</div>';
+                body.innerHTML=h;
+            }).catch(function(){ document.getElementById('posProgressBody').innerHTML='<p style="color:#c0264b;text-align:center;padding:14px;">Could not load progress.</p>'; });
+        });
+    }
+
+    // ----- Maintenance Request: equipment picklist tie-in -----
+    function maintLoadEquip(preName){
+        var sel=document.getElementById('maintEquipSel'); if(!sel) return;
+        var loc=(document.getElementById('maintLoc')||{}).value||'';
+        if(!loc || loc==='Warehouse'){
+            sel.innerHTML='<option value="">'+(loc==='Warehouse'?'No registry for Warehouse — type below':'Select a store first…')+'</option><option value="__other__">Other / not listed</option>';
+            return;
+        }
+        sel.innerHTML='<option value="">Loading equipment…</option>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_equipment_list',{p_username:currentUser.username,p_password:pin,p_store:loc}).then(function(r){
+                var list=(r&&!r.error&&r.data)?r.data:[];
+                var h='<option value="">— pick equipment —</option>';
+                list.forEach(function(e){ h+='<option value="'+escapeHtml(e.name)+'">'+escapeHtml(e.name)+'</option>'; });
+                h+='<option value="__other__">Other / not listed</option>';
+                sel.innerHTML=h;
+                if(preName){ sel.value=preName; maintEquipPicked(); }
+            }).catch(function(){ sel.innerHTML='<option value="">— pick equipment —</option><option value="__other__">Other / not listed</option>'; });
+        });
+    }
+    function maintEquipPicked(){
+        var sel=document.getElementById('maintEquipSel'); var inp=document.getElementById('maintItemInput'); if(!sel||!inp) return;
+        var v=sel.value;
+        if(v==='__other__'){ inp.value=''; inp.readOnly=false; inp.focus(); }
+        else if(v===''){ /* leave as-is */ }
+        else { inp.value=v; inp.readOnly=false; }
+    }
+    function openMaintenanceForEquipment(store, name){
+        openForm('maintenanceView');
+        setTimeout(function(){
+            var loc=document.getElementById('maintLoc');
+            if(loc){ for(var i=0;i<loc.options.length;i++){ if(loc.options[i].value===store){ loc.selectedIndex=i; break; } } }
+            var inp=document.getElementById('maintItemInput'); if(inp) inp.value=name||'';
+            maintLoadEquip(name);
+        }, 250);
     }
 
     // ===== Emergency Mode (static, works offline) =====
