@@ -703,6 +703,8 @@
                 <div id="schedMyShifts"><p style="text-align:center;color:#888;font-size:13px;padding:14px;">Loading your shifts&hellip;</p></div>
                 <button class="menu-btn" onclick="openTimeOff()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127796;</span><b>Request Time Off</b><small>Submit a time-off request</small></button>
                 <button id="btn-preshift" class="menu-btn" style="display:none;" onclick="openPreshift()"><span class="rchip mgr">Shift Lead</span><span class="tile-ic">&#128221;</span><b>Pre-Shift Lineup</b><small>Set positions &amp; goals &middot; track progress</small></button>
+                <button class="menu-btn" onclick="openAvailability()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128197;</span><b>My Availability</b><small>Set the days/hours you can work</small></button>
+                <button id="btn-availApprovals" class="menu-btn" style="display:none;" onclick="openAvailApprovals()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#9989;</span><b>Availability Requests</b><small>Approve or deny submitted availability</small></button>
             </div>
             <div id="schedPaneBuild" class="sched-pane" style="display:none;">
                 <button id="btn-scheduling" class="menu-btn" onclick="openScheduling()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#129389;</span><b>Open Schedule Builder</b><small>Build &amp; publish weekly shifts</small></button>
@@ -1511,6 +1513,8 @@
   .dragrip svg circle { fill:currentColor; }
   .reorder-drag { opacity:.55; background:#eef3fb !important; }
   .reorder-drag td { background:#eef3fb !important; }
+  .avail-badge { position:absolute; top:-6px; right:-5px; background:#fdf3e8; color:#b8650b; border:1px solid #f1c98a; border-radius:99px; font-size:10px; width:16px; height:16px; line-height:14px; text-align:center; }
+  .avail-flag { outline:1.5px solid #e8a14a; }
   .sp-daypick { display:flex; gap:5px; padding:9px 10px; overflow-x:auto; border-bottom:1px solid #eef1f5; position:sticky; top:0; background:#fff; z-index:5; }
   .sp-daypick button { flex:none; min-width:44px; text-align:center; border:1px solid #e3e8ef; background:#f6f8fb; color:#5b6472; border-radius:9px; padding:6px 8px; font-size:11px; cursor:pointer; line-height:1.3; }
   .sp-daypick button.on { background:var(--caliches-pink); color:#fff; border-color:var(--caliches-pink); font-weight:700; }
@@ -1900,6 +1904,7 @@
             <div style="flex:1;"><label class="form-label">End:</label><input type="time" id="shiftEnd" oninput="schedValidateShift()" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;"></div>
         </div>
         <div id="shiftValMsg" style="display:none;font-size:12.5px;margin-top:8px;"></div>
+        <div id="shiftAvailMsg" style="display:none;font-size:12.5px;margin-top:6px;padding:7px 10px;border-radius:7px;"></div>
         <label class="form-label" style="margin-top:12px;">Note (optional):</label>
         <input type="text" id="shiftNote" placeholder="e.g., AM duties, register" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;">
         <div style="display:flex;gap:8px;margin-top:18px;">
@@ -2055,6 +2060,43 @@
       <ol><li>Forward or paste a Pick n&rsquo; Take order email into Ask Cherry.</li><li>Review what she&rsquo;ll do and approve.</li><li>She creates <b>two tasks</b> on that store&rsquo;s board &mdash; a <b>&#127846; PREP</b> task and a <b>&#128722; PICKUP</b> task, both dated to the pickup.</li></ol></div>
 
     <button onclick="closeHowTo()" class="save-btn" style="margin-top:16px;background:var(--caliches-blue);">Got it &mdash; let&rsquo;s go</button>
+  </div>
+</div>
+
+<!-- MY AVAILABILITY VIEW -->
+<div id="availabilityView" class="app-view">
+    <button class="back-btn" onclick="goBack()">&#8249; Back</button>
+    <div class="header" style="background:linear-gradient(120deg,#1f7a3d,#185FA5);">
+        <h1 style="font-size:40px;margin:10px 0;">&#128197;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">My Availability</p>
+        <p style="font-size:12px;margin:6px 0 0 0;opacity:0.85;">Submit it &middot; your manager approves</p>
+    </div>
+    <div class="container" style="max-width:620px;">
+        <div id="availEditor"><p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p></div>
+        <button onclick="submitAvailability()" class="save-btn" style="margin-top:14px;background:var(--caliches-blue);">Submit for approval</button>
+        <div id="availMsg" style="text-align:center;font-size:13px;margin-top:8px;"></div>
+    </div>
+</div>
+
+<!-- AVAILABILITY APPROVALS MODAL (managers) -->
+<div id="availApprovalsModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:480px;max-height:86vh;overflow-y:auto;">
+    <h3 style="margin:0 0 12px;color:#185FA5;">Availability requests</h3>
+    <div id="availPendingList"><p style="text-align:center;color:#888;padding:18px;">Loading&hellip;</p></div>
+    <button onclick="closeAvailApprovals()" class="sched-btn" style="width:100%;margin-top:10px;">Close</button>
+  </div>
+</div>
+
+<!-- PUBLISH GATE MODAL (availability conflicts) -->
+<div id="pubGateModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:460px;max-height:84vh;overflow-y:auto;">
+    <h3 style="margin:0 0 3px;color:#854F0B;">&#9888; Review before publishing</h3>
+    <p style="margin:0 0 6px;font-size:13px;color:#5b6472;"><b id="pubGateCount">0</b> shift(s) are outside availability. Approve each to publish.</p>
+    <div id="pubGateList"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button onclick="schedClosePubGate()" class="sched-btn" style="flex:1;">Cancel</button>
+      <button id="pubGateBtn" onclick="schedPubGatePublish()" class="sched-btn publish" style="flex:2;">Publish</button>
+    </div>
   </div>
 </div>
 
@@ -2273,7 +2315,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.22.2310';
+    const APP_VERSION = '2026.06.22.2333';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3478,7 +3520,8 @@
                 supabaseClient.rpc('app_sched_week_context', { p_username: currentUser.username, p_password: pin, p_location: loc, p_week_start: ws }),
                 supabaseClient.rpc('app_emp_photos', { p_username: currentUser.username, p_password: pin, p_location: loc }),
                 supabaseClient.rpc('app_sched_layout_get', { p_username: currentUser.username, p_password: pin, p_location: loc }),
-                supabaseClient.rpc('app_labor_get', { p_username: currentUser.username, p_password: pin, p_location: loc, p_week_start: ws })
+                supabaseClient.rpc('app_labor_get', { p_username: currentUser.username, p_password: pin, p_location: loc, p_week_start: ws }),
+                supabaseClient.rpc('app_availability_all', { p_username: currentUser.username, p_password: pin, p_location: loc })
             ]).then(function(res){
                 const r0 = res[0];
                 if (r0.error && r0.error.code === '42501') sessionPin = null;
@@ -3492,6 +3535,7 @@
                 schedState.sortMode = lay.sort_mode || 'first';
                 schedState.empOrder = lay.emp_order || [];
                 schedState.forecast = (res[3] && res[3].data) || {};
+                schedState.avail = (res[4] && res[4].data) || {};
                 if (!schedState.selectedDay) schedState.selectedDay = 0;
                 renderScheduleGrid();
             }).catch(() => { grid.innerHTML = '<p style="color:red;text-align:center;">Connection error.</p>'; });
@@ -3632,7 +3676,8 @@
             const txt = hbTextOn(col);
             const role = (p ? p.name : 'Shift') + (s.note ? (' · ' + s.note) : '');
             const empArg = (s.employee_id != null ? s.employee_id : 'null');
-            return '<div class="hbg-blk'+(conflict?' hbg-conf':'')+'" data-shiftid="'+s.id+'" tabindex="0" role="button" style="background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+hbTime(s.start_time)+'&ndash;'+hbTime(s.end_time)+(s.published?'':' *')+'<br>'+escapeHtml(role)+(conflict?' &#9888;':'')+'</div>';
+            var aw = (s.employee_id!=null && typeof availCheck==='function') ? availCheck(s.employee_id, s.shift_date, s.start_time, s.end_time) : null;
+            return '<div class="hbg-blk'+(conflict?' hbg-conf':'')+(aw?' avail-flag':'')+'" data-shiftid="'+s.id+'" tabindex="0" role="button" style="position:relative;background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+(aw?'<span class="avail-badge" title="Outside availability ('+escapeHtml(aw)+')">&#9888;</span>':'')+hbTime(s.start_time)+'&ndash;'+hbTime(s.end_time)+(s.published?'':' *')+'<br>'+escapeHtml(role)+(conflict?' &#9888;':'')+'</div>';
         };
         const q = (document.getElementById('schedSearch') ? document.getElementById('schedSearch').value : '').toLowerCase().trim();
         let shownEmps = schedSortedEmps(emps);
@@ -3791,6 +3836,16 @@
         document.getElementById('shiftDeleteBtn').style.display = shiftId ? 'block' : 'none';
         document.getElementById('shiftModal').style.display = 'flex';
         schedValidateShift();
+        var am=document.getElementById('shiftAvailMsg');
+        if(am){ am.style.display='none';
+            if(empId!=null && (schedState.avail||{})){ var days=(schedState.avail||{})[empId]||(schedState.avail||{})[String(empId)];
+                if(days&&days.length){ var dd=days[availDowOf(date)]; if(dd){ am.style.display='block';
+                    if(dd.mode==='off'){ am.style.background='#fdeaea'; am.style.color='#c0264b'; am.innerHTML='&#9888; Marked <b>unavailable</b> this day'; }
+                    else if(dd.mode==='window'){ am.style.background='#eef3fb'; am.style.color='#185FA5'; am.innerHTML='&#128337; Available '+availFmt(dd.from)+'&ndash;'+availFmt(dd.to)+' this day'; }
+                    else { am.style.background='#e7f6ec'; am.style.color='#1f7a3d'; am.innerHTML='&#10003; Available all day'; }
+                } }
+            }
+        }
     }
     function schedCloseModal(){ document.getElementById('shiftModal').style.display = 'none'; }
 
@@ -3893,7 +3948,14 @@
             g.addEventListener('click', function(e){ if(window._schedDragJustHappened){ e.preventDefault(); e.stopPropagation(); } }, true);
         };
     })();
+    function schedDayName(ds){ var dn=['Sun','Mon','Tue','Wed','Thu','Fri','Sat']; return dn[availDowOf(ds)]+' '+String(ds).slice(5); }
     function schedPublish() {
+        var conflicts=[];
+        (schedState.data.shifts||[]).forEach(function(s){ if(s.employee_id!=null){ var aw=(typeof availCheck==='function')?availCheck(s.employee_id,s.shift_date,s.start_time,s.end_time):null; if(aw){ var e=(schedState.data.employees||[]).find(function(x){return x.id===s.employee_id;}); conflicts.push({s:s,name:e?e.name:'Employee',why:aw}); } } });
+        if(conflicts.length){ schedShowPublishGate(conflicts); return; }
+        schedDoPublish();
+    }
+    function schedDoPublish(){
         if (!confirm('Publish this week’s schedule for ' + schedState.location + '? Staff with shifts will be notified.')) return;
         const ws = schedFmt(schedState.weekStart);
         withPin(function(pin){
@@ -3901,6 +3963,26 @@
             .then(({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } alert('Published ' + (data||0) + ' shift(s) for ' + schedState.location + '.'); fetchScheduleWeek(); });
         });
     }
+    function schedShowPublishGate(conflicts){
+        window._pubConflicts=conflicts; window._pubAck={};
+        document.getElementById('pubGateList').innerHTML=conflicts.map(function(c,i){
+            return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #f0eef4;">'+
+              '<div style="flex:1;"><b style="font-size:13.5px;color:#26242b;">'+escapeHtml(c.name)+'</b><div style="font-size:12px;color:#5b6472;">'+escapeHtml(schedDayName(c.s.shift_date))+' '+escapeHtml((c.s.start_time||'')+'–'+(c.s.end_time||''))+' · '+escapeHtml(c.why)+'</div></div>'+
+              '<button class="pubok" data-i="'+i+'" onclick="schedPubAck('+i+')" style="background:#fdf3e8;color:#854F0B;border:1px solid #f1c98a;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;">Approve / override</button></div>';
+        }).join('');
+        document.getElementById('pubGateCount').textContent=conflicts.length;
+        var gb=document.getElementById('pubGateBtn'); gb.disabled=true; gb.style.opacity=.5; gb.textContent='Clear '+conflicts.length+' to publish';
+        document.getElementById('pubGateModal').style.display='flex';
+    }
+    function schedPubAck(i){
+        window._pubAck=window._pubAck||{}; window._pubAck[i]=true;
+        var btn=document.querySelector('.pubok[data-i="'+i+'"]'); if(btn){ btn.textContent='✓ Overridden'; btn.style.background='#e7f6ec'; btn.style.color='#1f7a3d'; btn.style.borderColor='#bfe6cb'; btn.disabled=true; btn.style.cursor='default'; }
+        var total=(window._pubConflicts||[]).length, done=Object.keys(window._pubAck).length;
+        var gb=document.getElementById('pubGateBtn');
+        if(done>=total){ gb.disabled=false; gb.style.opacity=1; gb.textContent='Publish'; } else { gb.textContent='Clear '+(total-done)+' more to publish'; }
+    }
+    function schedClosePubGate(){ document.getElementById('pubGateModal').style.display='none'; }
+    function schedPubGatePublish(){ schedClosePubGate(); schedDoPublish(); }
     function schedCopyLastWeek() {
         const to = schedFmt(schedState.weekStart); const from = schedFmt(schedAddDays(schedState.weekStart,-7));
         if (!confirm("Copy last week's shifts into this week?")) return;
@@ -4732,6 +4814,8 @@
         if (attendanceBtn) attendanceBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
         const preshiftBtn = document.getElementById('btn-preshift');
         if (preshiftBtn) preshiftBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
+        const availApprBtn = document.getElementById('btn-availApprovals');
+        if (availApprBtn) availApprBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
         // ── Pop-In & Inventory: management only (Shift Lead and above / store managers) ──
         const mgmtTools = (devOverride || isManager || role === 'Shift Lead');
         const popInBtn = document.getElementById('btn-popIn');
@@ -6724,6 +6808,111 @@
                 h+='</div>';
                 body.innerHTML=h;
             }).catch(function(){ document.getElementById('posProgressBody').innerHTML='<p style="color:#c0264b;text-align:center;padding:14px;">Could not load progress.</p>'; });
+        });
+    }
+
+    // ============================================================
+    // AVAILABILITY (Phase 2) — submit, approve, schedule warnings
+    // ============================================================
+    var AVAIL_ORDER = [['Mon',1],['Tue',2],['Wed',3],['Thu',4],['Fri',5],['Sat',6],['Sun',0]];
+    function availFmt(t){ if(!t) return ''; var p=String(t).split(':'); var h=+p[0]||0,m=+p[1]||0,ap=h<12?'a':'p',hh=h%12; if(hh===0)hh=12; return hh+(m?(':'+String(m).padStart(2,'0')):'')+ap; }
+    function availDowOf(ds){ var p=String(ds).split('-'); var d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2])); return d.getDay(); }
+    function availDescDay(d){ if(!d||!d.mode||d.mode==='all') return 'All day'; if(d.mode==='off') return 'Off'; return availFmt(d.from)+'–'+availFmt(d.to); }
+    function availSummary(days){ if(!days||!days.length) return 'Not set'; return AVAIL_ORDER.map(function(o){ return o[0]+' '+availDescDay(days[o[1]]); }).join(' · '); }
+    function availCheck(empId, ds, st, en){
+        var map=schedState.avail||{}; var days=map[empId]||map[String(empId)]; if(!days||!days.length) return null;
+        var d=days[availDowOf(ds)]; if(!d) return null;
+        if(d.mode==='off') return 'unavailable';
+        if(d.mode==='window'){ if(!d.from||!d.to) return null; if(st<d.from || en>d.to) return 'outside '+availFmt(d.from)+'–'+availFmt(d.to); }
+        return null;
+    }
+    function openAvailability(){
+        document.getElementById('main-menu').style.display='none';
+        document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
+        document.getElementById('availabilityView').style.display='block';
+        window.scrollTo(0,0); loadAvailability();
+    }
+    function loadAvailability(){
+        var box=document.getElementById('availEditor'); if(!box) return;
+        box.innerHTML='<p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p>';
+        document.getElementById('availMsg').textContent='';
+        withPin(function(pin){
+            supabaseClient.rpc('app_availability_mine',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ box.innerHTML='<p style="color:#c0264b;text-align:center;padding:18px;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var d=r.data||{};
+                if(d.linked===false){ box.innerHTML='<p style="text-align:center;color:#854F0B;padding:18px;">Your login isn’t linked to an employee record yet. Ask a manager to link it in the Roster, then you can set availability.</p>'; return; }
+                var start=(d.last_request&&d.last_request.days&&d.last_request.days.length)?d.last_request.days:(d.approved||[]);
+                window._availDays=[]; for(var i=0;i<7;i++){ var x=start[i]||{mode:'all'}; window._availDays[i]={mode:x.mode||'all',from:x.from||'16:00',to:x.to||'22:00'}; }
+                renderAvailEditor(d);
+            }).catch(function(){ box.innerHTML='<p style="color:#c0264b;text-align:center;padding:18px;">Could not load.</p>'; });
+        });
+    }
+    function renderAvailEditor(d){
+        var box=document.getElementById('availEditor');
+        var status='';
+        var lr=d.last_request;
+        if(lr&&lr.status==='pending') status='<div style="background:#fdf3e8;color:#854F0B;border-radius:9px;padding:9px 12px;font-size:13px;margin-bottom:12px;">⏳ Your last request is waiting for manager approval.</div>';
+        else if(lr&&lr.status==='approved') status='<div style="background:#e7f6ec;color:#1f7a3d;border-radius:9px;padding:9px 12px;font-size:13px;margin-bottom:12px;">✓ Your availability is approved. Submit again to change it.</div>';
+        else if(lr&&lr.status==='denied') status='<div style="background:#fdeaea;color:#c0264b;border-radius:9px;padding:9px 12px;font-size:13px;margin-bottom:12px;">Your last request was not approved'+(lr.decision_comment?' — '+escapeHtml(lr.decision_comment):'')+'. Adjust and resubmit.</div>';
+        var h=status;
+        AVAIL_ORDER.forEach(function(o){
+            var dow=o[1], dd=window._availDays[dow];
+            h+='<div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #ececf2;border-radius:10px;padding:8px 10px;margin-bottom:6px;flex-wrap:wrap;">'+
+               '<b style="width:42px;font-size:13.5px;color:#26242b;">'+o[0]+'</b>'+
+               '<select onchange="availSetMode('+dow+',this.value)" style="padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;">'+
+               '<option value="all"'+(dd.mode==='all'?' selected':'')+'>Available all day</option>'+
+               '<option value="window"'+(dd.mode==='window'?' selected':'')+'>Specific hours</option>'+
+               '<option value="off"'+(dd.mode==='off'?' selected':'')+'>Unavailable</option></select>'+
+               '<span id="availWin'+dow+'" style="display:'+(dd.mode==='window'?'inline-flex':'none')+';align-items:center;gap:5px;">'+
+               '<input type="time" value="'+dd.from+'" onchange="window._availDays['+dow+'].from=this.value" style="padding:6px;border:1px solid #ddd;border-radius:7px;font-size:13px;">'+
+               '<span style="color:#888;">to</span>'+
+               '<input type="time" value="'+dd.to+'" onchange="window._availDays['+dow+'].to=this.value" style="padding:6px;border:1px solid #ddd;border-radius:7px;font-size:13px;"></span>'+
+               '</div>';
+        });
+        h+='<label class="form-label" style="margin-top:8px;">Note for your manager (optional)</label><input id="availNote" type="text" placeholder="e.g. classes Wed mornings" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box;">';
+        box.innerHTML=h;
+    }
+    function availSetMode(dow, mode){ window._availDays[dow].mode=mode; var w=document.getElementById('availWin'+dow); if(w) w.style.display=(mode==='window')?'inline-flex':'none'; }
+    function submitAvailability(){
+        var days=[]; for(var i=0;i<7;i++){ var d=window._availDays[i]||{mode:'all'}; days[i]=(d.mode==='window')?{mode:'window',from:d.from,to:d.to}:{mode:d.mode}; }
+        var note=(document.getElementById('availNote')||{}).value||'';
+        var msg=document.getElementById('availMsg'); msg.style.color='#5b6472'; msg.textContent='Submitting…';
+        withPin(function(pin){
+            supabaseClient.rpc('app_availability_submit',{p_username:currentUser.username,p_password:pin,p_days:days,p_note:note}).then(function(r){
+                if(r.error){ msg.style.color='#c0264b'; msg.textContent='Error: '+r.error.message; return; }
+                msg.style.color='#1f7a3d'; msg.textContent='✓ Submitted! A manager will approve it.'; loadAvailability();
+            }).catch(function(){ msg.style.color='#c0264b'; msg.textContent='Could not submit.'; });
+        });
+    }
+    function openAvailApprovals(){ document.getElementById('availApprovalsModal').style.display='flex'; loadAvailPending(); }
+    function closeAvailApprovals(){ document.getElementById('availApprovalsModal').style.display='none'; }
+    function loadAvailPending(){
+        var box=document.getElementById('availPendingList'); if(!box) return;
+        box.innerHTML='<p style="text-align:center;color:#888;padding:18px;">Loading&hellip;</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_availability_pending',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ box.innerHTML='<p style="color:#c0264b;text-align:center;padding:14px;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var list=r.data||[];
+                if(!list.length){ box.innerHTML='<p style="text-align:center;color:#888;padding:18px;">No availability requests waiting.</p>'; return; }
+                box.innerHTML=list.map(function(rq){
+                    return '<div style="background:#fff;border:1px solid #ececf2;border-radius:11px;padding:12px;margin-bottom:10px;">'+
+                      '<b style="font-size:14.5px;color:#26242b;">'+escapeHtml(rq.employee_name||'Employee')+'</b>'+
+                      '<div style="font-size:12.5px;color:#5b6472;line-height:1.6;margin:6px 0;">'+escapeHtml(availSummary(rq.days))+'</div>'+
+                      (rq.note?'<div style="font-size:12.5px;color:#8a8594;margin-bottom:6px;">Note: “'+escapeHtml(rq.note)+'”</div>':'')+
+                      '<input id="availCmt'+rq.id+'" type="text" placeholder="Comment (optional, sent to them)" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:12.5px;box-sizing:border-box;margin-bottom:8px;">'+
+                      '<div style="display:flex;gap:8px;"><button onclick="availDecide('+rq.id+',true)" style="flex:1;background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:8px;font-size:13px;font-weight:700;cursor:pointer;">Approve</button>'+
+                      '<button onclick="availDecide('+rq.id+',false)" style="flex:1;background:#fdeaea;color:#c0264b;border:none;border-radius:8px;padding:8px;font-size:13px;font-weight:700;cursor:pointer;">Deny</button></div></div>';
+                }).join('');
+            });
+        });
+    }
+    function availDecide(id, approve){
+        var cmt=(document.getElementById('availCmt'+id)||{}).value||'';
+        withPin(function(pin){
+            supabaseClient.rpc('app_availability_decide',{p_username:currentUser.username,p_password:pin,p_id:id,p_approve:approve,p_comment:cmt}).then(function(r){
+                if(r.error){ alert('Error: '+r.error.message); return; }
+                loadAvailPending(); if(typeof loadAvailBadge==='function') loadAvailBadge();
+            });
         });
     }
 
