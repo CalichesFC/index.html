@@ -731,6 +731,7 @@
             </div>
             <div id="maintPaneReport" class="sched-pane">
                 <button id="btn-maintenance" class="menu-btn" onclick="openForm('maintenanceView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128295;</span><b>Required Maintenance</b><small>Flag a repair</small></button>
+                <button id="btn-equipment" class="menu-btn" onclick="openEquipment()"><span class="rchip staff">Staff</span><span class="tile-ic">&#9881;</span><b>Equipment History</b><small>Records, QR codes &amp; repairs</small></button>
                 <button id="btn-damage" class="menu-btn" onclick="openForm('damageView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#9888;</span><b>Vehicle / Trailer Damage</b><small>Report damage with photos</small></button>
             </div>
             <div id="maintPaneBoard" class="sched-pane" style="display:none;">
@@ -1930,6 +1931,38 @@
     </div>
 </div>
 
+<!-- EQUIPMENT HISTORY VIEW -->
+<div id="equipmentView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
+    <div class="header" style="background:linear-gradient(120deg,#5b4636,#854F0B);">
+        <h1 style="font-size:40px;margin:10px 0;">&#9881;&#65039;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Equipment History</p>
+        <p style="font-size:12px;margin:6px 0 0 0;opacity:0.85;">Records, manuals, repairs &amp; QR codes</p>
+    </div>
+    <div class="container" style="max-width:760px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">
+            <label class="form-label" style="margin:0;">Store:</label>
+            <select id="equipStoreSel" onchange="loadEquipment()" style="flex:1;min-width:140px;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+                <option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option>
+            </select>
+        </div>
+        <input id="equipSearch" type="text" oninput="renderEquipmentList()" placeholder="&#128269; Search equipment&hellip;" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:10px;box-sizing:border-box;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+            <button id="equipAddBtn" onclick="openEquipmentEdit(null)" style="display:none;flex:1;min-width:150px;background:var(--caliches-pink);color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#10133; Add equipment</button>
+            <button id="equipPrintAllBtn" onclick="printStoreQRSheet()" style="display:none;flex:1;min-width:150px;background:#fff;border:1px solid #d8cfc2;border-radius:10px;padding:10px;font-size:13px;font-weight:700;color:#854F0B;cursor:pointer;">&#128424;&#65039; Print all QR codes</button>
+        </div>
+        <div id="equipList"><p style="text-align:center;color:#888;padding:30px;">Loading&hellip;</p></div>
+    </div>
+</div>
+
+<!-- EQUIPMENT DETAIL VIEW -->
+<div id="equipmentDetailView" class="app-view">
+    <button class="back-btn" onclick="openEquipment()">&#128281; Back to Equipment</button>
+    <div class="container" style="max-width:720px;">
+        <div id="equipDetailBody"><p style="text-align:center;color:#888;padding:40px;">Loading&hellip;</p></div>
+    </div>
+</div>
+
 <!-- POP-IN VIEW -->
 <div id="popInView" class="app-view">
     <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
@@ -2135,7 +2168,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.22.2020';
+    const APP_VERSION = '2026.06.22.2039';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2483,6 +2516,7 @@
             fetchAnnouncement();
             setTimeout(showAppTour, 800);
         }
+        if (window._pendingEquip) { var _eq=window._pendingEquip; window._pendingEquip=null; setTimeout(function(){ if(typeof openEquipmentDetail==='function') openEquipmentDetail(parseInt(_eq,10)); }, 800); }
         resetTimer();
     }
 
@@ -2540,6 +2574,7 @@
 
     window.addEventListener('load', function() {
         if (checkQuoteAcceptRoute()) return;
+        try { window._pendingEquip = new URLSearchParams(window.location.search).get('equip'); } catch(e) {}
         addQuoteRow(); addQuoteRow(); addQuoteRow();
         populateQuoteTemplates();
         let savedUser = localStorage.getItem('calichesUser');
@@ -6102,6 +6137,197 @@
         });
     }
 
+    // ============================================================
+    // EQUIPMENT HISTORY + QR CODES
+    // ============================================================
+    var EQUIP_BASE = 'https://calichesfc.github.io/index.html/index.html';
+    function equipQrUrl(id, size){ return 'https://api.qrserver.com/v1/create-qr-code/?size='+size+'x'+size+'&margin=8&data='+encodeURIComponent(EQUIP_BASE+'?equip='+id); }
+    function equipStatusBadge(st){
+        st=(st||'ok').toLowerCase();
+        var map={ok:['#1f7a3d','#e7f6ec','Operational'], watch:['#854F0B','#fdf3e8','Watch'], down:['#c0264b','#fdeaea','Down']};
+        var m=map[st]||map.ok;
+        return '<span style="background:'+m[1]+';color:'+m[0]+';font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;white-space:nowrap;">'+m[2]+'</span>';
+    }
+    function openEquipment(){
+        document.getElementById('main-menu').style.display='none';
+        document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
+        document.getElementById('equipmentView').style.display='block';
+        window.scrollTo(0,0);
+        var sel=document.getElementById('equipStoreSel');
+        if(sel && !sel.getAttribute('data-init')){
+            var s=(currentUser&&(currentUser.store||currentUser.location))||'';
+            for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===s){ sel.selectedIndex=i; break; } }
+            sel.setAttribute('data-init','1');
+        }
+        loadEquipment();
+    }
+    function loadEquipment(){
+        var box=document.getElementById('equipList'); if(!box) return;
+        var admin=(typeof isAdminManager==='function' && isAdminManager());
+        var addBtn=document.getElementById('equipAddBtn'); if(addBtn) addBtn.style.display=admin?'block':'none';
+        var prtBtn=document.getElementById('equipPrintAllBtn'); if(prtBtn) prtBtn.style.display='block';
+        var store=document.getElementById('equipStoreSel').value;
+        box.innerHTML='<p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_equipment_list',{p_username:currentUser.username,p_password:pin,p_store:store}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; box.innerHTML='<p style="color:#c0264b;text-align:center;padding:20px;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                window._equipList=r.data||[];
+                renderEquipmentList();
+            }).catch(function(){ box.innerHTML='<p style="color:#c0264b;text-align:center;padding:20px;">Could not load equipment.</p>'; });
+        });
+    }
+    function renderEquipmentList(){
+        var box=document.getElementById('equipList'); if(!box) return;
+        var list=window._equipList||[];
+        var q=(document.getElementById('equipSearch').value||'').trim().toLowerCase();
+        if(q) list=list.filter(function(e){ return (e.name||'').toLowerCase().indexOf(q)>=0; });
+        if(!list.length){ box.innerHTML='<p style="text-align:center;color:#888;padding:24px;">No equipment'+(q?' matches that search':' on file for this store')+'.</p>'; return; }
+        var h='';
+        list.forEach(function(e){
+            h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.04);">'+
+               '<button onclick="openEquipmentDetail('+e.id+')" style="width:100%;text-align:left;background:none;border:none;padding:13px 15px;cursor:pointer;display:flex;align-items:center;gap:10px;">'+
+               '<b style="flex:1;font-size:14.5px;color:#26242b;">'+escapeHtml(e.name||'(unnamed)')+
+               (e.open_issue?'<span style="display:block;font-size:11.5px;font-weight:600;color:#c0264b;margin-top:2px;">&#9888;&#65039; '+escapeHtml(e.open_issue)+'</span>':'')+'</b>'+
+               equipStatusBadge(e.status)+'<span style="color:#aab;font-size:20px;">&rsaquo;</span></button></div>';
+        });
+        box.innerHTML=h;
+    }
+    function openEquipmentDetail(id){
+        document.getElementById('main-menu').style.display='none';
+        document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
+        document.getElementById('equipmentDetailView').style.display='block';
+        window.scrollTo(0,0);
+        var box=document.getElementById('equipDetailBody');
+        box.innerHTML='<p style="text-align:center;color:#888;padding:40px;">Loading&hellip;</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_equipment_get',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){
+                if(r.error){ box.innerHTML='<p style="color:#c0264b;text-align:center;padding:20px;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                if(!r.data){ box.innerHTML='<p style="text-align:center;color:#888;padding:24px;">Equipment not found.</p>'; return; }
+                window._equipCur=r.data; renderEquipmentDetail(r.data);
+            }).catch(function(){ box.innerHTML='<p style="color:#c0264b;text-align:center;padding:20px;">Could not load record.</p>'; });
+        });
+    }
+    function renderEquipmentDetail(e){
+        var box=document.getElementById('equipDetailBody');
+        var admin=(typeof isAdminManager==='function' && isAdminManager());
+        function row(lbl,val){ if(!val) return ''; return '<div style="padding:10px 0;border-bottom:1px solid #f0eef4;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#9a93a4;">'+escapeHtml(lbl)+'</div><div style="font-size:14px;color:#2c2933;line-height:1.55;white-space:pre-wrap;margin-top:2px;">'+escapeHtml(val)+'</div></div>'; }
+        var h='';
+        h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.05);">';
+        h+='<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;">'+
+           '<div style="flex:1;min-width:160px;"><h2 style="margin:0 0 4px;color:#854F0B;font-size:21px;">'+escapeHtml(e.name||'(unnamed)')+'</h2>'+
+           '<div style="font-size:12.5px;color:#8a8594;">'+escapeHtml(e.store||'')+'</div></div>'+equipStatusBadge(e.status)+'</div>';
+        if(e.open_issue){ h+='<div style="margin-top:12px;background:#fdeaea;border:1px solid #f6c9d2;border-radius:10px;padding:10px 12px;font-size:13.5px;color:#a01b3e;"><b>&#9888;&#65039; Open issue:</b> '+escapeHtml(e.open_issue)+'</div>'; }
+        // QR block
+        h+='<div style="text-align:center;margin:16px 0;padding:14px;background:#faf8f4;border:1px dashed #d8cfc2;border-radius:12px;">'+
+           '<img src="'+equipQrUrl(e.id,180)+'" alt="QR code" style="width:180px;height:180px;display:block;margin:0 auto;background:#fff;">'+
+           '<div style="font-size:11.5px;color:#8a8594;margin-top:8px;">Scan to open this record</div>'+
+           '<button onclick="printEquipmentQR()" style="margin-top:10px;background:#854F0B;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;">&#128424;&#65039; Print QR label</button></div>';
+        h+=row('Model',e.model)+row('Serial #',e.serial)+row('Vendor / service',e.vendor)+row('Warranty',e.warranty)+row('Manuals / links',e.manuals)+row('Troubleshooting',e.troubleshooting)+row('Notes / repair history',e.notes);
+        h+='<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">'+
+           '<button onclick="openForm(\'maintenanceView\')" style="flex:1;min-width:140px;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#128295; Report maintenance</button>';
+        if(admin){ h+='<button onclick="openEquipmentEdit('+e.id+')" style="flex:1;min-width:120px;background:#f3eede;color:#854F0B;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#9998; Edit</button>'+
+           '<button onclick="deleteEquipment('+e.id+')" style="background:#fdeaea;color:#c0264b;border:none;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;">Remove</button>'; }
+        h+='</div></div>';
+        box.innerHTML=h;
+    }
+    function printEquipmentQR(){
+        var e=window._equipCur; if(!e) return;
+        var w=window.open('','_blank');
+        if(!w){ alert('Please allow pop-ups to print the QR label.'); return; }
+        w.document.write('<html><head><title>QR - '+escapeHtml(e.name||'')+'</title></head><body style="font-family:Arial,sans-serif;text-align:center;padding:40px;">'+
+          '<img src="'+equipQrUrl(e.id,260)+'" style="width:260px;height:260px;"><h2 style="margin:14px 0 2px;">'+escapeHtml(e.name||'')+'</h2>'+
+          '<div style="color:#555;font-size:14px;">'+escapeHtml(e.store||'')+(e.model?' &middot; '+escapeHtml(e.model):'')+'</div>'+
+          '<div style="color:#888;font-size:12px;margin-top:6px;">Scan to open equipment record</div></body></html>');
+        w.document.close();
+        setTimeout(function(){ try{ w.focus(); w.print(); }catch(err){} }, 600);
+    }
+    function printStoreQRSheet(){
+        var list=window._equipList||[]; if(!list.length){ alert('No equipment to print for this store.'); return; }
+        var store=document.getElementById('equipStoreSel').value;
+        var w=window.open('','_blank');
+        if(!w){ alert('Please allow pop-ups to print the QR sheet.'); return; }
+        var cells='';
+        list.forEach(function(e){
+            cells+='<div style="display:inline-block;width:30%;text-align:center;margin:1.5%;vertical-align:top;page-break-inside:avoid;">'+
+              '<img src="'+equipQrUrl(e.id,200)+'" style="width:150px;height:150px;"><div style="font-weight:bold;font-size:13px;margin-top:4px;">'+escapeHtml(e.name||'')+'</div>'+
+              '<div style="font-size:11px;color:#777;">'+escapeHtml(store)+'</div></div>';
+        });
+        w.document.write('<html><head><title>QR codes - '+escapeHtml(store)+'</title></head><body style="font-family:Arial,sans-serif;padding:20px;">'+
+          '<h2 style="text-align:center;">'+escapeHtml(store)+' &mdash; Equipment QR codes</h2>'+cells+'</body></html>');
+        w.document.close();
+        setTimeout(function(){ try{ w.focus(); w.print(); }catch(err){} }, 900);
+    }
+    function openEquipmentEdit(id){
+        var e=id?(window._equipCur&&window._equipCur.id===id?window._equipCur:(window._equipList||[]).filter(function(x){return x.id===id;})[0]):null;
+        if(id && (!e || e.id!==id)){
+            // need full record; fetch then open
+            withPin(function(pin){
+                supabaseClient.rpc('app_equipment_get',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){
+                    if(r.data){ window._equipCur=r.data; fillEquipmentEdit(r.data); }
+                });
+            });
+            return;
+        }
+        fillEquipmentEdit(e);
+    }
+    function fillEquipmentEdit(e){
+        document.getElementById('equipEditId').value = e?e.id:'';
+        document.getElementById('equipEditStore').value = e?(e.store||''):(document.getElementById('equipStoreSel').value||'Roadrunner');
+        document.getElementById('equipEditName').value = e?(e.name||''):'';
+        document.getElementById('equipEditModel').value = e?(e.model||''):'';
+        document.getElementById('equipEditSerial').value = e?(e.serial||''):'';
+        document.getElementById('equipEditVendor').value = e?(e.vendor||''):'';
+        document.getElementById('equipEditWarranty').value = e?(e.warranty||''):'';
+        document.getElementById('equipEditManuals').value = e?(e.manuals||''):'';
+        document.getElementById('equipEditTrouble').value = e?(e.troubleshooting||''):'';
+        document.getElementById('equipEditNotes').value = e?(e.notes||''):'';
+        document.getElementById('equipEditStatus').value = e?(e.status||'ok'):'ok';
+        document.getElementById('equipEditIssue').value = e?(e.open_issue||''):'';
+        document.getElementById('equipEditMsg').textContent='';
+        document.getElementById('equipEditTitleH').textContent = e?'Edit equipment':'Add equipment';
+        document.getElementById('equipDeleteBtn').style.display = e?'inline-block':'none';
+        document.getElementById('equipEditModal').style.display='flex';
+    }
+    function closeEquipmentEdit(){ document.getElementById('equipEditModal').style.display='none'; }
+    function saveEquipment(){
+        var id=document.getElementById('equipEditId').value;
+        var name=(document.getElementById('equipEditName').value||'').trim();
+        var msg=document.getElementById('equipEditMsg');
+        if(!name){ msg.style.color='#c0264b'; msg.textContent='Give the equipment a name.'; return; }
+        msg.style.color='#5b6472'; msg.textContent='Saving…';
+        var args={ p_username:currentUser.username, p_id:(id?parseInt(id,10):null),
+            p_store:document.getElementById('equipEditStore').value,
+            p_name:name,
+            p_model:document.getElementById('equipEditModel').value,
+            p_serial:document.getElementById('equipEditSerial').value,
+            p_vendor:document.getElementById('equipEditVendor').value,
+            p_warranty:document.getElementById('equipEditWarranty').value,
+            p_manuals:document.getElementById('equipEditManuals').value,
+            p_troubleshooting:document.getElementById('equipEditTrouble').value,
+            p_notes:document.getElementById('equipEditNotes').value,
+            p_status:document.getElementById('equipEditStatus').value,
+            p_open_issue:document.getElementById('equipEditIssue').value };
+        withPin(function(pin){
+            args.p_password=pin;
+            supabaseClient.rpc('app_equipment_save',args).then(function(r){
+                if(r.error){ msg.style.color='#c0264b'; msg.textContent='Error: '+r.error.message; return; }
+                closeEquipmentEdit();
+                var newId=r.data?(r.data.id||r.data):null;
+                loadEquipment();
+                if(newId && document.getElementById('equipmentDetailView').style.display==='block'){ openEquipmentDetail(parseInt(newId,10)); }
+            }).catch(function(){ msg.style.color='#c0264b'; msg.textContent='Could not save.'; });
+        });
+    }
+    function deleteEquipment(id){
+        if(!confirm('Remove this equipment record? (It will be archived, not permanently deleted.)')) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_equipment_delete',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){
+                if(r.error){ alert('Error: '+r.error.message); return; }
+                closeEquipmentEdit(); openEquipment();
+            });
+        });
+    }
+
     // ===== Emergency Mode (static, works offline) =====
     var EMERGENCY = [
       {icon:'⚡', title:'Power outage', steps:[
@@ -8162,6 +8388,46 @@
     <div style="display:flex;gap:10px;margin-top:12px;">
       <button onclick="closeTrainingEdit()" class="sched-btn" style="flex:1;">Cancel</button>
       <button onclick="saveTrainingModule()" class="sched-btn publish" style="flex:2;">Save module</button>
+    </div>
+  </div>
+</div>
+
+<div id="equipEditModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:560px;max-height:88vh;overflow-y:auto;">
+    <h3 id="equipEditTitleH" style="margin:0 0 12px;color:#854F0B;">Add equipment</h3>
+    <input type="hidden" id="equipEditId">
+    <label class="rm-lbl" for="equipEditStore">Store</label>
+    <select id="equipEditStore" class="rm-inp">
+      <option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option>
+    </select>
+    <label class="rm-lbl" for="equipEditName" style="margin-top:10px;">Equipment name</label>
+    <input id="equipEditName" type="text" class="rm-inp" placeholder="e.g. Custard machine #1" list="equipNames">
+    <datalist id="equipNames"><option value="Custard machine"></option><option value="Shake machine"></option><option value="Caliche machine"></option><option value="Microwave"></option><option value="Shake-mix dispenser"></option><option value="Steam table"></option><option value="Sandwich bar"></option><option value="Fruit unit"></option><option value="Candy unit"></option><option value="Syrup unit"></option><option value="Sauce warmer"></option><option value="Nacho-cheese dispenser"></option><option value="Lemon juicer"></option><option value="Waffle iron"></option></datalist>
+    <div style="display:flex;gap:10px;">
+      <div style="flex:1;"><label class="rm-lbl" for="equipEditModel" style="margin-top:10px;">Model</label><input id="equipEditModel" type="text" class="rm-inp" placeholder="Model #"></div>
+      <div style="flex:1;"><label class="rm-lbl" for="equipEditSerial" style="margin-top:10px;">Serial #</label><input id="equipEditSerial" type="text" class="rm-inp" placeholder="Serial"></div>
+    </div>
+    <label class="rm-lbl" for="equipEditStatus" style="margin-top:10px;">Status</label>
+    <select id="equipEditStatus" class="rm-inp">
+      <option value="ok">Operational</option><option value="watch">Watch (minor issue)</option><option value="down">Down (out of service)</option>
+    </select>
+    <label class="rm-lbl" for="equipEditIssue" style="margin-top:10px;">Current open issue (if any)</label>
+    <input id="equipEditIssue" type="text" class="rm-inp" placeholder="Leave blank if none">
+    <label class="rm-lbl" for="equipEditVendor" style="margin-top:10px;">Vendor / service contact</label>
+    <input id="equipEditVendor" type="text" class="rm-inp" placeholder="Company + phone">
+    <label class="rm-lbl" for="equipEditWarranty" style="margin-top:10px;">Warranty</label>
+    <input id="equipEditWarranty" type="text" class="rm-inp" placeholder="e.g. Expires 6/2027">
+    <label class="rm-lbl" for="equipEditManuals" style="margin-top:10px;">Manuals / links</label>
+    <textarea id="equipEditManuals" class="rm-inp" rows="2" placeholder="Paste manual or warranty links" style="resize:vertical;"></textarea>
+    <label class="rm-lbl" for="equipEditTrouble" style="margin-top:10px;">Troubleshooting tips</label>
+    <textarea id="equipEditTrouble" class="rm-inp" rows="3" placeholder="Common fixes / what to check first" style="resize:vertical;"></textarea>
+    <label class="rm-lbl" for="equipEditNotes" style="margin-top:10px;">Notes / repair history</label>
+    <textarea id="equipEditNotes" class="rm-inp" rows="3" placeholder="Past repairs, dates, downtime" style="resize:vertical;"></textarea>
+    <div id="equipEditMsg" style="font-size:12.5px;margin-top:8px;"></div>
+    <div style="display:flex;gap:10px;margin-top:12px;">
+      <button onclick="closeEquipmentEdit()" class="sched-btn" style="flex:1;">Cancel</button>
+      <button id="equipDeleteBtn" onclick="deleteEquipment(parseInt(document.getElementById('equipEditId').value,10))" class="sched-btn" style="flex:1;display:none;background:#fdeaea;color:#c0264b;">Remove</button>
+      <button onclick="saveEquipment()" class="sched-btn publish" style="flex:2;">Save</button>
     </div>
   </div>
 </div>
