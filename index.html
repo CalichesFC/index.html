@@ -686,6 +686,7 @@
                 <div class="qcard" onclick="openMessages()"><div class="ic">&#128172;</div><b>Messages</b><small>Team chat &amp; broadcasts</small></div>
                 <div class="qcard" onclick="openFormsLinks()"><div class="ic">&#128196;</div><b>Forms &amp; Documents</b><small>Payroll, HR &amp; hiring</small></div>
                 <div class="qcard" onclick="openTrainingPortal()"><div class="ic">&#128218;</div><b>Training &amp; Resources</b><small>Recipes, how-tos &amp; guides</small></div>
+                <div class="qcard" onclick="openHowTo()"><div class="ic">&#127881;</div><b>What&rsquo;s New</b><small>How to use the new features</small></div>
                 <div class="qcard" id="sectionsAdminCard" style="display:none;" onclick="switchMenuTab('management')"><div class="ic">&#9889;</div><b>Admin Dashboard</b><small>Metrics &amp; tools</small></div>
             </div>
         </div>
@@ -1995,6 +1996,61 @@
     </div>
 </div>
 
+<!-- WHAT'S NEW / HOW-TO MODAL -->
+<style>
+  .howto-sec{ border:1px solid #ececf2; border-radius:11px; padding:11px 13px; margin:10px 0; background:#fff; }
+  .howto-sec h3{ margin:0 0 5px; font-size:15px; color:#26242b; }
+  .howto-sec p{ margin:0 0 5px; font-size:13px; color:#5b6472; }
+  .howto-sec ol{ margin:4px 0 0; padding-left:20px; }
+  .howto-sec li{ font-size:13px; color:#33303a; line-height:1.5; margin-bottom:4px; }
+  body.newlook .howto-sec{ background:var(--surface)!important; border-color:var(--bd)!important; }
+  body.newlook .howto-sec h3{ color:var(--txt)!important; } body.newlook .howto-sec li{ color:var(--txt)!important; }
+</style>
+<div id="howtoModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:620px;max-height:88vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;gap:12px;margin:0 0 6px;">
+      <img src="scoopy-point.png" alt="Scoopy" style="height:42px;" onerror="this.style.display='none'">
+      <div><h2 style="margin:0;color:var(--caliches-pink);font-size:21px;">What&rsquo;s New &mdash; How to Use It</h2>
+      <p style="margin:2px 0 0;font-size:12.5px;color:#8a8594;">The new features built from Aaron&rsquo;s feedback &middot; June 2026</p></div>
+    </div>
+    <p style="font-size:13.5px;color:#33303a;line-height:1.55;margin:10px 0 4px;">Everything below is live in the app right now. Tap a section heading in the menu to find it. Here&rsquo;s what each one does and exactly how to use it.</p>
+
+    <div class="howto-sec"><h3>&#127881; Recognition &amp; Shout-Outs</h3>
+      <p><b>Where:</b> Home screen (the recognition card).</p>
+      <ol><li>Tap <b>&ldquo;Give a Shout-Out.&rdquo;</b></li><li>Pick a person (or a team/whole store), choose the type (shout-out, customer compliment, great work&hellip;), and write your message.</li><li>Submit. A manager approves it, then it appears on everyone&rsquo;s Home feed and the person gets a notification.</li><li><b>Managers:</b> tap the approvals button to approve or decline pending ones.</li></ol></div>
+
+    <div class="howto-sec"><h3>&#9989; Corrective Actions on Inspections</h3>
+      <p><b>Where:</b> Store Operations &rarr; Store Pop-In Inspection.</p>
+      <ol><li>Do the Pop-In as usual and submit.</li><li>Any item you scored <b>1 or 2</b> is collected into a Corrective Actions popup.</li><li>For each one, pick <b>who</b> fixes it, a <b>due date</b>, and whether a <b>photo</b> is required. Uncheck any item to skip it.</li><li>Save &mdash; each becomes a task automatically assigned to that person.</li></ol></div>
+
+    <div class="howto-sec"><h3>&#128680; Emergency Mode</h3>
+      <p><b>Where:</b> Red <b>&ldquo;Emergency Procedures&rdquo;</b> button on the Home screen.</p>
+      <ol><li>Tap a scenario (power outage, fire, robbery/threat, machine failure, water, food safety&hellip;).</li><li>Follow the short step-by-step checklist. It works even with no internet.</li><li><b>Still to do:</b> management fills in the real phone numbers where you see <b>[____]</b>.</li></ol></div>
+
+    <div class="howto-sec"><h3>&#128218; Training &amp; Resources</h3>
+      <p><b>Where:</b> &ldquo;Training &amp; Resources&rdquo; shortcut on Home, or the All-Sections menu.</p>
+      <ol><li>Everyone can open it and read modules grouped by category (Recipes, How-To, etc.).</li><li><b>Admins:</b> tap <b>&ldquo;+ Add module,&rdquo;</b> or Edit/Remove on any module, to keep recipe books and lessons up to date.</li><li>Shortcut buttons jump to Mr. Scoopy (Q&amp;A) and the Forms library.</li></ol></div>
+
+    <div class="howto-sec"><h3>&#9881;&#65039; Equipment History + QR Codes</h3>
+      <p><b>Where:</b> Store Operations &rarr; Maintenance &amp; Damage &rarr; <b>Equipment History.</b></p>
+      <ol><li>Pick the store and search for a machine, then tap it to see the full record &mdash; model, serial, vendor, warranty, manuals, troubleshooting, repair history and current status.</li><li>Tap <b>&ldquo;Print QR label&rdquo;</b> for one machine, or <b>&ldquo;Print all QR codes&rdquo;</b> for the whole store, and stick them on the machines. <b>Scanning a code opens that machine&rsquo;s record.</b></li><li><b>Admins:</b> <b>&ldquo;+ Add equipment&rdquo;</b> creates a new record and its QR automatically; Edit/Remove are on each record.</li></ol></div>
+
+    <div class="howto-sec"><h3>&#128295; Maintenance &rarr; Equipment Link</h3>
+      <p><b>Where:</b> Store Operations &rarr; Required Maintenance.</p>
+      <ol><li>The form now has an <b>Equipment dropdown</b> &mdash; pick the machine from the registry instead of typing it (or choose &ldquo;Other&rdquo;).</li><li>From any equipment record, the <b>&ldquo;Report maintenance&rdquo;</b> button opens the form with that machine already selected.</li></ol></div>
+
+    <div class="howto-sec"><h3>&#128221; Pre-Shift Lineup &amp; Training Progress</h3>
+      <p><b>Where:</b> Scheduling &rarr; <b>Pre-Shift Lineup</b> (shift leads &amp; managers).</p>
+      <ol><li>Pick the store, date, and Day/Night, and type your <b>2 shift goals.</b></li><li>For each person on, choose their <b>position</b> (Shift Leader, Front/Drive Register, Machine, Scooper, Item Maker). Save.</li><li>Tap the <b>&#128200; icon</b> next to anyone to see their <b>training progression</b> &mdash; 7 days each: Training &rarr; Scooping &rarr; Register &rarr; Machine (about a month).</li><li>A <b>reminder notification</b> now goes out twice a day (~10am &amp; ~4pm) to set the lineup &mdash; turn on notifications in Settings to get it.</li></ol></div>
+
+    <div class="howto-sec"><h3>&#128722; Pick n&rsquo; Take Orders (via Cherry)</h3>
+      <p><b>Where:</b> In Cherry (the assistant), <b>Ask Cherry.</b></p>
+      <ol><li>Forward or paste a Pick n&rsquo; Take order email into Ask Cherry.</li><li>Review what she&rsquo;ll do and approve.</li><li>She creates <b>two tasks</b> on that store&rsquo;s board &mdash; a <b>&#127846; PREP</b> task and a <b>&#128722; PICKUP</b> task, both dated to the pickup.</li></ol></div>
+
+    <button onclick="closeHowTo()" class="save-btn" style="margin-top:16px;background:var(--caliches-blue);">Got it &mdash; let&rsquo;s go</button>
+  </div>
+</div>
+
 <!-- POSITION PROGRESS MODAL -->
 <div id="posProgressModal" class="modal-overlay">
   <div class="modal-box" style="text-align:left;max-width:460px;">
@@ -2210,7 +2266,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.22.2104';
+    const APP_VERSION = '2026.06.22.2133';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2557,6 +2613,7 @@
             applyWeeklyQuotes();
             fetchAnnouncement();
             setTimeout(showAppTour, 800);
+            setTimeout(maybeShowHowTo, 1300);
         }
         if (window._pendingEquip) { var _eq=window._pendingEquip; window._pendingEquip=null; setTimeout(function(){ if(typeof openEquipmentDetail==='function') openEquipmentDetail(parseInt(_eq,10)); }, 800); }
         resetTimer();
@@ -6471,6 +6528,18 @@
                 body.innerHTML=h;
             }).catch(function(){ document.getElementById('posProgressBody').innerHTML='<p style="color:#c0264b;text-align:center;padding:14px;">Could not load progress.</p>'; });
         });
+    }
+
+    // ----- What's New / How-To popup -----
+    var HOWTO_VERSION = '2026.06.22.feat'; // bump to re-show after future how-to updates
+    function openHowTo(){ var m=document.getElementById('howtoModal'); if(m) m.style.display='flex'; }
+    function closeHowTo(){ var m=document.getElementById('howtoModal'); if(m) m.style.display='none'; try{ localStorage.setItem('howtoSeen_'+HOWTO_VERSION,'1'); }catch(e){} }
+    function maybeShowHowTo(){
+        try{ if(localStorage.getItem('howtoSeen_'+HOWTO_VERSION)) return; }catch(e){}
+        var nm=((currentUser&&currentUser.name)||'').toLowerCase();
+        var isTarget = nm.indexOf('aaron')>=0 || nm.indexOf('issac')>=0 || nm.indexOf('isaac')>=0 ||
+                       (typeof isAdminManager==='function' && isAdminManager());
+        if(isTarget) openHowTo();
     }
 
     // ----- Maintenance Request: equipment picklist tie-in -----
