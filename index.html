@@ -668,6 +668,7 @@
             <div class="sec-title"><h2>Jump to</h2><span class="tag">Most used</span></div>
             <div class="quick" id="jumpToGrid"><p style="flex-basis:100%;text-align:center;color:#aab;font-size:12px;margin:0;">Loading your shortcuts&hellip;</p></div>
             <div class="sec-title"><h2>My Shortcuts</h2><span class="tag">Personal</span></div>
+            <button id="btn-emergency" class="menu-btn" style="background:#fff1f1;border:1.5px solid #f3b4b4;" onclick="openEmergency()"><span class="rchip" style="background:#c0264b;color:#fff;">Emergency</span><span class="tile-ic">&#128680;</span><b style="color:#a01b3c;">Emergency Procedures</b><small>Power, fire, robbery, food-safety &amp; more</small></button>
             <button id="btn-empHome" class="menu-btn" onclick="openEmployeeHome()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127968;</span><b>My Home</b><small>Your shifts, tasks &amp; updates</small></button>
             <button id="btn-formsDocs" class="menu-btn" onclick="openFormsLinks()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128196;</span><b>Forms &amp; Documents</b><small>Payroll, HR &amp; hiring forms</small></button>
             <button id="btn-report" class="menu-btn" onclick="openHarassReport()"><span class="rchip staff" style="background:#ede4fb;color:#5b3aa6;">Private</span><span class="tile-ic">&#128274;</span><b>Report a Concern</b><small>Harassment or misconduct &middot; confidential</small></button>
@@ -2149,7 +2150,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.22.1954';
+    const APP_VERSION = '2026.06.22.2005';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -6043,6 +6044,131 @@
         });
     }
 
+    // ===== Emergency Mode (static, works offline) =====
+    var EMERGENCY = [
+      {icon:'⚡', title:'Power outage', steps:[
+        'Stay calm; keep team and customers safe (use phone flashlights if needed).',
+        'Keep freezers and the dipping cabinet CLOSED to hold temperature as long as possible.',
+        'Write down the time the power went out (for food-safety records).',
+        'Call the manager on call: [____].',
+        'Report the outage to the utility company: [____].',
+        'If power is out more than [2 hours], check product temps and follow Food-Safety before serving.'
+      ]},
+      {icon:'📶', title:'Internet / Wi-Fi outage', steps:[
+        'Switch the register to offline/backup mode if available, or take orders on paper.',
+        'For card payments, see "Credit-card / payment failure".',
+        'Restart the modem/router (unplug 30 seconds, plug back in).',
+        'Call the manager on call: [____]; if still down, call the internet provider: [____].'
+      ]},
+      {icon:'💳', title:'Credit-card / payment failure', steps:[
+        'Let customers know cards are temporarily down; offer cash or hold the order.',
+        'Do NOT write down or key in card numbers by hand.',
+        'Try restarting the card terminal.',
+        'Call the manager on call: [____].'
+      ]},
+      {icon:'🌪️', title:'Severe weather', steps:[
+        'Move customers and staff away from windows; follow any official shelter guidance.',
+        'If told to evacuate, secure cash, lock up if safe, and leave.',
+        'Keep freezers closed if power is affected (see Power outage).',
+        'Call the manager on call: [____].'
+      ]},
+      {icon:'🔥', title:'Fire', steps:[
+        'Get everyone out immediately — people first.',
+        'Call 911.',
+        'Only use an extinguisher on a small, contained fire if trained and safe (PASS: Pull, Aim, Squeeze, Sweep).',
+        'Do NOT re-enter the building.',
+        'Once safe, call the manager on call: [____].'
+      ]},
+      {icon:'🚨', title:'Robbery / threatening person', steps:[
+        'Your safety comes first — do not resist. Stay calm and comply.',
+        'Do not chase or confront anyone.',
+        'Once it is safe, call 911.',
+        'Lock the doors if safe; keep everyone together; do not touch what the person handled.',
+        'Call the manager on call: [____]. Write down what you remember as soon as you can.'
+      ]},
+      {icon:'🍦', title:'Custard / shake machine failure', steps:[
+        'Stop using the machine; note the time and what happened.',
+        'Move product to a working freezer if needed to protect it.',
+        'File a Maintenance Request (Store Operations → Required Maintenance).',
+        'Call the manager on call: [____]; machine vendor: [____].'
+      ]},
+      {icon:'🚰', title:'Water interruption', steps:[
+        'Stop any task that needs running water (handwashing, dishes, certain prep).',
+        'Hand sanitizer is NOT a substitute for handwashing for food tasks.',
+        'If water safety is in question, stop serving affected items and call the manager on call: [____].',
+        'Report to the water utility: [____].'
+      ]},
+      {icon:'🦠', title:'Food-safety concern', steps:[
+        'Stop serving the affected product; set it aside and label it "DO NOT USE" (do not discard yet).',
+        'Check and record temperatures of the unit/product.',
+        'Note what happened, when, and which products are affected.',
+        'Call the manager on call: [____] before resuming.',
+        'Follow management direction on discarding or keeping product.'
+      ]}
+    ];
+    function openEmergency(){
+        document.getElementById('main-menu').style.display='none';
+        document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';});
+        document.getElementById('emergencyView').style.display='block'; window.scrollTo(0,0);
+        renderEmergency();
+    }
+    function renderEmergency(){
+        var box=document.getElementById('emergencyList'); if(!box) return;
+        box.innerHTML = EMERGENCY.map(function(s,idx){
+            return '<div style="margin-bottom:10px;border:1px solid #f0d0d0;border-radius:12px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.05);">'+
+                '<button onclick="toggleEmergency('+idx+')" style="width:100%;text-align:left;background:#fff;border:none;padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;">'+
+                '<span style="font-size:24px;">'+s.icon+'</span><b style="flex:1;font-size:15px;color:#a01b3c;">'+escapeHtml(s.title)+'</b><span style="color:#c0264b;font-size:20px;">&rsaquo;</span></button>'+
+                '<div id="emg'+idx+'" style="display:none;padding:0 16px 14px;"></div></div>';
+        }).join('');
+    }
+    function toggleEmergency(idx){
+        var d=document.getElementById('emg'+idx); if(!d) return;
+        if(d.style.display==='block'){ d.style.display='none'; return; }
+        document.querySelectorAll('[id^="emg"]').forEach(function(e){ if(/^emg\d+$/.test(e.id)) e.style.display='none'; });
+        var s=EMERGENCY[idx];
+        var h='<div style="background:#fff7ed;border:1px solid #fde4c8;border-radius:8px;padding:9px 11px;font-size:12px;color:#9a5a00;margin-bottom:10px;line-height:1.5;">⚠️ <b>Heads up before you rely on this:</b> this is a starter draft. Review it with management and fill in the real phone numbers (shown as [____]) before a real emergency.</div>';
+        h+='<ol style="margin:0;padding-left:20px;font-size:13.5px;color:#26242b;line-height:1.6;">'+s.steps.map(function(st){ return '<li style="margin-bottom:6px;">'+escapeHtml(st)+'</li>'; }).join('')+'</ol>';
+        d.innerHTML=h; d.style.display='block';
+    }
+
+    // ===== Corrective actions from failed inspection items =====
+    var _correctiveItems=[];
+    function openCorrectiveActions(items, store, date){
+        _correctiveItems = items||[]; if(!_correctiveItems.length) return;
+        window._corrStore=store||''; window._corrDate=date||'';
+        document.getElementById('correctiveSub').innerText = _correctiveItems.length+' item'+(_correctiveItems.length>1?'s':'')+' scored 1–2 at '+(store||'this store')+'. Assign a fix for each (or skip).';
+        var d=new Date(); d.setDate(d.getDate()+3); document.getElementById('correctiveDue').value=d.toISOString().slice(0,10);
+        document.getElementById('correctivePhoto').checked=true; document.getElementById('correctiveMsg').textContent='';
+        var sel=document.getElementById('correctiveAssignee');
+        function fill(arr){ sel.innerHTML='<option value="">Select…</option>'+arr.filter(function(e){return e.active!==false;}).map(function(e){ return '<option value="'+e.id+'">'+escapeHtml(e.name||('#'+e.id))+'</option>'; }).join(''); }
+        var list=(typeof rosterState!=='undefined'&&rosterState&&rosterState.list&&rosterState.list.length)?rosterState.list:null;
+        if(list) fill(list); else withPin(function(pin){ supabaseClient.rpc('app_roster_list',{p_username:currentUser.username,p_password:pin}).then(function(r){ if(!r.error&&r.data) fill(r.data.employees||r.data||[]); }); });
+        document.getElementById('correctiveList').innerHTML=_correctiveItems.map(function(it,idx){ return '<label style="display:flex;gap:8px;padding:7px 2px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#333;"><input type="checkbox" class="corr-item" data-idx="'+idx+'" checked style="margin-top:3px;"><span><b>'+escapeHtml(it.text)+'</b> <span style="color:#c0264b;">('+it.score+'/5)</span>'+(it.note?'<br><span style="color:#888;font-size:12px;">'+escapeHtml(it.note)+'</span>':'')+'</span></label>'; }).join('');
+        document.getElementById('correctiveModal').style.display='flex';
+    }
+    function closeCorrective(){ document.getElementById('correctiveModal').style.display='none'; }
+    function submitCorrective(){
+        var assignee=document.getElementById('correctiveAssignee').value;
+        var due=document.getElementById('correctiveDue').value;
+        var photo=document.getElementById('correctivePhoto').checked;
+        var msg=document.getElementById('correctiveMsg');
+        if(!assignee){ msg.style.color='#c0264b'; msg.textContent='Pick who should fix these.'; return; }
+        if(!due){ msg.style.color='#c0264b'; msg.textContent='Set a due date.'; return; }
+        var picks=[]; document.querySelectorAll('#correctiveList .corr-item:checked').forEach(function(c){ picks.push(_correctiveItems[parseInt(c.getAttribute('data-idx'),10)]); });
+        if(!picks.length){ closeCorrective(); return; }
+        msg.style.color='#5b6472'; msg.textContent='Creating tasks…';
+        withPin(function(pin){
+            var done=0, made=0, failed=0;
+            picks.forEach(function(it){
+                var details='Pop-In corrective action — '+(window._corrStore||'')+(window._corrDate?(' · '+window._corrDate):'')+'. Scored '+it.score+'/5.'+(it.note?(' Note: '+it.note):'');
+                supabaseClient.rpc('app_task_create',{p_username:currentUser.username,p_password:pin,p_title:'Fix: '+it.text,p_details:details,p_due:due,p_target_type:'individual',p_target_value:null,p_employee_ids:[parseInt(assignee,10)],p_completion_mode:'individual'}).then(function(r){
+                    done++; if(r.error){ failed++; } else { made++; if(photo && r.data){ supabaseClient.rpc('app_task_set_photo_req',{p_username:currentUser.username,p_password:pin,p_task_id:r.data,p_required:true}).catch(function(){}); } }
+                    if(done===picks.length){ msg.style.color=failed?'#c0264b':'#1c7c3a'; msg.textContent='✓ '+made+' fix task'+(made===1?'':'s')+' created'+(failed?(' ('+failed+' failed)'):'')+'.'; setTimeout(closeCorrective, 1300); }
+                }).catch(function(){ done++; failed++; if(done===picks.length){ msg.textContent='Created '+made+'.'; setTimeout(closeCorrective, 1300); } });
+            });
+        });
+    }
+
     function loadMyTasks(cardId){
         if(cardId) myTasksCardId=cardId;
         var c=document.getElementById(myTasksCardId); if(!c) return;
@@ -6720,6 +6846,10 @@
         if(!document.getElementById('loc').value||!document.getElementById('sldr').value||!document.getElementById('conductor').value) { return alert('Please fill out Location, Shift Leader, and Conducted By!'); }
         let answered = 0; for(let i=1;i<=totalQuestions;i++) { if(document.querySelector('input[name="q'+i+'"]:checked')) answered++; }
         if(answered<totalQuestions) { return alert('Please answer all questions. You have answered '+answered+' out of '+totalQuestions+'.'); }
+        // Collect failed items (scored 1-2) for the corrective-action step.
+        window._popInFailed = []; var _li=1;
+        questions.forEach(function(group){ group.q.forEach(function(text){ var sel=document.querySelector('input[name="q'+_li+'"]:checked'); var sc=sel?parseInt(sel.value):0; var nEl=document.getElementById('note'+_li); if(sc===1||sc===2){ window._popInFailed.push({ text:text, score:sc, note:(nEl?nEl.value:'') }); } _li++; }); });
+        window._popInStore = document.getElementById('loc').value; window._popInDate = document.getElementById('dt').value;
         btn.innerText = 'Generating PDF...'; btn.disabled = true;
         let pdfHtml = getBrandHeader('Store Pop-In Inspection','#4a68b1');
         pdfHtml += '<table style="width:100%;margin-bottom:20px;"><tr><td style="padding:8px;"><strong>Location:</strong> '+document.getElementById('loc').value+'</td><td style="padding:8px;"><strong>Date:</strong> '+document.getElementById('dt').value+'</td></tr><tr><td style="padding:8px;"><strong>Conducted By:</strong> '+document.getElementById('conductor').value+'</td><td style="padding:8px;"><strong>Shift Leader:</strong> '+document.getElementById('sldr').value+' ('+document.getElementById('shiftTime').value+')</td></tr></table>';
@@ -6736,6 +6866,7 @@
                 localStorage.removeItem('calichesDraft_popIn');
                 btn.disabled = false; btn.style.backgroundColor = 'var(--pass-green)'; btn.innerText = 'SENT! (TAP TO PRINT)';
                 btn.onclick = function(e) { e.preventDefault(); document.body.innerHTML = pdfHtml; setTimeout(() => { window.print(); location.reload(); }, 500); };
+                if(window._popInFailed && window._popInFailed.length && typeof openCorrectiveActions==='function'){ setTimeout(function(){ openCorrectiveActions(window._popInFailed, window._popInStore, window._popInDate); }, 500); }
             });
         })
         .catch(err => { console.error('[Pop-In] GAS error:', err); alert('Could not reach PDF server: '+err.message); btn.disabled=false; btn.innerText='SUBMIT POP-IN TO OFFICE'; });
@@ -7926,6 +8057,38 @@
 @keyframes calShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 @keyframes calPop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
 </style>
+<div id="emergencyView" class="app-view">
+  <div class="hb-head" style="background:linear-gradient(120deg,#a01b3c,#c0264b);">
+    <button class="hb-back" onclick="openMenu()">&#8249; Menu</button>
+    <div class="hb-ico">&#128680;</div>
+    <div><h2>Emergency</h2><div class="hb-sub">Quick steps for urgent situations</div></div>
+  </div>
+  <div class="container" style="max-width:680px;">
+    <p style="background:#fff7ed;border:1px solid #fde4c8;border-radius:10px;padding:10px 13px;font-size:12.5px;color:#9a5a00;line-height:1.5;margin:0 0 14px;">In a real emergency, <b>people come first</b>. If life or safety is at risk, call <b>911</b> first. These are quick reminders, not a substitute for training.</p>
+    <div id="emergencyList"></div>
+  </div>
+</div>
+
+<div id="correctiveModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left;max-width:520px;">
+    <h3 style="margin:0 0 6px;color:#8a1f1f;">&#9888;&#65039; Corrective Actions</h3>
+    <p id="correctiveSub" class="hb-sub" style="margin:0 0 12px;"></p>
+    <label class="rm-lbl" for="correctiveAssignee">Assign all to</label>
+    <select id="correctiveAssignee" class="rm-inp"><option value="">Select&hellip;</option></select>
+    <div style="display:flex;gap:10px;margin-top:10px;align-items:flex-end;">
+      <div style="flex:1;"><label class="rm-lbl" for="correctiveDue">Due date</label><input id="correctiveDue" type="date" class="rm-inp"></div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#5b6472;padding-bottom:10px;white-space:nowrap;"><input type="checkbox" id="correctivePhoto" checked> &#128247; Photo required</label>
+    </div>
+    <div style="font-weight:700;font-size:13px;color:#444;margin:12px 0 6px;">Items that failed (uncheck to skip)</div>
+    <div id="correctiveList" style="max-height:230px;overflow-y:auto;"></div>
+    <div id="correctiveMsg" style="font-size:12.5px;margin-top:8px;"></div>
+    <div style="display:flex;gap:10px;margin-top:12px;">
+      <button onclick="closeCorrective()" class="sched-btn" style="flex:1;">Skip for now</button>
+      <button onclick="submitCorrective()" class="sched-btn publish" style="flex:2;">Create fix tasks</button>
+    </div>
+  </div>
+</div>
+
 <div id="shoutoutModal" class="modal-overlay">
   <div class="modal-box" style="text-align:left;max-width:460px;">
     <h3 style="margin:0 0 14px;color:#7d1d4b;">Give a Shout-Out &#127881;</h3>
