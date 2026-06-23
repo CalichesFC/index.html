@@ -1896,9 +1896,10 @@
         <label class="form-label">Position:</label>
         <select id="shiftPosition" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;margin-bottom:12px;"></select>
         <div style="display:flex;gap:10px;">
-            <div style="flex:1;"><label class="form-label">Start:</label><input type="time" id="shiftStart" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;"></div>
-            <div style="flex:1;"><label class="form-label">End:</label><input type="time" id="shiftEnd" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;"></div>
+            <div style="flex:1;"><label class="form-label">Start:</label><input type="time" id="shiftStart" oninput="schedValidateShift()" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;"></div>
+            <div style="flex:1;"><label class="form-label">End:</label><input type="time" id="shiftEnd" oninput="schedValidateShift()" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;"></div>
         </div>
+        <div id="shiftValMsg" style="display:none;font-size:12.5px;margin-top:8px;"></div>
         <label class="form-label" style="margin-top:12px;">Note (optional):</label>
         <input type="text" id="shiftNote" placeholder="e.g., AM duties, register" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;">
         <div style="display:flex;gap:8px;margin-top:18px;">
@@ -2272,7 +2273,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.22.2250';
+    const APP_VERSION = '2026.06.22.2310';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3621,7 +3622,7 @@
             const txt = hbTextOn(col);
             const lblTxt = (p ? p.name : '') + (s.note ? (' · ' + s.note) : '');
             const empArg = (s.employee_id != null ? s.employee_id : 'null');
-            return '<div class="sched-chip'+(conflict?' sched-chip-conflict':'')+'" tabindex="0" role="button" style="background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+(s.start_time||'')+'-'+(s.end_time||'')+'<br>'+escapeHtml(lblTxt)+(conflict?' &#9888;':'')+(s.published?'':' *')+'</div>';
+            return '<div class="sched-chip'+(conflict?' sched-chip-conflict':'')+'" data-shiftid="'+s.id+'" tabindex="0" role="button" style="background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+(s.start_time||'')+'-'+(s.end_time||'')+'<br>'+escapeHtml(lblTxt)+(conflict?' &#9888;':'')+(s.published?'':' *')+'</div>';
         };
         const hbTime = t => { if(!t) return ''; const p=String(t).split(':'); let h=+p[0]||0; const m=+p[1]||0; const ap=h<12?'a':'p'; let hh=h%12; if(hh===0) hh=12; return hh+(m?(':'+String(m).padStart(2,'0')):'')+ap; };
         const initialsOf = nm => { const parts=String(nm||'').trim().split(/\s+/); return ((parts[0]||'')[0]||'').toUpperCase()+((parts[1]||'')[0]||'').toUpperCase() || '?'; };
@@ -3631,7 +3632,7 @@
             const txt = hbTextOn(col);
             const role = (p ? p.name : 'Shift') + (s.note ? (' · ' + s.note) : '');
             const empArg = (s.employee_id != null ? s.employee_id : 'null');
-            return '<div class="hbg-blk'+(conflict?' hbg-conf':'')+'" tabindex="0" role="button" style="background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+hbTime(s.start_time)+'&ndash;'+hbTime(s.end_time)+(s.published?'':' *')+'<br>'+escapeHtml(role)+(conflict?' &#9888;':'')+'</div>';
+            return '<div class="hbg-blk'+(conflict?' hbg-conf':'')+'" data-shiftid="'+s.id+'" tabindex="0" role="button" style="background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+hbTime(s.start_time)+'&ndash;'+hbTime(s.end_time)+(s.published?'':' *')+'<br>'+escapeHtml(role)+(conflict?' &#9888;':'')+'</div>';
         };
         const q = (document.getElementById('schedSearch') ? document.getElementById('schedSearch').value : '').toLowerCase().trim();
         let shownEmps = schedSortedEmps(emps);
@@ -3677,7 +3678,7 @@
             html += '<th>Hrs &middot; $</th></tr></thead><tbody>';
             let openN=0, openH=0; days.forEach(d=>{ const oc=byKey['null|'+schedFmt(d)]||[]; oc.forEach(s=>{ openN++; openH+=schedShiftHours(s); }); });
             html += '<tr class="hbg-band"><td class="hbg-e">&#10753; Open shifts ('+openN+') <span style="font-weight:400;color:#9aa7b4;">'+openH.toFixed(1)+'h</span></td>';
-            days.forEach(d => { const ds=schedFmt(d); const oc=byKey['null|'+ds]||[]; html+='<td class="hbg-cell" onclick="schedOpenModal(null,\''+ds+'\',null)" oncontextmenu="schedCtx(event,null,\''+ds+'\','+(oc[0]?oc[0].id:'null')+')">'; oc.forEach(s=>{html+=blockHtml(s,false);}); if(!oc.length)html+='<div class="hbg-add">+</div>'; html+='</td>'; });
+            days.forEach(d => { const ds=schedFmt(d); const oc=byKey['null|'+ds]||[]; html+='<td class="hbg-cell" data-emp="null" data-date="'+ds+'" onclick="schedOpenModal(null,\''+ds+'\',null)" oncontextmenu="schedCtx(event,null,\''+ds+'\','+(oc[0]?oc[0].id:'null')+')">'; oc.forEach(s=>{html+=blockHtml(s,false);}); if(!oc.length)html+='<div class="hbg-add">+</div>'; html+='</td>'; });
             html += '<td></td></tr>';
             html += '<tr class="hbg-band"><td class="hbg-e" colspan="9"><span style="color:#1f2a44;">Team members ('+emps.length+')</span>'+(elseEmpN?' &nbsp; <span style="font-weight:400;color:#9aa7b4;">&#128205; '+elseEmpN+' scheduled at '+elseStoreN+' other location'+(elseStoreN>1?'s':'')+'</span>':'')+'</td></tr>';
             if (!shownEmps.length) html += '<tr><td colspan="9" style="text-align:center;padding:20px;color:#888;">'+(emps.length?'No team members match your search.':'No employees on this store yet. Use Tools &rarr; Add employee.')+'</td></tr>';
@@ -3687,9 +3688,9 @@
                 days.forEach(d => {
                     const ds=schedFmt(d); const k=e.id+'|'+ds; const cell=byKey[k]||[]; const off=offMap[k]; const elsw=elseMap[k]||[]; const conflict=(cell.length>0&&elsw.length>0);
                     if (off && !cell.length) {
-                        html += '<td class="hbg-cell" oncontextmenu="schedCtx(event,'+e.id+",'"+ds+"',null)\"><div class=\"hbg-off\">&#128197; Time-off<br><small style=\"font-weight:400;\">"+escapeHtml(off)+'</small></div></td>';
+                        html += '<td class="hbg-cell" data-emp="'+e.id+'" data-date="'+ds+'" oncontextmenu="schedCtx(event,'+e.id+",'"+ds+"',null)\"><div class=\"hbg-off\">&#128197; Time-off<br><small style=\"font-weight:400;\">"+escapeHtml(off)+'</small></div></td>';
                     } else {
-                        html += '<td class="hbg-cell" onclick="schedOpenModal('+e.id+",'"+ds+"',null)\" oncontextmenu=\"schedCtx(event,"+e.id+",'"+ds+"',"+(cell[0]?cell[0].id:'null')+')">';
+                        html += '<td class="hbg-cell" data-emp="'+e.id+'" data-date="'+ds+'" onclick="schedOpenModal('+e.id+",'"+ds+"',null)\" oncontextmenu=\"schedCtx(event,"+e.id+",'"+ds+"',"+(cell[0]?cell[0].id:'null')+')">';
                         cell.forEach(s=>{html+=blockHtml(s,conflict);});
                         elsw.forEach(x=>{html+='<div class="hbg-loc">&#128205; '+escapeHtml(x.location)+'<br>'+hbTime(x.start_time)+'&ndash;'+hbTime(x.end_time)+'</div>';});
                         if(!cell.length&&!elsw.length)html+='<div class="hbg-add">+</div>';
@@ -3712,6 +3713,7 @@
         } else if (pb){ pb.disabled=false; pb.style.opacity=1; pb.style.cursor='pointer'; pb.title=''; }
         document.getElementById('schedGrid').innerHTML = html;
         schedInitDragReorder();
+        if(typeof schedInitShiftDrag==='function') schedInitShiftDrag();
     }
     function schedPickDay(i){ schedState.selectedDay=i; renderScheduleGrid(); }
     function schedCloseCtx(){ var m=document.getElementById('schedCtxMenu'); if(m) m.remove(); }
@@ -3730,7 +3732,7 @@
     }
     function schedCopyShift(id){ var s=(schedState.data.shifts||[]).find(x=>x.id===id); if(s){ schedState.clip={start_time:s.start_time,end_time:s.end_time,position_id:s.position_id,note:s.note}; } schedCloseCtx(); }
     function schedPasteShift(empId, ds){ var c=schedState.clip; if(!c) return; schedCloseCtx(); withPin(function(pin){ supabaseClient.rpc('app_sched_upsert_shift',{p_username:currentUser.username,p_password:pin,p_id:null,p_location:schedState.location,p_shift_date:ds,p_employee_id:empId,p_position_id:c.position_id||null,p_start:c.start_time,p_end:c.end_time,p_note:c.note||null}).then(function(r){ if(r.error){alert('Error: '+r.error.message);return;} fetchScheduleWeek(); }); }); }
-    function schedClearShift(id){ schedCloseCtx(); withPin(function(pin){ supabaseClient.rpc('app_sched_delete_shift',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){ if(r.error){alert('Error: '+r.error.message);return;} fetchScheduleWeek(); }); }); }
+    function schedClearShift(id){ schedCloseCtx(); var s=(schedState.data.shifts||[]).find(function(x){return x.id===id;}); withPin(function(pin){ supabaseClient.rpc('app_sched_delete_shift',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){ if(r.error){alert('Error: '+r.error.message);return;} fetchScheduleWeek(); if(s) showUndo('Shift cleared.', function(){ schedRecreateShift(s); }); }); }); }
     document.addEventListener('click', schedCloseCtx);
     window.addEventListener('resize', function(){ var v=document.getElementById('scheduleBuilderView'); if(v && v.style.display==='block' && schedState.mode==='mgr'){ clearTimeout(schedState._rt); schedState._rt=setTimeout(renderScheduleGrid, 200); } });
     function fetchMyShifts() {
@@ -3788,6 +3790,7 @@
         posSel.value = (s && s.position_id) ? String(s.position_id) : '';
         document.getElementById('shiftDeleteBtn').style.display = shiftId ? 'block' : 'none';
         document.getElementById('shiftModal').style.display = 'flex';
+        schedValidateShift();
     }
     function schedCloseModal(){ document.getElementById('shiftModal').style.display = 'none'; }
 
@@ -3805,12 +3808,91 @@
     }
     function schedDeleteShift() {
         const id = schedState.editing.shiftId; if (!id) return;
-        if (!confirm('Delete this shift?')) return;
+        const s = (schedState.data.shifts||[]).find(x => x.id === id);
         withPin(function(pin){
             supabaseClient.rpc('app_sched_delete_shift', { p_username: currentUser.username, p_password: pin, p_id: id })
-            .then(({ error }) => { if (error) { alert('Error: ' + error.message); return; } schedCloseModal(); fetchScheduleWeek(); });
+            .then(({ error }) => { if (error) { alert('Error: ' + error.message); return; } schedCloseModal(); fetchScheduleWeek(); if(s) showUndo('Shift deleted.', function(){ schedRecreateShift(s); }); });
         });
     }
+    // ---- Undo toast + shift move/copy/validate (Phase 1 ergonomics) ----
+    function showUndo(msg, undoFn){
+        var t=document.getElementById('undoToast');
+        if(!t){ t=document.createElement('div'); t.id='undoToast'; t.style.cssText='position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#1f2a44;color:#fff;border-radius:10px;padding:11px 16px;font-size:14px;z-index:4500;display:flex;align-items:center;gap:14px;box-shadow:0 6px 20px rgba(0,0,0,.3);max-width:92vw;'; document.body.appendChild(t); }
+        t.innerHTML='';
+        var span=document.createElement('span'); span.textContent=msg; t.appendChild(span);
+        if(undoFn){ var b=document.createElement('button'); b.textContent='Undo'; b.style.cssText='background:transparent;border:1px solid #fff;color:#fff;border-radius:7px;padding:4px 13px;font-size:13px;cursor:pointer;font-weight:700;'; b.onclick=function(){ clearTimeout(window._undoTimer); t.style.display='none'; undoFn(); }; t.appendChild(b); }
+        t.style.display='flex';
+        clearTimeout(window._undoTimer); window._undoTimer=setTimeout(function(){ if(t) t.style.display='none'; }, 6500);
+    }
+    function schedRecreateShift(s){ withPin(function(pin){ supabaseClient.rpc('app_sched_upsert_shift',{p_username:currentUser.username,p_password:pin,p_id:null,p_location:schedState.location,p_shift_date:s.shift_date,p_employee_id:s.employee_id,p_position_id:s.position_id||null,p_start:s.start_time,p_end:s.end_time,p_note:s.note||null}).then(function(){ fetchScheduleWeek(); }); }); }
+    function schedMoveShiftTo(shiftId, newEmpId, newDate, copy){
+        var s=(schedState.data.shifts||[]).find(function(x){return x.id===shiftId;}); if(!s) return;
+        var origEmp=s.employee_id, origDate=s.shift_date;
+        withPin(function(pin){
+            supabaseClient.rpc('app_sched_upsert_shift',{ p_username:currentUser.username, p_password:pin, p_id:(copy?null:shiftId), p_location:schedState.location, p_shift_date:newDate, p_employee_id:newEmpId, p_position_id:s.position_id||null, p_start:s.start_time, p_end:s.end_time, p_note:s.note||null })
+            .then(function(r){ if(r.error){ alert('Error: '+r.error.message); return; }
+                fetchScheduleWeek();
+                if(copy){ var nid=r.data&&(r.data.id||(Array.isArray(r.data)?(r.data[0]&&r.data[0].id):null)); showUndo('Shift copied.', nid?function(){ schedClearShift(nid); }:null); }
+                else { showUndo('Shift moved.', function(){ schedMoveShiftTo(shiftId, origEmp, origDate, false); }); }
+            });
+        });
+    }
+    function schedValidateShift(){
+        var st=(document.getElementById('shiftStart')||{}).value, en=(document.getElementById('shiftEnd')||{}).value;
+        var m=document.getElementById('shiftValMsg'); if(!m) return;
+        if(!st||!en){ m.style.display='none'; return; }
+        var a=st.split(':').map(Number), b=en.split(':').map(Number);
+        var mins=(b[0]*60+b[1])-(a[0]*60+a[1]); var overnight=false;
+        if(mins<=0){ mins+=24*60; overnight=true; }
+        m.style.display='block';
+        if(overnight){ m.style.color='#854F0B'; m.innerHTML='&#9203; Ends before it starts &mdash; reads as an overnight shift ('+(mins/60).toFixed(1)+'h). Fix the times if that’s not intended.'; }
+        else { m.style.color='#1f7a3d'; m.innerHTML='&#10003; '+(mins/60).toFixed(1)+'h shift'; }
+    }
+    // Drag a shift block to another cell to MOVE it (hold Ctrl/Cmd to COPY) — mouse only.
+    (function(){
+        var startX=0,startY=0,shiftId=null,dragging=false,ghost=null,pending=false,capId=null;
+        function gridEl(){ return document.getElementById('schedGrid'); }
+        function onDown(e){
+            if(e.pointerType && e.pointerType!=='mouse') return;
+            var blk=e.target.closest ? e.target.closest('[data-shiftid]') : null; if(!blk) return;
+            shiftId=parseInt(blk.getAttribute('data-shiftid'),10); if(isNaN(shiftId)){ shiftId=null; return; }
+            startX=e.clientX; startY=e.clientY; pending=true; dragging=false;
+        }
+        function onMove(e){
+            if(!pending) return;
+            if(!dragging){ if(Math.abs(e.clientX-startX)<6 && Math.abs(e.clientY-startY)<6) return;
+                dragging=true; document.body.style.userSelect='none';
+                try{ capId=e.pointerId; gridEl().setPointerCapture(capId); }catch(_){}
+                ghost=document.createElement('div'); ghost.style.cssText='position:fixed;z-index:5000;pointer-events:none;background:#185FA5;color:#fff;font-size:12px;font-weight:700;padding:5px 10px;border-radius:7px;box-shadow:0 4px 12px rgba(0,0,0,.3);'; document.body.appendChild(ghost);
+            }
+            e.preventDefault();
+            if(ghost){ ghost.style.left=(e.clientX+12)+'px'; ghost.style.top=(e.clientY+12)+'px'; ghost.textContent=(e.ctrlKey||e.metaKey)?'Copy shift here':'Move shift here'; }
+        }
+        function onUp(e){
+            if(!pending) return; pending=false;
+            try{ if(capId!=null) gridEl().releasePointerCapture(capId); }catch(_){}
+            capId=null;
+            if(!dragging){ return; }
+            dragging=false; document.body.style.userSelect='';
+            if(ghost){ ghost.remove(); ghost=null; }
+            window._schedDragJustHappened=true; setTimeout(function(){ window._schedDragJustHappened=false; }, 60);
+            var tgt=document.elementFromPoint(e.clientX,e.clientY);
+            var cell=tgt && tgt.closest ? tgt.closest('[data-date]') : null; if(!cell) return;
+            var ds=cell.getAttribute('data-date'); var empRaw=cell.getAttribute('data-emp');
+            var emp=(empRaw==='null'||empRaw==null||empRaw==='')?null:parseInt(empRaw,10);
+            var s=(schedState.data.shifts||[]).find(function(x){return x.id===shiftId;}); if(!s) return;
+            if(s.employee_id===emp && s.shift_date===ds) return;
+            schedMoveShiftTo(shiftId, emp, ds, (e.ctrlKey||e.metaKey));
+        }
+        window.schedInitShiftDrag=function(){
+            var g=gridEl(); if(!g||g.getAttribute('data-shiftdrag')) return; g.setAttribute('data-shiftdrag','1');
+            g.addEventListener('pointerdown', onDown);
+            g.addEventListener('pointermove', onMove);
+            g.addEventListener('pointerup', onUp);
+            g.addEventListener('pointercancel', onUp);
+            g.addEventListener('click', function(e){ if(window._schedDragJustHappened){ e.preventDefault(); e.stopPropagation(); } }, true);
+        };
+    })();
     function schedPublish() {
         if (!confirm('Publish this week’s schedule for ' + schedState.location + '? Staff with shifts will be notified.')) return;
         const ws = schedFmt(schedState.weekStart);
