@@ -2354,7 +2354,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.24.1351';
+    const APP_VERSION = '2026.06.24.1400';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -5261,6 +5261,9 @@
                     html += '<button class="status-btn' + (status === s ? ' active' : '') + '" style="' + (status === s ? ('background:' + statusColor + ';color:white;') : '') + '" onclick="updateMaintStatus(' + row.id + ',\'' + s + '\')">' + s + '</button>';
                 });
                 html += '</div>';
+                if ((row.ReporterName||'').indexOf('Preventive Maintenance') >= 0) {
+                    html += '<div style="margin-bottom:10px;"><button class="update-action-btn" style="background:var(--pass-green,#1f7a3d);color:#fff;font-weight:700;" onclick="maintPmDone(' + row.id + ')">&#9989; Mark PM done &amp; roll next service date</button><div style="font-size:11px;color:#888;margin-top:3px;">Auto-created from the equipment&rsquo;s preventive-maintenance schedule.</div></div>';
+                }
                 if (isManager) {
                     html += '<div style="font-size:12px;margin-bottom:10px;"><label style="font-weight:bold;color:#555;display:block;margin-bottom:4px;">Deadline:</label><input type="date" value="' + (row.deadline || '') + '" onchange="updateMaintDeadline(' + row.id + ',this.value)" style="padding:6px;border-radius:6px;border:1px solid #ccc;font-size:13px;"></div>';
                 } else if (row.deadline) {
@@ -5283,6 +5286,16 @@
         }, function() { container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">PIN required to load maintenance board.</p>'; });
     }
 
+    function maintPmDone(id){
+        if(!confirm('Mark this preventive-maintenance task done?\n\nIt logs the service and rolls the next due date forward.')) return;
+        var notes=''; var ta=document.getElementById('technotes-'+id); if(ta) notes=ta.value;
+        withPin(function(pin){
+            supabaseClient.rpc('app_pm_ticket_done',{p_username:currentUser.username,p_password:pin,p_ticket_id:id,p_notes:notes||null}).then(function(r){
+                if(r.error){ alert('Error: '+r.error.message); return; }
+                fetchMaintenanceBoard();
+            }).catch(function(){ alert('Could not complete the task.'); });
+        });
+    }
     function updateMaintStatus(id, status) {
         withPin(function(pin) {
             supabaseClient.rpc('app_maintboard_update_status', { p_username: currentUser.username, p_password: pin, p_id: id, p_status: status })
@@ -6947,6 +6960,7 @@
         withPin(function(pin){
             supabaseClient.rpc('app_pm_complete',{p_username:currentUser.username,p_password:pin,p_id:pmId,p_done_on:null,p_notes:notes||null}).then(function(r){
                 if(r.error){ alert('Could not log: '+r.error.message); return; }
+                supabaseClient.rpc('app_pm_close_tickets',{p_username:currentUser.username,p_password:pin,p_pm_id:pmId}).catch(function(){});
                 loadPmFor(equipId);
             }).catch(function(){ alert('Could not log the service.'); });
         });
