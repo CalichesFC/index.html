@@ -736,6 +736,7 @@
             <div id="maintPaneReport" class="sched-pane">
                 <button id="btn-maintenance" class="menu-btn" onclick="openForm('maintenanceView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128295;</span><b>Required Maintenance</b><small>Flag a repair</small></button>
                 <button id="btn-equipment" class="menu-btn" onclick="openEquipment()"><span class="rchip staff">Staff</span><span class="tile-ic">&#9881;</span><b>Equipment History</b><small>Records, QR codes &amp; repairs</small></button>
+                <button id="btn-contacts" class="menu-btn" onclick="openContactsDir()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128222;</span><b>Important Contacts</b><small>Vendors, repairs, utilities &amp; escalation</small></button>
                 <button id="btn-damage" class="menu-btn" onclick="openForm('damageView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#9888;</span><b>Vehicle / Trailer Damage</b><small>Report damage with photos</small></button>
             </div>
             <div id="maintPaneBoard" class="sched-pane" style="display:none;">
@@ -2355,7 +2356,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.24.1411';
+    const APP_VERSION = '2026.06.24.1639';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -7745,11 +7746,137 @@
             }).catch(function(){ alert('Could not save.'); loadNotifPrefs(); });
         });
     }
+    var CONTACT_CATS=['Emergency & Safety','Repairs & Maintenance','Store Services & Vendors',"Caliche's Internal Contacts"];
+    var CONTACT_LOCS=['Companywide','Roadrunner','Valley','Lenox','Alamogordo','Roswell','Warehouse'];
+    function openContactsDir(){
+        document.getElementById('main-menu').style.display='none';
+        document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';});
+        document.getElementById('contactsDirView').style.display='block'; window.scrollTo(0,0);
+        var sel=document.getElementById('cdStore');
+        if(sel && !sel.getAttribute('data-init')){ var s=(currentUser&&(currentUser.store||currentUser.location))||''; for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===s){ sel.selectedIndex=i; break; } } sel.setAttribute('data-init','1'); }
+        loadContactsDir();
+    }
+    function loadContactsDir(){
+        var box=document.getElementById('cdList'); if(!box) return;
+        box.innerHTML='<p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p>';
+        var store=document.getElementById('cdStore').value;
+        withPin(function(pin){
+            supabaseClient.rpc('app_contacts_list',{p_username:currentUser.username,p_password:pin,p_location:store}).then(function(r){
+                if(r.error){ box.innerHTML='<p style="color:#c0264b;text-align:center;padding:20px;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                window._cdList=r.data||[]; renderContactsDir();
+            }).catch(function(){ box.innerHTML='<p style="color:#c0264b;text-align:center;">Could not load.</p>'; });
+        });
+    }
+    function cdDigits(s){ return String(s||'').replace(/[^0-9+]/g,''); }
+    function priBadge(p){
+        var m={emergency:['#fdeaea','#a01b3e','After-hours / Emergency'],preferred:['#e8f5ec','#1b7a3d','Preferred'],backup:['#eef0f3','#6b7686','Backup']};
+        var c=m[(p||'preferred')]||m.preferred;
+        return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:99px;white-space:nowrap;">'+c[2]+'</span>';
+    }
+    function contactCardHtml(c){
+        var acts='';
+        if(c.phone) acts+='<a href="tel:'+cdDigits(c.phone)+'" style="flex:1;min-width:70px;text-align:center;background:#1f7a3d;color:#fff;border-radius:8px;padding:8px;font-size:12.5px;font-weight:700;text-decoration:none;">&#128222; Call</a>';
+        if(c.after_hours) acts+='<a href="tel:'+cdDigits(c.after_hours)+'" style="flex:1;min-width:70px;text-align:center;background:#9a5b00;color:#fff;border-radius:8px;padding:8px;font-size:12.5px;font-weight:700;text-decoration:none;">&#127769; After-hrs</a>';
+        if(c.text_number) acts+='<a href="sms:'+cdDigits(c.text_number)+'" style="flex:1;min-width:60px;text-align:center;background:#eef3fb;color:#185FA5;border-radius:8px;padding:8px;font-size:12.5px;font-weight:700;text-decoration:none;">&#128172; Text</a>';
+        if(c.email) acts+='<a href="mailto:'+escapeHtml(c.email)+'" style="flex:1;min-width:60px;text-align:center;background:#eef3fb;color:#185FA5;border-radius:8px;padding:8px;font-size:12.5px;font-weight:700;text-decoration:none;">&#9993; Email</a>';
+        var locs=(c.locations&&c.locations.length)?(' &middot; '+escapeHtml((c.locations||[]).join(', '))):'';
+        return '<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:12px 14px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.04);">'+
+            '<div style="display:flex;align-items:flex-start;gap:8px;"><b style="flex:1;font-size:14.5px;color:#26242b;">'+escapeHtml(c.name)+'</b>'+priBadge(c.priority)+'</div>'+
+            ((c.service_type||locs)?'<div style="font-size:12px;color:#8a8594;margin-top:2px;">'+escapeHtml(c.service_type||'')+locs+'</div>':'')+
+            (c.contact_person?'<div style="font-size:12.5px;color:#5b6472;margin-top:3px;">Ask for: '+escapeHtml(c.contact_person)+(c.hours?' &middot; '+escapeHtml(c.hours):'')+'</div>':'')+
+            (c.instructions?'<div style="font-size:12.5px;color:#33303a;margin-top:5px;background:#f7f8fb;border-radius:8px;padding:7px 9px;">'+escapeHtml(c.instructions)+'</div>':'')+
+            (c.account_number?'<div style="font-size:11.5px;color:#8a8594;margin-top:4px;">Acct #: '+escapeHtml(c.account_number)+'</div>':'')+
+            (acts?'<div style="display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;">'+acts+'</div>':'')+
+            (c.last_verified?'<div style="font-size:10.5px;color:#aab;margin-top:6px;">Last verified: '+escapeHtml(c.last_verified)+'</div>':'')+
+            '</div>';
+    }
+    function renderContactsDir(){
+        var box=document.getElementById('cdList'); if(!box) return;
+        var list=window._cdList||[];
+        var q=(document.getElementById('cdSearch').value||'').trim().toLowerCase();
+        if(q) list=list.filter(function(c){ return (c.name+' '+(c.category||'')+' '+(c.service_type||'')+' '+(c.instructions||'')+' '+(c.contact_person||'')+' '+((c.locations||[]).join(' '))).toLowerCase().indexOf(q)>=0; });
+        if(!list.length){ box.innerHTML='<p style="text-align:center;color:#888;padding:24px;">No contacts'+(q?' match that search':' for this store yet')+'.</p>'; return; }
+        var h='';
+        CONTACT_CATS.forEach(function(cat){
+            var inc=list.filter(function(c){return (c.category||'')===cat;});
+            if(!inc.length) return;
+            h+='<div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#8a8594;margin:14px 0 8px;">'+escapeHtml(cat)+'</div>';
+            inc.forEach(function(c){ h+=contactCardHtml(c); });
+        });
+        box.innerHTML=h;
+    }
+    function loadImportantContacts(){
+        var box=document.getElementById('admContactsDirBox'); if(!box) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_contacts_admin_list',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ box.innerHTML='<p style="color:#c0264b;font-size:13px;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                window._admContacts=r.data||[]; renderAdminContactsDir();
+            }).catch(function(){ box.innerHTML='<p style="color:#c0264b;font-size:13px;">Could not load.</p>'; });
+        });
+    }
+    function renderAdminContactsDir(){
+        var box=document.getElementById('admContactsDirBox'); if(!box) return;
+        var list=window._admContacts||[];
+        if(!list.length){ box.innerHTML='<p style="color:var(--txt2,#8a8594);font-size:13px;">No contacts yet. Tap + Add to create the first one.</p>'; return; }
+        var h='';
+        list.forEach(function(c){
+            h+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd,#f0eef4);'+(c.active?'':'opacity:.55;')+'"><div style="flex:1;min-width:0;"><b style="font-size:13.5px;color:var(--txt,#26242b);">'+escapeHtml(c.name)+'</b>'+(c.active?'':' <small style="color:#c0264b;">(archived)</small>')+
+               '<div style="font-size:11.5px;color:var(--txt2,#8a8594);">'+escapeHtml(c.category||'')+(c.service_type?' &middot; '+escapeHtml(c.service_type):'')+'</div></div>'+
+               '<button onclick="openContactEdit('+c.id+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;">Edit</button>'+
+               '<button onclick="archiveContact('+c.id+','+(c.active?'false':'true')+')" style="background:'+(c.active?'#fdeaea':'#e8f5ec')+';color:'+(c.active?'#c0264b':'#1b7a3d')+';border:none;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;">'+(c.active?'Archive':'Restore')+'</button></div>';
+        });
+        box.innerHTML=h;
+    }
+    function openContactEdit(id){
+        var c=id?(window._admContacts||[]).filter(function(x){return x.id===id;})[0]:null; window._contactEditId=id||null;
+        var ov=certOverlay('contactEditModal');
+        var prios=[['emergency','After-hours / Emergency'],['preferred','Preferred'],['backup','Backup']];
+        var curLocs=(c&&c.locations)||[];
+        ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:480px;width:100%;margin-top:20px;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.3);max-height:90vh;overflow:auto;">'+
+          '<div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:15px;color:#1f2a44;">'+(id?'Edit':'Add')+' contact</b><button data-x style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">&times;</button></div>'+
+          '<label class="rm-lbl">Company / contact name *</label><input id="cName" class="rm-inp" value="'+escapeHtml(c?(c.name||''):'')+'">'+
+          '<label class="rm-lbl" style="margin-top:8px;">Category</label><select id="cCat" class="rm-inp">'+CONTACT_CATS.map(function(x){return '<option'+((c&&c.category===x)?' selected':'')+'>'+escapeHtml(x)+'</option>';}).join('')+'</select>'+
+          '<label class="rm-lbl" style="margin-top:8px;">Service type (e.g. Refrigeration, Plumbing)</label><input id="cType" class="rm-inp" value="'+escapeHtml(c?(c.service_type||''):'')+'">'+
+          '<label class="rm-lbl" style="margin-top:8px;">Locations served</label><div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:4px;">'+CONTACT_LOCS.map(function(L){ return '<label style="font-size:12.5px;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="cLoc" value="'+escapeHtml(L)+'"'+(curLocs.indexOf(L)>=0?' checked':'')+'> '+escapeHtml(L)+'</label>'; }).join('')+'</div>'+
+          '<div style="display:flex;gap:8px;margin-top:8px;"><div style="flex:1;"><label class="rm-lbl">Primary phone</label><input id="cPhone" class="rm-inp" value="'+escapeHtml(c?(c.phone||''):'')+'"></div><div style="flex:1;"><label class="rm-lbl">After-hours phone</label><input id="cAfter" class="rm-inp" value="'+escapeHtml(c?(c.after_hours||''):'')+'"></div></div>'+
+          '<div style="display:flex;gap:8px;margin-top:8px;"><div style="flex:1;"><label class="rm-lbl">Text number</label><input id="cText" class="rm-inp" value="'+escapeHtml(c?(c.text_number||''):'')+'"></div><div style="flex:1;"><label class="rm-lbl">Email</label><input id="cEmail" class="rm-inp" value="'+escapeHtml(c?(c.email||''):'')+'"></div></div>'+
+          '<div style="display:flex;gap:8px;margin-top:8px;"><div style="flex:1;"><label class="rm-lbl">Ask for (person)</label><input id="cPerson" class="rm-inp" value="'+escapeHtml(c?(c.contact_person||''):'')+'"></div><div style="flex:1;"><label class="rm-lbl">Hours</label><input id="cHours" class="rm-inp" value="'+escapeHtml(c?(c.hours||''):'')+'"></div></div>'+
+          '<label class="rm-lbl" style="margin-top:8px;">Priority</label><select id="cPrio" class="rm-inp">'+prios.map(function(p){return '<option value="'+p[0]+'"'+((c&&c.priority===p[0])?' selected':'')+'>'+p[1]+'</option>';}).join('')+'</select>'+
+          '<label class="rm-lbl" style="margin-top:8px;">Instructions (what to check / report before calling)</label><textarea id="cInstr" class="rm-inp" rows="2">'+escapeHtml(c?(c.instructions||''):'')+'</textarea>'+
+          '<div style="display:flex;gap:8px;margin-top:8px;"><div style="flex:1;"><label class="rm-lbl">Account # (managers only)</label><input id="cAcct" class="rm-inp" value="'+escapeHtml(c?(c.account_number||''):'')+'"></div><div style="flex:1;"><label class="rm-lbl">Last verified</label><input id="cVer" type="date" class="rm-inp" value="'+escapeHtml(c?(c.last_verified||''):'')+'"></div></div>'+
+          '<div id="cMsg" style="font-size:12px;margin-top:8px;"></div>'+
+          '<div style="display:flex;gap:8px;margin-top:12px;"><button data-x style="flex:1;background:#eef0f3;color:#444;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="saveContact()" style="flex:2;background:var(--pass-green,#1f7a3d);color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;">Save</button></div></div>';
+        ov.querySelectorAll('[data-x]').forEach(function(b){ b.onclick=function(){ ov.style.display='none'; }; });
+    }
+    function saveContact(){
+        var name=(document.getElementById('cName').value||'').trim(); var msg=document.getElementById('cMsg');
+        if(!name){ msg.style.color='#c0264b'; msg.textContent='Name is required.'; return; }
+        var locs=[].slice.call(document.querySelectorAll('.cLoc')).filter(function(x){return x.checked;}).map(function(x){return x.value;});
+        msg.style.color='#6b7686'; msg.textContent='Saving...';
+        withPin(function(pin){
+            supabaseClient.rpc('app_contact_save',{p_username:currentUser.username,p_password:pin,p_id:window._contactEditId,p_name:name,
+              p_category:document.getElementById('cCat').value,p_service_type:document.getElementById('cType').value,p_locations:locs,
+              p_phone:document.getElementById('cPhone').value,p_after_hours:document.getElementById('cAfter').value,p_text:document.getElementById('cText').value,
+              p_email:document.getElementById('cEmail').value,p_contact_person:document.getElementById('cPerson').value,p_hours:document.getElementById('cHours').value,
+              p_priority:document.getElementById('cPrio').value,p_instructions:document.getElementById('cInstr').value,p_account:document.getElementById('cAcct').value,
+              p_last_verified:document.getElementById('cVer').value||null}).then(function(r){
+                if(r.error){ msg.style.color='#c0264b'; msg.textContent='Error: '+r.error.message; return; }
+                var ov=document.getElementById('contactEditModal'); if(ov) ov.style.display='none'; loadImportantContacts();
+              }).catch(function(){ msg.style.color='#c0264b'; msg.textContent='Could not save.'; });
+        });
+    }
+    function archiveContact(id,active){
+        withPin(function(pin){
+            supabaseClient.rpc('app_contact_archive',{p_username:currentUser.username,p_password:pin,p_id:id,p_active:active}).then(function(r){
+                if(r.error){ alert('Error: '+r.error.message); return; } loadImportantContacts();
+            }).catch(function(){ alert('Could not update.'); });
+        });
+    }
     function openAdminConsole(){
         document.getElementById('main-menu').style.display='none';
         document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';});
         document.getElementById('adminConsoleView').style.display='block'; window.scrollTo(0,0);
-        loadAdminContacts(); loadAdminList(); loadNotifPrefs();
+        loadAdminContacts(); loadAdminList(); loadNotifPrefs(); loadImportantContacts();
     }
     function admListType(){ var s=document.getElementById('admListType'); return s?s.value:'positions'; }
     function admListTypeName(t){ return ({positions:'position',checklist:'checklist item',inventory:'inventory item',temp:'temp point'})[t]||'item'; }
@@ -9877,6 +10004,11 @@
       <div style="font-size:12.5px;color:var(--txt2,#8a8594);margin-bottom:8px;">Choose which roles get which push alerts. Unchecked means that role won&rsquo;t be notified for that type.</div>
       <div id="admNotifBox"><p style="color:var(--txt2,#8a8594);font-size:13px;">Loading&hellip;</p></div>
     </div>
+    <div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);margin-top:14px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:18px;">&#128222;</span><b style="flex:1;font-size:15px;color:var(--txt,#26242b);">Important Contacts directory</b><button onclick="openContactEdit(null)" style="background:var(--caliches-pink);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;">&#10133; Add</button></div>
+      <div style="font-size:12.5px;color:var(--txt2,#8a8594);margin-bottom:8px;">The vendor, repair, utility, and escalation directory staff see under Store Operations &rarr; Important Contacts. Add and manage them here.</div>
+      <div id="admContactsDirBox"><p style="color:var(--txt2,#8a8594);font-size:13px;">Loading&hellip;</p></div>
+    </div>
     <p style="font-size:12px;color:var(--txt2,#8a8594);margin:14px 2px 0;line-height:1.5;">More management tools (roster, roles, equipment, training, Teach&nbsp;Scoopy, announcements) live in the <b>&#9889; Admin Dashboard</b> menu. More controls are coming to this console.</p>
   </div>
 </div>
@@ -9914,6 +10046,24 @@
     </div>
   </div>
 </div>
+<div id="contactsDirView" class="app-view">
+  <div class="hb-head" style="background:linear-gradient(120deg,#3b2f6b,#106ab3);">
+    <button class="hb-back" onclick="goBack()">&#8249; Back</button>
+    <div class="hb-ico">&#128222;</div>
+    <div><h2>Important Contacts</h2><div class="hb-sub">Who to call for this store</div></div>
+  </div>
+  <div class="container" style="max-width:680px;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center;">
+      <label class="form-label" style="margin:0;">Store:</label>
+      <select id="cdStore" onchange="loadContactsDir()" style="flex:1;min-width:140px;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+        <option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option><option>Warehouse</option>
+      </select>
+    </div>
+    <input id="cdSearch" type="text" oninput="renderContactsDir()" placeholder="&#128269; Search freezer, plumber, internet, locked out&hellip;" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:10px;box-sizing:border-box;">
+    <div id="cdList"><p style="text-align:center;color:#888;padding:30px;">Loading&hellip;</p></div>
+  </div>
+</div>
+
 <div id="emergencyView" class="app-view">
   <div class="hb-head" style="background:linear-gradient(120deg,#a01b3c,#c0264b);">
     <button class="hb-back" onclick="openMenu()">&#8249; Menu</button>
