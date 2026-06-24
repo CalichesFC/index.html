@@ -1605,6 +1605,7 @@
             <button class="sched-btn" onclick="rosterAutolink()">&#128279; Auto-link</button>
             <button class="sched-btn" onclick="openRosterImport()">&#128228; Bulk import</button>
             <button class="sched-btn" onclick="openRolesModal()">&#127912; Manage roles</button>
+            <button class="sched-btn" onclick="openAllCerts()">&#128203; Certifications</button>
             <button class="sched-btn publish" onclick="openRosterModal(null)">&#10133; Add employee</button>
         </div>
         <div id="rosterSummary" class="hb-sub" style="margin:0 0 8px 4px;"></div>
@@ -2354,7 +2355,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.24.1400';
+    const APP_VERSION = '2026.06.24.1411';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4263,6 +4264,98 @@
             loadRosterMeta(); loadRoster();
         });
     }
+    function certExpiryBadge(exp){
+        if(!exp) return '<span style="background:#eef0f3;color:#6b7686;font-size:11px;font-weight:700;padding:2px 7px;border-radius:99px;">No expiry</span>';
+        var today=new Date().toISOString().slice(0,10); var soon=new Date(); soon.setDate(soon.getDate()+30); var soonStr=soon.toISOString().slice(0,10);
+        if(exp<today) return '<span style="background:#fdeaea;color:#a01b3e;font-size:11px;font-weight:800;padding:2px 7px;border-radius:99px;">Expired '+exp+'</span>';
+        if(exp<=soonStr) return '<span style="background:#fff4e0;color:#9a5b00;font-size:11px;font-weight:800;padding:2px 7px;border-radius:99px;">Expires '+exp+'</span>';
+        return '<span style="background:#e8f5ec;color:#1b7a3d;font-size:11px;font-weight:700;padding:2px 7px;border-radius:99px;">Valid to '+exp+'</span>';
+    }
+    function certOverlay(id){
+        var ov=document.getElementById(id);
+        if(!ov){ ov=document.createElement('div'); ov.id=id; ov.style.cssText='position:fixed;inset:0;background:rgba(20,20,30,.5);z-index:100000;display:flex;align-items:flex-start;justify-content:center;padding:18px;overflow:auto;'; ov.addEventListener('click',function(e){ if(e.target===ov) ov.style.display='none'; }); document.body.appendChild(ov); }
+        ov.style.display='flex'; return ov;
+    }
+    function openEmpCerts(empId,name){
+        window._certEmp={id:empId,name:name};
+        var ov=certOverlay('empCertsModal');
+        ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:520px;width:100%;margin-top:30px;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.3);"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><b style="flex:1;font-size:16px;color:#1f2a44;">Certifications &mdash; '+escapeHtml(name||'')+'</b><button data-x style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">&times;</button></div><div id="empCertsBody"><p style="text-align:center;color:#888;padding:18px;">Loading&hellip;</p></div><button onclick="openEmpCertEdit(null)" style="width:100%;margin-top:12px;background:var(--caliches-pink,#ec3e7e);color:#fff;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;">&#10133; Add certification</button></div>';
+        ov.querySelectorAll('[data-x]').forEach(function(b){ b.onclick=function(){ ov.style.display='none'; }; });
+        loadEmpCerts();
+    }
+    function loadEmpCerts(){
+        var body=document.getElementById('empCertsBody'); if(!body) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_emp_certs_get',{p_username:currentUser.username,p_password:pin,p_emp_id:window._certEmp.id}).then(function(r){
+                if(r.error){ body.innerHTML='<p style="color:#c0264b;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                window._certList=r.data||[];
+                if(!window._certList.length){ body.innerHTML='<p style="color:#888;text-align:center;padding:14px;font-size:13px;">No certifications on file yet.</p>'; return; }
+                var h='';
+                window._certList.forEach(function(c){
+                    h+='<div style="border:1px solid #ececf2;border-radius:10px;padding:10px 12px;margin-bottom:7px;"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:14px;color:#26242b;">'+escapeHtml(c.type||'')+'</b>'+certExpiryBadge(c.expires)+'</div>'+
+                       (c.number?'<div style="font-size:12px;color:#6b7686;margin-top:2px;">#'+escapeHtml(c.number)+'</div>':'')+
+                       (c.issued?'<div style="font-size:12px;color:#6b7686;">Issued '+escapeHtml(c.issued)+'</div>':'')+
+                       (c.notes?'<div style="font-size:12px;color:#6b7686;margin-top:2px;">'+escapeHtml(c.notes)+'</div>':'')+
+                       (c.file?'<div style="margin-top:3px;"><a href="'+escapeHtml(c.file)+'" target="_blank" rel="noopener" style="font-size:12px;color:#185FA5;font-weight:700;">&#128196; View file</a></div>':'')+
+                       '<div style="display:flex;gap:6px;margin-top:8px;"><button onclick="openEmpCertEdit('+c.id+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:7px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;">Edit</button><button onclick="deleteEmpCert('+c.id+')" style="background:#fdeaea;color:#c0264b;border:none;border-radius:7px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;">Delete</button></div></div>';
+                });
+                body.innerHTML=h;
+            }).catch(function(){ body.innerHTML='<p style="color:#c0264b;text-align:center;">Could not load.</p>'; });
+        });
+    }
+    function openEmpCertEdit(id){
+        var c=id?(window._certList||[]).filter(function(x){return x.id===id;})[0]:null; window._certEditId=id||null;
+        var ov=certOverlay('empCertEditModal');
+        ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:460px;width:100%;margin-top:40px;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.3);"><b style="font-size:15px;color:#1f2a44;">'+(id?'Edit':'Add')+' certification</b>'+
+          '<div style="margin-top:10px;"><label class="rm-lbl">Type *</label><input id="certType" class="rm-inp" placeholder="e.g. Food Handler" value="'+escapeHtml(c?(c.type||''):'')+'"></div>'+
+          '<div style="margin-top:8px;"><label class="rm-lbl">Certificate #</label><input id="certNum" class="rm-inp" value="'+escapeHtml(c?(c.number||''):'')+'"></div>'+
+          '<div style="display:flex;gap:8px;margin-top:8px;"><div style="flex:1;"><label class="rm-lbl">Issued</label><input id="certIssued" type="date" class="rm-inp" value="'+escapeHtml(c?(c.issued||''):'')+'"></div><div style="flex:1;"><label class="rm-lbl">Expires</label><input id="certExpires" type="date" class="rm-inp" value="'+escapeHtml(c?(c.expires||''):'')+'"></div></div>'+
+          '<div style="margin-top:8px;"><label class="rm-lbl">File link (Dropbox/Drive)</label><input id="certFile" class="rm-inp" placeholder="https://..." value="'+escapeHtml(c?(c.file||''):'')+'"></div>'+
+          '<div style="margin-top:8px;"><label class="rm-lbl">Notes</label><input id="certNotes" class="rm-inp" value="'+escapeHtml(c?(c.notes||''):'')+'"></div>'+
+          '<div id="certEditMsg" style="font-size:12px;margin-top:8px;"></div>'+
+          '<div style="display:flex;gap:8px;margin-top:12px;"><button data-x style="flex:1;background:#eef0f3;color:#444;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="saveEmpCert()" style="flex:2;background:var(--pass-green,#1f7a3d);color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;">Save</button></div></div>';
+        ov.querySelectorAll('[data-x]').forEach(function(b){ b.onclick=function(){ ov.style.display='none'; }; });
+    }
+    function saveEmpCert(){
+        var t=(document.getElementById('certType').value||'').trim(); var msg=document.getElementById('certEditMsg');
+        if(!t){ msg.style.color='#c0264b'; msg.textContent='Type is required.'; return; }
+        msg.style.color='#6b7686'; msg.textContent='Saving...';
+        withPin(function(pin){
+            supabaseClient.rpc('app_emp_cert_save',{p_username:currentUser.username,p_password:pin,p_id:window._certEditId,p_emp_id:window._certEmp.id,p_type:t,p_number:document.getElementById('certNum').value,p_issued:document.getElementById('certIssued').value||null,p_expires:document.getElementById('certExpires').value||null,p_notes:document.getElementById('certNotes').value,p_file:document.getElementById('certFile').value}).then(function(r){
+                if(r.error){ msg.style.color='#c0264b'; msg.textContent='Error: '+r.error.message; return; }
+                var ov=document.getElementById('empCertEditModal'); if(ov) ov.style.display='none'; loadEmpCerts();
+            }).catch(function(){ msg.style.color='#c0264b'; msg.textContent='Could not save.'; });
+        });
+    }
+    function deleteEmpCert(id){
+        if(!confirm('Delete this certification?')) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_emp_cert_delete',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){
+                if(r.error){ alert('Error: '+r.error.message); return; } loadEmpCerts();
+            }).catch(function(){ alert('Could not delete.'); });
+        });
+    }
+    function openAllCerts(){
+        var ov=certOverlay('allCertsModal');
+        ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:640px;width:100%;margin-top:24px;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.3);"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><b style="flex:1;font-size:17px;color:#1f2a44;">&#128203; All certifications</b><button onclick="window.print()" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:7px 11px;font-size:12.5px;font-weight:700;cursor:pointer;">&#128424; Print</button><button data-x style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">&times;</button></div><div style="font-size:12px;color:#6b7686;margin-bottom:10px;">For health-inspector review. Tap a name to manage their certs.</div><div id="allCertsBody"><p style="text-align:center;color:#888;padding:18px;">Loading&hellip;</p></div></div>';
+        ov.querySelectorAll('[data-x]').forEach(function(b){ b.onclick=function(){ ov.style.display='none'; }; });
+        withPin(function(pin){
+            supabaseClient.rpc('app_certs_all',{p_username:currentUser.username,p_password:pin,p_location:''}).then(function(r){
+                var body=document.getElementById('allCertsBody'); if(!body) return;
+                if(r.error){ body.innerHTML='<p style="color:#c0264b;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var list=r.data||[]; if(!list.length){ body.innerHTML='<p style="color:#888;text-align:center;">No active staff.</p>'; return; }
+                var h='';
+                list.forEach(function(p){
+                    var certs=p.certs||[];
+                    h+='<div style="border:1px solid #ececf2;border-radius:10px;padding:10px 12px;margin-bottom:7px;"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:14px;color:#26242b;cursor:pointer;" onclick="openEmpCerts('+p.employee_id+',&quot;'+escapeHtml((p.name||'').replace(/"/g,''))+'&quot;)">'+escapeHtml(p.name||'')+'</b><span style="font-size:11.5px;color:#9aa7b4;">'+escapeHtml(p.home||'')+'</span></div>';
+                    if(!certs.length){ h+='<div style="font-size:12px;color:#b08600;margin-top:4px;">&#9888; No certifications on file</div>'; }
+                    else { certs.forEach(function(c){ h+='<div style="display:flex;align-items:center;gap:8px;margin-top:5px;"><span style="flex:1;font-size:13px;color:#33303a;">'+escapeHtml(c.type||'')+(c.number?' &middot; #'+escapeHtml(c.number):'')+'</span>'+certExpiryBadge(c.expires)+'</div>'; }); }
+                    h+='</div>';
+                });
+                body.innerHTML=h;
+            }).catch(function(){ var body=document.getElementById('allCertsBody'); if(body) body.innerHTML='<p style="color:#c0264b;text-align:center;">Could not load.</p>'; });
+        });
+    }
     function loadRosterMeta(){
         withPin(function(pin){
             supabaseClient.rpc('app_roster_meta',{p_username:currentUser.username,p_password:pin}).then(({data,error})=>{
@@ -4323,7 +4416,7 @@
                 ? '<button class="roster-act" style="color:#c0264b;" onclick="rosterSetActive('+e.id+',false,&quot;'+rosterEsc(nmJs)+'&quot;)">Terminate</button>'
                 : '<button class="roster-act" style="color:#1f7a3d;" onclick="rosterSetActive('+e.id+',true,&quot;'+rosterEsc(nmJs)+'&quot;)">Reactivate</button>';
             const celIc = celebRosterMap[e.id]==='birthday' ? ' <span title="Birthday coming up">🎂</span>' : (celebRosterMap[e.id] ? ' <span title="Work anniversary coming up">🎉</span>' : '');
-            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+celIc+pipBadge+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;">'+((rosterState.phones&&rosterState.phones[e.id])?('<a class="roster-act" style="color:#1f7a3d;" href="tel:'+String(rosterState.phones[e.id]).replace(/[^0-9+]/g,'')+'">&#128222; '+rosterEsc(String(rosterState.phones[e.id]))+'</a>'):'')+pipAct+'<button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button>'+termBtn+'</td></tr>';
+            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+celIc+pipBadge+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;">'+((rosterState.phones&&rosterState.phones[e.id])?('<a class="roster-act" style="color:#1f7a3d;" href="tel:'+String(rosterState.phones[e.id]).replace(/[^0-9+]/g,'')+'">&#128222; '+rosterEsc(String(rosterState.phones[e.id]))+'</a>'):'')+pipAct+'<button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button>'+'<button class="roster-act" onclick="openEmpCerts('+e.id+',&quot;'+rosterEsc(nmJs)+'&quot;)">&#128203; Certs</button>'+termBtn+'</td></tr>';
         });
         html+='</tbody></table>';
         box.innerHTML=html;
@@ -7608,11 +7701,55 @@
       ]}
     ];
     /* ===== Admin Console ===== */
+    var NOTIF_TYPES=[
+        {k:'equipment_maintenance',l:'Equipment maintenance due'},
+        {k:'schedule_published',l:'New schedule published'},
+        {k:'schedule_confirm',l:'Confirm-your-schedule reminder'},
+        {k:'task_assigned',l:'Task assigned to you'},
+        {k:'recognition',l:'Recognition / shout-outs'},
+        {k:'announcement',l:'Store announcements'},
+        {k:'preshift',l:'Pre-shift lineup reminder'},
+        {k:'time_off',l:'Time-off / swap decisions'}
+    ];
+    var NOTIF_ROLES=['Admin Manager','Vice President/Co-Owner','Manager','Shift Lead','Employee'];
+    function loadNotifPrefs(){
+        var box=document.getElementById('admNotifBox'); if(!box) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_notif_prefs_get',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ box.innerHTML='<p style="color:#c0264b;font-size:13px;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                window._notifPrefs=r.data||{}; renderNotifMatrix();
+            }).catch(function(){ box.innerHTML='<p style="color:#c0264b;font-size:13px;">Could not load.</p>'; });
+        });
+    }
+    function renderNotifMatrix(){
+        var box=document.getElementById('admNotifBox'); if(!box) return; var p=window._notifPrefs||{};
+        var h='<div style="overflow-x:auto;"><table style="border-collapse:collapse;width:100%;font-size:12px;min-width:520px;"><thead><tr><th style="text-align:left;padding:6px 4px;"></th>';
+        NOTIF_ROLES.forEach(function(role){ h+='<th style="padding:6px 4px;color:var(--txt,#26242b);font-size:11px;font-weight:700;">'+escapeHtml(role==='Vice President/Co-Owner'?'VP / Owner':role)+'</th>'; });
+        h+='</tr></thead><tbody>';
+        NOTIF_TYPES.forEach(function(t){
+            h+='<tr><td style="padding:7px 4px;color:var(--txt,#26242b);border-top:1px solid var(--bd,#eee);">'+escapeHtml(t.l)+'</td>';
+            NOTIF_ROLES.forEach(function(role){
+                var on=(p[t.k+'|'+role]!==false);
+                h+='<td style="text-align:center;padding:7px 4px;border-top:1px solid var(--bd,#eee);"><input type="checkbox"'+(on?' checked':'')+' onchange="toggleNotifPref(\''+t.k+'\',\''+role+'\',this.checked)" style="width:18px;height:18px;cursor:pointer;"></td>';
+            });
+            h+='</tr>';
+        });
+        h+='</tbody></table></div>';
+        box.innerHTML=h;
+    }
+    function toggleNotifPref(type,role,enabled){
+        withPin(function(pin){
+            supabaseClient.rpc('app_notif_pref_set',{p_username:currentUser.username,p_password:pin,p_type:type,p_role:role,p_enabled:enabled}).then(function(r){
+                if(r.error){ alert('Error: '+r.error.message); loadNotifPrefs(); return; }
+                window._notifPrefs=window._notifPrefs||{}; window._notifPrefs[type+'|'+role]=enabled;
+            }).catch(function(){ alert('Could not save.'); loadNotifPrefs(); });
+        });
+    }
     function openAdminConsole(){
         document.getElementById('main-menu').style.display='none';
         document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';});
         document.getElementById('adminConsoleView').style.display='block'; window.scrollTo(0,0);
-        loadAdminContacts(); loadAdminList();
+        loadAdminContacts(); loadAdminList(); loadNotifPrefs();
     }
     function admListType(){ var s=document.getElementById('admListType'); return s?s.value:'positions'; }
     function admListTypeName(t){ return ({positions:'position',checklist:'checklist item',inventory:'inventory item',temp:'temp point'})[t]||'item'; }
@@ -9734,6 +9871,11 @@
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:18px;">&#128221;</span><b style="flex:1;font-size:15px;color:var(--txt,#26242b);">Manage lists</b><button onclick="openAdmList(-1)" style="background:var(--caliches-pink);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;">&#10133; Add</button></div>
       <select id="admListType" onchange="loadAdminList()" style="width:100%;padding:9px;border:1px solid var(--bd,#ddd);border-radius:8px;font-size:14px;margin-bottom:8px;background:var(--surface,#fff);color:var(--txt,#26242b);"><option value="positions">Job positions</option><option value="checklist">Shift checklist items</option><option value="inventory">Inventory items</option><option value="temp">Temperature points</option></select>
       <div id="admListBox"><p style="color:var(--txt2,#8a8594);font-size:13px;">Loading&hellip;</p></div>
+    </div>
+    <div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);margin-top:14px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:18px;">&#128276;</span><b style="flex:1;font-size:15px;color:var(--txt,#26242b);">Notifications by role</b></div>
+      <div style="font-size:12.5px;color:var(--txt2,#8a8594);margin-bottom:8px;">Choose which roles get which push alerts. Unchecked means that role won&rsquo;t be notified for that type.</div>
+      <div id="admNotifBox"><p style="color:var(--txt2,#8a8594);font-size:13px;">Loading&hellip;</p></div>
     </div>
     <p style="font-size:12px;color:var(--txt2,#8a8594);margin:14px 2px 0;line-height:1.5;">More management tools (roster, roles, equipment, training, Teach&nbsp;Scoopy, announcements) live in the <b>&#9889; Admin Dashboard</b> menu. More controls are coming to this console.</p>
   </div>
