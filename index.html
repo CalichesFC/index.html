@@ -1657,6 +1657,8 @@
         <select id="rosterPos" class="rm-inp"></select></div>
       <div><label class="rm-lbl" for="rosterWage">Hourly wage ($)</label>
         <input id="rosterWage" type="number" min="0" step="0.25" class="rm-inp" placeholder="e.g. 14.50" inputmode="decimal"></div>
+        <div><label class="rm-lbl" for="rosterPhone">Phone (for the Call button)</label>
+        <input id="rosterPhone" type="tel" class="rm-inp" placeholder="e.g. (575) 555-0123" inputmode="tel"></div>
       <div><label class="rm-lbl" for="rosterStart">Start date</label>
         <input id="rosterStart" type="date" class="rm-inp"><div id="rosterStartLock" style="display:none;font-size:10px;color:#999;margin-top:2px;">&#128274; Admin Managers only can change this once set</div></div>
       <div id="rosterBdayWrap" style="display:none;"><label class="rm-lbl" for="rosterBday">Birthday <span style="background:#fdeaea;color:#c0264b;font-size:10px;padding:1px 6px;border-radius:8px;">Admin only</span></label>
@@ -1962,7 +1964,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">
             <label class="form-label" style="margin:0;">Store:</label>
             <select id="equipStoreSel" onchange="loadEquipment()" style="flex:1;min-width:140px;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
-                <option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option>
+                <option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option><option>Warehouse</option>
             </select>
         </div>
         <input id="equipSearch" type="text" oninput="renderEquipmentList()" placeholder="&#128269; Search equipment&hellip;" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:10px;box-sizing:border-box;">
@@ -2001,14 +2003,14 @@
             <div style="flex:1;min-width:120px;"><label class="form-label">Date</label>
               <input type="date" id="psDate" onchange="loadPreshift()" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;"></div>
             <div style="flex:1;min-width:100px;"><label class="form-label">Shift</label>
-              <select id="psType" onchange="loadPreshift()" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;"><option>Day</option><option>Night</option></select></div>
+              <select id="psType" onchange="loadPreshift()" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;"><option value="Day">AM</option><option value="Night">PM</option></select></div>
         </div>
         <div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:12px;margin-bottom:12px;">
             <label class="form-label" style="margin-top:0;">Shift goals (2)</label>
             <input id="psGoal1" type="text" placeholder="Goal 1 — e.g. clean condenser by close" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:6px;box-sizing:border-box;">
             <input id="psGoal2" type="text" placeholder="Goal 2 — e.g. push the new shake" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box;">
         </div>
-        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#8a8594;margin:6px 0;">Who&rsquo;s on &amp; where</div>
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#8a8594;margin:6px 0;">Positions &mdash; type or pick a name</div>
         <div id="psRoster"><p style="text-align:center;color:#888;padding:20px;">Pick a store to load the crew&hellip;</p></div>
         <button onclick="savePreshift()" class="save-btn" style="margin-top:14px;background:var(--caliches-blue);">&#128190; Save Lineup</button>
         <div id="psMsg" style="text-align:center;font-size:13px;margin-top:8px;"></div>
@@ -2058,9 +2060,9 @@
       <p><b>Where:</b> Store Operations &rarr; Required Maintenance.</p>
       <ol><li>The form now has an <b>Equipment dropdown</b> &mdash; pick the machine from the registry instead of typing it (or choose &ldquo;Other&rdquo;).</li><li>From any equipment record, the <b>&ldquo;Report maintenance&rdquo;</b> button opens the form with that machine already selected.</li></ol></div>
 
-    <div class="howto-sec"><h3>&#128221; Pre-Shift Lineup &amp; Training Progress</h3>
+    <div class="howto-sec"><h3>&#128221; Pre-Shift Lineup &mdash; now position-first</h3>
       <p><b>Where:</b> Scheduling &rarr; <b>Pre-Shift Lineup</b> (shift leads &amp; managers).</p>
-      <ol><li>Pick the store, date, and Day/Night, and type your <b>2 shift goals.</b></li><li>For each person on, choose their <b>position</b> (Shift Leader, Front/Drive Register, Machine, Scooper, Item Maker). Save.</li><li>Tap the <b>&#128200; icon</b> next to anyone to see their <b>training progression</b> &mdash; 7 days each: Training &rarr; Scooping &rarr; Register &rarr; Machine (about a month).</li><li>A <b>reminder notification</b> now goes out twice a day (~10am &amp; ~4pm) to set the lineup &mdash; turn on notifications in Settings to get it.</li></ol></div>
+      <ol><li>Pick the store, date, and <b>AM or PM</b> (each is its own saved lineup), and type your <b>2 shift goals.</b></li><li>The lineup now lists the <b>positions</b> &mdash; Shift Leader, Machine, two Registers, Item Maker. In each, <b>type a name or pick it from the list</b> (it suggests your crew as you type; you can even type a name that isn&rsquo;t in the system yet).</li><li>Bigger shift? Tap <b>&#10133; Add slot</b> for more spots, or the <b>&times;</b> to remove one. Then Save.</li><li>Tap the <b>&#128200; icon</b> on a slot to see that person&rsquo;s <b>training progression.</b> A reminder still goes out twice a day to set the lineup.</li></ol></div>
 
     <div class="howto-sec"><h3>&#128722; Pick n&rsquo; Take Orders (via Cherry)</h3>
       <p><b>Where:</b> In Cherry (the assistant), <b>Ask Cherry.</b></p>
@@ -2069,6 +2071,14 @@
     <div class="howto-sec"><h3>&#128295; Preventive Maintenance</h3>
       <p><b>Where:</b> Store Operations &rarr; Equipment History &rarr; open any machine.</p>
       <ol><li>Scroll to <b>&#128295; Preventive maintenance</b> on the machine&rsquo;s record. Managers tap <b>&#10133; Add</b> to set a recurring service (e.g. &ldquo;Sanitize &amp; clean every 7 days&rdquo;).</li><li>When it&rsquo;s done, anyone on shift taps <b>&#9989; Mark serviced</b> &mdash; it logs who &amp; when and rolls the next-due date forward.</li><li>Overdue or due-soon items show a red/amber badge, and the <b>&#128295; Maintenance due</b> button at the top of Equipment History lists everything due for that store.</li><li>Managers also get a <b>daily push</b> each morning when machines are due.</li></ol></div>
+
+    <div class="howto-sec"><h3>&#128222; Call a Coworker from the Roster</h3>
+      <p><b>Where:</b> Admin &rarr; <b>Employee Roster</b> (managers).</p>
+      <ol><li>Open the roster and find the person &mdash; if they have a phone number on file, a green <b>&#128222; Call</b> button shows on their row.</li><li>Tap it to phone them straight from the app &mdash; handy when someone hasn&rsquo;t shown up for their shift.</li><li>To add or change a number, tap <b>Edit</b> on their card and fill in the new <b>Phone</b> field.</li></ol></div>
+
+    <div class="howto-sec"><h3>&#9881;&#65039; Equipment: Warehouse + Maintenance History</h3>
+      <p><b>Where:</b> Store Operations &rarr; Equipment History.</p>
+      <ol><li>The store dropdown now includes <b>Warehouse</b> &mdash; it lists warehouse equipment split into <b>&#9989; In use</b> and <b>&#128230; Unused backups.</b> Managers tap <b>In use / Backup</b> on a unit to move it between the two.</li><li>Open any machine to see its new <b>Maintenance reports</b> history &mdash; every request filed for it, with status.</li><li>Managers can tap <b>&#9989; Mark resolved</b> on a report and type how it was fixed; the <b>resolution</b> then shows in that machine&rsquo;s history.</li><li>All your real equipment (walk-in coolers, freezers, washers, dryers, water heaters &amp; softeners, Lenox&rsquo;s two custard machines) is now loaded per store.</li></ol></div>
 
     <button onclick="closeHowTo()" class="save-btn" style="margin-top:16px;background:var(--caliches-blue);">Got it &mdash; let&rsquo;s go</button>
   </div>
@@ -2339,7 +2349,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.23.1307';
+    const APP_VERSION = '2026.06.23.1949';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4168,11 +4178,13 @@
             Promise.all([
                 supabaseClient.rpc('app_roster_list',{p_username:currentUser.username,p_password:pin}),
                 supabaseClient.rpc('app_pip_active',{p_username:currentUser.username,p_password:pin}),
-                supabaseClient.rpc('app_upcoming_celebrations',{p_username:currentUser.username,p_password:pin})
+                supabaseClient.rpc('app_upcoming_celebrations',{p_username:currentUser.username,p_password:pin}),
+                supabaseClient.rpc('app_emp_phones',{p_username:currentUser.username,p_password:pin})
             ]).then(function(res){
                 const error=res[0].error;
                 if(error){ if(error.code==='42501') sessionPin=null; box.innerHTML='<p style="color:red;text-align:center;padding:20px;">Error: '+error.message+'</p>'; return; }
                 rosterState.list=res[0].data||[];
+                rosterState.phones=(res[3]&&res[3].data)?res[3].data:{};
                 rosterState.pips={};
                 var pips=(res[1] && res[1].data) ? res[1].data : [];
                 pips.forEach(function(p){ rosterState.pips[p.employee_id]=p; });
@@ -4211,7 +4223,7 @@
                 ? '<button class="roster-act" style="color:#c0264b;" onclick="rosterSetActive('+e.id+',false,&quot;'+rosterEsc(nmJs)+'&quot;)">Terminate</button>'
                 : '<button class="roster-act" style="color:#1f7a3d;" onclick="rosterSetActive('+e.id+',true,&quot;'+rosterEsc(nmJs)+'&quot;)">Reactivate</button>';
             const celIc = celebRosterMap[e.id]==='birthday' ? ' <span title="Birthday coming up">🎂</span>' : (celebRosterMap[e.id] ? ' <span title="Work anniversary coming up">🎉</span>' : '');
-            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+celIc+pipBadge+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;">'+pipAct+'<button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button>'+termBtn+'</td></tr>';
+            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+celIc+pipBadge+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;">'+((rosterState.phones&&rosterState.phones[e.id])?('<a class="roster-act" style="color:#1f7a3d;" href="tel:'+String(rosterState.phones[e.id]).replace(/[^0-9+]/g,'')+'">&#128222; Call</a>'):'')+pipAct+'<button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button>'+termBtn+'</td></tr>';
         });
         html+='</tbody></table>';
         box.innerHTML=html;
@@ -4237,6 +4249,7 @@
             document.getElementById('rosterModalTitle').innerText='Edit Employee';
             document.getElementById('rosterEditId').value=e.id;
             document.getElementById('rosterName').value=e.name||'';
+            document.getElementById('rosterPhone').value=(rosterState.phones&&rosterState.phones[e.id])?(rosterState.phones[e.id]||''):'';
             document.getElementById('rosterHome').value=e.home_location||'';
             document.getElementById('rosterPos').value=e.position_id?String(e.position_id):'';
             document.getElementById('rosterActive').checked=!!e.active;
@@ -4249,6 +4262,7 @@
             document.getElementById('rosterModalTitle').innerText='Add Employee';
             document.getElementById('rosterEditId').value='';
             document.getElementById('rosterName').value='';
+            document.getElementById('rosterPhone').value='';
             document.getElementById('rosterHome').value='';
             document.getElementById('rosterPos').value='';
             document.getElementById('rosterActive').checked=true;
@@ -4290,7 +4304,8 @@
                     Promise.all([
                         supabaseClient.rpc('app_emp_admin_set',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_locations:locs,p_sm:sm,p_am:am}),
                         supabaseClient.rpc('app_emp_set_wage',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_wage:wage}),
-                        supabaseClient.rpc('app_emp_set_dates',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_start_date:startD,p_birthday:bdayD})
+                        supabaseClient.rpc('app_emp_set_dates',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_start_date:startD,p_birthday:bdayD}),
+                        supabaseClient.rpc('app_emp_set_phone',{p_username:currentUser.username,p_password:pin,p_emp_id:parseInt(id,10),p_phone:document.getElementById('rosterPhone').value})
                     ]).then(function(rs){
                         var r2=rs[0];
                         if(r2.error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Saved basics; stores error: '+r2.error.message; return; }
@@ -6676,30 +6691,58 @@
         var addBtn=document.getElementById('equipAddBtn'); if(addBtn) addBtn.style.display=admin?'block':'none';
         var prtBtn=document.getElementById('equipPrintAllBtn'); if(prtBtn) prtBtn.style.display='block';
         var store=document.getElementById('equipStoreSel').value;
+        window._equipIsWarehouse=(store==='Warehouse');
         box.innerHTML='<p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p>';
         withPin(function(pin){
-            supabaseClient.rpc('app_equipment_list',{p_username:currentUser.username,p_password:pin,p_store:store}).then(function(r){
+            var call=window._equipIsWarehouse
+                ? supabaseClient.rpc('app_warehouse_list',{p_username:currentUser.username,p_password:pin})
+                : supabaseClient.rpc('app_equipment_list',{p_username:currentUser.username,p_password:pin,p_store:store});
+            call.then(function(r){
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; box.innerHTML='<p style="color:#c0264b;text-align:center;padding:20px;">'+escapeHtml(r.error.message)+'</p>'; return; }
                 window._equipList=r.data||[];
                 renderEquipmentList();
             }).catch(function(){ box.innerHTML='<p style="color:#c0264b;text-align:center;padding:20px;">Could not load equipment.</p>'; });
         });
     }
+    function equipRowHtml(e){
+        var mgr=(typeof isAdminManager==='function' && isAdminManager());
+        var toggle='';
+        if(window._equipIsWarehouse && mgr){
+            toggle = e.is_backup
+              ? '<button onclick="event.stopPropagation();setEquipBackup('+e.id+',false)" style="background:#e8f5ec;color:#1b7a3d;border:none;border-radius:7px;padding:6px 9px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;">&#8593; In use</button>'
+              : '<button onclick="event.stopPropagation();setEquipBackup('+e.id+',true)" style="background:#fff4e0;color:#9a5b00;border:none;border-radius:7px;padding:6px 9px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;">&#8595; Backup</button>';
+        }
+        return '<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.04);display:flex;align-items:center;">'+
+               '<button onclick="openEquipmentDetail('+e.id+')" style="flex:1;text-align:left;background:none;border:none;padding:13px 15px;cursor:pointer;display:flex;align-items:center;gap:10px;">'+
+               '<b style="flex:1;font-size:14.5px;color:#26242b;">'+escapeHtml(e.name||'(unnamed)')+
+               (e.open_issue?'<span style="display:block;font-size:11.5px;font-weight:600;color:#c0264b;margin-top:2px;">&#9888;&#65039; '+escapeHtml(e.open_issue)+'</span>':'')+'</b>'+
+               equipStatusBadge(e.status)+'<span style="color:#aab;font-size:20px;">&rsaquo;</span></button>'+
+               (toggle?'<div style="padding-right:12px;">'+toggle+'</div>':'')+'</div>';
+    }
     function renderEquipmentList(){
         var box=document.getElementById('equipList'); if(!box) return;
         var list=window._equipList||[];
         var q=(document.getElementById('equipSearch').value||'').trim().toLowerCase();
         if(q) list=list.filter(function(e){ return (e.name||'').toLowerCase().indexOf(q)>=0; });
-        if(!list.length){ box.innerHTML='<p style="text-align:center;color:#888;padding:24px;">No equipment'+(q?' matches that search':' on file for this store')+'.</p>'; return; }
-        var h='';
-        list.forEach(function(e){
-            h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.04);">'+
-               '<button onclick="openEquipmentDetail('+e.id+')" style="width:100%;text-align:left;background:none;border:none;padding:13px 15px;cursor:pointer;display:flex;align-items:center;gap:10px;">'+
-               '<b style="flex:1;font-size:14.5px;color:#26242b;">'+escapeHtml(e.name||'(unnamed)')+
-               (e.open_issue?'<span style="display:block;font-size:11.5px;font-weight:600;color:#c0264b;margin-top:2px;">&#9888;&#65039; '+escapeHtml(e.open_issue)+'</span>':'')+'</b>'+
-               equipStatusBadge(e.status)+'<span style="color:#aab;font-size:20px;">&rsaquo;</span></button></div>';
+        if(!list.length){ box.innerHTML='<p style="text-align:center;color:#888;padding:24px;">No equipment'+(q?' matches that search':(window._equipIsWarehouse?' at the warehouse yet. Add it with &#10133; Add equipment.':' on file for this store'))+'.</p>'; return; }
+        if(window._equipIsWarehouse){
+            var inUse=list.filter(function(e){return !e.is_backup;}), backups=list.filter(function(e){return e.is_backup;});
+            var hh='';
+            hh+='<div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#1b7a3d;margin:4px 0 8px;">&#9989; In use &middot; '+inUse.length+'</div>';
+            hh+= inUse.length?inUse.map(equipRowHtml).join(''):'<p style="color:#888;font-size:13px;margin:0 0 12px;">Nothing marked in use.</p>';
+            hh+='<div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#9a5b00;margin:16px 0 8px;">&#128230; Unused backups &middot; '+backups.length+'</div>';
+            hh+= backups.length?backups.map(equipRowHtml).join(''):'<p style="color:#888;font-size:13px;margin:0;">No spare/backup units.</p>';
+            box.innerHTML=hh; return;
+        }
+        box.innerHTML=list.map(equipRowHtml).join('');
+    }
+    function setEquipBackup(id,backup){
+        withPin(function(pin){
+            supabaseClient.rpc('app_equipment_set_backup',{p_username:currentUser.username,p_password:pin,p_id:id,p_backup:backup}).then(function(r){
+                if(r.error){ alert('Could not update: '+r.error.message); return; }
+                loadEquipment();
+            }).catch(function(){ alert('Could not update.'); });
         });
-        box.innerHTML=h;
     }
     function openEquipmentDetail(id){
         document.getElementById('main-menu').style.display='none';
@@ -6724,7 +6767,7 @@
         h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.05);">';
         h+='<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;">'+
            '<div style="flex:1;min-width:160px;"><h2 style="margin:0 0 4px;color:#854F0B;font-size:21px;">'+escapeHtml(e.name||'(unnamed)')+'</h2>'+
-           '<div style="font-size:12.5px;color:#8a8594;">'+escapeHtml(e.store||'')+'</div></div>'+equipStatusBadge(e.status)+'</div>';
+           '<div style="font-size:12.5px;color:#8a8594;">'+escapeHtml(e.store||'')+(e.store==='Warehouse'?(e.is_backup?' &middot; <span style="color:#9a5b00;font-weight:700;">Unused backup</span>':' &middot; <span style="color:#1b7a3d;font-weight:700;">In use</span>'):'')+'</div></div>'+equipStatusBadge(e.status)+'</div>';
         if(e.open_issue){ h+='<div style="margin-top:12px;background:#fdeaea;border:1px solid #f6c9d2;border-radius:10px;padding:10px 12px;font-size:13.5px;color:#a01b3e;"><b>&#9888;&#65039; Open issue:</b> '+escapeHtml(e.open_issue)+'</div>'; }
         // QR block
         h+='<div style="text-align:center;margin:16px 0;padding:14px;background:#faf8f4;border:1px dashed #d8cfc2;border-radius:12px;">'+
@@ -6738,8 +6781,10 @@
            '<button onclick="deleteEquipment('+e.id+')" style="background:#fdeaea;color:#c0264b;border:none;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;">Remove</button>'; }
         h+='</div></div>';
         h+='<div id="pmSection" style="margin-top:14px;"></div>';
+        h+='<div id="maintHistSection" style="margin-top:14px;"></div>';
         box.innerHTML=h;
         if(typeof loadPmFor==='function') loadPmFor(e.id);
+        if(typeof loadMaintHistFor==='function') loadMaintHistFor(e.id);
     }
     /* ===== Preventive Maintenance ===== */
     function pmStatusBadge(st){
@@ -6838,6 +6883,64 @@
                 if(r.error){ alert('Could not remove: '+r.error.message); return; }
                 loadPmFor(equipId);
             }).catch(function(){ alert('Could not remove.'); });
+        });
+    }
+    function maintStatusBadge(st){
+        var s=(st||'').toLowerCase();
+        var c = (s.indexOf('resolv')>=0||s.indexOf('done')>=0||s.indexOf('complet')>=0) ? ['#e8f5ec','#1b7a3d','Resolved']
+              : (s.indexOf('progress')>=0||s.indexOf('working')>=0) ? ['#eef3fb','#185FA5','In progress']
+              : ['#fdeaea','#a01b3e',(st||'Open')];
+        return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:3px 8px;border-radius:99px;white-space:nowrap;">'+escapeHtml(c[2])+'</span>';
+    }
+    function maintIsResolved(r){ var s=((r.status||'')+'').toLowerCase(); return !!r.resolution || s.indexOf('resolv')>=0 || s.indexOf('done')>=0 || s.indexOf('complet')>=0; }
+    function loadMaintHistFor(equipId){
+        var box=document.getElementById('maintHistSection'); if(!box) return;
+        box.innerHTML='<div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:14px;padding:16px;color:var(--txt2,#8a8594);font-size:13px;">Loading maintenance reports&hellip;</div>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_maint_for_equipment',{p_username:currentUser.username,p_password:pin,p_equipment_id:equipId}).then(function(r){
+                if(r.error){ box.innerHTML=''; return; }
+                renderMaintHist(r.data||[],equipId);
+            }).catch(function(){ box.innerHTML=''; });
+        });
+    }
+    function renderMaintHist(list,equipId){
+        var box=document.getElementById('maintHistSection'); if(!box) return;
+        window._maintHist=list; window._maintHistEquip=equipId;
+        var mgr=(typeof isManagerRole==='function'?isManagerRole():(typeof isAdminManager==='function'&&isAdminManager()));
+        var h='<div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);">';
+        h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><span style="font-size:18px;">&#128221;</span><b style="flex:1;font-size:15px;color:var(--txt,#26242b);">Maintenance reports</b>'+
+           '<button onclick="openMaintenanceForEquipment((window._equipCur||{}).store,(window._equipCur||{}).name)" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;">&#10133; New</button></div>';
+        if(!list.length){ h+='<div style="color:var(--txt2,#8a8594);font-size:13px;padding:4px 0;">No maintenance reports for this machine yet.</div>'; }
+        else {
+            list.forEach(function(r){
+                var resolved=maintIsResolved(r);
+                var when=(r.report_date||(r.created_at?String(r.created_at).slice(0,10):''));
+                h+='<div style="border:1px solid var(--bd,#f0eef4);border-radius:11px;padding:11px 12px;margin-bottom:8px;">'+
+                   '<div style="display:flex;align-items:flex-start;gap:8px;"><div style="flex:1;min-width:0;">'+
+                   '<div style="font-weight:700;font-size:14px;color:var(--txt,#26242b);">'+escapeHtml(r.item||'Maintenance')+'</div>'+
+                   '<div style="font-size:12px;color:var(--txt2,#8a8594);margin-top:2px;">'+escapeHtml(when)+(r.reporter?' &middot; '+escapeHtml(r.reporter):'')+(r.urgency?' &middot; '+escapeHtml(r.urgency):'')+'</div>'+
+                   (r.issue?'<div style="font-size:12.5px;color:var(--txt,#33303a);margin-top:4px;white-space:pre-wrap;">'+escapeHtml(r.issue)+'</div>':'')+
+                   '</div>'+maintStatusBadge(r.status)+'</div>';
+                if(resolved && (r.resolution||r.resolved_by)){
+                    h+='<div style="margin-top:8px;background:#f0f8f2;border:1px solid #cfe8d6;border-radius:9px;padding:8px 10px;font-size:12.5px;color:#1b5e2e;"><b>&#9989; Resolution:</b> '+escapeHtml(r.resolution||'(marked resolved)')+(r.resolved_by?'<span style="color:#5b8169;"> &middot; '+escapeHtml(r.resolved_by)+'</span>':'')+'</div>';
+                } else if(mgr){
+                    h+='<div style="margin-top:8px;"><button onclick="resolveMaint('+r.id+')" style="background:var(--pass-green,#1f7a3d);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;">&#9989; Mark resolved&hellip;</button></div>';
+                }
+                if(r.pdf){ h+='<div style="margin-top:6px;"><a href="'+escapeHtml(r.pdf)+'" target="_blank" rel="noopener" style="font-size:12px;color:#185FA5;font-weight:700;">&#128196; View report PDF</a></div>'; }
+                h+='</div>';
+            });
+        }
+        h+='</div>';
+        box.innerHTML=h;
+    }
+    function resolveMaint(id){
+        var txt=prompt('How was this resolved? (e.g. "Replaced compressor — vendor invoice #123")','');
+        if(txt===null) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_maint_resolve',{p_username:currentUser.username,p_password:pin,p_id:id,p_resolution:txt,p_by:(currentUser&&currentUser.name)||currentUser.username}).then(function(r){
+                if(r.error){ alert('Could not resolve: '+r.error.message); return; }
+                loadMaintHistFor(window._maintHistEquip);
+            }).catch(function(){ alert('Could not resolve.'); });
         });
     }
     function openMaintDue(){
@@ -6999,32 +7102,58 @@
                 var existing=(gg&&!gg.error&&gg.data)?gg.data:{exists:false,assignments:[]};
                 if(existing.exists){ document.getElementById('psGoal1').value=existing.goal1||''; document.getElementById('psGoal2').value=existing.goal2||''; }
                 else { document.getElementById('psGoal1').value=''; document.getElementById('psGoal2').value=''; }
-                var amap={}; (existing.assignments||[]).forEach(function(a){ amap[a.employee_id]=a.position; });
-                renderPreshiftRoster(roster, amap);
+                var rosterById={}; roster.forEach(function(e){ rosterById[e.id]=e.name; });
+                var exa=(existing.assignments||[]).map(function(a){ return {pos:a.position, name:(a.employee_name||rosterById[a.employee_id]||''), empId:a.employee_id}; });
+                renderPreshiftSlots(roster, exa);
             }).catch(function(){ box.innerHTML='<p style="color:#c0264b;text-align:center;padding:20px;">Could not load the crew.</p>'; });
         });
     }
-    function renderPreshiftRoster(roster, amap){
-        var box=document.getElementById('psRoster');
-        if(!roster.length){ box.innerHTML='<p style="text-align:center;color:#888;padding:20px;">No active crew for this store. Add them in Roster first.</p>'; return; }
-        var opts='<option value="">— not on this shift —</option>'+PS_POSITIONS.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
-        var h='';
-        roster.forEach(function(e){
-            var cur=amap[e.id]||'';
-            h+='<div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #ececf2;border-radius:10px;padding:8px 10px;margin-bottom:6px;">'+
-               '<b style="flex:1;font-size:14px;color:#26242b;">'+escapeHtml(e.name)+'</b>'+
-               '<select id="psPos_'+e.id+'" style="padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;max-width:150px;">'+opts.replace('value="'+cur+'"','value="'+cur+'" selected')+'</select>'+
-               '<button onclick="openPositionProgress('+e.id+','+JSON.stringify(e.name)+')" title="Training progress" style="background:#eef3fb;color:#185FA5;border:none;border-radius:7px;padding:7px 9px;font-size:13px;cursor:pointer;">&#128200;</button>'+
-               '</div>';
+    var PS_DEFAULT_SLOTS=['Shift Leader','Machine','Front Register','Drive Register','Item Maker'];
+    function renderPreshiftSlots(roster, existing){
+        window._psRoster=roster||[];
+        var box=document.getElementById('psRoster'); if(!box) return;
+        var slots=PS_DEFAULT_SLOTS.map(function(p){ return {pos:p,name:''}; });
+        (existing||[]).forEach(function(a){
+            var placed=false;
+            for(var i=0;i<slots.length;i++){ if(slots[i].pos===a.pos && !slots[i].name){ slots[i].name=a.name; placed=true; break; } }
+            if(!placed) slots.push({pos:a.pos,name:a.name});
         });
+        window._psSlotSeq=0;
+        var dl='<datalist id="psNames">'+(roster||[]).map(function(e){ return '<option value="'+escapeHtml(e.name)+'"></option>'; }).join('')+'</datalist>';
+        var h=dl;
+        slots.forEach(function(s){ h+=psSlotHtml(s.pos,s.name); });
+        h+='<button type="button" onclick="psAddSlot()" style="width:100%;margin-top:4px;background:#eef3fb;color:#185FA5;border:1px dashed #9cc0ec;border-radius:9px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;">+ Add slot</button>';
+        if(!(roster||[]).length){ h='<p style="text-align:center;color:#9a7400;background:#fff8e6;border:1px solid #ffe39a;border-radius:9px;padding:9px;margin-bottom:8px;font-size:12.5px;">No active crew loaded for this store yet — you can still type names in below.</p>'+h; }
         box.innerHTML=h;
-        window._psRoster=roster;
     }
+    function psSlotHtml(pos,name){
+        var sid=++window._psSlotSeq;
+        var opts=PS_POSITIONS.map(function(p){ return '<option value="'+p+'"'+(p===pos?' selected':'')+'>'+p+'</option>'; }).join('');
+        return '<div class="ps-slot" data-sid="'+sid+'" style="display:flex;align-items:center;gap:7px;background:#fff;border:1px solid #ececf2;border-radius:10px;padding:8px 10px;margin-bottom:6px;">'+
+               '<select class="ps-slot-pos" style="flex:0 0 116px;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:12.5px;">'+opts+'</select>'+
+               '<input class="ps-slot-name" list="psNames" value="'+escapeHtml(name||'')+'" placeholder="Type or pick a name" autocomplete="off" style="flex:1;min-width:80px;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;">'+
+               '<button type="button" onclick="psSlotProgress(this)" title="Training progress" style="background:#eef3fb;color:#185FA5;border:none;border-radius:7px;padding:7px 8px;font-size:13px;cursor:pointer;">&#128200;</button>'+
+               '<button type="button" onclick="psRemoveSlot(this)" title="Remove slot" style="background:#fbeaef;color:#c0264b;border:none;border-radius:7px;padding:6px 9px;font-size:15px;line-height:1;cursor:pointer;">&times;</button>'+
+               '</div>';
+    }
+    function psAddSlot(){
+        var box=document.getElementById('psRoster'); if(!box) return;
+        var addBtn=box.querySelector('button[onclick="psAddSlot()"]');
+        var tmp=document.createElement('div'); tmp.innerHTML=psSlotHtml('Item Maker','');
+        var node=tmp.firstChild;
+        if(addBtn) box.insertBefore(node,addBtn); else box.appendChild(node);
+    }
+    function psRemoveSlot(btn){ var row=btn.closest('.ps-slot'); if(row && row.parentNode) row.parentNode.removeChild(row); }
+    function psMatchName(nm){ var roster=window._psRoster||[]; var t=(nm||'').trim().toLowerCase(); if(!t) return null; for(var i=0;i<roster.length;i++){ if((roster[i].name||'').trim().toLowerCase()===t) return roster[i]; } return null; }
+    function psSlotProgress(btn){ var row=btn.closest('.ps-slot'); if(!row) return; var nm=row.querySelector('.ps-slot-name').value; var emp=psMatchName(nm); if(!emp){ alert('Type or pick a saved employee name first to see their training progress.'); return; } openPositionProgress(emp.id,emp.name); }
     function savePreshift(){
         var store=document.getElementById('psStore').value, date=document.getElementById('psDate').value||psTodayStr(), type=document.getElementById('psType').value;
-        var roster=window._psRoster||[]; var assignments=[];
-        roster.forEach(function(e){
-            var sel=document.getElementById('psPos_'+e.id); if(sel && sel.value){ assignments.push({employee_id:e.id, employee_name:e.name, position:sel.value}); }
+        var rows=document.querySelectorAll('#psRoster .ps-slot'); var assignments=[];
+        rows.forEach(function(row){
+            var pos=row.querySelector('.ps-slot-pos').value;
+            var nm=(row.querySelector('.ps-slot-name').value||'').trim(); if(!nm) return;
+            var emp=psMatchName(nm);
+            assignments.push({employee_id: emp?emp.id:null, employee_name: emp?emp.name:nm, position: pos});
         });
         var msg=document.getElementById('psMsg'); msg.style.color='#5b6472'; msg.textContent='Saving…';
         withPin(function(pin){
@@ -7252,7 +7381,7 @@
     }
 
     // ----- What's New / How-To popup -----
-    var HOWTO_VERSION = '2026.06.23.pm'; // bump to re-show after future how-to updates
+    var HOWTO_VERSION = '2026.06.23.lineup'; // bump to re-show after future how-to updates
     function openHowTo(){ var m=document.getElementById('howtoModal'); if(m) m.style.display='flex'; }
     function closeHowTo(){ var m=document.getElementById('howtoModal'); if(m) m.style.display='none'; try{ localStorage.setItem('howtoSeen_'+HOWTO_VERSION,'1'); }catch(e){} }
     function maybeShowHowTo(){
@@ -9621,7 +9750,7 @@
     <input type="hidden" id="equipEditId">
     <label class="rm-lbl" for="equipEditStore">Store</label>
     <select id="equipEditStore" class="rm-inp">
-      <option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option>
+      <option>Roadrunner</option><option>Valley</option><option>Lenox</option><option>Alamogordo</option><option>Roswell</option><option>Warehouse</option>
     </select>
     <label class="rm-lbl" for="equipEditName" style="margin-top:10px;">Equipment name</label>
     <input id="equipEditName" type="text" class="rm-inp" placeholder="e.g. Custard machine #1" list="equipNames">
