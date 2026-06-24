@@ -672,7 +672,7 @@
             <button id="btn-empHome" class="menu-btn" onclick="openEmployeeHome()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127968;</span><b>My Home</b><small>Your shifts, tasks &amp; updates</small></button>
             <button id="btn-formsDocs" class="menu-btn" onclick="openFormsLinks()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128196;</span><b>Forms &amp; Documents</b><small>Payroll, HR &amp; hiring forms</small></button>
             <button id="btn-training" class="menu-btn" onclick="openTrainingPortal()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128218;</span><b>Training &amp; Resources</b><small>Recipes, how-tos &amp; guides</small></button>
-            <button id="btn-report" class="menu-btn" onclick="openHarassReport()"><span class="rchip staff" style="background:#ede4fb;color:#5b3aa6;">Private</span><span class="tile-ic">&#128274;</span><b>Report a Concern</b><small>Harassment or misconduct &middot; confidential</small></button>
+            <button id="btn-report" class="menu-btn" onclick="openYourVoice()"><span class="rchip staff" style="background:#ede4fb;color:#5b3aa6;">SAFE &amp; PRIVATE</span><span class="tile-ic">&#128172;</span><b>Your Voice</b><small>Ideas, feedback, support &amp; confidential concerns</small></button>
             <button id="btn-howto" class="menu-btn" style="display:none;" onclick="openAppTour()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128218;</span><b>How to Use the Hub</b><small>Quick guided walkthrough</small></button>
         </div>
 
@@ -2356,7 +2356,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.24.1639';
+    const APP_VERSION = '2026.06.24.1754';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -7748,6 +7748,103 @@
     }
     var CONTACT_CATS=['Emergency & Safety','Repairs & Maintenance','Store Services & Vendors',"Caliche's Internal Contacts"];
     var CONTACT_LOCS=['Companywide','Roadrunner','Valley','Lenox','Alamogordo','Roswell','Warehouse'];
+    function VOICE_LABEL(t){ return ({talk:'Talk to Someone',idea:'Idea',feedback:'Feedback',help:'Help request',concern:'Concern'})[t]||t; }
+    function voiceStatusBadge(st){ var s=(st||'Received'); var c=(s==='Resolved'||s==='Closed')?['#e8f5ec','#1b7a3d']:(s==='Received'?['#eef0f3','#6b7686']:['#eef3fb','#185FA5']); return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:99px;white-space:nowrap;">'+escapeHtml(s)+'</span>'; }
+    function voiceUrg(u){ if(!u||u==='general') return ''; var m={urgent:['#fdeaea','#a01b3e','Urgent'],immediate:['#fdeaea','#a01b3e','Emergency']}; var c=m[u]; return c?'<span style="background:'+c[0]+';color:'+c[1]+';font-size:10px;font-weight:800;padding:2px 6px;border-radius:99px;">'+c[2]+'</span>':''; }
+    function openYourVoice(){
+        document.getElementById('main-menu').style.display='none';
+        document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';});
+        document.getElementById('yourVoiceView').style.display='block'; window.scrollTo(0,0);
+        renderVoiceCards();
+    }
+    function voiceCard(icon,title,sub,onclick,color){
+        return '<button onclick="'+onclick+'" style="width:100%;text-align:left;background:#fff;border:1px solid #ececf2;border-radius:12px;padding:13px 15px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px;box-shadow:0 2px 6px rgba(0,0,0,.04);"><span style="font-size:23px;">'+icon+'</span><span style="flex:1;"><b style="font-size:14.5px;color:#26242b;display:block;">'+title+'</b><small style="color:#8a8594;font-size:12px;">'+sub+'</small></span><span style="color:'+(color||'#aab')+';font-size:20px;">&rsaquo;</span></button>';
+    }
+    function renderVoiceCards(){
+        var box=document.getElementById('voiceCards'); if(!box) return;
+        var h='';
+        h+=voiceCard('&#128483;&#65039;','Talk to Someone','Request a private conversation','openVoiceForm(\'talk\')');
+        h+=voiceCard('&#128161;','Share an Idea','Help us improve Caliche\'s','openVoiceForm(\'idea\')');
+        h+=voiceCard('&#128172;','Give Feedback','What\'s working and what could be better','openVoiceForm(\'feedback\')');
+        h+=voiceCard('&#129309;','Ask for Help','Scheduling, payroll, conflict, policy &amp; more','openVoiceForm(\'help\')');
+        h+=voiceCard('&#128274;','Report a Concern','Confidential or anonymous','openHarassReport()');
+        h+=voiceCard('&#128203;','My Submissions','Check the status of what you sent','openVoiceMine()');
+        if(typeof isAdminManager==='function' && isAdminManager()){ h+=voiceCard('&#128202;','Team Voice Dashboard','Reviewers: manage submissions','openVoiceDash()','#5b3aa6'); }
+        box.innerHTML=h;
+    }
+    var VOICE_CATS={ idea:['Customer Experience','Menu or Product','Store Operations','Equipment or Maintenance','Training','Employee Experience','Safety','Technology or Hub App','Community','Other'],
+        help:['Scheduling or Hours','Pay or Payroll','Conflict with a Team Member','Concern Involving a Leader','Policy Question','Training Support','Personal Workplace Support','Other / Not Sure'],
+        talk:['Shift Leader','Store Manager','Operations Leadership','Aaron','Adriana','Help Me Choose'],
+        feedback:['Training','Leadership','Communication','Scheduling','Tools','Workload','Workplace Environment','Hub App','Other'] };
+    function openVoiceForm(type){
+        window._voiceType=type;
+        var titles={talk:'Talk to Someone',idea:'Share an Idea',feedback:'Give Feedback',help:'Ask for Help'};
+        var catLabel={talk:'Who would you like to speak with?',idea:'Category',help:'What do you need help with?',feedback:'Feedback about'};
+        var catList=VOICE_CATS[type]||[]; var stores=['','Roadrunner','Valley','Lenox','Alamogordo','Roswell','Multiple / Companywide'];
+        var ov=certOverlay('voiceFormModal');
+        ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:480px;width:100%;margin-top:22px;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.3);max-height:90vh;overflow:auto;">'+
+          '<div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:16px;color:#1f2a44;">'+titles[type]+'</b><button data-x style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">&times;</button></div>'+
+          (catList.length?'<label class="rm-lbl" style="margin-top:8px;">'+catLabel[type]+'</label><select id="vCat" class="rm-inp">'+catList.map(function(c){return '<option>'+escapeHtml(c)+'</option>';}).join('')+'</select>':'')+
+          '<label class="rm-lbl" style="margin-top:8px;">Store</label><select id="vStore" class="rm-inp">'+stores.map(function(s){return '<option value="'+escapeHtml(s)+'">'+(s?escapeHtml(s):'(choose)')+'</option>';}).join('')+'</select>'+
+          '<label class="rm-lbl" style="margin-top:8px;">'+(type==='talk'?'Anything you want to add? (optional)':'Tell us more')+'</label><textarea id="vMsg" class="rm-inp" rows="4" placeholder="Share as much or as little as you like."></textarea>'+
+          (type==='talk'?'<label class="rm-lbl" style="margin-top:8px;">Best way to reach you</label><select id="vContact" class="rm-inp"><option>In-app message</option><option>Phone call</option><option>Text</option><option>Email</option><option>In person</option></select>':'')+
+          '<div id="vMsgErr" style="font-size:12px;margin-top:8px;"></div>'+
+          '<div style="display:flex;gap:8px;margin-top:12px;"><button data-x style="flex:1;background:#eef0f3;color:#444;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="submitVoice()" style="flex:2;background:var(--pass-green,#1f7a3d);color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;">Send</button></div>'+
+          '<p style="font-size:11px;color:#9aa7b4;margin:10px 0 0;text-align:center;">For confidential harassment or misconduct, use Report a Concern instead.</p></div>';
+        ov.querySelectorAll('[data-x]').forEach(function(b){ b.onclick=function(){ ov.style.display='none'; }; });
+    }
+    function submitVoice(){
+        var msg=(document.getElementById('vMsg').value||'').trim(); var err=document.getElementById('vMsgErr');
+        if(!msg && window._voiceType!=='talk'){ err.style.color='#c0264b'; err.textContent='Please add a few words.'; return; }
+        err.style.color='#6b7686'; err.textContent='Sending...';
+        var cat=document.getElementById('vCat')?document.getElementById('vCat').value:'';
+        var contact=document.getElementById('vContact')?document.getElementById('vContact').value:'';
+        withPin(function(pin){
+            supabaseClient.rpc('app_voice_submit',{p_username:currentUser.username,p_password:pin,p_type:window._voiceType,p_category:cat,p_subject:cat,p_message:msg,p_store:document.getElementById('vStore').value,p_urgency:'general',p_contact_pref:contact,p_anonymous:false}).then(function(r){
+                if(r.error){ err.style.color='#c0264b'; err.textContent='Error: '+r.error.message; return; }
+                var ref=(r.data&&r.data.ref)||''; var ov=document.getElementById('voiceFormModal');
+                if(ov){ ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;margin-top:60px;padding:24px;text-align:center;box-shadow:0 16px 50px rgba(0,0,0,.3);"><div style="font-size:40px;">&#9989;</div><h3 style="color:#1b7a3d;margin:8px 0 4px;">Thank you for speaking up</h3><p style="color:#5b6472;font-size:13.5px;margin:0;">Your submission was received. Reference number:</p><p style="font-weight:800;font-size:18px;color:#1f2a44;letter-spacing:1px;">'+escapeHtml(ref)+'</p><p style="color:#8a8594;font-size:12px;">If you included your name, an authorized team member may reach out.</p><button data-x style="margin-top:12px;background:var(--caliches-blue,#185FA5);color:#fff;border:none;border-radius:10px;padding:11px 22px;font-weight:700;cursor:pointer;">Done</button></div>';
+                    ov.querySelectorAll('[data-x]').forEach(function(b){ b.onclick=function(){ ov.style.display='none'; }; }); }
+            }).catch(function(){ err.style.color='#c0264b'; err.textContent='Could not send.'; });
+        });
+    }
+    function openVoiceMine(){
+        var ov=certOverlay('voiceMineModal');
+        ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:480px;width:100%;margin-top:24px;padding:18px;max-height:88vh;overflow:auto;box-shadow:0 16px 50px rgba(0,0,0,.3);"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:16px;color:#1f2a44;">My submissions</b><button data-x style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">&times;</button></div><div style="font-size:12px;color:#8a8594;margin:4px 0 8px;">Confidential and anonymous reports are tracked separately.</div><div id="voiceMineBody"><p style="text-align:center;color:#888;padding:18px;">Loading&hellip;</p></div></div>';
+        ov.querySelectorAll('[data-x]').forEach(function(b){ b.onclick=function(){ ov.style.display='none'; }; });
+        withPin(function(pin){
+            supabaseClient.rpc('app_voice_my',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                var body=document.getElementById('voiceMineBody'); if(!body) return;
+                if(r.error){ body.innerHTML='<p style="color:#c0264b;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var list=r.data||[]; if(!list.length){ body.innerHTML='<p style="color:#888;text-align:center;padding:14px;font-size:13px;">Nothing yet.</p>'; return; }
+                var h=''; list.forEach(function(s){ h+='<div style="border:1px solid #ececf2;border-radius:10px;padding:10px 12px;margin-bottom:7px;"><div style="display:flex;gap:8px;"><b style="flex:1;font-size:13.5px;color:#26242b;">'+escapeHtml(VOICE_LABEL(s.type))+(s.category?' &middot; '+escapeHtml(s.category):'')+'</b>'+voiceStatusBadge(s.status)+'</div><div style="font-size:11.5px;color:#9aa7b4;margin-top:2px;">'+escapeHtml(s.ref||'')+' &middot; '+escapeHtml(String(s.created||'').slice(0,10))+'</div></div>'; });
+                body.innerHTML=h;
+            }).catch(function(){ var body=document.getElementById('voiceMineBody'); if(body) body.innerHTML='<p style="color:#c0264b;text-align:center;">Could not load.</p>'; });
+        });
+    }
+    function openVoiceDash(){
+        var ov=certOverlay('voiceDashModal');
+        ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:560px;width:100%;margin-top:18px;padding:18px;max-height:90vh;overflow:auto;box-shadow:0 16px 50px rgba(0,0,0,.3);"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:16px;color:#1f2a44;">Team Voice Dashboard</b><button data-x style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">&times;</button></div><div id="voiceDashBody"><p style="text-align:center;color:#888;padding:18px;">Loading&hellip;</p></div></div>';
+        ov.querySelectorAll('[data-x]').forEach(function(b){ b.onclick=function(){ ov.style.display='none'; }; });
+        loadVoiceDash();
+    }
+    function loadVoiceDash(){
+        withPin(function(pin){
+            supabaseClient.rpc('app_voice_admin_list',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                var body=document.getElementById('voiceDashBody'); if(!body) return;
+                if(r.error){ body.innerHTML='<p style="color:#c0264b;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var list=r.data||[]; if(!list.length){ body.innerHTML='<p style="color:#888;text-align:center;padding:14px;">No submissions yet.</p>'; return; }
+                var STAT=['Received','Under Review','Follow-Up Requested','Action Planned','Resolved','Closed']; var h='';
+                list.forEach(function(s){ h+='<div style="border:1px solid #ececf2;border-radius:10px;padding:11px 12px;margin-bottom:8px;"><div style="display:flex;gap:8px;align-items:flex-start;"><b style="flex:1;font-size:13.5px;color:#26242b;">'+escapeHtml(VOICE_LABEL(s.type))+(s.category?' &middot; '+escapeHtml(s.category):'')+'</b>'+voiceUrg(s.urgency)+'</div><div style="font-size:11.5px;color:#9aa7b4;margin-top:2px;">'+escapeHtml(s.ref||'')+' &middot; '+(s.anon?'<b style="color:#5b3aa6;">Anonymous</b>':escapeHtml(s.who||'\u2014'))+(s.store?' &middot; '+escapeHtml(s.store):'')+'</div>'+(s.message?'<div style="font-size:12.5px;color:#33303a;margin-top:5px;white-space:pre-wrap;">'+escapeHtml(s.message)+'</div>':'')+'<div style="margin-top:8px;display:flex;align-items:center;gap:6px;"><span style="font-size:11px;color:#888;">Status:</span><select onchange="setVoiceStatus('+s.id+',this.value)" style="padding:5px 7px;border:1px solid #ddd;border-radius:7px;font-size:12px;">'+STAT.map(function(x){return '<option'+(s.status===x?' selected':'')+'>'+x+'</option>';}).join('')+'</select></div></div>'; });
+                body.innerHTML=h;
+            }).catch(function(){ var body=document.getElementById('voiceDashBody'); if(body) body.innerHTML='<p style="color:#c0264b;text-align:center;">Could not load.</p>'; });
+        });
+    }
+    function setVoiceStatus(id,status){
+        withPin(function(pin){
+            supabaseClient.rpc('app_voice_set_status',{p_username:currentUser.username,p_password:pin,p_id:id,p_status:status,p_reviewer:(currentUser&&currentUser.name)||currentUser.username}).then(function(r){ if(r.error){ alert('Error: '+r.error.message); } }).catch(function(){});
+        });
+    }
     function openContactsDir(){
         document.getElementById('main-menu').style.display='none';
         document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';});
@@ -10046,6 +10143,18 @@
     </div>
   </div>
 </div>
+<div id="yourVoiceView" class="app-view">
+  <div class="hb-head" style="background:linear-gradient(120deg,#5b3aa6,#106ab3);">
+    <button class="hb-back" onclick="goBack()">&#8249; Back</button>
+    <div class="hb-ico">&#128172;</div>
+    <div><h2>Your Voice</h2><div class="hb-sub">Ideas, feedback, support &amp; confidential concerns</div></div>
+  </div>
+  <div class="container" style="max-width:680px;">
+    <p style="background:#f3f0fb;border:1px solid #e0d8f5;border-radius:11px;padding:11px 13px;font-size:13px;color:#4b3a7a;line-height:1.5;margin:0 0 12px;"><b>Your voice matters.</b> Caliche&rsquo;s has an open-door culture &mdash; you&rsquo;re always welcome to talk to your Shift Leader, Store Manager, Operations, or Ownership. This gives you more ways to share an idea, ask for help, give feedback, request a conversation, or report a confidential concern. Choose what feels most comfortable.</p>
+    <div id="voiceCards"></div>
+  </div>
+</div>
+
 <div id="contactsDirView" class="app-view">
   <div class="hb-head" style="background:linear-gradient(120deg,#3b2f6b,#106ab3);">
     <button class="hb-back" onclick="goBack()">&#8249; Back</button>
