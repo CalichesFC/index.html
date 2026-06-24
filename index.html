@@ -1556,6 +1556,7 @@
         <div class="sp-toolhdr">Tools</div>
         <a data-nav="copy" onclick="schedRailNav('copy',this)">&#128203; Copy last week</a>
         <a data-nav="templates" onclick="schedRailNav('templates',this)">&#128209; Templates</a>
+        <a data-nav="confirms" onclick="schedRailNav('confirms',this)">&#9989; Confirmations</a>
         <a data-nav="addemp" onclick="schedRailNav('addemp',this)">&#10133; Add employee</a>
         <a data-nav="roles" onclick="schedRailNav('roles',this)">&#127912; Manage roles</a>
         <a data-nav="print" onclick="schedRailNav('print',this)">&#128424;&#65039; Print</a>
@@ -2080,6 +2081,10 @@
       <p><b>Where:</b> Store Operations &rarr; Equipment History.</p>
       <ol><li>The store dropdown now includes <b>Warehouse</b> &mdash; it lists warehouse equipment split into <b>&#9989; In use</b> and <b>&#128230; Unused backups.</b> Managers tap <b>In use / Backup</b> on a unit to move it between the two.</li><li>Open any machine to see its new <b>Maintenance reports</b> history &mdash; every request filed for it, with status.</li><li>Managers can tap <b>&#9989; Mark resolved</b> on a report and type how it was fixed; the <b>resolution</b> then shows in that machine&rsquo;s history.</li><li>All your real equipment (walk-in coolers, freezers, washers, dryers, water heaters &amp; softeners, Lenox&rsquo;s two custard machines) is now loaded per store.</li></ol></div>
 
+    <div class="howto-sec"><h3>&#9989; Confirm Your Schedule</h3>
+      <p><b>Where:</b> Scheduling &rarr; <b>My Shifts.</b></p>
+      <ol><li>Once you have checked your shifts for the week, tap <b>&#9989; Confirm my schedule</b> at the bottom.</li><li>It lets your manager know you have seen the week.</li><li><b>Managers:</b> in the schedule&rsquo;s left tools, open <b>&#9989; Confirmations</b> to see who has (and has not) confirmed each week.</li></ol></div>
+
     <button onclick="closeHowTo()" class="save-btn" style="margin-top:16px;background:var(--caliches-blue);">Got it &mdash; let&rsquo;s go</button>
   </div>
 </div>
@@ -2349,7 +2354,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.23.1949';
+    const APP_VERSION = '2026.06.24.1331';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3537,6 +3542,7 @@
             case 'roster': openRoster(); break;
             case 'copy': schedCopyLastWeek(); break;
             case 'templates': openSchedTemplates(); break;
+            case 'confirms': openWeekConfirms(); break;
             case 'addemp': schedAddEmployee(); break;
             case 'roles': openRolesModal(); break;
             case 'print': schedPrint(); break;
@@ -3862,8 +3868,61 @@
             html += '</div></div>';
         });
         html += '<div class="sp-weekbar" style="margin-top:14px;border-radius:10px;"><span>This week</span><span><b>'+total.toFixed(1)+' hrs</b> scheduled</span></div>';
+        html += '<div id="weekConfirmBar" style="margin-top:10px;"></div>';
         html += '<p style="font-size:12px;color:#9aa7b4;margin-top:10px;">Only published shifts are shown. Need a day off? Use <b>Request time off</b> in the menu.</p></div>';
         document.getElementById('schedGrid').innerHTML = html;
+        loadWeekConfirm(schedFmt(schedState.weekStart), (mine.shifts||[]).length>0);
+    }
+    function loadWeekConfirm(ws, hasShifts){
+        var box=document.getElementById('weekConfirmBar'); if(!box) return;
+        if(!hasShifts){ box.innerHTML=''; return; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_week_confirm_status',{p_username:currentUser.username,p_password:pin,p_week_start:ws}).then(function(r){
+                if(r.error||!r.data||!r.data.linked){ box.innerHTML=''; return; }
+                if(r.data.confirmed){
+                    var when=r.data.confirmed_at?(' on '+String(r.data.confirmed_at).slice(0,10)):'';
+                    box.innerHTML='<div style="background:#e8f5ec;border:1px solid #b8e0c4;color:#1b7a3d;border-radius:10px;padding:10px 12px;text-align:center;font-size:13px;font-weight:700;">&#9989; You confirmed this schedule'+when+'</div>';
+                } else {
+                    box.innerHTML='<button onclick="confirmWeek(\''+ws+'\')" style="width:100%;background:var(--pass-green,#1f7a3d);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;">&#9989; Confirm my schedule</button><div style="font-size:11.5px;color:#9aa7b4;text-align:center;margin-top:5px;">Lets your manager know you have seen this week.</div>';
+                }
+            }).catch(function(){ box.innerHTML=''; });
+        });
+    }
+    function closeWeekConfirms(){ var ov=document.getElementById('weekConfirmsModal'); if(ov) ov.style.display='none'; }
+    function openWeekConfirms(){
+        var ws=schedFmt(schedState.weekStart); var loc=schedState.location||'';
+        var ov=document.getElementById('weekConfirmsModal');
+        if(!ov){ ov=document.createElement('div'); ov.id='weekConfirmsModal'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px;'; ov.addEventListener('click',function(e){ if(e.target===ov) ov.style.display='none'; }); document.body.appendChild(ov); }
+        ov.style.display='flex';
+        ov.innerHTML='<div style="background:var(--surface,#fff);border-radius:14px;max-width:460px;width:100%;max-height:85vh;overflow:auto;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.2);">'+
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><b style="flex:1;font-size:16px;color:var(--txt,#26242b);">Schedule confirmations</b><button onclick="closeWeekConfirms()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;line-height:1;">&times;</button></div>'+
+          '<div style="font-size:12.5px;color:var(--txt2,#8a8594);margin-bottom:10px;">Week of '+escapeHtml(ws)+(loc?(' &middot; '+escapeHtml(loc)):'')+'</div>'+
+          '<div id="weekConfirmsBody"><p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p></div></div>';
+        withPin(function(pin){
+          supabaseClient.rpc('app_week_confirm_roster',{p_username:currentUser.username,p_password:pin,p_location:loc,p_week_start:ws}).then(function(r){
+            var body=document.getElementById('weekConfirmsBody'); if(!body) return;
+            if(r.error){ body.innerHTML='<p style="color:#c0264b;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
+            var list=r.data||[]; if(!list.length){ body.innerHTML='<p style="color:#888;text-align:center;padding:16px;">No active staff for this store.</p>'; return; }
+            var done=list.filter(function(x){return x.confirmed;}).length;
+            var h='<div style="font-size:12.5px;font-weight:700;color:var(--txt,#26242b);margin-bottom:8px;">'+done+' of '+list.length+' confirmed</div>';
+            list.forEach(function(x){
+              h+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd,#f0eef4);">'+
+                 '<span style="flex:1;font-size:14px;color:var(--txt,#26242b);">'+escapeHtml(x.name||'')+'</span>'+
+                 (x.confirmed?'<span style="color:#1b7a3d;font-weight:700;font-size:12.5px;">&#9989; '+escapeHtml(x.confirmed_at?String(x.confirmed_at).slice(0,10):'confirmed')+'</span>':'<span style="color:#b08600;font-weight:700;font-size:12.5px;">&#8230; waiting</span>')+
+                 '</div>';
+            });
+            body.innerHTML=h;
+          }).catch(function(){ var body=document.getElementById('weekConfirmsBody'); if(body) body.innerHTML='<p style="color:#c0264b;text-align:center;">Could not load.</p>'; });
+        });
+    }
+    function confirmWeek(ws){
+        var box=document.getElementById('weekConfirmBar'); if(box) box.innerHTML='<div style="text-align:center;color:#9aa7b4;font-size:13px;padding:6px;">Saving&hellip;</div>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_week_confirm',{p_username:currentUser.username,p_password:pin,p_week_start:ws}).then(function(r){
+                if(r.error){ if(box) box.innerHTML='<div style="color:#c0264b;text-align:center;font-size:13px;">'+escapeHtml(r.error.message)+'</div>'; return; }
+                loadWeekConfirm(ws, true);
+            }).catch(function(){ if(box) box.innerHTML='<div style="color:#c0264b;text-align:center;font-size:13px;">Could not save.</div>'; });
+        });
     }
 
     function schedOpenModal(empId, date, shiftId) {
@@ -4223,7 +4282,7 @@
                 ? '<button class="roster-act" style="color:#c0264b;" onclick="rosterSetActive('+e.id+',false,&quot;'+rosterEsc(nmJs)+'&quot;)">Terminate</button>'
                 : '<button class="roster-act" style="color:#1f7a3d;" onclick="rosterSetActive('+e.id+',true,&quot;'+rosterEsc(nmJs)+'&quot;)">Reactivate</button>';
             const celIc = celebRosterMap[e.id]==='birthday' ? ' <span title="Birthday coming up">🎂</span>' : (celebRosterMap[e.id] ? ' <span title="Work anniversary coming up">🎉</span>' : '');
-            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+celIc+pipBadge+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;">'+((rosterState.phones&&rosterState.phones[e.id])?('<a class="roster-act" style="color:#1f7a3d;" href="tel:'+String(rosterState.phones[e.id]).replace(/[^0-9+]/g,'')+'">&#128222; Call</a>'):'')+pipAct+'<button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button>'+termBtn+'</td></tr>';
+            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+celIc+pipBadge+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;">'+((rosterState.phones&&rosterState.phones[e.id])?('<a class="roster-act" style="color:#1f7a3d;" href="tel:'+String(rosterState.phones[e.id]).replace(/[^0-9+]/g,'')+'">&#128222; '+rosterEsc(String(rosterState.phones[e.id]))+'</a>'):'')+pipAct+'<button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button>'+termBtn+'</td></tr>';
         });
         html+='</tbody></table>';
         box.innerHTML=html;
@@ -6763,6 +6822,8 @@
         var box=document.getElementById('equipDetailBody');
         var admin=(typeof isAdminManager==='function' && isAdminManager());
         function row(lbl,val){ if(!val) return ''; return '<div style="padding:10px 0;border-bottom:1px solid #f0eef4;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#9a93a4;">'+escapeHtml(lbl)+'</div><div style="font-size:14px;color:#2c2933;line-height:1.55;white-space:pre-wrap;margin-top:2px;">'+escapeHtml(val)+'</div></div>'; }
+        function rowLink(lbl,val){ if(!val) return ''; var safe=escapeHtml(val).replace(new RegExp('(https?://[^ <]+)','g'),'<a href="$1" target="_blank" rel="noopener" style="color:#185FA5;word-break:break-all;">$1</a>'); return '<div style="padding:10px 0;border-bottom:1px solid #f0eef4;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#9a93a4;">'+escapeHtml(lbl)+'</div><div style="font-size:14px;color:#2c2933;line-height:1.55;white-space:pre-wrap;margin-top:2px;">'+safe+'</div></div>'; }
+        function rowCollapse(lbl,val){ if(!val) return ''; return '<details style="padding:8px 0;border-bottom:1px solid #f0eef4;"><summary style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#9a93a4;cursor:pointer;">'+escapeHtml(lbl)+'</summary><div style="font-size:14px;color:#2c2933;line-height:1.55;white-space:pre-wrap;margin-top:6px;">'+escapeHtml(val)+'</div></details>'; }
         var h='';
         h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.05);">';
         h+='<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;">'+
@@ -6774,7 +6835,7 @@
            '<img src="'+equipQrUrl(e.id,180)+'" alt="QR code" style="width:180px;height:180px;display:block;margin:0 auto;background:#fff;">'+
            '<div style="font-size:11.5px;color:#8a8594;margin-top:8px;">Scan to open this record</div>'+
            '<button onclick="printEquipmentQR()" style="margin-top:10px;background:#854F0B;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;">&#128424;&#65039; Print QR label</button></div>';
-        h+=row('Model',e.model)+row('Serial #',e.serial)+row('Vendor / service',e.vendor)+row('Warranty',e.warranty)+row('Manuals / links',e.manuals)+row('Troubleshooting',e.troubleshooting)+row('Notes / repair history',e.notes);
+        h+=row('Model',e.model)+row('Serial #',e.serial)+row('Vendor / service',e.vendor)+row('Warranty',e.warranty)+rowLink('Manuals / links',e.manuals)+rowCollapse('Troubleshooting',e.troubleshooting)+rowCollapse('Notes / repair history',e.notes);
         h+='<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">'+
            '<button onclick="openMaintenanceForEquipment('+JSON.stringify(e.store||'')+','+JSON.stringify(e.name||'')+')" style="flex:1;min-width:140px;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#128295; Report maintenance</button>';
         if(admin){ h+='<button onclick="openEquipmentEdit('+e.id+')" style="flex:1;min-width:120px;background:#f3eede;color:#854F0B;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#9998; Edit</button>'+
@@ -6817,17 +6878,17 @@
         } else {
             scheds.forEach(function(sc){
                 var d=sc.days_until; var dt=(d<0?Math.abs(d)+'d overdue':(d===0?'due today':'in '+d+'d'));
-                h+='<div style="border:1px solid var(--bd,#f0eef4);border-radius:11px;padding:11px 12px;margin-bottom:8px;">'+
-                   '<div style="display:flex;align-items:flex-start;gap:8px;"><div style="flex:1;min-width:0;">'+
+                h+='<details style="border:1px solid var(--bd,#f0eef4);border-radius:11px;padding:11px 12px;margin-bottom:8px;">'+
+                   '<summary style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;"><div style="flex:1;min-width:0;">'+
                    '<div style="font-weight:700;font-size:14px;color:var(--txt,#26242b);">'+escapeHtml(sc.title)+'</div>'+
                    '<div style="font-size:12px;color:var(--txt2,#8a8594);margin-top:2px;">Every '+sc.interval_days+' days &middot; next '+escapeHtml(sc.next_due||'')+' &middot; '+dt+'</div>'+
-                   (sc.instructions?'<div style="font-size:12px;color:var(--txt2,#8a8594);margin-top:4px;white-space:pre-wrap;">'+escapeHtml(sc.instructions)+'</div>':'')+
-                   '</div>'+pmStatusBadge(sc.status)+'</div>'+
+                   '</div>'+pmStatusBadge(sc.status)+'</summary>'+
+                   (sc.instructions?'<div style="font-size:12px;color:var(--txt2,#8a8594);margin-top:8px;white-space:pre-wrap;">'+escapeHtml(sc.instructions)+'</div>':'')+
                    '<div style="display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;">'+
                    '<button onclick="completePm('+sc.id+','+equipId+')" style="flex:1;min-width:120px;background:var(--pass-green);color:#fff;border:none;border-radius:8px;padding:8px;font-size:12.5px;font-weight:700;cursor:pointer;">&#9989; Mark serviced</button>'+
                    (mgr?'<button onclick="openPmEdit('+equipId+','+sc.id+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:8px 11px;font-size:12.5px;font-weight:700;cursor:pointer;">&#9998;</button>'+
                         '<button onclick="deletePmSched('+sc.id+','+equipId+')" style="background:#fdeaea;color:#c0264b;border:none;border-radius:8px;padding:8px 11px;font-size:12.5px;font-weight:700;cursor:pointer;">&#128465;&#65039;</button>':'')+
-                   '</div></div>';
+                   '</div></details>';
             });
         }
         if(log.length){
@@ -7381,7 +7442,7 @@
     }
 
     // ----- What's New / How-To popup -----
-    var HOWTO_VERSION = '2026.06.23.lineup'; // bump to re-show after future how-to updates
+    var HOWTO_VERSION = '2026.06.23.confirm'; // bump to re-show after future how-to updates
     function openHowTo(){ var m=document.getElementById('howtoModal'); if(m) m.style.display='flex'; }
     function closeHowTo(){ var m=document.getElementById('howtoModal'); if(m) m.style.display='none'; try{ localStorage.setItem('howtoSeen_'+HOWTO_VERSION,'1'); }catch(e){} }
     function maybeShowHowTo(){
@@ -7396,7 +7457,7 @@
     function maintLoadEquip(preName){
         var sel=document.getElementById('maintEquipSel'); if(!sel) return;
         var loc=(document.getElementById('maintLoc')||{}).value||'';
-        if(!loc || loc==='Warehouse'){
+        if(!loc){
             sel.innerHTML='<option value="">'+(loc==='Warehouse'?'No registry for Warehouse — type below':'Select a store first…')+'</option><option value="__other__">Other / not listed</option>';
             return;
         }
