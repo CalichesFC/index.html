@@ -1950,6 +1950,7 @@
             <button onclick="if(typeof toggleAIChatPanel==='function')toggleAIChatPanel();" style="flex:1;min-width:140px;background:#fff;border:1px solid #e7e2f0;border-radius:10px;padding:10px;font-size:13px;font-weight:600;color:#7d1d4b;cursor:pointer;">&#127846; Ask Mr. Scoopy</button>
             <button onclick="openFormsLinks()" style="flex:1;min-width:140px;background:#fff;border:1px solid #e7e2f0;border-radius:10px;padding:10px;font-size:13px;font-weight:600;color:#185FA5;cursor:pointer;">&#128196; Forms &amp; Documents</button>
             <button id="trainingAddBtn" onclick="openTrainingEdit(null)" style="display:none;flex:1;min-width:140px;background:var(--caliches-pink);color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#10133; Add module</button>
+            <button id="lmsPreviewBtn" onclick="openLmsPreview()" style="display:none;flex:1;min-width:160px;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#127891; Learning Paths <span style="background:#ffd84d;color:#5b3a00;font-size:9px;font-weight:800;padding:1px 5px;border-radius:99px;">PREVIEW</span></button>
         </div>
         <div id="trainingList"><p style="text-align:center;color:#888;padding:30px;">Loading&hellip;</p></div>
     </div>
@@ -2356,7 +2357,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.24.1754';
+    const APP_VERSION = '2026.06.24.1832';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -5113,6 +5114,7 @@
         document.getElementById('trainingPortalView').style.display = 'block';
         window.scrollTo(0,0);
         loadTraining();
+        var _lp=document.getElementById('lmsPreviewBtn'); if(_lp) _lp.style.display=(typeof isAdminManager==='function'&&isAdminManager())?'block':'none';
     }
 
     // ============================================================
@@ -7843,6 +7845,70 @@
     function setVoiceStatus(id,status){
         withPin(function(pin){
             supabaseClient.rpc('app_voice_set_status',{p_username:currentUser.username,p_password:pin,p_id:id,p_status:status,p_reviewer:(currentUser&&currentUser.name)||currentUser.username}).then(function(r){ if(r.error){ alert('Error: '+r.error.message); } }).catch(function(){});
+        });
+    }
+    function lmsOverlay(){ var ov=document.getElementById('lmsModal'); if(!ov){ ov=document.createElement('div'); ov.id='lmsModal'; ov.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100000;overflow:auto;'; document.body.appendChild(ov); } ov.style.display='block'; return ov; }
+    function lmsClose(){ var ov=document.getElementById('lmsModal'); if(ov) ov.style.display='none'; }
+    function lmsHeader(title,back){ return '<div style="background:linear-gradient(120deg,#185FA5,#7d1d4b);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:2;">'+(back?'<button onclick="'+back+'" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;">&#8249; Back</button>':'')+'<b style="flex:1;font-size:16px;">'+title+'</b><span style="background:#ffd84d;color:#5b3a00;font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px;">PREVIEW</span><button onclick="lmsClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;">&times;</button></div>'; }
+    function lmsStatusBadge(st){ var m={passed:['#e8f5ec','#1b7a3d','Certified'],lesson_done:['#fff4e0','#9a5b00','Quiz to do'],failed:['#fdeaea','#a01b3e','Try again'],not_started:['#eef0f3','#6b7686','Not started']}; var c=m[st||'not_started']||m.not_started; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:2px 8px;border-radius:99px;white-space:nowrap;">'+c[2]+'</span>'; }
+    function openLmsPreview(){ lmsHome(); }
+    function lmsHome(){
+        var ov=lmsOverlay();
+        ov.innerHTML=lmsHeader('My Training','')+'<div id="lmsBody" style="max-width:640px;margin:0 auto;padding:16px;"><p style="text-align:center;color:#888;padding:30px;">Loading&hellip;</p></div>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_lms_home',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                var body=document.getElementById('lmsBody'); if(!body) return;
+                if(r.error){ body.innerHTML='<p style="color:#c0264b;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var paths=r.data||[]; var next=null;
+                paths.forEach(function(p){ (p.courses||[]).forEach(function(c){ if(!next && c.status!=='passed') next={c:c}; }); });
+                var h='';
+                if(next){ h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px rgba(0,0,0,.05);"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;">Continue learning</div><div style="font-size:16px;font-weight:700;color:#26242b;margin:4px 0 10px;">'+escapeHtml(next.c.title)+'</div><button onclick="lmsOpenCourse('+next.c.id+')" style="width:100%;background:var(--caliches-blue,#185FA5);color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">Continue &rsaquo;</button></div>'; }
+                paths.forEach(function(p){
+                    var done=(p.courses||[]).filter(function(c){return c.status==='passed';}).length; var tot=(p.courses||[]).length;
+                    h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.04);"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:15.5px;color:#26242b;">'+escapeHtml(p.name)+'</b><span style="font-size:12px;color:#8a8594;">'+done+'/'+tot+'</span></div>'+(p.descr?'<div style="font-size:12.5px;color:#8a8594;margin:2px 0 8px;">'+escapeHtml(p.descr)+'</div>':'')+'<div style="background:#eee;border-radius:99px;height:7px;overflow:hidden;margin-bottom:10px;"><div style="height:100%;width:'+(tot?Math.round(100*done/tot):0)+'%;background:#1f7a3d;"></div></div>';
+                    (p.courses||[]).forEach(function(c){ h+='<button onclick="lmsOpenCourse('+c.id+')" style="width:100%;text-align:left;background:#faf9fc;border:1px solid #f0eef4;border-radius:10px;padding:11px 12px;margin-bottom:6px;cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="flex:1;font-size:13.5px;color:#33303a;">'+escapeHtml(c.title)+'<small style="display:block;color:#9aa7b4;font-size:11px;">'+(c.est_min||5)+' min'+(c.score!=null?' &middot; scored '+c.score+'%':'')+'</small></span>'+lmsStatusBadge(c.status)+'</button>'; });
+                    h+='</div>';
+                });
+                h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:6px;">My certifications</div><div style="font-size:12.5px;color:#8a8594;">Pass a course quiz to earn its certification. In the full version these connect to your station clearances and apron progression.</div></div>';
+                body.innerHTML=h;
+            }).catch(function(){ var body=document.getElementById('lmsBody'); if(body) body.innerHTML='<p style="color:#c0264b;text-align:center;">Could not load.</p>'; });
+        });
+    }
+    function lmsOpenCourse(courseId){
+        var ov=lmsOverlay();
+        ov.innerHTML=lmsHeader('Lesson','lmsHome()')+'<div id="lmsBody" style="max-width:640px;margin:0 auto;padding:16px;"><p style="text-align:center;color:#888;padding:30px;">Loading&hellip;</p></div>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_lms_course',{p_username:currentUser.username,p_password:pin,p_course_id:courseId}).then(function(r){
+                var body=document.getElementById('lmsBody'); if(!body) return;
+                if(r.error||!r.data){ body.innerHTML='<p style="color:#c0264b;text-align:center;">Could not load.</p>'; return; }
+                window._lmsCur=r.data; var c=r.data; var kp=c.key_points||[];
+                var h='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.05);"><h2 style="margin:0 0 10px;font-size:19px;color:#26242b;">'+escapeHtml(c.title)+'</h2><div style="font-size:14.5px;color:#33303a;line-height:1.6;">'+(c.lesson_html||'')+'</div>';
+                if(kp.length){ h+='<div style="margin-top:14px;background:#f3f8ff;border:1px solid #d8e7fb;border-radius:10px;padding:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#185FA5;margin-bottom:6px;">Remember</div><ul style="margin:0;padding-left:18px;">'+kp.map(function(k){return '<li style="font-size:13px;color:#33303a;margin-bottom:3px;">'+escapeHtml(k)+'</li>';}).join('')+'</ul></div>'; }
+                h+='<button onclick="lmsStartQuiz()" style="width:100%;margin-top:16px;background:var(--pass-green,#1f7a3d);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;">I&rsquo;ve read it &mdash; take the quick check</button></div>';
+                body.innerHTML=h;
+                supabaseClient.rpc('app_lms_complete_lesson',{p_username:currentUser.username,p_password:pin,p_course_id:courseId}).catch(function(){});
+            }).catch(function(){ var body=document.getElementById('lmsBody'); if(body) body.innerHTML='<p style="color:#c0264b;text-align:center;">Could not load.</p>'; });
+        });
+    }
+    function lmsStartQuiz(){
+        var c=window._lmsCur; if(!c) return; var qs=c.questions||[]; var ov=lmsOverlay();
+        var h=lmsHeader('Quick check','lmsOpenCourse('+c.id+')')+'<div style="max-width:640px;margin:0 auto;padding:16px;"><div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:18px;">';
+        qs.forEach(function(q,i){ h+='<div style="margin-bottom:16px;"><div style="font-weight:700;font-size:14.5px;color:#26242b;margin-bottom:8px;">'+(i+1)+'. '+escapeHtml(q.question)+'</div>'; (q.choices||[]).forEach(function(ch,ci){ h+='<label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid #e6e6ee;border-radius:9px;margin-bottom:6px;cursor:pointer;font-size:13.5px;color:#33303a;"><input type="radio" name="lq'+q.id+'" value="'+ci+'" style="width:17px;height:17px;"> '+escapeHtml(ch)+'</label>'; }); h+='</div>'; });
+        h+='<div id="lmsQuizMsg" style="font-size:13px;margin-bottom:8px;"></div><button onclick="lmsSubmitQuiz()" style="width:100%;background:var(--caliches-blue,#185FA5);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;">Submit</button></div></div>';
+        ov.innerHTML=h;
+    }
+    function lmsSubmitQuiz(){
+        var c=window._lmsCur; if(!c) return; var qs=c.questions||[]; var answers={}; var unanswered=false;
+        qs.forEach(function(q){ var sel=document.querySelector('input[name="lq'+q.id+'"]:checked'); if(sel) answers[q.id]=parseInt(sel.value,10); else unanswered=true; });
+        var msg=document.getElementById('lmsQuizMsg');
+        if(unanswered){ if(msg){ msg.style.color='#c0264b'; msg.textContent='Please answer every question.'; } return; }
+        if(msg){ msg.style.color='#6b7686'; msg.textContent='Checking...'; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_lms_submit_quiz',{p_username:currentUser.username,p_password:pin,p_course_id:c.id,p_answers:answers}).then(function(r){
+                if(r.error){ if(msg){ msg.style.color='#c0264b'; msg.textContent='Error: '+r.error.message; } return; }
+                var d=r.data||{}; var pass=d.pass; var ov=lmsOverlay();
+                ov.innerHTML=lmsHeader('Result','lmsHome()')+'<div style="max-width:640px;margin:0 auto;padding:16px;"><div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:24px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.05);"><div style="font-size:46px;">'+(pass?'&#127881;':'&#128170;')+'</div><h2 style="margin:8px 0 4px;color:'+(pass?'#1b7a3d':'#9a5b00')+';">'+(pass?'Passed!':'Almost there')+'</h2><p style="font-size:15px;color:#33303a;">You scored <b>'+d.score+'%</b> ('+d.correct+' of '+d.total+').</p>'+(pass?'<p style="color:#1b7a3d;font-size:13px;">Course complete &mdash; certification earned.</p>':'<p style="color:#9a5b00;font-size:13px;">You need 80% to pass. Review the lesson and try again.</p>')+'<div style="display:flex;gap:8px;margin-top:14px;">'+(pass?'':'<button onclick="lmsOpenCourse('+c.id+')" style="flex:1;background:#eef3fb;color:#185FA5;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;">Review lesson</button>')+'<button onclick="lmsHome()" style="flex:1;background:var(--caliches-blue,#185FA5);color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;">Back to training</button></div></div></div>';
+            }).catch(function(){ if(msg){ msg.style.color='#c0264b'; msg.textContent='Could not submit.'; } });
         });
     }
     function openContactsDir(){
