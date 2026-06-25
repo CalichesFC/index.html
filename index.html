@@ -1984,7 +1984,7 @@
 
 <!-- EQUIPMENT DETAIL VIEW -->
 <div id="equipmentDetailView" class="app-view">
-    <button class="back-btn" onclick="openEquipment()">&#128281; Back to Equipment</button>
+    <button class="back-btn" onclick="goBack()">&#8249; Back</button>
     <div class="container" style="max-width:720px;">
         <div id="equipDetailBody"><p style="text-align:center;color:#888;padding:40px;">Loading&hellip;</p></div>
     </div>
@@ -2357,7 +2357,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.24.2244';
+    const APP_VERSION = '2026.06.24.2315';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2707,7 +2707,7 @@
             setTimeout(showAppTour, 800);
             setTimeout(maybeShowHowTo, 1300);
         }
-        if (window._pendingEquip) { var _eq=window._pendingEquip; window._pendingEquip=null; setTimeout(function(){ if(typeof openEquipmentDetail==='function') openEquipmentDetail(parseInt(_eq,10)); }, 800); }
+        if (window._pendingEquip) { var _eq=window._pendingEquip; window._pendingEquip=null; try { if(history.replaceState) history.replaceState(null,'',location.pathname); } catch(e){} setTimeout(function(){ if(typeof openEquipmentDetail==='function') openEquipmentDetail(parseInt(_eq,10)); }, 800); }
         setTimeout(checkScheduleGate, 450);
         resetTimer();
     }
