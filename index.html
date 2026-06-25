@@ -738,6 +738,7 @@
             <div id="maintPaneReport" class="sched-pane">
                 <button id="btn-maintenance" class="menu-btn" onclick="openForm('maintenanceView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128295;</span><b>Required Maintenance</b><small>Flag a repair</small></button>
                 <button id="btn-equipment" class="menu-btn" onclick="openEquipment()"><span class="rchip staff">Staff</span><span class="tile-ic">&#9881;</span><b>Equipment History</b><small>Records, QR codes &amp; repairs</small></button>
+                <button id="btn-workorders" class="menu-btn" style="display:none;" onclick="openWorkOrders()"><span class="rchip" style="background:#fde7df;color:#D85A30;">Beta</span><span class="tile-ic">&#128736;</span><b>Work Orders</b><small>Unified repair workflow (test)</small></button>
                 <button id="btn-contacts" class="menu-btn" onclick="openContactsDir()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128222;</span><b>Important Contacts</b><small>Vendors, repairs, utilities &amp; escalation</small></button>
                 <button id="btn-damage" class="menu-btn" onclick="openForm('damageView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#9888;</span><b>Vehicle / Trailer Damage</b><small>Report damage with photos</small></button>
             </div>
@@ -2507,7 +2508,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.25.1143';
+    const APP_VERSION = '2026.06.25.1253';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -5440,6 +5441,7 @@
 
         // ── Buttons within Maintenance tab ──
         document.getElementById('maintBoardBtn').style.display = (devOverride || (isManager && maintBoardAllowed)) ? 'block' : 'none';
+        var _woBtn=document.getElementById('btn-workorders'); if(_woBtn){ var _wr=currentUser.role; _woBtn.style.display=(currentUser.is_developer===true||_wr==='Admin Manager'||_wr==='Vice President/Co-Owner'||_wr==='Maintenance Lead'||_wr==='Maintenance Contributor'||_wr==='Finance Approver')?'block':'none'; }
         document.getElementById('mySubmissionsBtn').style.display = (!devOverride && role === 'Maintenance') ? 'none' : 'block';
 
         // ── AI widget, announce, badge ──
@@ -8442,6 +8444,181 @@
             }).catch(function(){ document.getElementById('tdrMsg').textContent='Could not save.'; });
         });
     }
+    // ===== WORK ORDERS — Maintenance Phase 1 (BETA, test-gated; does NOT touch live Maintenance Board) =====
+    var _wo={tab:'board',list:[],people:{maint:[]}};
+    function woOverlay(){ var ov=document.getElementById('woModal'); if(!ov){ ov=document.createElement('div'); ov.id='woModal'; ov.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100000;overflow:auto;'; document.body.appendChild(ov);} ov.style.display='block'; return ov; }
+    function woClose(){ var o=document.getElementById('woModal'); if(o)o.style.display='none'; var m=document.getElementById('woModal2'); if(m)m.style.display='none'; }
+    function woHeader(title,back){ return '<div style="background:linear-gradient(120deg,#D85A30,#7d1d4b);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;">'+(back?'<button onclick="'+back+'" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;">&#8249; Back</button>':'')+'<b style="flex:1;font-size:16px;">'+title+'</b><span style="background:#ffd84d;color:#5b3a00;font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px;">BETA &middot; TEST</span><button onclick="woClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;">&times;</button></div>'; }
+    function woIsMaint(){ var r=currentUser.role; return r==='Maintenance Lead'||r==='Maintenance Contributor'; }
+    function woIsMgr(){ return currentUser.is_developer===true||['Admin Manager','Manager','Vice President/Co-Owner','Store Manager'].indexOf(currentUser.role)>=0; }
+    function openWorkOrders(){ _wo.tab=woIsMaint()?'queue':(woIsMgr()?'board':'report'); woLoad(function(){ woRender(); }); }
+    function woScope(){ return _wo.tab==='queue'?'queue':(_wo.tab==='board'?(woIsMgr()?'all':'mine'):'mine'); }
+    function woLoad(cb){
+        var ov=woOverlay(); ov.innerHTML=woHeader('Work Orders','')+'<div style="max-width:680px;margin:0 auto;padding:40px 16px;text-align:center;color:#888;">Loading&hellip;</div>';
+        withPin(function(pin){
+            Promise.all([
+                supabaseClient.rpc('app_wo_list',{p_username:currentUser.username,p_password:pin,p_scope:woScope()}),
+                supabaseClient.rpc('app_wo_people',{p_username:currentUser.username,p_password:pin})
+            ]).then(function(res){
+                if(res[0].error){ ov.innerHTML=woHeader('Work Orders','')+'<div style="max-width:680px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">'+(String(res[0].error.message||'').indexOf('forbidden')>=0?'Not available for your role.':escapeHtml(res[0].error.message))+'</div>'; return; }
+                _wo.list=res[0].data||[]; _wo.people=(res[1]&&res[1].data)||{maint:[]};
+                if(cb)cb();
+            }).catch(function(){ ov.innerHTML=woHeader('Work Orders','')+'<div style="max-width:680px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">Connection error.</div>'; });
+        }, function(){ ov.innerHTML=woHeader('Work Orders','')+'<div style="max-width:680px;margin:0 auto;padding:30px 16px;color:#888;text-align:center;">PIN required.</div>'; });
+    }
+    function woTabs(){ var t=_wo.tab; function b(id,lbl,show){ if(!show) return ''; return '<button onclick="woSetTab(&quot;'+id+'&quot;)" style="flex:1;background:'+(t===id?'#D85A30':'#eef0f3')+';color:'+(t===id?'#fff':'#5b6472')+';border:none;padding:10px;font-size:13px;font-weight:700;cursor:pointer;border-radius:9px;">'+lbl+'</button>'; }
+        return '<div style="display:flex;gap:6px;max-width:680px;margin:14px auto 0;padding:0 16px;">'+b('report','Report',true)+b('board','Board',woIsMgr())+b('queue','My Queue',woIsMaint()||woIsMgr())+'</div>'; }
+    function woSetTab(t){ _wo.tab=t; if(t==='report'){ woRender(); } else { woLoad(function(){ woRender(); }); } }
+    function woRender(){ var ov=woOverlay(); var body=_wo.tab==='report'?woReportHtml():woBoardHtml(); ov.innerHTML=woHeader('Work Orders','')+woTabs()+'<div style="max-width:680px;margin:0 auto;padding:14px 16px 40px;">'+body+'</div>'; }
+    function woPriColor(p){ return {critical:'#c0264b',high:'#b8860b',medium:'#185FA5',low:'#6b7686'}[p]||'#6b7686'; }
+    function woStatusChip(s){ var m={'Reported':['#eef0f3','#5b6472'],'Assigned':['#eef3fb','#185FA5'],'In Progress':['#fff4e0','#9a5b00'],'On Hold':['#fdeee8','#a85217'],'Documented':['#f3eefb','#5b3aa6'],'Verified':['#e8f5ec','#1b7a3d'],'Closed':['#e8f5ec','#1b7a3d'],'Cancelled':['#f0f0f0','#999999']}; var c=m[s]||m['Reported']; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:2px 9px;border-radius:99px;white-space:nowrap;">'+escapeHtml(s||'')+'</span>'; }
+    function woField(id,label,val){ return '<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">'+label+'</label><input id="'+id+'" value="'+String(val||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;">'; }
+    function woSelect(id,label,opts,sel){ return '<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">'+label+'</label><select id="'+id+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;">'+opts.map(function(o){ var lbl=o===''?'—':o.replace(/_/g,' '); return '<option value="'+o+'"'+(o===sel?' selected':'')+'>'+lbl+'</option>'; }).join('')+'</select>'; }
+    function woVal(id){ var e=document.getElementById(id); return e?e.value:''; }
+    function woReportHtml(){
+        var stores=['Roadrunner','Valley','Lenox','Alamogordo','Roswell','Warehouse'];
+        var def=(currentUser.store||currentUser.location||'Roadrunner');
+        var h='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;">';
+        h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#9aa7b4;margin-bottom:8px;">Report a maintenance issue</div>';
+        h+=woField('woTitle','What is wrong?','');
+        h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Details</label><textarea id="woDesc" style="width:100%;height:64px;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;"></textarea>';
+        h+=woSelect('woStore','Store / location',stores,def);
+        h+=woField('woAsset','Equipment / item','');
+        h+=woSelect('woCat','Type',['repair','damage','safety','other'],'repair');
+        h+=woSelect('woPri','Priority',['low','medium','high','critical'],'medium');
+        h+=woSelect('woUse','Equipment status',['','in_use','backup','out_of_service'],'');
+        h+='<label style="display:flex;align-items:center;gap:8px;margin:10px 0;font-size:13px;cursor:pointer;"><input type="checkbox" id="woSafety"> This is a safety issue</label>';
+        h+='<div id="woRepMsg" style="font-size:12.5px;color:#c0264b;margin:6px 0;"></div>';
+        h+='<button onclick="woSubmitReport()" style="width:100%;background:#D85A30;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">Submit work order</button>';
+        h+='</div>';
+        return h;
+    }
+    function woSubmitReport(){
+        var t=woVal('woTitle').trim(); if(!t){ document.getElementById('woRepMsg').textContent='Describe what is wrong.'; return; }
+        var safety=document.getElementById('woSafety').checked;
+        withPin(function(pin){
+            supabaseClient.rpc('app_wo_create',{p_username:currentUser.username,p_password:pin,p_title:t,p_description:woVal('woDesc'),p_asset_id:null,p_asset_label:woVal('woAsset'),p_location:woVal('woStore'),p_category:woVal('woCat'),p_priority:woVal('woPri'),p_equipment_use_status:woVal('woUse')||null,p_safety_impact:safety}).then(function(r){
+                if(r.error){ document.getElementById('woRepMsg').textContent=r.error.message; return; }
+                alert('Work order '+((r.data&&r.data.wo_number)||'')+' created.'); _wo.tab=woIsMgr()?'board':'queue'; woLoad(function(){ woRender(); });
+            }).catch(function(){ document.getElementById('woRepMsg').textContent='Could not submit.'; });
+        });
+    }
+    function woBoardHtml(){
+        if(!_wo.list.length){ return '<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:20px;text-align:center;color:#8a8594;">No work orders'+(_wo.tab==='queue'?' assigned to you':'')+' yet.</div>'; }
+        var h='';
+        _wo.list.forEach(function(w){
+            h+='<div onclick="woOpenDetail('+w.id+')" style="background:#fff;border:1px solid #ececf2;border-left:4px solid '+woPriColor(w.priority)+';border-radius:12px;padding:12px 14px;margin-bottom:9px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.04);">';
+            h+='<div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:14px;color:#26242b;">'+escapeHtml(w.title||'')+'</b>'+woStatusChip(w.status)+'</div>';
+            h+='<div style="font-size:11.5px;color:#9aa7b4;margin-top:3px;">'+escapeHtml(w.wo_number||'')+' &middot; '+escapeHtml(w.location||'')+(w.asset_label?(' &middot; '+escapeHtml(w.asset_label)):'')+(w.safety?' &middot; &#9888; safety':'')+'</div>';
+            h+='</div>';
+        });
+        return h;
+    }
+    function woOpenDetail(id){
+        window._woDetailId=id; var ov=woOverlay(); ov.innerHTML=woHeader('Work Order','woRender()')+'<div style="max-width:640px;margin:0 auto;padding:40px 16px;text-align:center;color:#888;">Loading&hellip;</div>';
+        withPin(function(pin){ supabaseClient.rpc('app_wo_detail',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){ if(r.error||!r.data){ ov.innerHTML=woHeader('Work Order','woRender()')+'<div style="max-width:640px;margin:0 auto;padding:30px;color:#c0264b;text-align:center;">Could not load.</div>'; return; } woRenderDetail(r.data); }); });
+    }
+    function woFmt(t){ if(!t) return ''; try{ var d=new Date(t); return (d.getMonth()+1)+'/'+d.getDate()+' '+d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } }
+    function woRenderDetail(d){
+        var ov=woOverlay(); var ev=d.events||[];
+        var h='<div style="max-width:640px;margin:0 auto;padding:16px;">';
+        h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:17px;color:#1f2a44;">'+escapeHtml(d.title||'')+'</b>'+woStatusChip(d.status)+'</div>';
+        h+='<div style="font-size:12px;color:#9aa7b4;margin-top:3px;">'+escapeHtml(d.wo_number||'')+' &middot; '+escapeHtml(d.location||'')+' &middot; <span style="color:'+woPriColor(d.priority)+';font-weight:700;">'+escapeHtml(d.priority||'')+'</span>'+(d.safety_impact?' &middot; &#9888; safety':'')+'</div>';
+        if(d.description) h+='<div style="font-size:13.5px;color:#33303a;margin-top:8px;">'+escapeHtml(d.description)+'</div>';
+        if(d.asset_label) h+='<div style="font-size:12.5px;color:#6b7686;margin-top:6px;">Equipment: '+escapeHtml(d.asset_label)+(d.equipment_use_status?(' ('+escapeHtml(String(d.equipment_use_status).replace(/_/g,' '))+')'):'')+'</div>';
+        if(d.work_performed) h+='<div style="margin-top:8px;background:#f3f8ff;border:1px solid #d8e7fb;border-radius:9px;padding:9px;font-size:13px;color:#1f2a44;"><b>Work performed:</b> '+escapeHtml(d.work_performed)+'</div>';
+        if(d.verification_required && d.status==='Documented') h+='<div style="margin-top:8px;font-size:12px;color:#a85217;font-weight:700;">&#9888; Awaiting operational verification before it can close.</div>';
+        h+='</div>';
+        h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#9aa7b4;margin-bottom:8px;">Status timeline</div>';
+        if(!ev.length) h+='<div style="font-size:13px;color:#9aa7b4;">No events.</div>';
+        ev.forEach(function(e){ h+='<div style="display:flex;gap:9px;padding:5px 0;border-bottom:1px solid #f3f4f8;"><div style="font-size:11.5px;color:#9aa7b4;white-space:nowrap;min-width:62px;">'+woFmt(e.at)+'</div><div style="font-size:12.5px;color:#33303a;"><b>'+escapeHtml(e.to_status||e.type||'')+'</b> &middot; '+escapeHtml(e.actor||'')+(e.note?(' &mdash; '+escapeHtml(e.note)):'')+'</div></div>'; });
+        h+='</div>';
+        h+='<div id="woCostBox" style="margin-bottom:12px;"></div>';
+        h+=woActions(d);
+        h+='</div>';
+        ov.innerHTML=woHeader(d.wo_number||'Work Order','woRender()')+h;
+        woLoadCosts(d.id);
+    }
+    function woBtn(label,onclick,bg,fg){ return '<button onclick="'+onclick+'" style="width:100%;background:'+bg+';color:'+(fg||'#fff')+';border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:800;cursor:pointer;">'+label+'</button>'; }
+    function woActions(d){
+        var canM=d.can_manage, canW=d.can_work, s=d.status, lead=(currentUser.role==='Maintenance Lead');
+        var btns=[];
+        if(canM && s==='Reported') btns.push(woBtn('Assign / route','woAssign('+d.id+')','#185FA5'));
+        if(canW && (s==='Reported'||s==='Assigned')) btns.push(woBtn('Start work','woAct(&quot;start&quot;)','#D85A30'));
+        if(canW && s==='In Progress'){ btns.push(woBtn('Document completion','woDocPrompt()','#1f7a3d')); btns.push(woBtn('Put on hold','woAct(&quot;hold&quot;)','#9a5b00')); }
+        if(canW && s==='On Hold') btns.push(woBtn('Resume','woAct(&quot;resume&quot;)','#D85A30'));
+        if((canM||lead) && s==='Documented') btns.push(woBtn('Verify &amp; close','woAct(&quot;verify&quot;)','#1f7a3d'));
+        if((canM||lead) && s==='Closed') btns.push(woBtn('Reopen','woAct(&quot;reopen&quot;)','#9a5b00'));
+        if(canM && s!=='Closed' && s!=='Cancelled' && s!=='Documented' && s!=='Reported') btns.push(woBtn('Reassign','woAssign('+d.id+')','#eef0f3','#5b6472'));
+        if(!btns.length) return '';
+        return '<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;">'+btns.join('')+'</div>';
+    }
+    function woAct(action,workPerformed){
+        var id=window._woDetailId; var note='';
+        if(action==='hold'){ note=prompt('Reason for hold (optional):')||''; }
+        if(action==='verify'){ note=prompt('Verification note (what you confirmed):')||''; }
+        if(action==='reopen'){ note=prompt('Why are you reopening this?')||''; if(!note) return; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_wo_advance',{p_username:currentUser.username,p_password:pin,p_id:id,p_action:action,p_note:note,p_work_performed:workPerformed||null}).then(function(r){
+                if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Not permitted for your role.':r.error.message); return; }
+                woOpenDetail(id);
+            }).catch(function(){ alert('Could not update.'); });
+        });
+    }
+    function woDocPrompt(){ var wp=prompt('Describe the work performed (required):'); if(wp===null) return; if(!String(wp).trim()){ alert('Work documentation is required.'); return; } woAct('document',String(wp).trim()); }
+    function woModal(html){ var m=document.getElementById('woModal2'); if(!m){ m=document.createElement('div'); m.id='woModal2'; m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100001;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:16px;box-sizing:border-box;'; document.body.appendChild(m); } m.innerHTML=html; m.style.display='flex'; return m; }
+    function woModalClose(){ var m=document.getElementById('woModal2'); if(m)m.style.display='none'; }
+    function woAssign(id){
+        var maint=(_wo.people&&_wo.people.maint)||[];
+        var opts='<option value="">&mdash; unchanged &mdash;</option>'+maint.map(function(p){return '<option value="'+p.id+'">'+escapeHtml(p.name)+' ('+escapeHtml(p.role)+')</option>';}).join('');
+        var h='<div style="background:#fff;border-radius:14px;max-width:480px;width:100%;margin-top:20px;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.3);"><h3 style="margin:0 0 12px;color:#1f2a44;">Assign / route work order</h3>';
+        h+='<label style="display:block;font-size:12px;color:#6b7686;margin-bottom:3px;">Owner (Maintenance)</label><select id="woaOwner" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;box-sizing:border-box;">'+opts+'</select>';
+        h+='<label style="display:block;font-size:12px;color:#6b7686;margin-bottom:3px;">Backup (covers if owner is unavailable)</label><select id="woaBackup" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;box-sizing:border-box;">'+opts+'</select>';
+        h+='<div id="woaMsg" style="font-size:12.5px;color:#c0264b;margin:6px 0;"></div>';
+        h+='<div style="display:flex;gap:8px;"><button onclick="woModalClose()" style="flex:1;background:#eef0f3;border:none;border-radius:9px;padding:11px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="woDoAssign('+id+')" style="flex:2;background:#185FA5;color:#fff;border:none;border-radius:9px;padding:11px;font-weight:800;cursor:pointer;">Save</button></div></div>';
+        woModal(h);
+    }
+    function woDoAssign(id){
+        var owner=woVal('woaOwner'), backup=woVal('woaBackup');
+        withPin(function(pin){
+            supabaseClient.rpc('app_wo_assign',{p_username:currentUser.username,p_password:pin,p_id:id,p_assigned_to:owner?parseInt(owner,10):null,p_backup_to:backup?parseInt(backup,10):null,p_delegated_to:null,p_delegation_until:null,p_vendor_id:null}).then(function(r){
+                if(r.error){ document.getElementById('woaMsg').textContent=(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':r.error.message); return; }
+                woModalClose(); woOpenDetail(id);
+            }).catch(function(){ document.getElementById('woaMsg').textContent='Could not save.'; });
+        });
+    }
+    function woMoney(n){ var x=parseFloat(n||0); return '$'+(isNaN(x)?'0.00':x.toFixed(2)); }
+    function woLoadCosts(id){
+        var box=document.getElementById('woCostBox'); if(!box) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_wo_cost_list',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){
+                if(r.error||!r.data){ box.innerHTML=''; return; }
+                woRenderCosts(id,r.data);
+            }).catch(function(){ box.innerHTML=''; });
+        });
+    }
+    function woRenderCosts(id,c){
+        var box=document.getElementById('woCostBox'); if(!box) return;
+        var lines=c.lines||[];
+        var h='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;">';
+        h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><div style="flex:1;font-size:11px;font-weight:800;text-transform:uppercase;color:#9aa7b4;">Costs &amp; pricing</div>'+(c.approved?('<span style="background:#e8f5ec;color:#1b7a3d;font-size:11px;font-weight:800;padding:2px 9px;border-radius:99px;">&#10003; Approved'+(c.approved_by?(' &middot; '+escapeHtml(c.approved_by)):'')+'</span>'):'')+'</div>';
+        if(!lines.length) h+='<div style="font-size:13px;color:#9aa7b4;">No costs entered yet. Amounts vary by job &mdash; add each part, labor, or vendor charge below.</div>';
+        lines.forEach(function(l){ h+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f3f4f8;font-size:13px;"><span style="background:#f3eefb;color:#5b3aa6;font-size:10px;font-weight:800;padding:2px 7px;border-radius:99px;text-transform:capitalize;">'+escapeHtml(l.kind||'')+'</span><span style="flex:1;color:#33303a;">'+escapeHtml(l.description||'')+'</span><b style="color:#1f2a44;">'+woMoney(l.amount)+'</b>'+(c.can_edit?'<button onclick="woRemoveCost('+l.id+','+id+')" style="background:none;border:none;color:#c0264b;font-size:16px;cursor:pointer;line-height:1;">&times;</button>':'')+'</div>'; });
+        h+='<div style="display:flex;justify-content:space-between;padding:9px 0 2px;font-size:14px;"><b>Total</b><b style="color:#1f2a44;">'+woMoney(c.total)+'</b></div>';
+        if(c.can_edit){
+            h+='<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;"><select id="woCostKind" style="padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px;"><option value="parts">Parts</option><option value="labor">Labor</option><option value="vendor">Vendor</option><option value="other">Other</option></select><input id="woCostDesc" placeholder="Description" style="flex:1;min-width:120px;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px;"><input id="woCostAmt" type="number" step="0.01" placeholder="0.00" style="width:92px;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px;"><button onclick="woAddCost('+id+')" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-weight:700;cursor:pointer;font-size:13px;">Add</button></div>';
+        }
+        if(c.can_approve && lines.length){ h+='<button onclick="woApproveCost('+id+','+(c.approved?'false':'true')+')" style="width:100%;margin-top:10px;background:'+(c.approved?'#eef0f3':'#1f7a3d')+';color:'+(c.approved?'#5b6472':'#fff')+';border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;font-size:14px;">'+(c.approved?'Remove approval':('Approve costs ('+woMoney(c.total)+')'))+'</button>'; }
+        else if(!c.can_approve && lines.length && !c.approved){ h+='<div style="margin-top:10px;font-size:11.5px;color:#9aa7b4;text-align:center;">Awaiting Finance Approver sign-off.</div>'; }
+        h+='</div>'; box.innerHTML=h;
+    }
+    function woAddCost(id){
+        var kind=woVal('woCostKind'), desc=woVal('woCostDesc'), amt=parseFloat(woVal('woCostAmt'));
+        if(isNaN(amt)){ alert('Enter an amount.'); return; }
+        withPin(function(pin){ supabaseClient.rpc('app_wo_cost_add',{p_username:currentUser.username,p_password:pin,p_id:id,p_kind:kind,p_description:desc,p_amount:amt}).then(function(r){ if(r.error){ alert(r.error.message); return; } woLoadCosts(id); }).catch(function(){ alert('Could not add.'); }); });
+    }
+    function woRemoveCost(lineId,id){ withPin(function(pin){ supabaseClient.rpc('app_wo_cost_remove',{p_username:currentUser.username,p_password:pin,p_line_id:lineId,p_id:id}).then(function(r){ if(r.error){ alert(r.error.message); return; } woLoadCosts(id); }); }); }
+    function woApproveCost(id,approve){ withPin(function(pin){ supabaseClient.rpc('app_wo_cost_approve',{p_username:currentUser.username,p_password:pin,p_id:id,p_approve:approve}).then(function(r){ if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Finance approver only.':r.error.message); return; } woLoadCosts(id); }); }); }
     function openContactsDir(){
         document.getElementById('main-menu').style.display='none';
         document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';});
