@@ -703,6 +703,7 @@
                 <div id="schedMyShifts"><p style="text-align:center;color:#888;font-size:13px;padding:14px;">Loading your shifts&hellip;</p></div>
                 <button class="menu-btn" onclick="openTimeOff()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127796;</span><b>Request Time Off</b><small>Submit a time-off request</small></button>
                 <button id="btn-preshift" class="menu-btn" style="display:none;" onclick="openPreshift()"><span class="rchip mgr">Shift Lead</span><span class="tile-ic">&#128221;</span><b>Pre-Shift Lineup</b><small>Set positions &amp; goals &middot; track progress</small></button>
+                <button id="btn-crewtrainer" class="menu-btn" style="display:none;" onclick="openCrewTrainer()"><span class="rchip mgr">Trainer</span><span class="tile-ic">&#129309;</span><b>Crew Trainer</b><small>Coach trainees &middot; record training delivered</small></button>
                 <button class="menu-btn" onclick="openAvailability()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128197;</span><b>My Availability</b><small>Set the days/hours you can work</small></button>
                 <button id="btn-availApprovals" class="menu-btn" style="display:none;" onclick="openAvailApprovals()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#9989;</span><b>Availability Requests</b><small>Approve or deny submitted availability</small></button>
             </div>
@@ -2308,6 +2309,55 @@
         <div id="supplyDetailBody"></div>
     </div>
 </div>
+<div id="crewTrainerView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
+    <div class="header" style="background-color:#7b2d8b;">
+        <h1 style="font-size:38px;margin:10px 0;">&#129309;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Crew Trainer</p>
+        <p style="font-size:12px;margin:5px 0 0;opacity:.92;">Coach assigned trainees &middot; record training delivered</p>
+        <div class="header-stripe"></div>
+    </div>
+    <div class="container" style="max-width:680px;">
+        <div style="display:flex;gap:6px;margin-bottom:14px;">
+            <button class="ct-tab" id="ctTab-mine" onclick="crewTrainerTab('mine')">My trainees</button>
+            <button class="ct-tab" id="ctTab-manage" data-mgr="0" onclick="crewTrainerTab('manage')" style="display:none;">Assign &amp; manage</button>
+        </div>
+        <div id="ctPanel-mine"><div id="ctMineList"><p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p></div></div>
+        <div id="ctPanel-manage" style="display:none;">
+            <div style="background:#fff;border:1px solid #e6ebf2;border-radius:14px;padding:16px;margin-bottom:14px;">
+                <div style="font-weight:700;color:#1f2a44;margin-bottom:4px;">Assign a trainee to a trainer</div>
+                <div style="font-size:12px;color:#6b7686;margin-bottom:10px;">Pairs a crew member with whoever is coaching them on a topic or station. A Crew Trainer can only record coaching for trainees assigned to them.</div>
+                <label style="font-size:12px;color:#6b7686;">Trainer</label>
+                <select id="ctTrainerSel" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;margin-bottom:8px;"></select>
+                <label style="font-size:12px;color:#6b7686;">Trainee</label>
+                <select id="ctTraineeSel" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;margin-bottom:8px;"></select>
+                <label style="font-size:12px;color:#6b7686;">Topic / station</label>
+                <input id="ctTopic" placeholder="e.g. Register, Machine, Scooping" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;margin-bottom:10px;">
+                <div id="ctAssignMsg" style="display:none;font-size:13px;margin-bottom:8px;"></div>
+                <button onclick="ctAssign()" style="width:100%;background:#7b2d8b;color:#fff;border:none;font-weight:800;padding:11px;border-radius:9px;cursor:pointer;">Assign trainer</button>
+            </div>
+            <div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin-bottom:6px;">Active assignments</div>
+            <div id="ctManageList"><p style="text-align:center;color:#888;padding:14px;">Loading&hellip;</p></div>
+        </div>
+    </div>
+</div>
+<div id="ctCoachModal" style="display:none;position:fixed;inset:0;background:rgba(20,20,30,.55);z-index:9000;align-items:center;justify-content:center;padding:14px;" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:#fff;border-radius:16px;max-width:460px;width:100%;padding:18px;box-sizing:border-box;">
+        <div style="font-weight:800;font-size:16px;color:#1f2a44;margin-bottom:3px;">Record coaching</div>
+        <div id="ctCoachWho" style="font-size:13px;color:#6b7686;margin-bottom:12px;"></div>
+        <input type="hidden" id="ctCoachTrainee">
+        <label style="font-size:12px;color:#6b7686;">Topic / station</label>
+        <input id="ctCoachTopic" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;margin-bottom:10px;">
+        <label style="font-size:12px;color:#6b7686;">What you covered</label>
+        <textarea id="ctCoachNote" rows="3" placeholder="e.g. Guided them through supervised practice on the register; reviewed voids and refunds." style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;"></textarea>
+        <div style="font-size:11px;color:#9aa7b4;margin-top:6px;">This records that you delivered coaching &mdash; it is not a competency certification.</div>
+        <div id="ctCoachMsg" style="display:none;font-size:13px;margin-top:8px;"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+            <button onclick="ctSaveCoach()" style="flex:1;background:#7b2d8b;color:#fff;border:none;font-weight:800;padding:11px;border-radius:9px;cursor:pointer;">Save</button>
+            <button onclick="document.getElementById('ctCoachModal').style.display='none'" style="background:#eef1f5;color:#5b6472;border:none;padding:11px 16px;border-radius:9px;cursor:pointer;">Cancel</button>
+        </div>
+    </div>
+</div>
 <div id="shortageTrendsView" class="app-view">
     <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
     <div class="header" style="background-color:var(--pass-green);">
@@ -2431,11 +2481,11 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.25.0114';
+    const APP_VERSION = '2026.06.25.0255';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
-    const UNSAFE_RELOAD_VIEWS = ['popInView','driverView','shortageView','supplyRequestView','maintenanceView','damageView','quotesView','kbView'];
+    const UNSAFE_RELOAD_VIEWS = ['popInView','driverView','shortageView','supplyRequestView','crewTrainerView','maintenanceView','damageView','quotesView','kbView'];
     function isSafeToReload() {
         return !UNSAFE_RELOAD_VIEWS.some(function(id){
             var v = document.getElementById(id);
@@ -5325,6 +5375,8 @@
         if (attendanceBtn) attendanceBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
         const preshiftBtn = document.getElementById('btn-preshift');
         if (preshiftBtn) preshiftBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
+        const crewTrainerBtn = document.getElementById('btn-crewtrainer');
+        if (crewTrainerBtn) crewTrainerBtn.style.display = (devOverride || isManager || role === 'Shift Lead' || /trainer/i.test(currentUser.role||'')) ? 'block' : 'none';
         const availApprBtn = document.getElementById('btn-availApprovals');
         if (availApprBtn) availApprBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
         // ── Pop-In & Inventory: management only (Shift Lead and above / store managers) ──
@@ -9253,6 +9305,99 @@
         supabaseClient.rpc('app_supply_catalog_remove',{p_username:currentUser.username,p_password:sessionPin,p_id:id}).then(function(r){
             if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':r.error.message); return; }
             supplyLoadCatalogAdmin();
+        }).catch(function(){ alert('Connection error.'); });
+    }
+    function openCrewTrainer(){
+        document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';});
+        var m=document.getElementById('main-menu'); if(m) m.style.display='none';
+        var v=document.getElementById('crewTrainerView'); if(v) v.style.display='block';
+        var role=(currentUser&&currentUser.role)||'';
+        var mgr=(typeof isManagerRole==='function'&&isManagerRole())||/manager|admin|vice|shift lead/i.test(role);
+        var mt=document.getElementById('ctTab-manage'); if(mt) mt.setAttribute('data-mgr', mgr?'1':'0');
+        crewTrainerTab('mine');
+    }
+    function crewTrainerTab(t){
+        ['mine','manage'].forEach(function(k){
+            var p=document.getElementById('ctPanel-'+k); if(p) p.style.display=(k===t)?'block':'none';
+            var b=document.getElementById('ctTab-'+k); var hidden=(k==='manage'&&b&&b.getAttribute('data-mgr')!=='1');
+            if(b){ b.style.cssText='flex:1;padding:9px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:700;border:1px solid '+(k===t?'#7b2d8b':'#d6deea')+';background:'+(k===t?'#7b2d8b':'#fff')+';color:'+(k===t?'#fff':'#6b7686')+';'+(hidden?'display:none;':''); }
+        });
+        if(t==='mine') ctLoadMine();
+        if(t==='manage') ctLoadManage();
+    }
+    function ctLoadMine(){
+        var box=document.getElementById('ctMineList'); box.innerHTML='<p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p>';
+        supabaseClient.rpc('app_trainer_assignments',{p_username:currentUser.username,p_password:sessionPin,p_scope:'mine'}).then(function(r){
+            if(r.error){ box.innerHTML='<p style="color:#c0264b;padding:14px;">'+escapeHtml(r.error.message)+'</p>'; return; }
+            var rows=r.data||[];
+            if(!rows.length){ box.innerHTML='<p style="text-align:center;color:#9aa7b4;padding:24px;">No trainees assigned to you yet. A manager assigns trainees under &ldquo;Assign &amp; manage.&rdquo;</p>'; return; }
+            box.innerHTML=rows.map(function(a){
+                var nm=(a.trainee||'').replace(/&/g,'').replace(/"/g,'');
+                var tp=(a.topic||'').replace(/&/g,'').replace(/"/g,'');
+                return '<div style="background:#fff;border:1px solid #e6ebf2;border-radius:12px;padding:13px;margin-bottom:10px;"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;"><div><div style="font-weight:800;color:#1f2a44;font-size:14px;">'+escapeHtml(a.trainee||'')+'</div><div style="font-size:12px;color:#6b7686;">'+(a.topic?escapeHtml(a.topic):'General')+(a.store?(' &middot; '+escapeHtml(a.store)):'')+' &middot; '+(a.signoffs||0)+' coaching note'+((a.signoffs===1)?'':'s')+'</div></div><button onclick="ctOpenCoach('+a.trainee_id+',&quot;'+escapeHtml(nm)+'&quot;,&quot;'+escapeHtml(tp)+'&quot;)" style="background:#7b2d8b;color:#fff;border:none;font-weight:700;font-size:12px;padding:8px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;">Record coaching</button></div></div>';
+            }).join('');
+        }).catch(function(){ box.innerHTML='<p style="color:#c0264b;padding:14px;">Connection error.</p>'; });
+    }
+    function ctOpenCoach(traineeId, name, topic){
+        document.getElementById('ctCoachModal').style.display='flex';
+        document.getElementById('ctCoachTrainee').value=traineeId;
+        document.getElementById('ctCoachWho').innerText='Trainee: '+name;
+        document.getElementById('ctCoachTopic').value=topic||'';
+        document.getElementById('ctCoachNote').value='';
+        var m=document.getElementById('ctCoachMsg'); if(m) m.style.display='none';
+    }
+    function ctSaveCoach(){
+        var msg=document.getElementById('ctCoachMsg');
+        function show(t,c){ msg.style.display='block'; msg.style.color=c||'#c0264b'; msg.innerHTML=t; }
+        var id=parseInt(document.getElementById('ctCoachTrainee').value,10);
+        var topic=document.getElementById('ctCoachTopic').value||'';
+        var note=(document.getElementById('ctCoachNote').value||'').trim();
+        if(!note){ show('Add a short note on what you covered.'); return; }
+        show('Saving&hellip;','#6b7686');
+        supabaseClient.rpc('app_trainer_signoff',{p_username:currentUser.username,p_password:sessionPin,p_trainee_id:id,p_topic:topic,p_note:note}).then(function(r){
+            if(r.error){ show(String(r.error.message||'').indexOf('forbidden')>=0?'You can only record coaching for trainees assigned to you.':r.error.message); return; }
+            show('&#10003; Coaching recorded.','#1f7a3d');
+            setTimeout(function(){ document.getElementById('ctCoachModal').style.display='none'; ctLoadMine(); }, 900);
+        }).catch(function(){ show('Connection error.'); });
+    }
+    function ctLoadManage(){
+        supabaseClient.rpc('app_roster_list',{p_username:currentUser.username,p_password:sessionPin}).then(function(r){
+            var people=(r&&r.data)?r.data:[];
+            var opts='<option value="">&mdash; choose &mdash;</option>'+people.map(function(x){return '<option value="'+x.id+'">'+escapeHtml(x.name||'')+'</option>';}).join('');
+            var ts=document.getElementById('ctTrainerSel'); var te=document.getElementById('ctTraineeSel');
+            if(ts) ts.innerHTML=opts; if(te) te.innerHTML=opts;
+        }).catch(function(){});
+        var box=document.getElementById('ctManageList'); box.innerHTML='<p style="text-align:center;color:#888;padding:14px;">Loading&hellip;</p>';
+        supabaseClient.rpc('app_trainer_assignments',{p_username:currentUser.username,p_password:sessionPin,p_scope:'all'}).then(function(r){
+            if(r.error){ box.innerHTML='<p style="color:#c0264b;padding:14px;">'+(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':escapeHtml(r.error.message))+'</p>'; return; }
+            var rows=r.data||[];
+            if(!rows.length){ box.innerHTML='<p style="text-align:center;color:#9aa7b4;padding:14px;">No active assignments.</p>'; return; }
+            box.innerHTML=rows.map(function(a){
+                return '<div style="background:#fff;border:1px solid #e6ebf2;border-radius:12px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;"><div style="font-size:13px;"><b style="color:#1f2a44;">'+escapeHtml(a.trainee||'')+'</b> <span style="color:#9aa7b4;">trained by</span> <b style="color:#1f2a44;">'+escapeHtml(a.trainer||'')+'</b><div style="font-size:12px;color:#6b7686;">'+(a.topic?escapeHtml(a.topic):'General')+' &middot; '+(a.signoffs||0)+' notes</div></div><button onclick="ctEnd('+a.id+')" style="background:#fbeaec;border:none;color:#c0264b;font-weight:700;font-size:12px;padding:7px 11px;border-radius:8px;cursor:pointer;">End</button></div>';
+            }).join('');
+        }).catch(function(){ box.innerHTML='<p style="color:#c0264b;padding:14px;">Connection error.</p>'; });
+    }
+    function ctAssign(){
+        var msg=document.getElementById('ctAssignMsg');
+        function show(t,c){ msg.style.display='block'; msg.style.color=c||'#c0264b'; msg.innerHTML=t; }
+        var trainer=document.getElementById('ctTrainerSel').value||'';
+        var trainee=document.getElementById('ctTraineeSel').value||'';
+        var topic=document.getElementById('ctTopic').value||'';
+        if(!trainer||!trainee){ show('Pick a trainer and a trainee.'); return; }
+        if(trainer===trainee){ show('Trainer and trainee must be different people.'); return; }
+        show('Saving&hellip;','#6b7686');
+        supabaseClient.rpc('app_trainer_assign',{p_username:currentUser.username,p_password:sessionPin,p_trainee_id:parseInt(trainee,10),p_trainer_id:parseInt(trainer,10),p_topic:topic,p_store:''}).then(function(r){
+            if(r.error){ show(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':r.error.message); return; }
+            show('&#10003; Assigned.','#1f7a3d');
+            document.getElementById('ctTopic').value='';
+            ctLoadManage();
+        }).catch(function(){ show('Connection error.'); });
+    }
+    function ctEnd(id){
+        if(!confirm('End this training assignment? Past coaching notes are kept.')) return;
+        supabaseClient.rpc('app_trainer_end',{p_username:currentUser.username,p_password:sessionPin,p_assignment_id:id}).then(function(r){
+            if(r.error){ alert(r.error.message); return; }
+            ctLoadManage();
         }).catch(function(){ alert('Connection error.'); });
     }
     function openSupplyRequest(){
