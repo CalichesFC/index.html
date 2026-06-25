@@ -1592,6 +1592,12 @@
 </div>
 
 <!-- EMPLOYEE ROSTER (Admin Manager only) -->
+<div id="employeeProfileView" class="app-view">
+    <button class="back-btn" onclick="goBack()">&#8249; Back</button>
+    <div style="max-width:560px;margin:0 auto;padding:0 4px;">
+        <div id="empProfileBody"><p style="text-align:center;color:#888;padding:40px;">Loading...</p></div>
+    </div>
+</div>
 <div id="rosterView" class="app-view">
     <div class="hb-head">
         <button class="hb-back" onclick="openMenu()">&#8249; Menu</button>
@@ -2357,7 +2363,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.24.2315';
+    const APP_VERSION = '2026.06.25.0012';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4391,6 +4397,24 @@
         }, function(){ box.innerHTML='<p style="text-align:center;padding:20px;color:#888;">PIN required.</p>'; });
     }
     var celebRosterMap={};
+    function openEmployeeProfile(empId, name){
+        document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';});
+        var main=document.getElementById('main-menu'); if(main) main.style.display='none';
+        var view=document.getElementById('employeeProfileView'); if(view) view.style.display='block';
+        var box=document.getElementById('empProfileBody');
+        box.innerHTML='<p style="text-align:center;color:#888;padding:40px;">Loading '+escapeHtml(name||'')+'...</p>';
+        supabaseClient.rpc('app_emp_profile',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId}).then(function(r){
+            if(r.error){ box.innerHTML='<p style="color:#c0264b;padding:20px;">'+(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have access to this profile.':('Could not load profile: '+escapeHtml(r.error.message)))+'</p>'; return; }
+            renderEmployeeProfile(r.data);
+        }).catch(function(){ box.innerHTML='<p style="color:#c0264b;padding:20px;">Connection error.</p>'; });
+    }
+    function renderEmployeeProfile(p){
+        var box=document.getElementById('empProfileBody'); if(!p){ box.innerHTML='<p style="padding:20px;">Profile not found.</p>'; return; }
+        var initials=String(p.name||'?').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+        var certs=(p.certs||[]).map(function(c){ return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eef0f5;font-size:13px;"><span>'+escapeHtml(c.type||'')+'</span><span style="color:#6b7686;">'+(c.expires?('exp '+escapeHtml(String(c.expires))):'')+'</span></div>'; }).join('') || '<div style="color:#9aa7b4;font-size:13px;">None on file.</div>';
+        var st=p.status||'Active'; var stCol=(st==='Active')?'#1f7a3d':'#9aa7b4';
+        box.innerHTML='<div style="background:#fff;border:1px solid #e6ebf2;border-radius:16px;padding:18px;"><div style="display:flex;align-items:center;gap:14px;"><div style="width:54px;height:54px;border-radius:50%;background:#fde7df;display:flex;align-items:center;justify-content:center;font-weight:800;color:#D85A30;font-size:18px;">'+initials+'</div><div style="flex:1;"><div style="font-size:18px;font-weight:800;color:#1f2a44;">'+escapeHtml(p.name||'')+'</div><div style="font-size:13px;color:#6b7686;">'+escapeHtml(p.role||'')+(p.store?(' &middot; '+escapeHtml(p.store)):'')+'</div></div><span style="background:'+((st==='Active')?'#e7f6ec':'#eef1f5')+';color:'+stCol+';font-size:12px;font-weight:700;padding:4px 11px;border-radius:11px;">'+escapeHtml(st)+'</span></div><div style="margin-top:16px;"><div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin-bottom:6px;">Overview</div><div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eef0f5;font-size:13px;"><span style="color:#6b7686;">Email</span><span style="font-weight:600;">'+escapeHtml(p.email||'&mdash;')+'</span></div><div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eef0f5;font-size:13px;"><span style="color:#6b7686;">Cleared positions</span><span style="font-weight:600;">'+(p.cleared_positions||0)+'</span></div></div><div style="margin-top:14px;"><div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin-bottom:6px;">Certifications</div>'+certs+'</div><p style="margin-top:14px;font-size:11px;color:#9aa7b4;">Permission-aware profile &middot; this view was recorded in the audit log.</p></div>';
+    }
     function renderRosterTable(){
         const box=document.getElementById('rosterList');
         const q=(document.getElementById('rosterSearch').value||'').toLowerCase();
@@ -4417,7 +4441,7 @@
                 ? '<button class="roster-act" style="color:#c0264b;" onclick="rosterSetActive('+e.id+',false,&quot;'+rosterEsc(nmJs)+'&quot;)">Terminate</button>'
                 : '<button class="roster-act" style="color:#1f7a3d;" onclick="rosterSetActive('+e.id+',true,&quot;'+rosterEsc(nmJs)+'&quot;)">Reactivate</button>';
             const celIc = celebRosterMap[e.id]==='birthday' ? ' <span title="Birthday coming up">🎂</span>' : (celebRosterMap[e.id] ? ' <span title="Work anniversary coming up">🎉</span>' : '');
-            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+celIc+pipBadge+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;">'+((rosterState.phones&&rosterState.phones[e.id])?('<a class="roster-act" style="color:#1f7a3d;" href="tel:'+String(rosterState.phones[e.id]).replace(/[^0-9+]/g,'')+'">&#128222; '+rosterEsc(String(rosterState.phones[e.id]))+'</a>'):'')+pipAct+'<button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button>'+'<button class="roster-act" onclick="openEmpCerts('+e.id+',&quot;'+rosterEsc(nmJs)+'&quot;)">&#128203; Certs</button>'+termBtn+'</td></tr>';
+            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+celIc+pipBadge+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;">'+((rosterState.phones&&rosterState.phones[e.id])?('<a class="roster-act" style="color:#1f7a3d;" href="tel:'+String(rosterState.phones[e.id]).replace(/[^0-9+]/g,'')+'">&#128222; '+rosterEsc(String(rosterState.phones[e.id]))+'</a>'):'')+pipAct+'<button class="roster-act" onclick="openEmployeeProfile('+e.id+',&quot;'+rosterEsc(nmJs)+'&quot;)">&#128100; Profile</button><button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button>'+'<button class="roster-act" onclick="openEmpCerts('+e.id+',&quot;'+rosterEsc(nmJs)+'&quot;)">&#128203; Certs</button>'+termBtn+'</td></tr>';
         });
         html+='</tbody></table>';
         box.innerHTML=html;
