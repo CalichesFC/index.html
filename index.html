@@ -2357,7 +2357,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.24.1832';
+    const APP_VERSION = '2026.06.24.2244';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2712,13 +2712,12 @@
         resetTimer();
     }
     function checkScheduleGate(){
-        if(!currentUser||!currentUser.username) return;
-        withPin(function(pin){
-            supabaseClient.rpc('app_pending_schedule_confirm',{p_username:currentUser.username,p_password:pin}).then(function(r){
-                if(r.error||!r.data||!r.data.needs_confirm) return;
-                showScheduleGate(r.data);
-            }).catch(function(){});
-        });
+        if(!currentUser||!currentUser.username||!sessionPin) return;
+        supabaseClient.rpc('app_pending_schedule_confirm',{p_username:currentUser.username,p_password:sessionPin}).then(function(r){
+            if(r.error||!r.data||!r.data.needs_confirm) return;
+            window._gatePin=sessionPin;
+            showScheduleGate(r.data);
+        }).catch(function(){});
     }
     function gateTime(t){ if(!t) return ''; var p=String(t).split(':'); var h=+p[0]||0; var m=+p[1]||0; var ap=h<12?'a':'p'; var hh=h%12; if(hh===0) hh=12; return hh+(m?(':'+String(m).padStart(2,'0')):'')+ap; }
     function showScheduleGate(d){
@@ -2744,12 +2743,12 @@
     function confirmScheduleGate(){
         var ws=window._gateWeek; var btn=document.getElementById('scheduleGateBtn');
         if(btn){ btn.disabled=true; btn.textContent='Saving...'; }
-        withPin(function(pin){
-            supabaseClient.rpc('app_week_confirm',{p_username:currentUser.username,p_password:pin,p_week_start:ws}).then(function(r){
-                if(r.error){ if(btn){ btn.disabled=false; btn.textContent='Try again'; } alert('Could not confirm: '+r.error.message); return; }
-                var ov=document.getElementById('scheduleGate'); if(ov) ov.style.display='none';
-            }).catch(function(){ if(btn){ btn.disabled=false; btn.textContent='Try again'; } });
-        });
+        var pin=window._gatePin||sessionPin;
+        if(!pin){ if(btn){ btn.disabled=false; btn.textContent='Try again'; } return; }
+        supabaseClient.rpc('app_week_confirm',{p_username:currentUser.username,p_password:pin,p_week_start:ws}).then(function(r){
+            if(r.error){ if(btn){ btn.disabled=false; btn.textContent='Try again'; } alert('Could not confirm: '+r.error.message); return; }
+            var ov=document.getElementById('scheduleGate'); if(ov) ov.style.display='none';
+        }).catch(function(){ if(btn){ btn.disabled=false; btn.textContent='Try again'; } });
     }
 
     // ============================================================
@@ -5324,8 +5323,10 @@
                 return (a.ReportDate || '') < (b.ReportDate || '') ? -1 : 1;
             });
             const todayStr = new Date().toISOString().split('T')[0];
-            let html = '';
+            let brokenHtml = '', pmHtml = '', pmCount = 0;
             data.forEach((row, idx) => {
+                var _isPM = (row.ReporterName||'').indexOf('Preventive Maintenance') >= 0;
+                var html = '';
                 let status = row.Status || 'Pending';
                 let urgency = row.Urgency || '';
                 let urgColor = urgency.indexOf('High') !== -1 ? 'var(--damage-red)' : (urgency.indexOf('Medium') !== -1 ? 'var(--maint-orange)' : 'var(--pass-green)');
@@ -5376,11 +5377,17 @@
                     html += '<div class="maint-readonly-note" style="background:#eef2fb;"><strong>Tech Notes:</strong> ' + escapeHtml(row.tech_notes) + '</div>';
                 }
                 html += '</div>';
+                if (_isPM) { pmHtml += html; pmCount++; } else { brokenHtml += html; }
             });
-            container.innerHTML = html;
+            var out = brokenHtml;
+            if (!out && pmCount) { out = '<p style="text-align:center;padding:16px;color:#888;">No broken or reported items right now.</p>'; }
+            if (pmCount) { out += '<div style="margin:14px 0 6px;"><button onclick="maintTogglePm(this)" style="width:100%;background:#eef2fb;border:1px solid #d6e0f0;border-radius:10px;padding:11px;font-weight:700;color:#185FA5;cursor:pointer;font-size:14px;">&#128295; Preventive maintenance (' + pmCount + ') &mdash; show / hide</button><div style="display:none;margin-top:8px;">' + pmHtml + '</div></div>'; }
+            container.innerHTML = out;
         }).catch(() => { container.innerHTML = '<p style="color:red;">Connection error.</p>'; });
         }, function() { container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">PIN required to load maintenance board.</p>'; });
     }
+
+    function maintTogglePm(btn){ var d=btn.nextElementSibling; if(d){ d.style.display=(d.style.display==='none'?'block':'none'); } }
 
     function maintPmDone(id){
         if(!confirm('Mark this preventive-maintenance task done?\n\nIt logs the service and rolls the next due date forward.')) return;
