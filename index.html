@@ -2482,7 +2482,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.25.0948';
+    const APP_VERSION = '2026.06.25.0950';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2506,10 +2506,11 @@
     let sessionPin = null;
     function withPin(callback, onCancel) {
         if (sessionPin) { callback(sessionPin); return; }
-        try { if (localStorage.getItem('calichesKeep')==='1') { var _kp=localStorage.getItem('calichesPin'); if(_kp){ sessionPin=_kp; callback(sessionPin); return; } } } catch(e){}
+        try { if (localStorage.getItem('calichesKeep')!=='0') { var _kp=localStorage.getItem('calichesPin'); if(_kp){ sessionPin=_kp; callback(sessionPin); return; } } } catch(e){}
         const entered = prompt('Enter your PIN to confirm:');
         if (entered === null || entered.trim() === '') { if (onCancel) onCancel(); return; }
         sessionPin = entered.trim();
+        try { if (localStorage.getItem('calichesKeep')!=='0') localStorage.setItem('calichesPin', sessionPin); } catch(e){}
         callback(sessionPin);
     }
     let autoSaveTimer = null;
@@ -2937,7 +2938,7 @@
         let savedUser = localStorage.getItem('calichesUser');
         if (savedUser) {
             currentUser = JSON.parse(savedUser);
-            try { if (localStorage.getItem('calichesKeep')==='1') { var _kp=localStorage.getItem('calichesPin'); if(_kp) sessionPin=_kp; } } catch(e){}
+            try { if (localStorage.getItem('calichesKeep')!=='0') { var _kp=localStorage.getItem('calichesPin'); if(_kp) sessionPin=_kp; } } catch(e){}
             document.getElementById('greetingName').innerText = 'Hello, ' + currentUser.name;
             document.getElementById('greetingRole').innerText = 'Role: ' + currentUser.role;
             applyRoleUI();
@@ -3224,7 +3225,7 @@
             currentUser.name = user.name; currentUser.role = user.role; currentUser.permissions = user.permissions || null; currentUser.maint_board_access = (user.maint_board_access !== false);
             currentUser.username = user.username; currentUser.email = user.email || ''; currentUser.is_developer = (user.is_developer === true);
             localStorage.setItem('calichesUser', JSON.stringify(currentUser));
-            try { var _keep = !document.getElementById('keepLoggedIn') || document.getElementById('keepLoggedIn').checked; if(_keep){ localStorage.setItem('calichesKeep','1'); localStorage.setItem('calichesPin', sessionPin); } else { localStorage.removeItem('calichesKeep'); localStorage.removeItem('calichesPin'); } } catch(e){}
+            try { var _keep = !document.getElementById('keepLoggedIn') || document.getElementById('keepLoggedIn').checked; if(_keep){ localStorage.setItem('calichesKeep','1'); localStorage.setItem('calichesPin', sessionPin); } else { localStorage.setItem('calichesKeep','0'); localStorage.removeItem('calichesPin'); } } catch(e){}
             logActivity(user.username, user.name, 'login');
             document.getElementById('greetingName').innerText = 'Hello, ' + user.name;
             document.getElementById('greetingRole').innerText = 'Role: ' + user.role;
@@ -3523,7 +3524,7 @@
             if (error) { msg.innerText = 'Error: ' + error.message; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
             if (!data) { msg.innerText = 'Current PIN is incorrect.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
             sessionPin = newPin;
-            try { if(localStorage.getItem('calichesKeep')==='1') localStorage.setItem('calichesPin', newPin); } catch(e){}
+            try { if(localStorage.getItem('calichesKeep')!=='0') localStorage.setItem('calichesPin', newPin); } catch(e){}
             msg.innerText = 'PIN updated successfully!'; msg.className = 'settings-msg ok'; msg.style.display = 'block';
             document.getElementById('settingsCurrentPin').value = ''; document.getElementById('settingsNewPin').value = ''; document.getElementById('settingsConfirmPin').value = '';
         }).catch(() => { msg.innerText = 'Connection error. Please try again.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; });
