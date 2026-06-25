@@ -2363,7 +2363,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.25.0012';
+    const APP_VERSION = '2026.06.25.0029';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4410,10 +4410,61 @@
     }
     function renderEmployeeProfile(p){
         var box=document.getElementById('empProfileBody'); if(!p){ box.innerHTML='<p style="padding:20px;">Profile not found.</p>'; return; }
+        _empProfile=p;
         var initials=String(p.name||'?').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
         var certs=(p.certs||[]).map(function(c){ return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eef0f5;font-size:13px;"><span>'+escapeHtml(c.type||'')+'</span><span style="color:#6b7686;">'+(c.expires?('exp '+escapeHtml(String(c.expires))):'')+'</span></div>'; }).join('') || '<div style="color:#9aa7b4;font-size:13px;">None on file.</div>';
         var st=p.status||'Active'; var stCol=(st==='Active')?'#1f7a3d':'#9aa7b4';
-        box.innerHTML='<div style="background:#fff;border:1px solid #e6ebf2;border-radius:16px;padding:18px;"><div style="display:flex;align-items:center;gap:14px;"><div style="width:54px;height:54px;border-radius:50%;background:#fde7df;display:flex;align-items:center;justify-content:center;font-weight:800;color:#D85A30;font-size:18px;">'+initials+'</div><div style="flex:1;"><div style="font-size:18px;font-weight:800;color:#1f2a44;">'+escapeHtml(p.name||'')+'</div><div style="font-size:13px;color:#6b7686;">'+escapeHtml(p.role||'')+(p.store?(' &middot; '+escapeHtml(p.store)):'')+'</div></div><span style="background:'+((st==='Active')?'#e7f6ec':'#eef1f5')+';color:'+stCol+';font-size:12px;font-weight:700;padding:4px 11px;border-radius:11px;">'+escapeHtml(st)+'</span></div><div style="margin-top:16px;"><div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin-bottom:6px;">Overview</div><div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eef0f5;font-size:13px;"><span style="color:#6b7686;">Email</span><span style="font-weight:600;">'+escapeHtml(p.email||'&mdash;')+'</span></div><div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eef0f5;font-size:13px;"><span style="color:#6b7686;">Cleared positions</span><span style="font-weight:600;">'+(p.cleared_positions||0)+'</span></div></div><div style="margin-top:14px;"><div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin-bottom:6px;">Certifications</div>'+certs+'</div><p style="margin-top:14px;font-size:11px;color:#9aa7b4;">Permission-aware profile &middot; this view was recorded in the audit log.</p></div>';
+        box.innerHTML='<div style="background:#fff;border:1px solid #e6ebf2;border-radius:16px;padding:18px;"><div style="display:flex;align-items:center;gap:14px;"><div style="width:54px;height:54px;border-radius:50%;background:#fde7df;display:flex;align-items:center;justify-content:center;font-weight:800;color:#D85A30;font-size:18px;">'+initials+'</div><div style="flex:1;"><div style="font-size:18px;font-weight:800;color:#1f2a44;">'+escapeHtml(p.name||'')+'</div><div style="font-size:13px;color:#6b7686;">'+escapeHtml(p.role||'')+(p.store?(' &middot; '+escapeHtml(p.store)):'')+'</div></div><span style="background:'+((st==='Active')?'#e7f6ec':'#eef1f5')+';color:'+stCol+';font-size:12px;font-weight:700;padding:4px 11px;border-radius:11px;">'+escapeHtml(st)+'</span></div><div style="margin-top:16px;"><div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin-bottom:6px;">Overview</div><div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eef0f5;font-size:13px;"><span style="color:#6b7686;">Email</span><span style="font-weight:600;">'+escapeHtml(p.email||'&mdash;')+'</span></div><div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eef0f5;font-size:13px;"><span style="color:#6b7686;">Cleared positions</span><span style="font-weight:600;">'+(p.cleared_positions||0)+'</span></div></div><div style="margin-top:14px;"><div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin-bottom:6px;">Certifications</div>'+certs+'</div><p style="margin-top:14px;font-size:11px;color:#9aa7b4;">Permission-aware profile &middot; this view was recorded in the audit log.</p>'+empManageHtml(p)+'</div>';
+    }
+    var _empProfile=null;
+    function empManageHtml(p){
+        if(!(typeof isManagerRole==='function' && isManagerRole())) return '';
+        var ladder=['Crew Member','Crew Trainer','Shift Leader','Assistant Manager','Store Manager','Admin Manager'];
+        var cur=p.role||''; if(cur && ladder.indexOf(cur)<0) ladder.unshift(cur);
+        var roleOpts=ladder.map(function(r){return '<option'+(r===cur?' selected':'')+'>'+escapeHtml(r)+'</option>';}).join('');
+        var h='<div style="margin-top:16px;border-top:1px solid #eef0f5;padding-top:14px;">';
+        h+='<div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin-bottom:8px;">Manage</div>';
+        h+='<button id="empPromoteBtn" onclick="toggleEmpPromote()" style="background:#fff;border:1px solid #D85A30;color:#D85A30;font-weight:700;font-size:13px;padding:9px 14px;border-radius:10px;cursor:pointer;">&#11014; Change role</button>';
+        h+='<div id="empPromoteForm" style="display:none;margin-top:12px;background:#fbfcfe;border:1px solid #e6ebf2;border-radius:12px;padding:14px;">';
+        h+='<div style="font-size:13px;color:#1f2a44;font-weight:700;margin-bottom:4px;">Role change &mdash; review &amp; confirm</div>';
+        h+='<div style="font-size:12px;color:#6b7686;margin-bottom:10px;">Current role: <b>'+escapeHtml(cur||'&mdash;')+'</b>. Recorded with an effective date and reason in the employee history and the audit log.</div>';
+        h+='<label style="font-size:12px;color:#6b7686;display:block;margin-bottom:3px;">New role</label>';
+        h+='<select id="empPromoteRole" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:14px;margin-bottom:10px;">'+roleOpts+'</select>';
+        h+='<label style="font-size:12px;color:#6b7686;display:block;margin-bottom:3px;">Effective date</label>';
+        h+='<input type="date" id="empPromoteDate" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:14px;margin-bottom:10px;">';
+        h+='<label style="font-size:12px;color:#6b7686;display:block;margin-bottom:3px;">Reason (required)</label>';
+        h+='<textarea id="empPromoteReason" rows="2" placeholder="e.g., Completed sign-offs; approved by store manager" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:14px;box-sizing:border-box;"></textarea>';
+        h+='<div id="empPromoteMsg" style="display:none;font-size:13px;margin-top:8px;"></div>';
+        h+='<div style="display:flex;gap:8px;margin-top:12px;">';
+        h+='<button onclick="submitEmpPromote()" style="flex:1;background:linear-gradient(90deg,#ec3e7e,#7b2d8b);color:#fff;font-weight:800;border:none;padding:11px;border-radius:10px;cursor:pointer;font-size:14px;">Confirm role change</button>';
+        h+='<button onclick="toggleEmpPromote(true)" style="background:#eef1f5;color:#5b6472;border:none;padding:11px 16px;border-radius:10px;cursor:pointer;font-size:14px;">Cancel</button>';
+        h+='</div></div></div>';
+        return h;
+    }
+    function toggleEmpPromote(forceHide){
+        var f=document.getElementById('empPromoteForm'); if(!f) return;
+        if(forceHide){ f.style.display='none'; return; }
+        var show=f.style.display==='none'; f.style.display=show?'block':'none';
+        if(show){ var d=document.getElementById('empPromoteDate'); if(d&&!d.value){ d.value=new Date().toISOString().slice(0,10); } var m=document.getElementById('empPromoteMsg'); if(m) m.style.display='none'; }
+    }
+    function submitEmpPromote(){
+        var p=_empProfile; if(!p) return;
+        var role=(document.getElementById('empPromoteRole')||{}).value||'';
+        var date=(document.getElementById('empPromoteDate')||{}).value||'';
+        var reason=((document.getElementById('empPromoteReason')||{}).value||'').trim();
+        var msg=document.getElementById('empPromoteMsg');
+        function show(t,c){ if(msg){ msg.style.display='block'; msg.style.color=c||'#c0264b'; msg.innerHTML=t; } }
+        if(!reason){ show('Please enter a reason &mdash; role changes require one.'); return; }
+        if(!date){ show('Please choose an effective date.'); return; }
+        if(role===(p.role||'')){ show('Choose a different role, or Cancel.'); return; }
+        if(!confirm('Change '+(p.name||'this employee')+' from "'+(p.role||'')+'" to "'+role+'" effective '+date+'? This is recorded in their employment history and the audit log.')) return;
+        show('Saving&hellip;','#6b7686');
+        supabaseClient.rpc('app_emp_promote',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:p.id,p_new_role:role,p_effective_date:date,p_reason:reason}).then(function(r){
+            if(r.error){ var m=String(r.error.message||''); show(m.indexOf('forbidden')>=0?'You do not have permission to change roles.':(m.indexOf('reason_required')>=0?'A reason is required.':('Could not save: '+escapeHtml(m)))); return; }
+            show('&#10003; Role updated to '+escapeHtml(role)+'. Recorded in history + audit log.','#1f7a3d');
+            if(typeof loadRoster==='function'){ try{ loadRoster(); }catch(e){} }
+            setTimeout(function(){ openEmployeeProfile(p.id, p.name); }, 1000);
+        }).catch(function(){ show('Connection error. Please try again.'); });
     }
     function renderRosterTable(){
         const box=document.getElementById('rosterList');
