@@ -772,6 +772,7 @@
             <button id="rosterBtn" class="menu-btn" style="display:none;" onclick="openRoster()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128101;</span><b>Employee Roster</b><small>Staff, logins &amp; stores</small></button>
             <button id="celebrationsBtn" class="menu-btn" style="display:none;" onclick="openCelebrations()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#127881;</span><b>Celebrations</b><small>Birthdays, anniversaries &amp; awards</small></button>
             <button id="shortageTrendsBtn" class="menu-btn" style="display:none;" onclick="openShortageTrends()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128200;</span><b>Shortage Trends</b><small>What runs low, often</small></button>
+            <button id="teamDevBtn" class="menu-btn" style="display:none;" onclick="openTeamDev()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128218;</span><b>Team Development</b><small>Everyone&rsquo;s training, growth &amp; promotions</small></button>
             <button id="developerBtn" class="menu-btn" style="display:none;" onclick="openTrainingPortal()"><span class="rchip admin">Dev</span><span class="tile-ic">&#128187;</span><b>Training Portal</b><small>Developer tools</small></button>
             <button id="previewToggleBtn" class="menu-btn" style="display:none;" onclick="togglePreviewMode()"><span class="rchip admin">Dev</span><span class="tile-ic">&#128065;</span><b>Preview as Staff</b><small>Hide dev tabs</small></button>
             <button id="installBtn" class="menu-btn" style="display:none;" onclick="installApp()"><span class="tile-ic">&#128242;</span><b>Install App on Phone</b><small>Add to home screen</small></button>
@@ -1958,7 +1959,7 @@
             <button onclick="if(typeof toggleAIChatPanel==='function')toggleAIChatPanel();" style="flex:1;min-width:140px;background:#fff;border:1px solid #e7e2f0;border-radius:10px;padding:10px;font-size:13px;font-weight:600;color:#7d1d4b;cursor:pointer;">&#127846; Ask Mr. Scoopy</button>
             <button onclick="openFormsLinks()" style="flex:1;min-width:140px;background:#fff;border:1px solid #e7e2f0;border-radius:10px;padding:10px;font-size:13px;font-weight:600;color:#185FA5;cursor:pointer;">&#128196; Forms &amp; Documents</button>
             <button id="trainingAddBtn" onclick="openTrainingEdit(null)" style="display:none;flex:1;min-width:140px;background:var(--caliches-pink);color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#10133; Add module</button>
-            <button id="lmsPreviewBtn" onclick="openLmsPreview()" style="display:none;flex:1;min-width:160px;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#127891; Learning Paths <span style="background:#ffd84d;color:#5b3a00;font-size:9px;font-weight:800;padding:1px 5px;border-radius:99px;">SAMPLE</span></button>
+            <button id="lmsPreviewBtn" onclick="openLmsPreview()" style="display:none;flex:1;min-width:160px;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#127891; Learning Paths </button>
         </div>
         <div id="trainingList"><p style="text-align:center;color:#888;padding:30px;">Loading&hellip;</p></div>
     </div>
@@ -2506,7 +2507,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.25.1054';
+    const APP_VERSION = '2026.06.25.1143';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -5426,6 +5427,7 @@
         if (celebrationsBtn) celebrationsBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
         const shortageTrendsBtn = document.getElementById('shortageTrendsBtn');
         if (shortageTrendsBtn) shortageTrendsBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
+        var _teamDevBtn=document.getElementById('teamDevBtn'); if(_teamDevBtn) _teamDevBtn.style.display=(devOverride||isManager)?'block':'none';
         const formsLinksBtn = document.getElementById('formsLinksBtn');
         if (formsLinksBtn) formsLinksBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         const quotesBtn = document.getElementById('quotesBtn');
@@ -8113,77 +8115,71 @@
     }
     function lmsOverlay(){ var ov=document.getElementById('lmsModal'); if(!ov){ ov=document.createElement('div'); ov.id='lmsModal'; ov.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100000;overflow:auto;'; document.body.appendChild(ov); } ov.style.display='block'; return ov; }
     function lmsClose(){ var ov=document.getElementById('lmsModal'); if(ov) ov.style.display='none'; }
-    function lmsHeader(title,back){ return '<div style="background:linear-gradient(120deg,#185FA5,#7d1d4b);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:2;">'+(back?'<button onclick="'+back+'" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;">&#8249; Back</button>':'')+'<b style="flex:1;font-size:16px;">'+title+'</b><span style="background:#ffd84d;color:#5b3a00;font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px;">PREVIEW</span><button onclick="lmsClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;">&times;</button></div>'; }
-    function lmsStatusBadge(st){ var m={passed:['#e8f5ec','#1b7a3d','Certified'],lesson_done:['#fff4e0','#9a5b00','Quiz to do'],failed:['#fdeaea','#a01b3e','Try again'],not_started:['#eef0f3','#6b7686','Not started']}; var c=m[st||'not_started']||m.not_started; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:2px 8px;border-radius:99px;white-space:nowrap;">'+c[2]+'</span>'; }
-    // ===== Learning Path preview — self-contained clickable flow (sample content) =====
-    var LMS_PATHS = [
-      { id:'wa', name:'White Apron — New Hire Foundations', descr:'The starter path every new team member completes.', courses:[
-        { id:'wa1', title:'Welcome to Caliche’s', est_min:5,
-          pages:['<p>Welcome to the team! This is a sample lesson page — in the full version it holds the real onboarding content.</p><p>Use <b>Next</b> to move through the pages.</p>','<p>Page 2 of the lesson: our story, our standards, and what makes Caliche’s special. (Placeholder text — this is about the flow, not the content.)</p>'],
-          key:['Caliche’s serves fresh frozen custard','Hospitality always comes first'],
-          quiz:[{q:'What does Caliche’s serve?',choices:['Fresh frozen custard','Tacos','Coffee'],a:0},{q:'What comes first with every guest?',choices:['Hospitality','Paperwork','Closing duties'],a:0}] },
-        { id:'wa2', title:'The Four #1s & Guest Service', est_min:6,
-          pages:['<p>Sample lesson on the Four #1s and how we greet every guest.</p>','<p>Page 2 — keeping it friendly during a busy rush. (Placeholder.)</p>'],
-          key:['Greet every guest within a few seconds','A mistake is a chance to make it right'],
-          quiz:[{q:'How fast should you greet a guest?',choices:['Within a few seconds','Within 5 minutes','Only if they ask'],a:0},{q:'A guest is unhappy. You…',choices:['Make it right','Ignore it','Blame the rush'],a:0}] },
-        { id:'wa3', title:'Lingo & Store Orientation', est_min:5,
-          pages:['<p>Sample lesson: store lingo and where things live.</p>','<p>Page 2 — stations and the flow of a shift. (Placeholder.)</p>'],
-          key:['Know your stations','Ask when you are unsure'],
-          quiz:[{q:'Not sure where something is? You…',choices:['Ask a teammate or lead','Guess','Skip it'],a:0},{q:'Knowing your stations helps you…',choices:['Work the flow of a shift','Avoid work','Leave early'],a:0}] }
-      ]},
-      { id:'reg', name:'Register Certification', descr:'Get cleared to run the register.', courses:[
-        { id:'reg1', title:'POS Basics', est_min:6,
-          pages:['<p>Sample lesson: ringing up an order step by step.</p>','<p>Page 2 — modifiers, voids, and corrections. (Placeholder.)</p>'],
-          key:['Double-check the order before total','Call a lead for voids'],
-          quiz:[{q:'Before hitting total you…',choices:['Double-check the order','Close the drawer','Walk away'],a:0},{q:'Need a void? You…',choices:['Call a lead','Do it secretly','Ignore it'],a:0}] },
-        { id:'reg2', title:'Handling Payments', est_min:6,
-          pages:['<p>Sample lesson: cash, card, and making change.</p>','<p>Page 2 — keeping the drawer accurate. (Placeholder.)</p>'],
-          key:['Count change back to the guest','Keep the drawer balanced'],
-          quiz:[{q:'Best way to give change?',choices:['Count it back','Drop it on the counter','Guess'],a:0},{q:'A balanced drawer means…',choices:['Cash matches the sales','Extra tips','Nothing'],a:0}] }
-      ]}
-    ];
-    function lmsProg(){ try{ return JSON.parse(localStorage.getItem('calichesLmsPrev')||'{}'); }catch(e){ return {}; } }
-    function lmsSetProg(id,patch){ var pr=lmsProg(); pr[id]=Object.assign(pr[id]||{},patch); try{ localStorage.setItem('calichesLmsPrev',JSON.stringify(pr)); }catch(e){} }
-    function lmsStatusOf(id){ return (lmsProg()[id]||{}).status||'not_started'; }
-    function lmsFindCourse(id){ for(var i=0;i<LMS_PATHS.length;i++){ for(var j=0;j<LMS_PATHS[i].courses.length;j++){ if(LMS_PATHS[i].courses[j].id===id) return {path:LMS_PATHS[i],idx:j,course:LMS_PATHS[i].courses[j]}; } } return null; }
-    function openLmsPreview(){ lmsHome(); }
+    function lmsHeader(title,back,badge){ return '<div style="background:linear-gradient(120deg,#185FA5,#7d1d4b);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:2;">'+(back?'<button onclick="'+back+'" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;">&#8249; Back</button>':'')+'<b style="flex:1;font-size:16px;">'+title+'</b>'+(badge?'<span style="background:#ffd84d;color:#5b3a00;font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px;">'+badge+'</span>':'')+'<button onclick="lmsClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;">&times;</button></div>'; }
+    function lmsStatusBadge(st){ var m={passed:['#e8f5ec','#1b7a3d','Certified'],in_progress:['#fff4e0','#9a5b00','In progress'],not_started:['#eef0f3','#6b7686','Not started']}; var c=m[st||'not_started']||m.not_started; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:2px 8px;border-radius:99px;white-space:nowrap;">'+c[2]+'</span>'; }
+    // ===== Learning Paths — real, database-backed (catalog + per-employee progress) =====
+    var _lms={catalog:[],my:{passed_course_ids:[],completions:[],enrollments:[]}};
+    function lmsPassedSet(){ var s={}; (_lms.my.passed_course_ids||[]).forEach(function(id){ s[id]=true; }); return s; }
+    function lmsScoreOf(cid){ var c=(_lms.my.completions||[]).filter(function(x){return x.course_id===cid;})[0]; return c?c.score:null; }
+    function lmsCourseStatus(cid){ var passed=lmsPassedSet(); if(passed[cid]) return 'passed'; if(lmsScoreOf(cid)!=null) return 'in_progress'; return 'not_started'; }
+    function openLmsPreview(){ lmsLoad(function(){ lmsHome(); }); }
+    function lmsLoad(cb){
+        var ov=lmsOverlay(); ov.innerHTML=lmsHeader('My Training','')+'<div style="max-width:640px;margin:0 auto;padding:40px 16px;text-align:center;color:#888;">Loading your training&hellip;</div>';
+        withPin(function(pin){
+            Promise.all([
+                supabaseClient.rpc('app_lp_catalog',{p_username:currentUser.username,p_password:pin}),
+                supabaseClient.rpc('app_lp_my',{p_username:currentUser.username,p_password:pin})
+            ]).then(function(res){
+                if(res[0].error){ ov.innerHTML=lmsHeader('My Training','')+'<div style="max-width:640px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">Could not load training: '+escapeHtml(res[0].error.message)+'</div>'; return; }
+                _lms.catalog=res[0].data||[]; _lms.my=(res[1]&&res[1].data)?res[1].data:{passed_course_ids:[],completions:[],enrollments:[]};
+                if(cb) cb();
+            }).catch(function(){ ov.innerHTML=lmsHeader('My Training','')+'<div style="max-width:640px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">Connection error.</div>'; });
+        }, function(){ ov.innerHTML=lmsHeader('My Training','')+'<div style="max-width:640px;margin:0 auto;padding:30px 16px;color:#888;text-align:center;">PIN required.</div>'; });
+    }
     function lmsHome(){
-        var ov=lmsOverlay(); var prog=lmsProg(); var next=null;
-        LMS_PATHS.forEach(function(p){ p.courses.forEach(function(c){ if(!next && (prog[c.id]||{}).status!=='passed') next=c; }); });
+        var ov=lmsOverlay(); var passed=lmsPassedSet(); var paths=_lms.catalog||[]; var next=null;
+        paths.forEach(function(p){ (p.courses||[]).forEach(function(c){ if(!next && !passed[c.id]) next={c:c,p:p}; }); });
         var h='';
-        if(next){ h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px rgba(0,0,0,.05);"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;">Continue learning</div><div style="font-size:16px;font-weight:700;color:#26242b;margin:4px 0 10px;">'+escapeHtml(next.title)+'</div><button onclick="lmsOpenCourse(&quot;'+next.id+'&quot;)" style="width:100%;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">Continue &rsaquo;</button></div>'; }
-        else { h+='<div style="background:#e8f5ec;border:1px solid #cdeed7;border-radius:14px;padding:16px;margin-bottom:14px;text-align:center;"><div style="font-size:32px;">&#127881;</div><b style="color:#1b7a3d;">All paths complete!</b><div style="font-size:12.5px;color:#5b6472;">Every sample certification earned. Tap Reset below to test again.</div></div>'; }
-        LMS_PATHS.forEach(function(p){
-            var done=p.courses.filter(function(c){return (prog[c.id]||{}).status==='passed';}).length, tot=p.courses.length;
-            h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.04);"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:15.5px;color:#26242b;">'+escapeHtml(p.name)+'</b><span style="font-size:12px;color:#8a8594;">'+done+'/'+tot+'</span></div>'+(p.descr?'<div style="font-size:12.5px;color:#8a8594;margin:2px 0 8px;">'+escapeHtml(p.descr)+'</div>':'')+'<div style="background:#eee;border-radius:99px;height:7px;overflow:hidden;margin-bottom:10px;"><div style="height:100%;width:'+(tot?Math.round(100*done/tot):0)+'%;background:#1f7a3d;"></div></div>';
-            p.courses.forEach(function(c){ var pr=prog[c.id]||{}; h+='<button onclick="lmsOpenCourse(&quot;'+c.id+'&quot;)" style="width:100%;text-align:left;background:#faf9fc;border:1px solid #f0eef4;border-radius:10px;padding:11px 12px;margin-bottom:6px;cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="flex:1;font-size:13.5px;color:#33303a;">'+escapeHtml(c.title)+'<small style="display:block;color:#9aa7b4;font-size:11px;">'+(c.est_min||5)+' min'+(pr.score!=null?' &middot; scored '+pr.score+'%':'')+'</small></span>'+lmsStatusBadge(pr.status)+'</button>'; });
+        if(next){ h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px rgba(0,0,0,.05);"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;">Continue learning</div><div style="font-size:16px;font-weight:700;color:#26242b;margin:4px 0 2px;">'+escapeHtml(next.c.title)+'</div><div style="font-size:12px;color:#8a8594;margin-bottom:10px;">'+escapeHtml(next.p.title)+'</div><button onclick="lmsOpenCourse('+next.c.id+')" style="width:100%;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">Continue &rsaquo;</button></div>'; }
+        else if(paths.length){ h+='<div style="background:#e8f5ec;border:1px solid #cdeed7;border-radius:14px;padding:16px;margin-bottom:14px;text-align:center;"><div style="font-size:32px;">&#127881;</div><b style="color:#1b7a3d;">All paths complete!</b><div style="font-size:12.5px;color:#5b6472;">You have earned every available certification. Nice work!</div></div>'; }
+        if(!paths.length){ h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:20px;text-align:center;color:#8a8594;">No learning paths yet. A manager can add them under Team Development.</div>'; }
+        paths.forEach(function(p){
+            var courses=p.courses||[]; var done=courses.filter(function(c){return passed[c.id];}).length, tot=courses.length;
+            h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.04);"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">'+escapeHtml(p.icon||'🎓')+'</span><b style="flex:1;font-size:15.5px;color:#26242b;">'+escapeHtml(p.title)+'</b><span style="font-size:12px;color:#8a8594;">'+done+'/'+tot+'</span></div>'+(p.description?'<div style="font-size:12.5px;color:#8a8594;margin:4px 0 8px;">'+escapeHtml(p.description)+'</div>':'<div style="height:6px;"></div>')+'<div style="background:#eee;border-radius:99px;height:7px;overflow:hidden;margin-bottom:10px;"><div style="height:100%;width:'+(tot?Math.round(100*done/tot):0)+'%;background:#1f7a3d;"></div></div>';
+            courses.forEach(function(c){ var sc=lmsScoreOf(c.id); h+='<button onclick="lmsOpenCourse('+c.id+')" style="width:100%;text-align:left;background:#faf9fc;border:1px solid #f0eef4;border-radius:10px;padding:11px 12px;margin-bottom:6px;cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="flex:1;font-size:13.5px;color:#33303a;">'+escapeHtml(c.title)+'<small style="display:block;color:#9aa7b4;font-size:11px;">'+(c.pages_count||0)+' lesson page'+((c.pages_count===1)?'':'s')+(sc!=null?' &middot; scored '+sc+'%':'')+'</small></span>'+lmsStatusBadge(lmsCourseStatus(c.id))+'</button>'; });
             h+='</div>';
         });
-        var certs=[]; LMS_PATHS.forEach(function(p){ p.courses.forEach(function(c){ if((prog[c.id]||{}).status==='passed') certs.push(c.title); }); });
-        h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:6px;">My certifications</div>'+(certs.length?('<div style="display:flex;flex-wrap:wrap;gap:6px;">'+certs.map(function(t){return '<span style="background:#e8f5ec;color:#1b7a3d;font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:99px;">&#127894; '+escapeHtml(t)+'</span>';}).join('')+'</div>'):'<div style="font-size:12.5px;color:#8a8594;">Pass a course quiz to earn its certification. In the full version these connect to station clearances and apron progression.</div>')+'</div>';
-        h+='<button onclick="lmsResetPreview()" style="width:100%;background:#f4f5f8;border:1px solid #e6e6ee;color:#6b7686;border-radius:10px;padding:10px;font-size:12.5px;cursor:pointer;">Reset preview progress</button>';
+        var certs=[]; paths.forEach(function(p){ (p.courses||[]).forEach(function(c){ if(passed[c.id]) certs.push(c.title); }); });
+        h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:6px;">My certifications</div>'+(certs.length?('<div style="display:flex;flex-wrap:wrap;gap:6px;">'+certs.map(function(t){return '<span style="background:#e8f5ec;color:#1b7a3d;font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:99px;">&#127894; '+escapeHtml(t)+'</span>';}).join('')+'</div>'):'<div style="font-size:12.5px;color:#8a8594;">Pass a course quiz to earn its certification.</div>')+'</div>';
         ov.innerHTML=lmsHeader('My Training','')+'<div style="max-width:640px;margin:0 auto;padding:16px;">'+h+'</div>';
     }
-    function lmsResetPreview(){ if(confirm('Reset the preview progress so you can test the flow from the start?')){ try{ localStorage.removeItem('calichesLmsPrev'); }catch(e){} lmsHome(); } }
-    function lmsOpenCourse(courseId){ var f=lmsFindCourse(courseId); if(!f) return; window._lmsCur={course:f.course,path:f.path,page:0}; lmsRenderLesson(); }
+    function lmsOpenCourse(courseId){
+        var ov=lmsOverlay(); ov.innerHTML=lmsHeader('Lesson','lmsHome()')+'<div style="max-width:640px;margin:0 auto;padding:40px 16px;text-align:center;color:#888;">Loading&hellip;</div>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_lp_course',{p_username:currentUser.username,p_password:pin,p_course_id:courseId}).then(function(r){
+                if(r.error||!r.data||r.data.error){ ov.innerHTML=lmsHeader('Lesson','lmsHome()')+'<div style="max-width:640px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">Could not load this course.</div>'; return; }
+                window._lmsCur={course:r.data,page:0}; lmsRenderLesson();
+            }).catch(function(){ ov.innerHTML=lmsHeader('Lesson','lmsHome()')+'<div style="max-width:640px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">Connection error.</div>'; });
+        });
+    }
     function lmsRenderLesson(){
-        var cur=window._lmsCur; if(!cur) return; var c=cur.course; var pages=c.pages||['']; var pg=Math.max(0,Math.min(pages.length-1,cur.page||0)); cur.page=pg;
+        var cur=window._lmsCur; if(!cur) return; var c=cur.course; var pages=(c.pages&&c.pages.length)?c.pages:['<p>(No lesson content yet.)</p>']; var pg=Math.max(0,Math.min(pages.length-1,cur.page||0)); cur.page=pg;
         var dots=''; for(var i=0;i<pages.length;i++){ dots+='<span style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;background:'+(i<=pg?'#185FA5':'#d6dbe6')+';"></span>'; }
         var h=lmsHeader('Lesson','lmsHome()')+'<div style="max-width:640px;margin:0 auto;padding:16px;"><div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.05);">';
         h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;"><div>'+dots+'</div><span style="font-size:11.5px;color:#9aa7b4;">Page '+(pg+1)+' of '+pages.length+'</span></div>';
         h+='<h2 style="margin:0 0 10px;font-size:19px;color:#26242b;">'+escapeHtml(c.title)+'</h2><div style="font-size:14.5px;color:#33303a;line-height:1.6;">'+pages[pg]+'</div>';
-        if(pg===pages.length-1 && c.key){ h+='<div style="margin-top:14px;background:#f3f8ff;border:1px solid #d8e7fb;border-radius:10px;padding:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#185FA5;margin-bottom:6px;">Remember</div><ul style="margin:0;padding-left:18px;">'+c.key.map(function(k){return '<li style="font-size:13px;color:#33303a;margin-bottom:3px;">'+escapeHtml(k)+'</li>';}).join('')+'</ul></div>'; }
         h+='<div style="display:flex;gap:8px;margin-top:16px;">';
         if(pg>0) h+='<button onclick="lmsLessonPage(-1)" style="background:#eef3fb;color:#185FA5;border:none;border-radius:10px;padding:12px 16px;font-size:14px;font-weight:700;cursor:pointer;">&lsaquo; Back</button>';
         if(pg<pages.length-1) h+='<button onclick="lmsLessonPage(1)" style="flex:1;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">Next &rsaquo;</button>';
-        else h+='<button onclick="lmsStartQuiz()" style="flex:1;background:#1f7a3d;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">Take the quick check &rsaquo;</button>';
+        else if((c.quiz||[]).length) h+='<button onclick="lmsStartQuiz()" style="flex:1;background:#1f7a3d;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">Take the quick check &rsaquo;</button>';
+        else h+='<button onclick="lmsMarkDone()" style="flex:1;background:#1f7a3d;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">Mark complete &rsaquo;</button>';
         h+='</div></div></div>'; lmsOverlay().innerHTML=h;
-        if(pg===pages.length-1 && lmsStatusOf(c.id)!=='passed') lmsSetProg(c.id,{status:'lesson_done'});
     }
     function lmsLessonPage(dir){ var cur=window._lmsCur; if(!cur) return; cur.page=(cur.page||0)+dir; lmsRenderLesson(); }
+    function lmsMarkDone(){ var c=window._lmsCur&&window._lmsCur.course; if(!c) return; lmsRecord(c.id,100,true,null,null); }
     function lmsStartQuiz(){
         var c=window._lmsCur&&window._lmsCur.course; if(!c) return; var qs=c.quiz||[];
-        var h=lmsHeader('Quick check','lmsRenderLesson()')+'<div style="max-width:640px;margin:0 auto;padding:16px;"><div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:18px;"><div style="font-size:12.5px;color:#8a8594;margin-bottom:12px;">Answer all questions — you need 80% to pass.</div>';
+        var h=lmsHeader('Quick check','lmsRenderLesson()')+'<div style="max-width:640px;margin:0 auto;padding:16px;"><div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:18px;"><div style="font-size:12.5px;color:#8a8594;margin-bottom:12px;">Answer all questions &mdash; you need '+(c.pass_pct||80)+'% to pass.</div>';
         qs.forEach(function(q,i){ h+='<div style="margin-bottom:16px;"><div style="font-weight:700;font-size:14.5px;color:#26242b;margin-bottom:8px;">'+(i+1)+'. '+escapeHtml(q.q)+'</div>'; (q.choices||[]).forEach(function(ch,ci){ h+='<label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid #e6e6ee;border-radius:9px;margin-bottom:6px;cursor:pointer;font-size:13.5px;color:#33303a;"><input type="radio" name="lq'+i+'" value="'+ci+'" style="width:17px;height:17px;"> '+escapeHtml(ch)+'</label>'; }); h+='</div>'; });
         h+='<div id="lmsQuizMsg" style="font-size:13px;margin-bottom:8px;"></div><button onclick="lmsSubmitQuiz()" style="width:100%;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;">Submit</button></div></div>';
         lmsOverlay().innerHTML=h;
@@ -8193,20 +8189,258 @@
         qs.forEach(function(q,i){ var sel=document.querySelector('input[name="lq'+i+'"]:checked'); if(!sel){ unanswered=true; } else if(parseInt(sel.value,10)===q.a){ correct++; } });
         var msg=document.getElementById('lmsQuizMsg');
         if(unanswered){ if(msg){ msg.style.color='#c0264b'; msg.textContent='Please answer every question.'; } return; }
-        var total=qs.length||1; var score=Math.round(100*correct/total); var pass=score>=80;
-        lmsSetProg(c.id,{status:pass?'passed':'failed',score:score});
-        var path=cur.path; var nextC=null; if(pass){ var prog=lmsProg(); for(var j=0;j<path.courses.length;j++){ var cc=path.courses[j]; if((prog[cc.id]||{}).status!=='passed'){ nextC=cc; break; } } }
-        var pathDone=pass && !nextC;
+        var total=qs.length||1; var score=Math.round(100*correct/total); var pass=score>=(c.pass_pct||80);
+        if(msg){ msg.style.color='#5b6472'; msg.textContent='Saving…'; }
+        lmsRecord(c.id,score,pass,correct,total);
+    }
+    function lmsRecord(courseId,score,pass,correct,total){
+        withPin(function(pin){
+            supabaseClient.rpc('app_lp_complete',{p_username:currentUser.username,p_password:pin,p_course_id:courseId,p_score:score,p_passed:pass}).then(function(r){
+                supabaseClient.rpc('app_lp_my',{p_username:currentUser.username,p_password:pin}).then(function(mr){
+                    if(mr&&mr.data) _lms.my=mr.data;
+                    lmsResult(courseId,score,pass,correct,total,(r&&r.data)?r.data:null);
+                });
+            }).catch(function(){ var msg=document.getElementById('lmsQuizMsg'); if(msg){ msg.style.color='#c0264b'; msg.textContent='Could not save. Try again.'; } });
+        });
+    }
+    function lmsResult(courseId,score,pass,correct,total,info){
+        var cur=window._lmsCur; var c=cur&&cur.course; var pathId=c&&c.path_id;
+        var path=(_lms.catalog||[]).filter(function(p){return p.id===pathId;})[0];
+        var passed=lmsPassedSet(); var nextC=null;
+        if(path){ (path.courses||[]).forEach(function(cc){ if(!nextC && !passed[cc.id]) nextC=cc; }); }
+        var pathDone=info&&info.path_total>0&&info.path_done>=info.path_total;
         var h=lmsHeader('Result','lmsHome()')+'<div style="max-width:640px;margin:0 auto;padding:16px;"><div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:24px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.05);">';
-        h+='<div style="font-size:46px;">'+(pass?'&#127881;':'&#128170;')+'</div><h2 style="margin:8px 0 4px;color:'+(pass?'#1b7a3d':'#9a5b00')+';">'+(pass?'Passed!':'Almost there')+'</h2><p style="font-size:15px;color:#33303a;">You scored <b>'+score+'%</b> ('+correct+' of '+total+').</p>';
-        if(pathDone){ h+='<p style="color:#1b7a3d;font-size:13.5px;font-weight:700;">&#127894; '+escapeHtml(path.name)+' complete — certification earned!</p>'; }
-        else if(pass){ h+='<p style="color:#1b7a3d;font-size:13px;">Course complete &mdash; certification earned.</p>'; }
-        else { h+='<p style="color:#9a5b00;font-size:13px;">You need 80% to pass. Review the lesson and try again.</p>'; }
+        h+='<div style="font-size:46px;">'+(pass?'&#127881;':'&#128170;')+'</div><h2 style="margin:8px 0 4px;color:'+(pass?'#1b7a3d':'#9a5b00')+';">'+(pass?'Passed!':'Almost there')+'</h2>'+(correct!=null?'<p style="font-size:15px;color:#33303a;">You scored <b>'+score+'%</b> ('+correct+' of '+total+').</p>':'<p style="font-size:15px;color:#33303a;">Lesson complete.</p>');
+        if(pathDone&&path){ h+='<p style="color:#1b7a3d;font-size:13.5px;font-weight:700;">&#127894; '+escapeHtml(path.title)+' complete &mdash; certification earned!</p>'; }
+        else if(pass){ h+='<p style="color:#1b7a3d;font-size:13px;">Course complete &mdash; saved to your record.</p>'; }
+        else { h+='<p style="color:#9a5b00;font-size:13px;">You need '+((c&&c.pass_pct)||80)+'% to pass. Review the lesson and try again.</p>'; }
         h+='<div style="display:flex;gap:8px;margin-top:14px;">';
         if(!pass) h+='<button onclick="lmsRenderLesson()" style="flex:1;background:#eef3fb;color:#185FA5;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;">Review lesson</button>';
-        if(pass && nextC) h+='<button onclick="lmsOpenCourse(&quot;'+nextC.id+'&quot;)" style="flex:1;background:#1f7a3d;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;">Next lesson &rsaquo;</button>';
+        if(pass && nextC) h+='<button onclick="lmsOpenCourse('+nextC.id+')" style="flex:1;background:#1f7a3d;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;">Next lesson &rsaquo;</button>';
         h+='<button onclick="lmsHome()" style="flex:1;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;">'+((pass&&nextC)?'My training':'Back to training')+'</button>';
         h+='</div></div></div>'; lmsOverlay().innerHTML=h;
+    }
+    // ===== TEAM DEVELOPMENT — manager view (overview / builder+assign / promotions) =====
+    var _td={team:[],catalog:[],reqs:[],store:'',tab:'team'};
+    function tdOverlay(){ var ov=document.getElementById('teamDevModal'); if(!ov){ ov=document.createElement('div'); ov.id='teamDevModal'; ov.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100000;overflow:auto;'; document.body.appendChild(ov); } ov.style.display='block'; return ov; }
+    function tdClose(){ var ov=document.getElementById('teamDevModal'); if(ov) ov.style.display='none'; var m=document.getElementById('tdModal2'); if(m) m.style.display='none'; }
+    function tdHeader(title,back){ return '<div style="background:linear-gradient(120deg,#185FA5,#7d1d4b);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;">'+(back?'<button onclick="'+back+'" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;">&#8249; Back</button>':'')+'<b style="flex:1;font-size:16px;">'+title+'</b><button onclick="tdClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;">&times;</button></div>'; }
+    function openTeamDev(){ _td.tab='team'; tdLoad(function(){ tdRender(); }); }
+    function tdLoad(cb){
+        var ov=tdOverlay(); ov.innerHTML=tdHeader('Team Development','')+'<div style="max-width:760px;margin:0 auto;padding:40px 16px;text-align:center;color:#888;">Loading team&hellip;</div>';
+        withPin(function(pin){
+            Promise.all([
+                supabaseClient.rpc('app_lp_team',{p_username:currentUser.username,p_password:pin,p_store:_td.store||''}),
+                supabaseClient.rpc('app_lp_catalog',{p_username:currentUser.username,p_password:pin}),
+                supabaseClient.rpc('app_lp_requirements_list',{p_username:currentUser.username,p_password:pin})
+            ]).then(function(res){
+                if(res[0].error){ ov.innerHTML=tdHeader('Team Development','')+'<div style="max-width:760px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">'+(String(res[0].error.message||'').indexOf('forbidden')>=0?'Managers only.':escapeHtml(res[0].error.message))+'</div>'; return; }
+                _td.team=res[0].data||[]; _td.catalog=(res[1]&&res[1].data)||[]; _td.reqs=(res[2]&&res[2].data)||[];
+                if(cb) cb();
+            }).catch(function(){ ov.innerHTML=tdHeader('Team Development','')+'<div style="max-width:760px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">Connection error.</div>'; });
+        }, function(){ ov.innerHTML=tdHeader('Team Development','')+'<div style="max-width:760px;margin:0 auto;padding:30px 16px;color:#888;text-align:center;">PIN required.</div>'; });
+    }
+    function tdTabs(){ var t=_td.tab; function b(id,lbl){ return '<button onclick="tdSetTab(&quot;'+id+'&quot;)" style="flex:1;background:'+(t===id?'#185FA5':'#eef0f3')+';color:'+(t===id?'#fff':'#5b6472')+';border:none;padding:10px;font-size:13px;font-weight:700;cursor:pointer;border-radius:9px;">'+lbl+'</button>'; }
+        return '<div style="display:flex;gap:6px;max-width:760px;margin:14px auto 0;padding:0 16px;">'+b('team','Team')+b('paths','Paths')+b('promos','Promotions')+'</div>'; }
+    function tdSetTab(t){ _td.tab=t; tdRender(); }
+    function tdRender(){ var ov=tdOverlay(); var body=(_td.tab==='team')?tdTeamHtml():(_td.tab==='paths')?tdPathsHtml():tdPromoHtml(); ov.innerHTML=tdHeader('Team Development','')+tdTabs()+'<div style="max-width:760px;margin:0 auto;padding:14px 16px 40px;">'+body+'</div>'; }
+    function tdPct(done,total){ return total>0?Math.round(100*done/total):0; }
+    function tdTeamHtml(){
+        var stores=['','Roadrunner','Valley','Lenox','Alamogordo','Roswell','Warehouse'];
+        var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><span style="font-size:12px;color:#8a8594;">Store</span><select onchange="_td.store=this.value; tdLoad(function(){tdRender();});" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:9px;font-size:13px;">'+stores.map(function(s){return '<option value="'+s+'"'+(_td.store===s?' selected':'')+'>'+(s||'All stores')+'</option>';}).join('')+'</select></div>';
+        if(!_td.team.length){ return h+'<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:20px;text-align:center;color:#8a8594;">No team members here.</div>'; }
+        _td.team.forEach(function(e){
+            var paths=e.paths||[]; var totalDone=0,totalAll=0; paths.forEach(function(p){ totalDone+=(p.done||0); totalAll+=(p.total||0); });
+            var pct=tdPct(totalDone,totalAll);
+            h+='<div onclick="tdEmp('+e.employee_id+')" style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:13px 14px;margin-bottom:9px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.04);">'+
+               '<div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:14.5px;color:#26242b;">'+escapeHtml(e.name||'')+'</b><span style="font-size:11.5px;color:#9aa7b4;">'+escapeHtml(e.role||'')+'</span></div>'+
+               '<div style="background:#eee;border-radius:99px;height:7px;overflow:hidden;margin:8px 0 6px;"><div style="height:100%;width:'+pct+'%;background:#1f7a3d;"></div></div>'+
+               '<div style="display:flex;flex-wrap:wrap;gap:5px;font-size:11px;color:#5b6472;">'+
+                 '<span style="background:#eef3fb;color:#185FA5;padding:2px 8px;border-radius:99px;">'+pct+'% training</span>'+
+                 '<span style="background:#f3eefb;color:#5b3aa6;padding:2px 8px;border-radius:99px;">'+(e.cleared_positions||0)+' positions</span>'+
+                 '<span style="background:#e8f5ec;color:#1b7a3d;padding:2px 8px;border-radius:99px;">'+(e.certs_count||0)+' certs</span>'+
+                 '<span style="background:#fff4e0;color:#9a5b00;padding:2px 8px;border-radius:99px;">'+(e.coaching_count||0)+' coaching</span>'+
+               '</div></div>';
+        });
+        return h;
+    }
+    function tdEmp(empId){
+        var e=_td.team.filter(function(x){return x.employee_id===empId;})[0]; if(!e) return;
+        var ov=tdOverlay(); ov.innerHTML=tdHeader('Loading&hellip;','tdRender()')+'<div style="max-width:640px;margin:0 auto;padding:40px 16px;text-align:center;color:#888;">Loading '+escapeHtml(e.name||'')+'&hellip;</div>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_lp_promo',{p_username:currentUser.username,p_password:pin,p_employee_id:empId}).then(function(r){
+                tdEmpRender(e,(r&&r.data)||{});
+            }).catch(function(){ tdEmpRender(e,{}); });
+        });
+    }
+    function tdEmpRender(e,pr){
+        var ov=tdOverlay(); var paths=e.paths||[];
+        var h='<div style="max-width:640px;margin:0 auto;padding:16px;">';
+        h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="font-size:18px;font-weight:800;color:#1f2a44;">'+escapeHtml(e.name||'')+'</div><div style="font-size:13px;color:#6b7686;">'+escapeHtml(e.role||'')+(e.store?(' &middot; '+escapeHtml(e.store)):'')+'</div></div>';
+        h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:8px;">Learning paths</div>';
+        if(!paths.length) h+='<div style="font-size:13px;color:#9aa7b4;">No paths.</div>';
+        paths.forEach(function(p){ var pct=tdPct(p.done,p.total); h+='<div style="margin-bottom:9px;"><div style="display:flex;justify-content:space-between;font-size:13px;"><span style="color:#33303a;">'+escapeHtml(p.title||'')+'</span><span style="color:#8a8594;">'+(p.done||0)+'/'+(p.total||0)+(p.status==='completed'?' ✓':'')+'</span></div><div style="background:#eee;border-radius:99px;height:6px;overflow:hidden;margin-top:3px;"><div style="height:100%;width:'+pct+'%;background:'+(pct>=100?'#1f7a3d':'#185FA5')+';"></div></div></div>'; });
+        h+='</div>';
+        h+='<div style="display:flex;gap:8px;margin-bottom:12px;"><div style="flex:1;background:#fff;border:1px solid #ececf2;border-radius:12px;padding:12px;text-align:center;"><div style="font-size:20px;font-weight:800;color:#5b3aa6;">'+(e.cleared_positions||0)+'</div><div style="font-size:11px;color:#8a8594;">positions cleared</div></div><div style="flex:1;background:#fff;border:1px solid #ececf2;border-radius:12px;padding:12px;text-align:center;"><div style="font-size:20px;font-weight:800;color:#1b7a3d;">'+(e.certs_count||0)+'</div><div style="font-size:11px;color:#8a8594;">certifications</div></div><div style="flex:1;background:#fff;border:1px solid #ececf2;border-radius:12px;padding:12px;text-align:center;"><div style="font-size:20px;font-weight:800;color:#9a5b00;">'+(e.coaching_count||0)+'</div><div style="font-size:11px;color:#8a8594;">coaching logs</div></div></div>';
+        var reqs=(pr.requirements)||_td.reqs||[];
+        if(reqs.length){ h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:8px;">Promotion readiness</div>';
+          reqs.forEach(function(rq){ var rr=tdReadiness(rq,pr,e); h+='<div style="border:1px solid #eef0f5;border-radius:10px;padding:10px;margin-bottom:7px;"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:13.5px;color:#26242b;">'+escapeHtml(rq.role||'')+'</b><span style="background:'+(rr.ready?'#e8f5ec':'#fdeee8')+';color:'+(rr.ready?'#1b7a3d':'#a85217')+';font-size:11px;font-weight:800;padding:2px 9px;border-radius:99px;">'+(rr.ready?'Ready':'In progress')+'</span></div>'+(rr.items.length?'<div style="font-size:11.5px;color:#6b7686;margin-top:5px;">'+rr.items.join(' &nbsp;&middot;&nbsp; ')+'</div>':'')+'</div>'; });
+          h+='</div>'; }
+        h+='</div>';
+        ov.innerHTML=tdHeader(e.name||'Employee','tdRender()')+h;
+    }
+    function tdReadiness(rq,pr,e){
+        var items=[]; var ready=true;
+        var reqPaths=rq.required_path_ids||[]; var prog=(pr.path_progress)||[];
+        reqPaths.forEach(function(pid){ var pp=prog.filter(function(x){return x.path_id===pid;})[0]; var done=pp&&pp.total>0&&pp.done>=pp.total; if(!done) ready=false; items.push((done?'✓ ':'○ ')+(pp?pp.title:('Path '+pid))); });
+        var minc=rq.min_cleared_positions||0; var clr=(pr.cleared_positions!=null?pr.cleared_positions:(e.cleared_positions||0)); if(clr<minc) ready=false; if(minc) items.push((clr>=minc?'✓ ':'○ ')+clr+'/'+minc+' positions');
+        var reqCerts=rq.required_cert_types||[]; var have=(pr.cert_types)||[]; reqCerts.forEach(function(ct){ var has=have.indexOf(ct)>=0; if(!has) ready=false; items.push((has?'✓ ':'○ ')+ct); });
+        return {ready:ready,items:items};
+    }
+    function tdPathsHtml(){
+        var h='<button onclick="tdEditPath(null)" style="width:100%;background:var(--caliches-pink,#ec3e7e);color:#fff;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:12px;">&#10133; New learning path</button>';
+        if(!_td.catalog.length){ return h+'<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:18px;text-align:center;color:#8a8594;">No paths yet &mdash; create one above.</div>'; }
+        _td.catalog.forEach(function(p){
+            h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 6px rgba(0,0,0,.04);">';
+            h+='<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">'+escapeHtml(p.icon||'🎓')+'</span><b style="flex:1;font-size:15px;color:#26242b;">'+escapeHtml(p.title)+'</b>'+
+               '<button onclick="tdAssign('+p.id+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;">Assign</button>'+
+               '<button onclick="tdEditPath('+p.id+')" style="background:#f4f5f8;color:#5b6472;border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;margin-left:5px;">Edit</button></div>';
+            if(p.target_role||p.level) h+='<div style="font-size:11.5px;color:#9aa7b4;margin-top:3px;">'+escapeHtml([p.level,p.target_role?('→ '+p.target_role):''].filter(Boolean).join('  '))+'</div>';
+            (p.courses||[]).forEach(function(c){ h+='<div style="display:flex;align-items:center;gap:8px;background:#faf9fc;border:1px solid #f0eef4;border-radius:9px;padding:9px 11px;margin-top:7px;"><span style="flex:1;font-size:13px;color:#33303a;">'+escapeHtml(c.title)+'<small style="display:block;color:#9aa7b4;font-size:11px;">'+(c.pages_count||0)+' pages &middot; '+(c.quiz_count||0)+' quiz Q</small></span><button onclick="tdEditCourse('+p.id+','+c.id+')" style="background:#fff;border:1px solid #e6e6ee;color:#5b6472;border-radius:7px;padding:4px 9px;font-size:11.5px;cursor:pointer;">Edit</button></div>'; });
+            h+='<button onclick="tdEditCourse('+p.id+',null)" style="width:100%;background:#fff;border:1px dashed #cdd5e0;color:#185FA5;border-radius:9px;padding:8px;font-size:12.5px;font-weight:700;cursor:pointer;margin-top:8px;">&#10133; Add course</button>';
+            h+='<button onclick="tdArchive(&quot;path&quot;,'+p.id+',&quot;'+escapeHtml((p.title||'').replace(/"/g,'')).replace(/&/g,'&amp;')+'&quot;)" style="width:100%;background:none;border:none;color:#c0264b;font-size:11.5px;cursor:pointer;margin-top:6px;">Archive path</button>';
+            h+='</div>';
+        });
+        return h;
+    }
+    function tdModal(html){ var m=document.getElementById('tdModal2'); if(!m){ m=document.createElement('div'); m.id='tdModal2'; m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100001;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:18px;box-sizing:border-box;'; document.body.appendChild(m); } m.innerHTML='<div style="background:#fff;border-radius:14px;max-width:560px;width:100%;margin-top:16px;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.3);">'+html+'</div>'; m.style.display='flex'; return m; }
+    function tdModalClose(){ var m=document.getElementById('tdModal2'); if(m) m.style.display='none'; }
+    function tdField(id,label,val,ph){ return '<div style="margin-bottom:10px;"><label style="display:block;font-size:12px;color:#6b7686;margin-bottom:3px;">'+label+'</label><input id="'+id+'" value="'+String(val==null?'':val).replace(/"/g,'&quot;')+'" placeholder="'+(ph||'')+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>'; }
+    function tdVal(id){ var el=document.getElementById(id); return el?el.value:''; }
+    function tdEditPath(id){
+        var p=id?(_td.catalog.filter(function(x){return x.id===id;})[0]||{}):{};
+        var h='<h3 style="margin:0 0 12px;color:#1f2a44;">'+(id?'Edit path':'New learning path')+'</h3>';
+        h+=tdField('tdpTitle','Title',p.title||'');
+        h+=tdField('tdpDesc','Description',p.description||'');
+        h+=tdField('tdpRole','Develops toward (role)',p.target_role||'');
+        h+=tdField('tdpLevel','Level / apron label',p.level||'');
+        h+=tdField('tdpIcon','Icon (emoji)',p.icon||'🎓');
+        h+='<div id="tdpMsg" style="font-size:12.5px;color:#c0264b;margin:6px 0;"></div>';
+        h+='<div style="display:flex;gap:8px;"><button onclick="tdModalClose()" style="flex:1;background:#eef0f3;border:none;border-radius:9px;padding:11px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="tdSavePath('+(id||'null')+')" style="flex:2;background:#185FA5;color:#fff;border:none;border-radius:9px;padding:11px;font-weight:800;cursor:pointer;">Save</button></div>';
+        tdModal(h);
+    }
+    function tdSavePath(id){
+        var t=tdVal('tdpTitle').trim(); if(!t){ document.getElementById('tdpMsg').textContent='Give it a title.'; return; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_lp_save_path',{p_username:currentUser.username,p_password:pin,p_id:(id||null),p_title:t,p_description:tdVal('tdpDesc'),p_target_role:tdVal('tdpRole'),p_level:tdVal('tdpLevel'),p_icon:tdVal('tdpIcon'),p_sort:null,p_active:true}).then(function(r){
+                if(r.error){ document.getElementById('tdpMsg').textContent=(String(r.error.message).indexOf('forbidden')>=0?'Managers only.':r.error.message); return; }
+                tdModalClose(); tdLoad(function(){ _td.tab='paths'; tdRender(); });
+            }).catch(function(){ document.getElementById('tdpMsg').textContent='Could not save.'; });
+        });
+    }
+    function tdEditCourse(pathId,id){
+        if(id){ withPin(function(pin){ supabaseClient.rpc('app_lp_course',{p_username:currentUser.username,p_password:pin,p_course_id:id}).then(function(r){ tdCourseForm(pathId,id,(r&&r.data)||{}); }); }); }
+        else tdCourseForm(pathId,null,{});
+    }
+    function tdCourseForm(pathId,id,c){
+        var pagesText=((c.pages)||[]).join('\n---\n');
+        var quizText=((c.quiz)||[]).map(function(q){ return [q.q].concat(q.choices||[]).join(' | ')+' | '+(q.a!=null?q.a+1:1); }).join('\n');
+        var h='<h3 style="margin:0 0 4px;color:#1f2a44;">'+(id?'Edit course':'New course')+'</h3>';
+        h+=tdField('tdcTitle','Course title',c.title||'');
+        h+=tdField('tdcSummary','Short summary',c.summary||'');
+        h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Lesson pages (separate each page with a line containing only ---)</label><textarea id="tdcPages" style="width:100%;height:120px;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;">'+escapeHtml(pagesText)+'</textarea>';
+        h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Quiz &mdash; one question per line:<br>Question | choice 1 | choice 2 | choice 3 | correct# (1-based)</label><textarea id="tdcQuiz" style="width:100%;height:90px;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;">'+escapeHtml(quizText)+'</textarea>';
+        h+='<div id="tdcMsg" style="font-size:12.5px;color:#c0264b;margin:6px 0;"></div>';
+        h+='<div style="display:flex;gap:8px;"><button onclick="tdModalClose()" style="flex:1;background:#eef0f3;border:none;border-radius:9px;padding:11px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="tdSaveCourse('+pathId+','+(id||'null')+')" style="flex:2;background:#185FA5;color:#fff;border:none;border-radius:9px;padding:11px;font-weight:800;cursor:pointer;">Save course</button></div>';
+        tdModal(h);
+    }
+    function tdSaveCourse(pathId,id){
+        var t=tdVal('tdcTitle').trim(); if(!t){ document.getElementById('tdcMsg').textContent='Give it a title.'; return; }
+        var pagesRaw=document.getElementById('tdcPages').value||'';
+        var pages=pagesRaw.split(/\n-{3,}\n/).map(function(x){return x.trim();}).filter(function(x){return x.length;});
+        var quizRaw=document.getElementById('tdcQuiz').value||'';
+        var quiz=[]; quizRaw.split('\n').forEach(function(line){ line=line.trim(); if(!line) return; var parts=line.split('|').map(function(x){return x.trim();}); if(parts.length<3) return; var ans=parseInt(parts[parts.length-1],10); var choices=parts.slice(1,parts.length-1); var aIdx=(isNaN(ans)?1:ans)-1; if(aIdx<0)aIdx=0; if(aIdx>choices.length-1)aIdx=choices.length-1; quiz.push({q:parts[0],choices:choices,a:aIdx}); });
+        withPin(function(pin){
+            supabaseClient.rpc('app_lp_save_course',{p_username:currentUser.username,p_password:pin,p_id:(id||null),p_path_id:pathId,p_title:t,p_summary:tdVal('tdcSummary'),p_pages:pages,p_quiz:quiz,p_pass_pct:null,p_sort:null,p_active:true}).then(function(r){
+                if(r.error){ document.getElementById('tdcMsg').textContent=(String(r.error.message).indexOf('forbidden')>=0?'Managers only.':r.error.message); return; }
+                tdModalClose(); tdLoad(function(){ _td.tab='paths'; tdRender(); });
+            }).catch(function(){ document.getElementById('tdcMsg').textContent='Could not save.'; });
+        });
+    }
+    function tdArchive(kind,id,name){
+        if(!confirm('Archive this '+kind+'? Staff will no longer see it. (Hidden, not deleted.)')) return;
+        withPin(function(pin){ supabaseClient.rpc('app_lp_archive',{p_username:currentUser.username,p_password:pin,p_kind:kind,p_id:id}).then(function(r){ if(r.error){ alert(r.error.message); return; } tdLoad(function(){ _td.tab='paths'; tdRender(); }); }); });
+    }
+    function tdAssign(pathId){
+        var p=_td.catalog.filter(function(x){return x.id===pathId;})[0]||{};
+        var roles={}; _td.team.forEach(function(e){ if(e.role) roles[e.role]=1; });
+        var h='<h3 style="margin:0 0 4px;color:#1f2a44;">Assign: '+escapeHtml(p.title||'')+'</h3><div style="font-size:12px;color:#8a8594;margin-bottom:10px;">Pick people, or assign to a whole role.</div>';
+        h+='<label style="display:block;font-size:12px;color:#6b7686;margin-bottom:3px;">Whole role (optional)</label><select id="tdaRole" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13px;margin-bottom:10px;box-sizing:border-box;"><option value="">&mdash; specific people below &mdash;</option>'+Object.keys(roles).map(function(r){return '<option>'+escapeHtml(r)+'</option>';}).join('')+'</select>';
+        h+='<label style="display:block;font-size:12px;color:#6b7686;margin-bottom:3px;">People</label><div style="max-height:200px;overflow:auto;border:1px solid #eef0f5;border-radius:9px;padding:8px;margin-bottom:10px;">'+_td.team.map(function(e){return '<label style="display:flex;align-items:center;gap:8px;padding:5px;font-size:13px;cursor:pointer;"><input type="checkbox" class="tdaEmp" value="'+e.employee_id+'"> '+escapeHtml(e.name||'')+' <span style="color:#9aa7b4;font-size:11px;">'+escapeHtml(e.role||'')+'</span></label>';}).join('')+'</div>';
+        h+=tdField('tdaDue','Due date (optional)','','YYYY-MM-DD');
+        h+='<div id="tdaMsg" style="font-size:12.5px;color:#c0264b;margin:6px 0;"></div>';
+        h+='<div style="display:flex;gap:8px;"><button onclick="tdModalClose()" style="flex:1;background:#eef0f3;border:none;border-radius:9px;padding:11px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="tdDoAssign('+pathId+')" style="flex:2;background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:11px;font-weight:800;cursor:pointer;">Assign</button></div>';
+        tdModal(h);
+    }
+    function tdDoAssign(pathId){
+        var ids=[].slice.call(document.querySelectorAll('.tdaEmp:checked')).map(function(c){return parseInt(c.value,10);});
+        var role=tdVal('tdaRole'); var due=tdVal('tdaDue')||null;
+        if(!ids.length && !role){ document.getElementById('tdaMsg').textContent='Pick at least one person or a role.'; return; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_lp_assign',{p_username:currentUser.username,p_password:pin,p_path_id:pathId,p_employee_ids:ids,p_role:role,p_due:due}).then(function(r){
+                if(r.error){ document.getElementById('tdaMsg').textContent=(String(r.error.message).indexOf('forbidden')>=0?'Managers only.':r.error.message); return; }
+                tdModalClose(); alert('Assigned to '+((r.data&&r.data.count)||0)+' people.'); tdLoad(function(){ tdRender(); });
+            }).catch(function(){ document.getElementById('tdaMsg').textContent='Could not assign.'; });
+        });
+    }
+    function tdPromoHtml(){
+        var canEdit=(currentUser&&(currentUser.role==='Admin Manager'||currentUser.role==='Vice President/Co-Owner'||currentUser.is_developer===true));
+        var h='';
+        if(canEdit) h+='<button onclick="tdEditReq(null)" style="width:100%;background:var(--caliches-pink,#ec3e7e);color:#fff;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:12px;">&#10133; Define a promotion requirement</button>';
+        if(!_td.reqs.length){ return h+'<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:18px;text-align:center;color:#8a8594;">No promotion requirements yet.'+(canEdit?'':' Ask an admin to add them.')+'</div>'; }
+        _td.reqs.forEach(function(rq){
+            var ready=0, totalPpl=_td.team.length;
+            _td.team.forEach(function(e){ if(tdTeamReady(rq,e)) ready++; });
+            h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 6px rgba(0,0,0,.04);"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:15px;color:#26242b;">'+escapeHtml(rq.role||'')+'</b>'+(canEdit?'<button onclick="tdEditReq('+rq.id+')" style="background:#f4f5f8;color:#5b6472;border:none;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;">Edit</button>':'')+'</div>';
+            if(rq.notes) h+='<div style="font-size:12px;color:#8a8594;margin:3px 0;">'+escapeHtml(rq.notes)+'</div>';
+            h+='<div style="font-size:12px;color:#185FA5;margin-top:5px;font-weight:700;">'+ready+' of '+totalPpl+' ready (paths + positions)</div>';
+            var names=_td.team.filter(function(e){return tdTeamReady(rq,e);}).map(function(e){return escapeHtml(e.name);});
+            if(names.length) h+='<div style="font-size:12px;color:#1b7a3d;margin-top:4px;">Ready: '+names.join(', ')+'</div>';
+            h+='</div>';
+        });
+        h+='<div style="font-size:11.5px;color:#9aa7b4;text-align:center;margin-top:4px;">Open a person on the Team tab to verify certifications too.</div>';
+        return h;
+    }
+    function tdTeamReady(rq,e){
+        var ok=true; var reqPaths=rq.required_path_ids||[]; var paths=e.paths||[];
+        reqPaths.forEach(function(pid){ var pp=paths.filter(function(x){return x.path_id===pid;})[0]; if(!(pp&&pp.total>0&&pp.done>=pp.total)) ok=false; });
+        if((rq.min_cleared_positions||0)>(e.cleared_positions||0)) ok=false;
+        return ok;
+    }
+    function tdEditReq(id){
+        var rq=id?(_td.reqs.filter(function(x){return x.id===id;})[0]||{}):{};
+        var sel=rq.required_path_ids||[];
+        var h='<h3 style="margin:0 0 12px;color:#1f2a44;">'+(id?'Edit requirement':'New promotion requirement')+'</h3>';
+        h+=tdField('tdrRole','Role being qualified for',rq.role||'');
+        h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Required paths</label><div style="border:1px solid #eef0f5;border-radius:9px;padding:8px;margin-bottom:10px;">'+(_td.catalog.length?_td.catalog.map(function(p){return '<label style="display:flex;align-items:center;gap:8px;padding:4px;font-size:13px;cursor:pointer;"><input type="checkbox" class="tdrPath" value="'+p.id+'"'+(sel.indexOf(p.id)>=0?' checked':'')+'> '+escapeHtml(p.title)+'</label>';}).join(''):'<span style="font-size:12px;color:#9aa7b4;">No paths yet.</span>')+'</div>';
+        h+=tdField('tdrCerts','Required cert types (comma-separated)',(rq.required_cert_types||[]).join(', '));
+        h+=tdField('tdrMin','Min positions cleared',(rq.min_cleared_positions!=null?rq.min_cleared_positions:0));
+        h+=tdField('tdrNotes','Notes',rq.notes||'');
+        h+='<div id="tdrMsg" style="font-size:12.5px;color:#c0264b;margin:6px 0;"></div>';
+        h+='<div style="display:flex;gap:8px;"><button onclick="tdModalClose()" style="flex:1;background:#eef0f3;border:none;border-radius:9px;padding:11px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="tdSaveReq()" style="flex:2;background:#185FA5;color:#fff;border:none;border-radius:9px;padding:11px;font-weight:800;cursor:pointer;">Save</button></div>';
+        tdModal(h);
+    }
+    function tdSaveReq(){
+        var role=tdVal('tdrRole').trim(); if(!role){ document.getElementById('tdrMsg').textContent='Enter a role.'; return; }
+        var paths=[].slice.call(document.querySelectorAll('.tdrPath:checked')).map(function(c){return parseInt(c.value,10);});
+        var certs=tdVal('tdrCerts').split(',').map(function(x){return x.trim();}).filter(function(x){return x.length;});
+        var minc=parseInt(tdVal('tdrMin'),10); if(isNaN(minc))minc=0;
+        withPin(function(pin){
+            supabaseClient.rpc('app_lp_requirements_save',{p_username:currentUser.username,p_password:pin,p_role:role,p_required_path_ids:paths,p_required_cert_types:certs,p_min_cleared:minc,p_notes:tdVal('tdrNotes')}).then(function(r){
+                if(r.error){ document.getElementById('tdrMsg').textContent=(String(r.error.message).indexOf('forbidden')>=0?'Admin managers only.':r.error.message); return; }
+                tdModalClose(); tdLoad(function(){ _td.tab='promos'; tdRender(); });
+            }).catch(function(){ document.getElementById('tdrMsg').textContent='Could not save.'; });
+        });
     }
     function openContactsDir(){
         document.getElementById('main-menu').style.display='none';
