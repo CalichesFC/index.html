@@ -725,7 +725,7 @@
             <button id="btn-tempLogs" class="menu-btn" onclick="openTempLogs()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127777;</span><b>Temperature Logs</b><small>Food-safety temp checks</small></button>
             <button id="btn-checklists" class="menu-btn" onclick="openChecklists()"><span class="rchip staff">Staff</span><span class="tile-ic">&#9989;</span><b>Shift Checklists</b><small>Open / close / clean</small></button>
             <button id="btn-inventory" class="menu-btn" style="display:none;" onclick="openInventory()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128230;</span><b>Inventory &amp; Supplies</b><small>Counts, par &amp; reorders</small></button>
-            <button id="btn-shortage" class="menu-btn" onclick="openForm('shortageView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128722;</span><b>Report Shortages</b><small>Request items from the office</small></button>
+            <button id="btn-shortage" class="menu-btn" onclick="openSupplyRequest()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128666;</span><b>Supply Request</b><small>Emergency supplies, transfers, warehouse</small></button>
             <button id="btn-discipline" class="menu-btn" style="display:none;" onclick="openDiscipline()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#9888;</span><b>Disciplinary Actions</b><small>Verbal &rarr; written &rarr; final</small></button>
             <button id="btn-attendance" class="menu-btn" style="display:none;" onclick="openAttendance()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128197;</span><b>Attendance &amp; Call-outs</b><small>Mark called out &middot; view records</small></button>
             <div class="sec-title" style="margin-top:8px;"><h2 style="font-size:15px;">Maintenance &amp; Damage</h2></div>
@@ -2240,6 +2240,46 @@
 </div>
 
 <!-- SHORTAGE TRENDS VIEW (Managers) -->
+<div id="supplyRequestView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
+    <div class="header" style="background-color:#D85A30;">
+        <h1 style="font-size:38px;margin:10px 0;">&#128666;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Supply Request</p>
+        <p style="font-size:12px;margin:5px 0 0;opacity:.92;">Emergency supplies &middot; store transfers &middot; warehouse fulfillment</p>
+        <div class="header-stripe"></div>
+    </div>
+    <div class="container" style="max-width:680px;">
+        <div style="display:flex;gap:6px;margin-bottom:14px;">
+            <button class="supply-tab" id="supplyTab-new" onclick="supplyTab('new')">New request</button>
+            <button class="supply-tab" id="supplyTab-mine" onclick="supplyTab('mine')">My requests</button>
+            <button class="supply-tab" id="supplyTab-incoming" data-mgr="0" onclick="supplyTab('incoming')" style="display:none;">Incoming</button>
+        </div>
+        <div id="supplyPanel-new">
+            <div style="background:#fff;border:1px solid #e6ebf2;border-radius:14px;padding:16px;">
+                <div id="supplyReqInfo" style="font-size:12px;color:#6b7686;margin-bottom:12px;"></div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <div style="flex:1;min-width:150px;"><label style="font-size:12px;color:#6b7686;">Store / location</label><input id="supplyStore" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;"></div>
+                    <div style="flex:1;min-width:120px;"><label style="font-size:12px;color:#6b7686;">Urgency</label><select id="supplyUrgency" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;"><option>Normal</option><option>High</option><option>Critical</option><option>Low</option></select></div>
+                </div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
+                    <div style="flex:1;min-width:130px;"><label style="font-size:12px;color:#6b7686;">When will you run out?</label><select id="supplyRunout" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;"><option>Already out</option><option>Today</option><option>1-2 days</option><option>This week</option><option>Just restocking</option></select></div>
+                    <div style="flex:1;min-width:110px;"><label style="font-size:12px;color:#6b7686;">Needed by</label><input type="date" id="supplyNeededDate" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;"></div>
+                    <div style="flex:1;min-width:90px;"><label style="font-size:12px;color:#6b7686;">Time</label><input id="supplyNeededTime" placeholder="e.g. 3pm" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;"></div>
+                </div>
+                <div style="margin-top:10px;"><label style="font-size:12px;color:#6b7686;">Reason</label><input id="supplyReason" placeholder="Why is this needed?" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;"></div>
+                <div style="margin-top:10px;"><label style="font-size:12px;color:#6b7686;">Notes (optional)</label><textarea id="supplyNotes" rows="2" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;"></textarea></div>
+                <div style="font-weight:700;color:#1f2a44;margin-top:14px;margin-bottom:6px;">Items needed</div>
+                <div id="supplyItems"></div>
+                <button onclick="supplyAddItemRow()" style="background:#fff;border:1px dashed #D85A30;color:#D85A30;font-weight:700;padding:8px 12px;border-radius:9px;cursor:pointer;font-size:13px;">+ Add item</button>
+                <datalist id="supplyCatalogDL"></datalist>
+                <div id="supplyMsg" style="display:none;font-size:13px;margin-top:10px;"></div>
+                <button onclick="supplySubmit()" style="width:100%;margin-top:14px;background:linear-gradient(90deg,#ec3e7e,#7b2d8b);color:#fff;font-weight:800;border:none;padding:13px;border-radius:11px;cursor:pointer;font-size:15px;">Submit supply request</button>
+            </div>
+        </div>
+        <div id="supplyPanel-mine" style="display:none;"><div id="supplyMineList"><p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p></div></div>
+        <div id="supplyPanel-incoming" style="display:none;"><div id="supplyIncomingList"><p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p></div></div>
+    </div>
+</div>
 <div id="shortageTrendsView" class="app-view">
     <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
     <div class="header" style="background-color:var(--pass-green);">
@@ -2363,11 +2403,11 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.25.0041';
+    const APP_VERSION = '2026.06.25.0100';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
-    const UNSAFE_RELOAD_VIEWS = ['popInView','driverView','shortageView','maintenanceView','damageView','quotesView','kbView'];
+    const UNSAFE_RELOAD_VIEWS = ['popInView','driverView','shortageView','supplyRequestView','maintenanceView','damageView','quotesView','kbView'];
     function isSafeToReload() {
         return !UNSAFE_RELOAD_VIEWS.some(function(id){
             var v = document.getElementById(id);
@@ -2641,7 +2681,7 @@
         { key:'temp',        btn:'btn-tempLogs',    label:'Temp Logs',       emoji:'&#127777;', fn:function(){ openTempLogs(); } },
         { key:'checklists',  btn:'btn-checklists',  label:'Checklists',      emoji:'&#9989;',   fn:function(){ openChecklists(); } },
         { key:'inventory',   btn:'btn-inventory',   label:'Inventory',       emoji:'&#128230;', fn:function(){ openInventory(); } },
-        { key:'shortage',    btn:'btn-shortage',    label:'Report Shortage', emoji:'&#128722;', fn:function(){ openForm('shortageView'); } },
+        { key:'shortage',    btn:'btn-shortage',    label:'Supply Request', emoji:'&#128666;', fn:function(){ openSupplyRequest(); } },
         { key:'maintenance', btn:'btn-maintenance', label:'Maintenance',     emoji:'&#128295;', fn:function(){ openForm('maintenanceView'); } },
         { key:'damage',      btn:'btn-damage',      label:'Damage Report',   emoji:'&#9888;',   fn:function(){ openForm('damageView'); } },
         { key:'messages',    btn:'topMessagesBtn',  label:'Messages',        emoji:'&#128172;', fn:function(){ openMessages(); } },
@@ -9088,6 +9128,103 @@
         .catch(err => { console.error('[Driver] GAS error:', err); alert('Could not reach PDF server: '+err.message); btn.disabled=false; btn.innerText='SUBMIT DRIVER CHECKLIST'; });
     }
 
+    function openSupplyRequest(){
+        document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';});
+        var m=document.getElementById('main-menu'); if(m) m.style.display='none';
+        var v=document.getElementById('supplyRequestView'); if(v) v.style.display='block';
+        var mgr=(typeof isManagerRole==='function'&&isManagerRole())||(typeof isMgmt==='function'&&isMgmt());
+        document.getElementById('supplyTab-incoming').setAttribute('data-mgr', mgr?'1':'0');
+        document.getElementById('supplyReqInfo').innerHTML='Requested by <b>'+escapeHtml((currentUser&&currentUser.name)||'')+'</b> &middot; '+new Date().toLocaleDateString();
+        var st=document.getElementById('supplyStore'); if(st && !st.value) st.value=(currentUser&&currentUser.store)||'';
+        if(!document.getElementById('supplyItems').children.length) supplyAddItemRow();
+        supplyLoadCatalog();
+        supplyTab('new');
+    }
+    function supplyTab(t){
+        ['new','mine','incoming'].forEach(function(k){
+            var p=document.getElementById('supplyPanel-'+k); if(p) p.style.display=(k===t)?'block':'none';
+            var b=document.getElementById('supplyTab-'+k); var hidden=(k==='incoming'&&b&&b.getAttribute('data-mgr')!=='1');
+            if(b){ b.style.cssText='flex:1;padding:9px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:700;border:1px solid '+(k===t?'#D85A30':'#d6deea')+';background:'+(k===t?'#D85A30':'#fff')+';color:'+(k===t?'#fff':'#6b7686')+';'+(hidden?'display:none;':''); }
+        });
+        if(t==='mine') supplyLoadList('mine');
+        if(t==='incoming') supplyLoadList('incoming');
+    }
+    function supplyLoadCatalog(){
+        supabaseClient.rpc('app_supply_catalog',{p_username:currentUser.username,p_password:sessionPin}).then(function(r){
+            if(r.error||!r.data) return;
+            window._supplyCat=r.data;
+            document.getElementById('supplyCatalogDL').innerHTML=r.data.map(function(c){return '<option value="'+escapeHtml(c.name||'')+'">'+escapeHtml((c.category||'')+(c.uom?(' - '+c.uom):''))+'</option>';}).join('');
+        }).catch(function(){});
+    }
+    function supplyAddItemRow(){
+        var wrap=document.getElementById('supplyItems'); if(!wrap) return;
+        var d=document.createElement('div'); d.className='supply-item-row';
+        d.style.cssText='display:flex;gap:6px;margin-bottom:6px;align-items:center;';
+        d.innerHTML='<input list="supplyCatalogDL" class="si-name" placeholder="Item name" style="flex:2;padding:8px;border:1px solid #d6deea;border-radius:7px;min-width:0;"><input class="si-qty" type="number" min="0" placeholder="Qty" style="width:62px;padding:8px;border:1px solid #d6deea;border-radius:7px;"><input class="si-uom" placeholder="Unit" style="width:70px;padding:8px;border:1px solid #d6deea;border-radius:7px;"><button onclick="this.parentNode.remove()" style="background:#fbeaec;border:none;color:#c0264b;font-weight:800;width:30px;height:30px;border-radius:7px;cursor:pointer;">&times;</button>';
+        wrap.appendChild(d);
+    }
+    function supplySubmit(){
+        var msg=document.getElementById('supplyMsg');
+        function show(t,c){ msg.style.display='block'; msg.style.color=c||'#c0264b'; msg.innerHTML=t; }
+        var items=[];
+        document.querySelectorAll('#supplyItems .supply-item-row').forEach(function(row){
+            var name=(row.querySelector('.si-name').value||'').trim(); if(!name) return;
+            var qty=(row.querySelector('.si-qty').value||'').trim();
+            var uom=(row.querySelector('.si-uom').value||'').trim();
+            var cat=(window._supplyCat||[]).filter(function(c){return c.name===name;})[0];
+            items.push({name:name, qty:qty, uom:uom||(cat?cat.uom:''), catalog_id:cat?String(cat.id):''});
+        });
+        if(!items.length){ show('Add at least one item.'); return; }
+        var reason=(document.getElementById('supplyReason').value||'').trim();
+        if(!reason){ show('Please add a short reason.'); return; }
+        show('Submitting&hellip;','#6b7686');
+        supabaseClient.rpc('app_supply_create',{p_username:currentUser.username,p_password:sessionPin,
+            p_store:document.getElementById('supplyStore').value||'',
+            p_needed_by:document.getElementById('supplyNeededDate').value||null,
+            p_needed_by_time:document.getElementById('supplyNeededTime').value||'',
+            p_urgency:document.getElementById('supplyUrgency').value||'Normal',
+            p_runout:document.getElementById('supplyRunout').value||'',
+            p_reason:reason, p_notes:document.getElementById('supplyNotes').value||'',
+            p_photo_url:null, p_items:items}).then(function(r){
+            if(r.error){ show(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have access.':('Could not submit: '+escapeHtml(r.error.message))); return; }
+            show('&#10003; Request '+escapeHtml((r.data&&r.data.request_no)||'')+' submitted!','#1f7a3d');
+            document.getElementById('supplyReason').value=''; document.getElementById('supplyNotes').value='';
+            document.getElementById('supplyItems').innerHTML=''; supplyAddItemRow();
+            setTimeout(function(){ supplyTab('mine'); }, 1100);
+        }).catch(function(){ show('Connection error.'); });
+    }
+    function supplyStatusColor(sx){ return ({'Submitted':'#6b7686','Assigned':'#b8860b','Fulfilling':'#0a6cb4','In transit':'#7b2d8b','Received':'#1f7a3d','Closed':'#9aa7b4'})[sx]||'#6b7686'; }
+    function supplyAdvanceBtns(rq){
+        var next=({'Submitted':'Assigned','Assigned':'Fulfilling','Fulfilling':'In transit','In transit':'Received','Received':'Closed'})[rq.status];
+        if(!next) return '';
+        return '<div style="margin-top:9px;"><button onclick="supplyAdvance('+rq.id+',&quot;'+next+'&quot;)" style="background:#D85A30;color:#fff;border:none;font-weight:700;font-size:12px;padding:7px 12px;border-radius:8px;cursor:pointer;">Mark '+next+'</button></div>';
+    }
+    function supplyLoadList(scope){
+        var box=document.getElementById(scope==='incoming'?'supplyIncomingList':'supplyMineList');
+        box.innerHTML='<p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p>';
+        supabaseClient.rpc('app_supply_list',{p_username:currentUser.username,p_password:sessionPin,p_scope:scope}).then(function(r){
+            if(r.error){ box.innerHTML='<p style="color:#c0264b;padding:14px;">'+(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have access to this list.':escapeHtml(r.error.message))+'</p>'; return; }
+            var rows=r.data||[];
+            if(!rows.length){ box.innerHTML='<p style="text-align:center;color:#9aa7b4;padding:24px;">No requests'+(scope==='incoming'?' in the queue.':' yet.')+'</p>'; return; }
+            box.innerHTML=rows.map(function(rq){
+                var items=(rq.items||[]).map(function(i){return escapeHtml(i.name||'')+(i.qty?(' &times;'+i.qty):'')+(i.uom?(' '+escapeHtml(i.uom)):'');}).join(', ');
+                var adv=(scope==='incoming')?supplyAdvanceBtns(rq):'';
+                var urg=(rq.urgency&&rq.urgency!=='Normal')?'<span style="font-size:11px;font-weight:700;color:'+(rq.urgency==='Critical'?'#c0264b':'#b8860b')+';">'+escapeHtml(rq.urgency)+'</span> &middot; ':'';
+                return '<div style="background:#fff;border:1px solid #e6ebf2;border-radius:12px;padding:13px;margin-bottom:10px;">'
+                  +'<div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-weight:800;color:#1f2a44;font-size:14px;">'+escapeHtml(rq.no||('SR-'+rq.id))+'</div><span style="background:'+supplyStatusColor(rq.status)+';color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;">'+escapeHtml(rq.status||'')+'</span></div>'
+                  +'<div style="font-size:12px;color:#6b7686;margin-top:4px;">'+urg+escapeHtml(rq.store||'')+(scope==='incoming'?(' &middot; '+escapeHtml(rq.requester||'')):'')+(rq.needed_by?(' &middot; needed '+escapeHtml(String(rq.needed_by))):'')+'</div>'
+                  +'<div style="font-size:13px;color:#1f2a44;margin-top:6px;">'+items+'</div>'
+                  +(rq.reason?('<div style="font-size:12px;color:#9aa7b4;margin-top:4px;">'+escapeHtml(rq.reason)+'</div>'):'')
+                  +adv+'</div>';
+            }).join('');
+        }).catch(function(){ box.innerHTML='<p style="color:#c0264b;padding:14px;">Connection error.</p>'; });
+    }
+    function supplyAdvance(id, status){
+        supabaseClient.rpc('app_supply_advance',{p_username:currentUser.username,p_password:sessionPin,p_request_id:id,p_new_status:status,p_note:''}).then(function(r){
+            if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have permission for that.':r.error.message); return; }
+            supplyLoadList('incoming');
+        }).catch(function(){ alert('Connection error.'); });
+    }
     function submitShortage() {
         const btn = document.getElementById('submitShortageBtn'); const form = document.getElementById('shortageForm');
         if(!form.querySelector('select[name="Store"]').value||!form.querySelector('input[name="ManagerName"]').value) { return alert('Please select a store and enter your name!'); }
