@@ -2280,6 +2280,15 @@
         <div id="supplyPanel-incoming" style="display:none;"><div id="supplyIncomingList"><p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p></div></div>
     </div>
 </div>
+<div id="supplyDetailModal" style="display:none;position:fixed;inset:0;background:rgba(20,20,30,.55);z-index:9000;align-items:center;justify-content:center;padding:14px;" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:88vh;overflow:auto;padding:18px;box-sizing:border-box;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-weight:800;font-size:16px;color:#1f2a44;" id="supplyDetailTitle">Request</div>
+            <button onclick="document.getElementById('supplyDetailModal').style.display='none'" style="background:#eef1f5;border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-weight:800;color:#5b6472;">&times;</button>
+        </div>
+        <div id="supplyDetailBody"></div>
+    </div>
+</div>
 <div id="shortageTrendsView" class="app-view">
     <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
     <div class="header" style="background-color:var(--pass-green);">
@@ -2403,7 +2412,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.25.0100';
+    const APP_VERSION = '2026.06.25.0109';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -9128,6 +9137,64 @@
         .catch(err => { console.error('[Driver] GAS error:', err); alert('Could not reach PDF server: '+err.message); btn.disabled=false; btn.innerText='SUBMIT DRIVER CHECKLIST'; });
     }
 
+    function supplyOpenDetail(id){
+        var modal=document.getElementById('supplyDetailModal'); modal.style.display='flex';
+        var body=document.getElementById('supplyDetailBody'); body.innerHTML='<p style="text-align:center;color:#888;padding:30px;">Loading&hellip;</p>';
+        window._supplyDetailId=id;
+        supabaseClient.rpc('app_supply_detail',{p_username:currentUser.username,p_password:sessionPin,p_request_id:id}).then(function(r){
+            if(r.error||!r.data){ body.innerHTML='<p style="color:#c0264b;padding:16px;">'+(String((r.error&&r.error.message)||'').indexOf('forbidden')>=0?'You do not have access to this request.':'Could not load request.')+'</p>'; return; }
+            supplyRenderDetail(r.data);
+        }).catch(function(){ body.innerHTML='<p style="color:#c0264b;padding:16px;">Connection error.</p>'; });
+    }
+    function supplyFmtTs(t){ if(!t) return ''; try{ var d=new Date(t); return d.toLocaleDateString()+' '+d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }catch(e){ return String(t); } }
+    function supplyRenderDetail(d){
+        document.getElementById('supplyDetailTitle').innerText=d.request_no||('SR-'+d.id);
+        var order=['Submitted','Assigned','Fulfilling','In transit','Received','Closed'];
+        var ci=order.indexOf(d.status); if(ci<0) ci=0;
+        var tsMap={'Submitted':d.created_at,'In transit':d.in_transit_at,'Received':d.received_at,'Closed':d.closed_at};
+        var timeline=order.map(function(st,i){
+            var done=i<=ci; var ts=tsMap[st]?('<span style="color:#9aa7b4;font-size:11px;"> &middot; '+supplyFmtTs(tsMap[st])+'</span>'):'';
+            var who=(st==='Assigned'&&d.assigned_to)?(' &middot; '+escapeHtml(d.assigned_to)):((st==='Received'&&d.received_by)?(' &middot; '+escapeHtml(d.received_by)):'');
+            return '<div style="display:flex;align-items:center;gap:9px;padding:4px 0;"><div style="width:18px;height:18px;border-radius:50%;flex:none;background:'+(done?supplyStatusColor(st):'#e6ebf2')+';color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;">'+(done?'&#10003;':'')+'</div><div style="font-size:13px;color:'+(done?'#1f2a44':'#9aa7b4')+';font-weight:'+(i===ci?'700':'400')+';">'+st+who+ts+'</div></div>';
+        }).join('');
+        var items=(d.items||[]).map(function(i){ return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f2f6;font-size:13px;"><span>'+escapeHtml(i.item_name||'')+'</span><span style="color:#6b7686;">'+(i.requested_qty?escapeHtml(String(i.requested_qty)):'')+' '+escapeHtml(i.unit_of_measure||'')+(i.on_hand!=null?(' &middot; on hand '+escapeHtml(String(i.on_hand))):'')+'</span></div>'; }).join('')||'<div style="color:#9aa7b4;font-size:13px;">No items.</div>';
+        var urg=(d.urgency&&d.urgency!=='Normal')?'<span style="font-weight:700;color:'+(d.urgency==='Critical'?'#c0264b':'#b8860b')+';">'+escapeHtml(d.urgency)+'</span> &middot; ':'';
+        var h='<div style="font-size:12px;color:#6b7686;margin-bottom:10px;">'+urg+escapeHtml(d.location||'')+' &middot; '+escapeHtml(d.requester_name||'')+(d.needed_by_date?(' &middot; needed '+escapeHtml(String(d.needed_by_date))+(d.needed_by_time?(' '+escapeHtml(d.needed_by_time)):'')):'')+'</div>';
+        if(d.reason) h+='<div style="font-size:13px;color:#1f2a44;margin-bottom:4px;"><b>Reason:</b> '+escapeHtml(d.reason)+'</div>';
+        if(d.notes) h+='<div style="font-size:13px;color:#6b7686;margin-bottom:8px;">'+escapeHtml(d.notes)+'</div>';
+        h+='<div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin:12px 0 4px;">Items</div>'+items;
+        h+='<div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin:14px 0 4px;">Status</div><div style="background:#fafbfd;border:1px solid #eef0f5;border-radius:10px;padding:10px;">'+timeline+'</div>';
+        if(d.fulfillment_source||d.transporter){ h+='<div style="font-size:12px;color:#6b7686;margin-top:8px;">'+(d.fulfillment_source?('<b>Source:</b> '+escapeHtml(d.fulfillment_source)+' '):'')+(d.transporter?('&middot; <b>Transporter:</b> '+escapeHtml(d.transporter)):'')+'</div>'; }
+        if(d.can_manage){
+            var next=({'Submitted':'Assigned','Assigned':'Fulfilling','Fulfilling':'In transit','In transit':'Received','Received':'Closed'})[d.status];
+            h+='<div style="border-top:1px solid #eef0f5;margin-top:14px;padding-top:12px;">';
+            h+='<div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin-bottom:6px;">Office actions</div>';
+            h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"><input id="supplyFulSource" placeholder="Fulfillment source" value="'+escapeHtml(d.fulfillment_source||'')+'" style="flex:1;min-width:120px;padding:8px;border:1px solid #d6deea;border-radius:7px;"><input id="supplyFulTransporter" placeholder="Transporter" value="'+escapeHtml(d.transporter||'')+'" style="flex:1;min-width:120px;padding:8px;border:1px solid #d6deea;border-radius:7px;"><button onclick="supplyDetailFulfill()" style="background:#0a6cb4;color:#fff;border:none;font-weight:700;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px;">Save</button></div>';
+            h+='<textarea id="supplyAdvNote" rows="2" placeholder="Optional note for this update" style="width:100%;padding:8px;border:1px solid #d6deea;border-radius:7px;box-sizing:border-box;margin-bottom:8px;"></textarea>';
+            if(next){ h+='<button onclick="supplyDetailAdvance(&quot;'+next+'&quot;)" style="width:100%;background:#D85A30;color:#fff;border:none;font-weight:800;padding:11px;border-radius:9px;cursor:pointer;font-size:14px;">Mark '+next+'</button>'; }
+            else { h+='<div style="text-align:center;color:#1f7a3d;font-weight:700;font-size:13px;">This request is closed.</div>'; }
+            h+='</div>';
+        }
+        document.getElementById('supplyDetailBody').innerHTML=h;
+    }
+    function supplyDetailAdvance(status){
+        var id=window._supplyDetailId; var note=(document.getElementById('supplyAdvNote')||{}).value||'';
+        supabaseClient.rpc('app_supply_advance',{p_username:currentUser.username,p_password:sessionPin,p_request_id:id,p_new_status:status,p_note:note}).then(function(r){
+            if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have permission for that.':r.error.message); return; }
+            supplyOpenDetail(id);
+            if(document.getElementById('supplyPanel-incoming').style.display!=='none') supplyLoadList('incoming');
+            if(document.getElementById('supplyPanel-mine').style.display!=='none') supplyLoadList('mine');
+        }).catch(function(){ alert('Connection error.'); });
+    }
+    function supplyDetailFulfill(){
+        var id=window._supplyDetailId;
+        var src=(document.getElementById('supplyFulSource')||{}).value||'';
+        var tr=(document.getElementById('supplyFulTransporter')||{}).value||'';
+        supabaseClient.rpc('app_supply_fulfill',{p_username:currentUser.username,p_password:sessionPin,p_request_id:id,p_source:src,p_transporter:tr}).then(function(r){
+            if(r.error){ alert(r.error.message); return; }
+            supplyOpenDetail(id);
+        }).catch(function(){ alert('Connection error.'); });
+    }
     function openSupplyRequest(){
         document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';});
         var m=document.getElementById('main-menu'); if(m) m.style.display='none';
@@ -9210,12 +9277,12 @@
                 var items=(rq.items||[]).map(function(i){return escapeHtml(i.name||'')+(i.qty?(' &times;'+i.qty):'')+(i.uom?(' '+escapeHtml(i.uom)):'');}).join(', ');
                 var adv=(scope==='incoming')?supplyAdvanceBtns(rq):'';
                 var urg=(rq.urgency&&rq.urgency!=='Normal')?'<span style="font-size:11px;font-weight:700;color:'+(rq.urgency==='Critical'?'#c0264b':'#b8860b')+';">'+escapeHtml(rq.urgency)+'</span> &middot; ':'';
-                return '<div style="background:#fff;border:1px solid #e6ebf2;border-radius:12px;padding:13px;margin-bottom:10px;">'
+                return '<div onclick="supplyOpenDetail('+rq.id+')" style="background:#fff;border:1px solid #e6ebf2;border-radius:12px;padding:13px;margin-bottom:10px;cursor:pointer;">'
                   +'<div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-weight:800;color:#1f2a44;font-size:14px;">'+escapeHtml(rq.no||('SR-'+rq.id))+'</div><span style="background:'+supplyStatusColor(rq.status)+';color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;">'+escapeHtml(rq.status||'')+'</span></div>'
                   +'<div style="font-size:12px;color:#6b7686;margin-top:4px;">'+urg+escapeHtml(rq.store||'')+(scope==='incoming'?(' &middot; '+escapeHtml(rq.requester||'')):'')+(rq.needed_by?(' &middot; needed '+escapeHtml(String(rq.needed_by))):'')+'</div>'
                   +'<div style="font-size:13px;color:#1f2a44;margin-top:6px;">'+items+'</div>'
                   +(rq.reason?('<div style="font-size:12px;color:#9aa7b4;margin-top:4px;">'+escapeHtml(rq.reason)+'</div>'):'')
-                  +adv+'</div>';
+                  +'<div style="text-align:right;color:#9aa7b4;font-size:11px;margin-top:6px;">Tap for details &amp; status &rsaquo;</div></div>';
             }).join('');
         }).catch(function(){ box.innerHTML='<p style="color:#c0264b;padding:14px;">Connection error.</p>'; });
     }
