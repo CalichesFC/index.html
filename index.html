@@ -2253,6 +2253,7 @@
             <button class="supply-tab" id="supplyTab-new" onclick="supplyTab('new')">New request</button>
             <button class="supply-tab" id="supplyTab-mine" onclick="supplyTab('mine')">My requests</button>
             <button class="supply-tab" id="supplyTab-incoming" data-mgr="0" onclick="supplyTab('incoming')" style="display:none;">Incoming</button>
+            <button class="supply-tab" id="supplyTab-catalog" data-mgr="0" onclick="supplyTab('catalog')" style="display:none;">Catalog</button>
         </div>
         <div id="supplyPanel-new">
             <div style="background:#fff;border:1px solid #e6ebf2;border-radius:14px;padding:16px;">
@@ -2278,6 +2279,24 @@
         </div>
         <div id="supplyPanel-mine" style="display:none;"><div id="supplyMineList"><p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p></div></div>
         <div id="supplyPanel-incoming" style="display:none;"><div id="supplyIncomingList"><p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p></div></div>
+        <div id="supplyPanel-catalog" style="display:none;">
+            <div style="background:#fff;border:1px solid #e6ebf2;border-radius:14px;padding:16px;">
+                <div style="font-weight:700;color:#1f2a44;margin-bottom:4px;">Standardized item catalog</div>
+                <div style="font-size:12px;color:#6b7686;margin-bottom:12px;">Keep item names consistent so requests stay clean and searchable.</div>
+                <input type="hidden" id="supplyCatId">
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <input id="supplyCatName" placeholder="Item name" style="flex:2;min-width:140px;padding:9px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;">
+                    <input id="supplyCatCategory" placeholder="Category" style="flex:1;min-width:110px;padding:9px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;">
+                    <input id="supplyCatUom" placeholder="Unit" style="width:80px;padding:9px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;">
+                </div>
+                <div style="display:flex;gap:6px;margin-top:8px;">
+                    <button onclick="supplyCatalogSave()" style="flex:1;background:#D85A30;color:#fff;border:none;font-weight:800;padding:10px;border-radius:9px;cursor:pointer;">Save item</button>
+                    <button onclick="supplyCatalogClear()" style="background:#eef1f5;color:#5b6472;border:none;padding:10px 14px;border-radius:9px;cursor:pointer;">Clear</button>
+                </div>
+                <div id="supplyCatMsg" style="display:none;font-size:13px;margin-top:8px;"></div>
+                <div id="supplyCatList" style="margin-top:14px;"></div>
+            </div>
+        </div>
     </div>
 </div>
 <div id="supplyDetailModal" style="display:none;position:fixed;inset:0;background:rgba(20,20,30,.55);z-index:9000;align-items:center;justify-content:center;padding:14px;" onclick="if(event.target===this)this.style.display='none'">
@@ -2412,7 +2431,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.25.0109';
+    const APP_VERSION = '2026.06.25.0114';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -9195,12 +9214,53 @@
             supplyOpenDetail(id);
         }).catch(function(){ alert('Connection error.'); });
     }
+    function supplyCatalogClear(){ document.getElementById('supplyCatId').value=''; document.getElementById('supplyCatName').value=''; document.getElementById('supplyCatCategory').value=''; document.getElementById('supplyCatUom').value=''; var m=document.getElementById('supplyCatMsg'); if(m) m.style.display='none'; }
+    function supplyLoadCatalogAdmin(){
+        var box=document.getElementById('supplyCatList'); box.innerHTML='<p style="text-align:center;color:#888;padding:14px;">Loading&hellip;</p>';
+        supabaseClient.rpc('app_supply_catalog',{p_username:currentUser.username,p_password:sessionPin}).then(function(r){
+            if(r.error||!r.data){ box.innerHTML='<p style="color:#c0264b;padding:10px;">Could not load.</p>'; return; }
+            window._supplyCat=r.data;
+            if(!r.data.length){ box.innerHTML='<p style="text-align:center;color:#9aa7b4;padding:14px;">No items yet.</p>'; return; }
+            var cat=''; var html='';
+            r.data.forEach(function(c){
+                if((c.category||'')!==cat){ cat=c.category||''; html+='<div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin:10px 0 4px;">'+escapeHtml(cat||'Uncategorized')+'</div>'; }
+                html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f2f6;font-size:13px;"><span>'+escapeHtml(c.name||'')+(c.uom?(' <span style="color:#9aa7b4;">&middot; '+escapeHtml(c.uom)+'</span>'):'')+'</span><span style="white-space:nowrap;"><button onclick="supplyCatalogEdit('+c.id+')" style="background:#eef4fb;border:none;color:#0a6cb4;font-weight:700;font-size:12px;padding:5px 10px;border-radius:7px;cursor:pointer;margin-right:5px;">Edit</button><button onclick="supplyCatalogRemove('+c.id+')" style="background:#fbeaec;border:none;color:#c0264b;font-weight:800;font-size:12px;padding:5px 9px;border-radius:7px;cursor:pointer;">Remove</button></span></div>';
+            });
+            box.innerHTML=html;
+        }).catch(function(){ box.innerHTML='<p style="color:#c0264b;padding:10px;">Connection error.</p>'; });
+    }
+    function supplyCatalogEdit(id){
+        var c=(window._supplyCat||[]).filter(function(x){return x.id===id;})[0]; if(!c) return;
+        document.getElementById('supplyCatId').value=c.id;
+        document.getElementById('supplyCatName').value=c.name||'';
+        document.getElementById('supplyCatCategory').value=c.category||'';
+        document.getElementById('supplyCatUom').value=c.uom||'';
+        try{ document.getElementById('supplyCatName').scrollIntoView({block:'center'}); }catch(e){}
+    }
+    function supplyCatalogSave(){
+        var msg=document.getElementById('supplyCatMsg');
+        function show(t,col){ msg.style.display='block'; msg.style.color=col||'#c0264b'; msg.innerHTML=t; }
+        var name=(document.getElementById('supplyCatName').value||'').trim();
+        if(!name){ show('Enter an item name.'); return; }
+        var id=document.getElementById('supplyCatId').value||'';
+        supabaseClient.rpc('app_supply_catalog_save',{p_username:currentUser.username,p_password:sessionPin,p_id:id?parseInt(id,10):0,p_name:name,p_category:document.getElementById('supplyCatCategory').value||'',p_uom:document.getElementById('supplyCatUom').value||''}).then(function(r){
+            if(r.error){ show(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':r.error.message); return; }
+            show('&#10003; Saved.','#1f7a3d'); supplyCatalogClear(); supplyLoadCatalogAdmin();
+        }).catch(function(){ show('Connection error.'); });
+    }
+    function supplyCatalogRemove(id){
+        if(!confirm('Remove this item from the catalog? It stays on past requests.')) return;
+        supabaseClient.rpc('app_supply_catalog_remove',{p_username:currentUser.username,p_password:sessionPin,p_id:id}).then(function(r){
+            if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':r.error.message); return; }
+            supplyLoadCatalogAdmin();
+        }).catch(function(){ alert('Connection error.'); });
+    }
     function openSupplyRequest(){
         document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';});
         var m=document.getElementById('main-menu'); if(m) m.style.display='none';
         var v=document.getElementById('supplyRequestView'); if(v) v.style.display='block';
         var mgr=(typeof isManagerRole==='function'&&isManagerRole())||(typeof isMgmt==='function'&&isMgmt());
-        document.getElementById('supplyTab-incoming').setAttribute('data-mgr', mgr?'1':'0');
+        document.getElementById('supplyTab-incoming').setAttribute('data-mgr', mgr?'1':'0'); var _ct=document.getElementById('supplyTab-catalog'); if(_ct) _ct.setAttribute('data-mgr', mgr?'1':'0');
         document.getElementById('supplyReqInfo').innerHTML='Requested by <b>'+escapeHtml((currentUser&&currentUser.name)||'')+'</b> &middot; '+new Date().toLocaleDateString();
         var st=document.getElementById('supplyStore'); if(st && !st.value) st.value=(currentUser&&currentUser.store)||'';
         if(!document.getElementById('supplyItems').children.length) supplyAddItemRow();
@@ -9208,13 +9268,14 @@
         supplyTab('new');
     }
     function supplyTab(t){
-        ['new','mine','incoming'].forEach(function(k){
+        ['new','mine','incoming','catalog'].forEach(function(k){
             var p=document.getElementById('supplyPanel-'+k); if(p) p.style.display=(k===t)?'block':'none';
-            var b=document.getElementById('supplyTab-'+k); var hidden=(k==='incoming'&&b&&b.getAttribute('data-mgr')!=='1');
+            var b=document.getElementById('supplyTab-'+k); var hidden=((k==='incoming'||k==='catalog')&&b&&b.getAttribute('data-mgr')!=='1');
             if(b){ b.style.cssText='flex:1;padding:9px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:700;border:1px solid '+(k===t?'#D85A30':'#d6deea')+';background:'+(k===t?'#D85A30':'#fff')+';color:'+(k===t?'#fff':'#6b7686')+';'+(hidden?'display:none;':''); }
         });
         if(t==='mine') supplyLoadList('mine');
         if(t==='incoming') supplyLoadList('incoming');
+        if(t==='catalog') supplyLoadCatalogAdmin();
     }
     function supplyLoadCatalog(){
         supabaseClient.rpc('app_supply_catalog',{p_username:currentUser.username,p_password:sessionPin}).then(function(r){
