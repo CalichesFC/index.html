@@ -2363,7 +2363,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.25.0029';
+    const APP_VERSION = '2026.06.25.0041';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4405,7 +4405,7 @@
         box.innerHTML='<p style="text-align:center;color:#888;padding:40px;">Loading '+escapeHtml(name||'')+'...</p>';
         supabaseClient.rpc('app_emp_profile',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId}).then(function(r){
             if(r.error){ box.innerHTML='<p style="color:#c0264b;padding:20px;">'+(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have access to this profile.':('Could not load profile: '+escapeHtml(r.error.message)))+'</p>'; return; }
-            renderEmployeeProfile(r.data);
+            renderEmployeeProfile(r.data); loadEmpEvents(empId);
         }).catch(function(){ box.innerHTML='<p style="color:#c0264b;padding:20px;">Connection error.</p>'; });
     }
     function renderEmployeeProfile(p){
@@ -4414,7 +4414,7 @@
         var initials=String(p.name||'?').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
         var certs=(p.certs||[]).map(function(c){ return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eef0f5;font-size:13px;"><span>'+escapeHtml(c.type||'')+'</span><span style="color:#6b7686;">'+(c.expires?('exp '+escapeHtml(String(c.expires))):'')+'</span></div>'; }).join('') || '<div style="color:#9aa7b4;font-size:13px;">None on file.</div>';
         var st=p.status||'Active'; var stCol=(st==='Active')?'#1f7a3d':'#9aa7b4';
-        box.innerHTML='<div style="background:#fff;border:1px solid #e6ebf2;border-radius:16px;padding:18px;"><div style="display:flex;align-items:center;gap:14px;"><div style="width:54px;height:54px;border-radius:50%;background:#fde7df;display:flex;align-items:center;justify-content:center;font-weight:800;color:#D85A30;font-size:18px;">'+initials+'</div><div style="flex:1;"><div style="font-size:18px;font-weight:800;color:#1f2a44;">'+escapeHtml(p.name||'')+'</div><div style="font-size:13px;color:#6b7686;">'+escapeHtml(p.role||'')+(p.store?(' &middot; '+escapeHtml(p.store)):'')+'</div></div><span style="background:'+((st==='Active')?'#e7f6ec':'#eef1f5')+';color:'+stCol+';font-size:12px;font-weight:700;padding:4px 11px;border-radius:11px;">'+escapeHtml(st)+'</span></div><div style="margin-top:16px;"><div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin-bottom:6px;">Overview</div><div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eef0f5;font-size:13px;"><span style="color:#6b7686;">Email</span><span style="font-weight:600;">'+escapeHtml(p.email||'&mdash;')+'</span></div><div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eef0f5;font-size:13px;"><span style="color:#6b7686;">Cleared positions</span><span style="font-weight:600;">'+(p.cleared_positions||0)+'</span></div></div><div style="margin-top:14px;"><div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin-bottom:6px;">Certifications</div>'+certs+'</div><p style="margin-top:14px;font-size:11px;color:#9aa7b4;">Permission-aware profile &middot; this view was recorded in the audit log.</p>'+empManageHtml(p)+'</div>';
+        box.innerHTML='<div style="background:#fff;border:1px solid #e6ebf2;border-radius:16px;padding:18px;"><div style="display:flex;align-items:center;gap:14px;"><div style="width:54px;height:54px;border-radius:50%;background:#fde7df;display:flex;align-items:center;justify-content:center;font-weight:800;color:#D85A30;font-size:18px;">'+initials+'</div><div style="flex:1;"><div style="font-size:18px;font-weight:800;color:#1f2a44;">'+escapeHtml(p.name||'')+'</div><div style="font-size:13px;color:#6b7686;">'+escapeHtml(p.role||'')+(p.store?(' &middot; '+escapeHtml(p.store)):'')+'</div></div><span style="background:'+((st==='Active')?'#e7f6ec':'#eef1f5')+';color:'+stCol+';font-size:12px;font-weight:700;padding:4px 11px;border-radius:11px;">'+escapeHtml(st)+'</span></div><div style="margin-top:16px;"><div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin-bottom:6px;">Overview</div><div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eef0f5;font-size:13px;"><span style="color:#6b7686;">Email</span><span style="font-weight:600;">'+escapeHtml(p.email||'&mdash;')+'</span></div><div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eef0f5;font-size:13px;"><span style="color:#6b7686;">Cleared positions</span><span style="font-weight:600;">'+(p.cleared_positions||0)+'</span></div></div><div style="margin-top:14px;"><div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin-bottom:6px;">Certifications</div>'+certs+'</div><p style="margin-top:14px;font-size:11px;color:#9aa7b4;">Permission-aware profile &middot; this view was recorded in the audit log.</p>'+empManageHtml(p)+empPipHtml(p)+'<div id="empEventsBox"></div></div>';
     }
     var _empProfile=null;
     function empManageHtml(p){
@@ -4439,6 +4439,37 @@
         h+='<button onclick="submitEmpPromote()" style="flex:1;background:linear-gradient(90deg,#ec3e7e,#7b2d8b);color:#fff;font-weight:800;border:none;padding:11px;border-radius:10px;cursor:pointer;font-size:14px;">Confirm role change</button>';
         h+='<button onclick="toggleEmpPromote(true)" style="background:#eef1f5;color:#5b6472;border:none;padding:11px 16px;border-radius:10px;cursor:pointer;font-size:14px;">Cancel</button>';
         h+='</div></div></div>';
+        return h;
+    }
+    function loadEmpEvents(empId){
+        var box=document.getElementById('empEventsBox'); if(!box) return;
+        supabaseClient.rpc('app_emp_events',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId}).then(function(r){
+            if(r.error||!r.data||!r.data.length){ box.innerHTML=''; return; }
+            var rows=r.data.map(function(e){
+                var when=e.effective_date?String(e.effective_date).slice(0,10):(e.recorded_at?String(e.recorded_at).slice(0,10):'');
+                var chg=(e.from_value||e.to_value)?((e.from_value?escapeHtml(String(e.from_value)):'&mdash;')+' &rarr; '+(e.to_value?escapeHtml(String(e.to_value)):'&mdash;')):'';
+                return '<div style="padding:7px 0;border-bottom:1px solid #eef0f5;font-size:13px;"><div style="display:flex;justify-content:space-between;"><span style="font-weight:600;color:#1f2a44;">'+escapeHtml(String(e.event_type||'Event'))+'</span><span style="color:#9aa7b4;">'+escapeHtml(when)+'</span></div>'+(chg?('<div style="color:#6b7686;">'+chg+'</div>'):'')+(e.reason?('<div style="color:#9aa7b4;font-size:12px;">'+escapeHtml(String(e.reason))+'</div>'):'')+'</div>';
+            }).join('');
+            box.innerHTML='<div style="margin-top:16px;border-top:1px solid #eef0f5;padding-top:14px;"><div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin-bottom:6px;">Employment history</div>'+rows+'</div>';
+        }).catch(function(){ box.innerHTML=''; });
+    }
+    function empPipHtml(p){
+        if(!(typeof isDiscAdmin==='function' && isDiscAdmin())) return '';
+        var pip=(typeof rosterState!=='undefined' && rosterState.pips) ? rosterState.pips[p.id] : null;
+        var nm=(p.name||'').replace(/&/g,'').replace(/"/g,'');
+        var h='<div style="margin-top:16px;border-top:1px solid #eef0f5;padding-top:14px;">';
+        h+='<div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin-bottom:8px;">Corrective action &middot; restricted</div>';
+        if(pip){
+            h+='<div style="background:#fff4f6;border:1px solid #f3c9d6;border-radius:10px;padding:11px;font-size:13px;">';
+            h+='<div style="font-weight:700;color:#b4264b;">On a Performance Improvement Plan</div>';
+            h+='<div style="color:#6b7686;margin-top:3px;">'+escapeHtml(String(pip.start||''))+' &rarr; '+escapeHtml(String(pip['end']||''))+(pip.reason?('<br>'+escapeHtml(String(pip.reason))):'')+'</div>';
+            h+='<button onclick="openDecision('+pip.pip_id+',&quot;'+escapeHtml(nm)+'&quot;)" style="margin-top:9px;background:#b4264b;color:#fff;border:none;font-weight:700;font-size:13px;padding:8px 13px;border-radius:9px;cursor:pointer;">Record decision</button>';
+            h+='</div>';
+        } else {
+            h+='<div style="font-size:13px;color:#6b7686;margin-bottom:8px;">No active corrective action on file.</div>';
+            h+='<button onclick="openPip('+p.id+',&quot;'+escapeHtml(nm)+'&quot;,&quot;'+escapeHtml(String(p.store||''))+'&quot;,&quot;'+escapeHtml(String(p.role||''))+'&quot;)" style="background:#fff;border:1px solid #b4264b;color:#b4264b;font-weight:700;font-size:13px;padding:8px 13px;border-radius:9px;cursor:pointer;">Start corrective action / PIP</button>';
+        }
+        h+='</div>';
         return h;
     }
     function toggleEmpPromote(forceHide){
@@ -4492,7 +4523,7 @@
                 ? '<button class="roster-act" style="color:#c0264b;" onclick="rosterSetActive('+e.id+',false,&quot;'+rosterEsc(nmJs)+'&quot;)">Terminate</button>'
                 : '<button class="roster-act" style="color:#1f7a3d;" onclick="rosterSetActive('+e.id+',true,&quot;'+rosterEsc(nmJs)+'&quot;)">Reactivate</button>';
             const celIc = celebRosterMap[e.id]==='birthday' ? ' <span title="Birthday coming up">🎂</span>' : (celebRosterMap[e.id] ? ' <span title="Work anniversary coming up">🎉</span>' : '');
-            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+celIc+pipBadge+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;">'+((rosterState.phones&&rosterState.phones[e.id])?('<a class="roster-act" style="color:#1f7a3d;" href="tel:'+String(rosterState.phones[e.id]).replace(/[^0-9+]/g,'')+'">&#128222; '+rosterEsc(String(rosterState.phones[e.id]))+'</a>'):'')+pipAct+'<button class="roster-act" onclick="openEmployeeProfile('+e.id+',&quot;'+rosterEsc(nmJs)+'&quot;)">&#128100; Profile</button><button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button>'+'<button class="roster-act" onclick="openEmpCerts('+e.id+',&quot;'+rosterEsc(nmJs)+'&quot;)">&#128203; Certs</button>'+termBtn+'</td></tr>';
+            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+celIc+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;">'+((rosterState.phones&&rosterState.phones[e.id])?('<a class="roster-act" style="color:#1f7a3d;" href="tel:'+String(rosterState.phones[e.id]).replace(/[^0-9+]/g,'')+'">&#128222; '+rosterEsc(String(rosterState.phones[e.id]))+'</a>'):'')+'<button class="roster-act" onclick="openEmployeeProfile('+e.id+',&quot;'+rosterEsc(nmJs)+'&quot;)">&#128100; Profile</button><button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button>'+'<button class="roster-act" onclick="openEmpCerts('+e.id+',&quot;'+rosterEsc(nmJs)+'&quot;)">&#128203; Certs</button>'+termBtn+'</td></tr>';
         });
         html+='</tbody></table>';
         box.innerHTML=html;
