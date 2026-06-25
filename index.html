@@ -2048,7 +2048,31 @@
     </div>
     <p style="font-size:13.5px;color:#33303a;line-height:1.55;margin:10px 0 4px;">Everything below is live in the app right now. Tap a section heading in the menu to find it. Here&rsquo;s what each one does and exactly how to use it.</p>
 
-    <div class="howto-sec"><h3>&#127881; Recognition &amp; Shout-Outs</h3>
+    <div style="font-size:12px;font-weight:800;text-transform:uppercase;color:var(--caliches-pink);margin:14px 0 2px;letter-spacing:.04em;">&#11088; Newest in this update</div>
+
+    <div class="howto-sec"><h3>&#128100; Employee Profile</h3>
+      <p><b>Where:</b> Admin &rarr; Employee Roster &rarr; tap <b>Profile</b> on anyone (managers).</p>
+      <ol><li>See one complete record &mdash; role, store, status, certifications, cleared positions, and an <b>Employment History</b> of role changes.</li><li>Tap <b>&#11014; Change role</b> to promote someone. It&rsquo;s <b>not</b> one tap &mdash; you pick the new role, an effective date, and a <b>reason</b>, and it&rsquo;s saved to their history and the audit log.</li><li>A staff member can open <b>their own</b> profile, but not anyone else&rsquo;s. Corrective actions (PIP) now live inside the profile, visible to admins only.</li></ol></div>
+
+    <div class="howto-sec"><h3>&#128666; Supply Request</h3>
+      <p><b>Where:</b> the <b>Supply Request</b> tile on the menu (this replaced &ldquo;Report Shortages&rdquo;).</p>
+      <ol><li><b>New request:</b> pick your store, urgency, and when you&rsquo;ll run out, add a reason, then add each item (start typing &mdash; the catalog suggests names). Submit gives you a tracking number (e.g. SR-20260625-0001).</li><li><b>My requests:</b> watch the status of anything you sent.</li><li><b>Managers/office:</b> the <b>Incoming</b> tab is the queue. Tap a request to open it, see the <b>status timeline</b>, set the fulfillment source/transporter, and move it along (Assigned &rarr; Fulfilling &rarr; In transit &rarr; Received &rarr; Closed).</li><li><b>Catalog</b> tab (managers): add or edit the standard item list so names stay clean.</li></ol></div>
+
+    <div class="howto-sec"><h3>&#129309; Crew Trainer</h3>
+      <p><b>Where:</b> the <b>Crew Trainer</b> tile (Crew Trainers, shift leads &amp; managers).</p>
+      <ol><li><b>Managers:</b> on the <b>Assign &amp; manage</b> tab, pair a trainee with a trainer on a topic or station.</li><li><b>The trainer:</b> on <b>My Trainees</b>, tap <b>Record coaching</b>, pick the topic, and note what you covered (&ldquo;guided them through supervised practice&hellip;&rdquo;).</li><li>This logs that coaching was <b>delivered</b> &mdash; a training note, kept separate from a competency certification.</li></ol></div>
+
+    <div class="howto-sec"><h3>&#127891; Learning Paths (sample)</h3>
+      <p><b>Where:</b> Training &amp; Resources &rarr; <b>Learning Paths</b> (everyone).</p>
+      <ol><li>Pick a path (White Apron, Register Certification&hellip;), then a course.</li><li>Read each lesson page with <b>Next / Back</b>, then take the <b>quick check</b> &mdash; 80% to pass.</li><li>Pass and it <b>moves you to the next course</b> automatically; finish them all to earn the path&rsquo;s <b>certification</b>. Progress &amp; badges show on the My Training screen.</li><li>This is a <b>sample</b> to walk the flow &mdash; the wording is placeholder. Tap <b>Reset progress</b> to run it again.</li></ol></div>
+
+    <div class="howto-sec"><h3>&#128274; Stay Logged In</h3>
+      <p><b>Where:</b> the login screen.</p>
+      <ol><li>There&rsquo;s a <b>&ldquo;Keep me logged in on this device&rdquo;</b> checkbox &mdash; leave it on and the app won&rsquo;t make you re-enter your PIN every time it refreshes or auto-updates.</li><li>Fully close and reopen the app and it asks for your PIN again (so it stays secure on shared tablets).</li><li><b>Logout</b> clears it on that device.</li></ol></div>
+
+    <div style="font-size:12px;font-weight:800;text-transform:uppercase;color:#8a8594;margin:16px 0 2px;letter-spacing:.04em;">Earlier updates</div>
+
+        <div class="howto-sec"><h3>&#127881; Recognition &amp; Shout-Outs</h3>
       <p><b>Where:</b> Home screen (the recognition card).</p>
       <ol><li>Tap <b>&ldquo;Give a Shout-Out.&rdquo;</b></li><li>Pick a person (or a team/whole store), choose the type (shout-out, customer compliment, great work&hellip;), and write your message.</li><li>Submit. A manager approves it, then it appears on everyone&rsquo;s Home feed and the person gets a notification.</li><li><b>Managers:</b> tap the approvals button to approve or decline pending ones.</li></ol></div>
 
@@ -2482,7 +2506,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.25.1037';
+    const APP_VERSION = '2026.06.25.1054';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -7833,7 +7857,7 @@
     }
 
     // ----- What's New / How-To popup -----
-    var HOWTO_VERSION = '2026.06.23.confirm'; // bump to re-show after future how-to updates
+    var HOWTO_VERSION = '2026.06.25.aaron'; // bump to re-show after future how-to updates
     function openHowTo(){ var m=document.getElementById('howtoModal'); if(m) m.style.display='flex'; }
     function closeHowTo(){ var m=document.getElementById('howtoModal'); if(m) m.style.display='none'; try{ localStorage.setItem('howtoSeen_'+HOWTO_VERSION,'1'); }catch(e){} }
     function maybeShowHowTo(){
