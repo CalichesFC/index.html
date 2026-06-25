@@ -2508,7 +2508,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.25.1305';
+    const APP_VERSION = '2026.06.25.1326';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -8153,8 +8153,10 @@
         });
         var certs=[]; paths.forEach(function(p){ (p.courses||[]).forEach(function(c){ if(passed[c.id]) certs.push(c.title); }); });
         h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:6px;">My certifications</div>'+(certs.length?('<div style="display:flex;flex-wrap:wrap;gap:6px;">'+certs.map(function(t){return '<span style="background:#e8f5ec;color:#1b7a3d;font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:99px;">&#127894; '+escapeHtml(t)+'</span>';}).join('')+'</div>'):'<div style="font-size:12.5px;color:#8a8594;">Pass a course quiz to earn its certification.</div>')+'</div>';
+        if(currentUser&&(currentUser.is_developer===true||(typeof isManagerRole==='function'&&isManagerRole()))){ h+='<button onclick="lmsManageCourses()" style="width:100%;background:#fff;border:1px dashed #cdd5e0;color:#185FA5;border-radius:10px;padding:11px;font-size:13.5px;font-weight:700;cursor:pointer;margin-top:4px;">&#9999;&#65039; Add or edit courses &amp; videos (admins)</button>'; }
         ov.innerHTML=lmsHeader('My Training','')+'<div style="max-width:640px;margin:0 auto;padding:16px;">'+h+'</div>';
     }
+    function lmsManageCourses(){ lmsClose(); _td.tab='paths'; if(typeof tdLoad==='function'){ tdLoad(function(){ tdRender(); }); } else { alert('Open Admin Dashboard then Team Development then Paths to manage courses.'); } }
     function lmsOpenCourse(courseId){
         var ov=lmsOverlay(); ov.innerHTML=lmsHeader('Lesson','lmsHome()')+'<div style="max-width:640px;margin:0 auto;padding:40px 16px;text-align:center;color:#888;">Loading&hellip;</div>';
         withPin(function(pin){
