@@ -2508,7 +2508,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.25.2349';
+    const APP_VERSION = '2026.06.26.0008';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -8338,7 +8338,7 @@
         var dots=''; for(var i=0;i<pages.length;i++){ dots+='<span style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;background:'+(i<=pg?'#185FA5':'#d6dbe6')+';"></span>'; }
         var h=lmsHeader('Lesson','lmsHome()')+'<div style="max-width:640px;margin:0 auto;padding:16px;"><div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.05);">';
         h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;"><div>'+dots+'</div><span style="font-size:11.5px;color:#9aa7b4;">Page '+(pg+1)+' of '+pages.length+'</span></div>';
-        h+='<h2 style="margin:0 0 10px;font-size:19px;color:#26242b;">'+escapeHtml(c.title)+'</h2><div style="font-size:14.5px;color:#33303a;line-height:1.6;">'+pages[pg]+'</div>';
+        h+='<h2 style="margin:0 0 10px;font-size:19px;color:#26242b;">'+escapeHtml(c.title)+'</h2><div style="font-size:14.5px;color:#33303a;line-height:1.6;">'+pages[pg]+'</div>'+lmsMatsHtml(c);
         h+='<div style="display:flex;gap:8px;margin-top:16px;">';
         if(pg>0) h+='<button onclick="lmsLessonPage(-1)" style="background:#eef3fb;color:#185FA5;border:none;border-radius:10px;padding:12px 16px;font-size:14px;font-weight:700;cursor:pointer;">&lsaquo; Back</button>';
         if(pg<pages.length-1) h+='<button onclick="lmsLessonPage(1)" style="flex:1;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">Next &rsaquo;</button>';
@@ -8516,24 +8516,27 @@
     function tdCourseForm(pathId,id,c){
         var pagesText=((c.pages)||[]).join('\n---\n');
         window._tdQuiz=((c.quiz)||[]).map(function(q){ return {q:q.q||'',type:q.type||'mc',choices:(q.choices&&q.choices.length?q.choices.slice():['','','']),a:(q.a!=null?q.a:0),accept:q.accept||''}; });
+        window._tdMats=((c.materials)||[]).map(function(m){ return {label:m.label||'',url:m.url||''}; });
         var h='<h3 style="margin:0 0 4px;color:#1f2a44;">'+(id?'Edit course':'New course')+'</h3>';
         h+=tdField('tdcTitle','Course title',c.title||'');
         h+=tdField('tdcSummary','Short summary',c.summary||'');
         h+=tdField('tdcVideo','Video link (YouTube, Vimeo, or .mp4) — optional',c.video_url||'');
         h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Lesson pages (separate each page with a line containing only ---)</label><textarea id="tdcPages" style="width:100%;height:120px;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;">'+escapeHtml(pagesText)+'</textarea>';
         h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Quiz questions</label><div id="tdcQuizWrap"></div><button onclick="tdQuizAdd()" style="width:100%;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;">&#10133; Add question</button>';
+        h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Materials &amp; resources (PDF, slides, image, audio &mdash; paste a link)</label><div id="tdcMatsWrap"></div><button onclick="tdMatAdd()" style="width:100%;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;">&#10133; Add material</button>';
         h+='<div id="tdcMsg" style="font-size:12.5px;color:#c0264b;margin:6px 0;"></div>';
         h+='<div style="display:flex;gap:8px;"><button onclick="tdModalClose()" style="flex:1;background:#eef0f3;border:none;border-radius:9px;padding:11px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="tdSaveCourse('+pathId+','+(id||'null')+')" style="flex:2;background:#185FA5;color:#fff;border:none;border-radius:9px;padding:11px;font-weight:800;cursor:pointer;">Save course</button></div>';
         tdModal(h);
         tdRenderQuizBuilder();
+        tdRenderMats();
     }
     function tdSaveCourse(pathId,id){
         var t=tdVal('tdcTitle').trim(); if(!t){ document.getElementById('tdcMsg').textContent='Give it a title.'; return; }
         var pagesRaw=document.getElementById('tdcPages').value||'';
         var pages=pagesRaw.split(/\n-{3,}\n/).map(function(x){return x.trim();}).filter(function(x){return x.length;});
-        tdQuizCapture(); var quiz=tdQuizClean();
+        tdQuizCapture(); var quiz=tdQuizClean(); var mats=tdMatsClean();
         withPin(function(pin){
-            supabaseClient.rpc('app_lp_save_course',{p_username:currentUser.username,p_password:pin,p_id:(id||null),p_path_id:pathId,p_title:t,p_summary:tdVal('tdcSummary'),p_pages:pages,p_quiz:quiz,p_pass_pct:null,p_sort:null,p_active:true,p_video_url:tdVal('tdcVideo')}).then(function(r){
+            supabaseClient.rpc('app_lp_save_course',{p_username:currentUser.username,p_password:pin,p_id:(id||null),p_path_id:pathId,p_title:t,p_summary:tdVal('tdcSummary'),p_pages:pages,p_quiz:quiz,p_pass_pct:null,p_sort:null,p_active:true,p_video_url:tdVal('tdcVideo'),p_materials:mats}).then(function(r){
                 if(r.error){ document.getElementById('tdcMsg').textContent=(String(r.error.message).indexOf('forbidden')>=0?'Managers only.':r.error.message); return; }
                 tdModalClose(); tdLoad(function(){ _td.tab='paths'; tdRender(); });
             }).catch(function(){ document.getElementById('tdcMsg').textContent='Could not save.'; });
@@ -8608,6 +8611,20 @@
     }
     function tdRemoveRule(id){ if(!confirm('Remove this auto-assign rule? People already assigned keep their training.')) return; withPin(function(pin){ supabaseClient.rpc('app_lp_rule_remove',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){ if(r.error){ alert(r.error.message); return; } tdLoad(function(){ _td.tab='rules'; tdRender(); }); }); }); }
     function tdRunRules(){ withPin(function(pin){ supabaseClient.rpc('app_lp_rules_run',{p_username:currentUser.username,p_password:pin}).then(function(r){ if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':r.error.message); return; } alert('Auto-assign ran — '+((r.data&&r.data.assigned)||0)+' new assignment(s) created.'); tdLoad(function(){ _td.tab='rules'; tdRender(); }); }); }); }
+    var _tdMats=[];
+    function tdMatCapture(){ (_tdMats||[]).forEach(function(m,i){ var l=document.getElementById('tdm_'+i+'_label'); if(l) m.label=l.value; var u=document.getElementById('tdm_'+i+'_url'); if(u) m.url=u.value; }); }
+    function tdRenderMats(){ var wrap=document.getElementById('tdcMatsWrap'); if(!wrap) return; if(!_tdMats) _tdMats=[]; var h='';
+        if(!_tdMats.length) h+='<div style="font-size:12px;color:#9aa7b4;padding:2px 0 6px;">Optional. Add a PDF, slide deck, image, or audio link learners can open.</div>';
+        _tdMats.forEach(function(m,i){ h+='<div style="display:flex;gap:6px;margin-bottom:5px;align-items:center;"><input id="tdm_'+i+'_label" value="'+String(m.label||'').replace(/"/g,'&quot;')+'" placeholder="Label (e.g. Recipe PDF)" style="flex:1;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:12.5px;box-sizing:border-box;"><input id="tdm_'+i+'_url" value="'+String(m.url||'').replace(/"/g,'&quot;')+'" placeholder="https://link-to-file" style="flex:1.4;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:12.5px;box-sizing:border-box;"><button onclick="tdMatDel('+i+')" style="background:none;border:none;color:#c0264b;font-size:16px;cursor:pointer;line-height:1;">&times;</button></div>'; });
+        wrap.innerHTML=h; }
+    function tdMatAdd(){ tdMatCapture(); _tdMats.push({label:'',url:''}); tdRenderMats(); }
+    function tdMatDel(i){ tdMatCapture(); _tdMats.splice(i,1); tdRenderMats(); }
+    function tdMatsClean(){ tdMatCapture(); return (_tdMats||[]).filter(function(m){ return (m.url||'').trim(); }).map(function(m){ return {label:(m.label||'').trim()||(m.url||'').trim(),url:(m.url||'').trim()}; }); }
+    function lmsMatIcon(u){ u=String(u||'').toLowerCase(); if(/\.pdf(\?|#|$)/.test(u)) return '📄'; if(/\.(jpg|jpeg|png|gif|webp)(\?|#|$)/.test(u)) return '🖼️'; if(/\.(mp3|wav|m4a|ogg)(\?|#|$)/.test(u)) return '🎧'; if(/\.(mp4|mov|webm)(\?|#|$)/.test(u)) return '🎬'; if(/\.(doc|docx)(\?|#|$)/.test(u)) return '📝'; if(/\.(xls|xlsx|csv)(\?|#|$)/.test(u)) return '📊'; if(/\.(ppt|pptx)(\?|#|$)/.test(u)) return '📑'; return '🔗'; }
+    function lmsMatsHtml(c){ var m=(c&&c.materials)||[]; if(!m.length) return '';
+        var h='<div style="margin-top:14px;background:#f7f8fb;border:1px solid #eef0f5;border-radius:10px;padding:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:7px;">Resources</div>';
+        m.forEach(function(x){ var lbl=x.label||x.url; h+='<a href="'+escapeHtml(x.url||'')+'" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff;border:1px solid #e6e6ee;border-radius:8px;margin-bottom:5px;text-decoration:none;color:#185FA5;font-size:13px;font-weight:600;"><span>'+lmsMatIcon(x.url)+'</span><span style="flex:1;">'+escapeHtml(lbl)+'</span><span style="color:#9aa7b4;">&#8599;</span></a>'; });
+        h+='</div>'; return h; }
     function tdArchive(kind,id,name){
         if(!confirm('Archive this '+kind+'? Staff will no longer see it. (Hidden, not deleted.)')) return;
         withPin(function(pin){ supabaseClient.rpc('app_lp_archive',{p_username:currentUser.username,p_password:pin,p_kind:kind,p_id:id}).then(function(r){ if(r.error){ alert(r.error.message); return; } tdLoad(function(){ _td.tab='paths'; tdRender(); }); }); });
