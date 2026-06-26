@@ -2508,7 +2508,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.26.0140';
+    const APP_VERSION = '2026.06.26.0722';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -8886,7 +8886,14 @@
     function woVal(id){ var e=document.getElementById(id); return e?e.value:''; }
     function woAssetField(){ var eq=(_wo.equip||[]); if(!eq.length){ return woField('woAsset','Equipment / item','')+'<input type="hidden" id="woAssetSel" value="">'; } var opts='<option value="">&mdash; select equipment &mdash;</option>'+eq.map(function(e){return '<option value="'+e.id+'">'+escapeHtml(e.name||('#'+e.id))+'</option>';}).join('')+'<option value="__other__">Other / not listed</option>'; var h='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Equipment / item</label>'; h+='<select id="woAssetSel" onchange="woAssetPick()" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;">'+opts+'</select>'; h+='<input id="woAsset" placeholder="Describe the item" value="" style="display:none;width:100%;margin-top:6px;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;">'; return h; }
     function woAssetPick(){ var s=document.getElementById('woAssetSel'); var t=document.getElementById('woAsset'); if(!s||!t)return; t.style.display=(s.value==='__other__')?'block':'none'; if(s.value!=='__other__') t.value=''; }
-    function woReportHtml(){
+    function woCompress(file, cb){ var rd=new FileReader(); rd.onload=function(e){ var img=new Image(); img.onload=function(){ try{ var c=document.createElement('canvas'); var sc=Math.min(1000/img.width,1); c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc); c.getContext('2d').drawImage(img,0,0,c.width,c.height); cb(c.toDataURL('image/jpeg',0.6)); }catch(e2){ cb(null); } }; img.onerror=function(){ cb(null); }; img.src=e.target.result; }; rd.onerror=function(){ cb(null); }; rd.readAsDataURL(file); }
+    function woRepPhotoPick(ev){ var fs=ev.target.files; if(!fs||!fs.length) return; _wo.repPhotos=_wo.repPhotos||[]; var arr=Array.prototype.slice.call(fs); ev.target.value=''; var done=0; arr.forEach(function(f){ woCompress(f,function(d){ if(d)_wo.repPhotos.push(d); done++; if(done===arr.length) woRepPhotoRender(); }); }); }
+    function woRepPhotoRender(){ var c=document.getElementById('woRepPhotoCount'); var p=document.getElementById('woRepPhotoPrev'); var a=_wo.repPhotos||[]; if(c)c.textContent=a.length?(a.length+' photo'+(a.length>1?'s':'')+' attached'):''; if(p)p.innerHTML=a.map(function(d,i){return '<div style="position:relative;display:inline-block;"><img src="'+d+'" style="width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid #ddd;"><span onclick="woRepPhotoDel('+i+')" style="position:absolute;top:-6px;right:-6px;background:#c0264b;color:#fff;border-radius:50%;width:18px;height:18px;font-size:12px;line-height:18px;text-align:center;cursor:pointer;">&times;</span></div>';}).join(''); }
+    function woRepPhotoDel(i){ (_wo.repPhotos||[]).splice(i,1); woRepPhotoRender(); }
+    function woLoadPhotos(won){ var box=document.getElementById('woPhotoList'); if(!box) return; withPin(function(pin){ supabaseClient.rpc('app_wo_photos',{p_username:currentUser.username,p_password:pin,p_wo_number:won}).then(function(r){ if(r.error){ box.innerHTML='<span style="font-size:12.5px;color:#c0264b;">Could not load photos.</span>'; return; } var ph=r.data||[]; if(!ph.length){ box.innerHTML='<span style="font-size:12.5px;color:#9aa7b4;">No photos yet.</span>'; return; } box.innerHTML=ph.map(function(d){return '<img src="'+d+'" onclick="woPhotoView(this.src)" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #ddd;cursor:pointer;">';}).join(''); }).catch(function(){ box.innerHTML='<span style="font-size:12.5px;color:#c0264b;">Could not load photos.</span>'; }); }); }
+    function woPhotoView(src){ woModal('<div style="background:#fff;border-radius:12px;padding:10px;max-width:92%;max-height:88%;overflow:auto;text-align:center;"><img src="'+src+'" style="max-width:100%;max-height:78vh;border-radius:8px;"><br><button onclick="woModalClose()" style="margin-top:10px;padding:9px 16px;border:none;background:#185FA5;color:#fff;border-radius:8px;font-weight:700;cursor:pointer;">Close</button></div>'); }
+    function woDetailPhotoPick(ev){ var fs=ev.target.files; if(!fs||!fs.length) return; var won=window._woDetailWoNum; if(!won) return; var box=document.getElementById('woPhotoList'); if(box) box.innerHTML='<span style="font-size:12.5px;color:#9aa7b4;">Uploading&hellip;</span>'; var arr=Array.prototype.slice.call(fs); ev.target.value=''; withPin(function(pin){ var i=0; (function up(){ if(i>=arr.length){ woLoadPhotos(won); return; } woCompress(arr[i],function(d){ if(!d){ i++; up(); return; } supabaseClient.rpc('app_wo_add_photo',{p_username:currentUser.username,p_password:pin,p_wo_number:won,p_photo:d}).then(function(){ i++; up(); }).catch(function(){ i++; up(); }); }); })(); }); }
+    function woReportHtml(){ _wo.repPhotos=[];
         var stores=['Roadrunner','Valley','Lenox','Alamogordo','Roswell','Warehouse'];
         var def=(currentUser.store||currentUser.location||'Roadrunner');
         var h='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;">';
@@ -8900,6 +8907,7 @@
         h+=woSelect('woUse','Equipment status',['','in_use','backup','out_of_service'],'');
         h+='<label style="display:flex;align-items:center;gap:8px;margin:10px 0;font-size:13px;cursor:pointer;"><input type="checkbox" id="woSafety"> This is a safety issue</label>';
         h+='<div id="woRepMsg" style="font-size:12.5px;color:#c0264b;margin:6px 0;"></div>';
+        h+='<div style="margin-top:10px;"><label style="display:inline-block;background:#185FA5;color:#fff;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;">&#128247; Add photo<input type="file" accept="image/*" capture="environment" multiple onchange="woRepPhotoPick(event)" style="display:none;"></label><span id="woRepPhotoCount" style="font-size:12px;color:#888;margin-left:8px;"></span><div id="woRepPhotoPrev" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div></div>';
         h+='<button onclick="woSubmitReport()" style="width:100%;background:#D85A30;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">Submit work order</button>';
         h+='</div>';
         return h;
@@ -8912,7 +8920,7 @@
         withPin(function(pin){
             supabaseClient.rpc('app_wo_create',{p_username:currentUser.username,p_password:pin,p_title:t,p_description:woVal('woDesc'),p_asset_id:_aid,p_asset_label:_alabel,p_location:woVal('woStore'),p_category:woVal('woCat'),p_priority:woVal('woPri'),p_equipment_use_status:woVal('woUse')||null,p_safety_impact:safety}).then(function(r){
                 if(r.error){ document.getElementById('woRepMsg').textContent=r.error.message; return; }
-                alert('Work order '+((r.data&&r.data.wo_number)||'')+' created.'); _wo.tab=woIsMgr()?'board':'queue'; woLoad(function(){ woRender(); });
+                var _won=(r.data&&r.data.wo_number)||''; var _ph=(_wo.repPhotos||[]); var _finish=function(){ _wo.repPhotos=[]; alert('Work order '+_won+' created'+(_ph.length?(' with '+_ph.length+' photo'+(_ph.length>1?'s':'')):'')+'.'); _wo.tab=woIsMgr()?'board':'queue'; woLoad(function(){ woRender(); }); }; if(_ph.length && _won){ var _i=0; (function _up(){ if(_i>=_ph.length){ _finish(); return; } supabaseClient.rpc('app_wo_add_photo',{p_username:currentUser.username,p_password:pin,p_wo_number:_won,p_photo:_ph[_i]}).then(function(){ _i++; _up(); }).catch(function(){ _i++; _up(); }); })(); } else { _finish(); }
             }).catch(function(){ document.getElementById('woRepMsg').textContent='Could not submit.'; });
         });
     }
@@ -8950,11 +8958,12 @@
         if(!ev.length) h+='<div style="font-size:13px;color:#9aa7b4;">No events.</div>';
         ev.forEach(function(e){ h+='<div style="display:flex;gap:9px;padding:5px 0;border-bottom:1px solid #f3f4f8;"><div style="font-size:11.5px;color:#9aa7b4;white-space:nowrap;min-width:62px;">'+woFmt(e.at)+'</div><div style="font-size:12.5px;color:#33303a;"><b>'+escapeHtml(e.to_status||e.type||'')+'</b> &middot; '+escapeHtml(e.actor||'')+(e.note?(' &mdash; '+escapeHtml(e.note)):'')+'</div></div>'; });
         h+='</div>';
+        h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:14px;margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#9aa7b4;margin-bottom:8px;">Photos</div><div id="woPhotoList" style="display:flex;flex-wrap:wrap;gap:8px;"><span style="font-size:12.5px;color:#9aa7b4;">Loading&hellip;</span></div><label style="display:inline-block;margin-top:10px;background:#185FA5;color:#fff;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;">&#128247; Add photo<input type="file" accept="image/*" capture="environment" multiple onchange="woDetailPhotoPick(event)" style="display:none;"></label></div>';
         h+='<div id="woCostBox" style="margin-bottom:12px;"></div>';
         h+=woActions(d);
         h+='</div>';
         ov.innerHTML=woHeader(d.wo_number||'Work Order','woRender()')+h;
-        woLoadCosts(d.id);
+        window._woDetailWoNum=d.wo_number; woLoadCosts(d.id); woLoadPhotos(d.wo_number);
     }
     function woBtn(label,onclick,bg,fg){ return '<button onclick="'+onclick+'" style="width:100%;background:'+bg+';color:'+(fg||'#fff')+';border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:800;cursor:pointer;">'+label+'</button>'; }
     function woActions(d){
