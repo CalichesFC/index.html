@@ -2508,7 +2508,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.25.1326';
+    const APP_VERSION = '2026.06.25.1932';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -8193,16 +8193,15 @@
     function lmsStartQuiz(){
         var c=window._lmsCur&&window._lmsCur.course; if(!c) return; var qs=c.quiz||[];
         var h=lmsHeader('Quick check','lmsRenderLesson()')+'<div style="max-width:640px;margin:0 auto;padding:16px;"><div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:18px;"><div style="font-size:12.5px;color:#8a8594;margin-bottom:12px;">Answer all questions &mdash; you need '+(c.pass_pct||80)+'% to pass.</div>';
-        qs.forEach(function(q,i){ h+='<div style="margin-bottom:16px;"><div style="font-weight:700;font-size:14.5px;color:#26242b;margin-bottom:8px;">'+(i+1)+'. '+escapeHtml(q.q)+'</div>'; (q.choices||[]).forEach(function(ch,ci){ h+='<label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid #e6e6ee;border-radius:9px;margin-bottom:6px;cursor:pointer;font-size:13.5px;color:#33303a;"><input type="radio" name="lq'+i+'" value="'+ci+'" style="width:17px;height:17px;"> '+escapeHtml(ch)+'</label>'; }); h+='</div>'; });
+        qs.forEach(function(q,i){ var ty=q.type||'mc'; h+='<div style="margin-bottom:16px;"><div style="font-weight:700;font-size:14.5px;color:#26242b;margin-bottom:8px;">'+(i+1)+'. '+escapeHtml(q.q)+'</div>'; if(ty==='mc'){ (q.choices||[]).forEach(function(ch,ci){ h+='<label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid #e6e6ee;border-radius:9px;margin-bottom:6px;cursor:pointer;font-size:13.5px;color:#33303a;"><input type="radio" name="lq'+i+'" value="'+ci+'" style="width:17px;height:17px;"> '+escapeHtml(ch)+'</label>'; }); } else if(ty==='short'){ h+='<input id="lq_short_'+i+'" placeholder="Your answer" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13.5px;box-sizing:border-box;">'; } else { h+='<textarea id="lq_long_'+i+'" placeholder="Write your response" style="width:100%;height:80px;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13.5px;box-sizing:border-box;"></textarea>'; } h+='</div>'; });
         h+='<div id="lmsQuizMsg" style="font-size:13px;margin-bottom:8px;"></div><button onclick="lmsSubmitQuiz()" style="width:100%;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;">Submit</button></div></div>';
         lmsOverlay().innerHTML=h;
     }
     function lmsSubmitQuiz(){
-        var cur=window._lmsCur; if(!cur) return; var c=cur.course; var qs=c.quiz||[]; var correct=0, unanswered=false;
-        qs.forEach(function(q,i){ var sel=document.querySelector('input[name="lq'+i+'"]:checked'); if(!sel){ unanswered=true; } else if(parseInt(sel.value,10)===q.a){ correct++; } });
-        var msg=document.getElementById('lmsQuizMsg');
+        var cur=window._lmsCur; if(!cur) return; var c=cur.course; var qs=c.quiz||[]; var msg=document.getElementById('lmsQuizMsg'); var correct=0, gradable=0, unanswered=false;
+        qs.forEach(function(q,i){ var ty=q.type||'mc'; if(ty==='long'){ var ta=document.getElementById('lq_long_'+i); if(!ta||!ta.value.trim()) unanswered=true; } else if(ty==='short'){ var si=document.getElementById('lq_short_'+i); if(!si||!si.value.trim()){ unanswered=true; } else if(q.accept&&String(q.accept).trim()){ gradable++; if(si.value.trim().toLowerCase()===String(q.accept).trim().toLowerCase()) correct++; } } else { var sel=document.querySelector('input[name="lq'+i+'"]:checked'); if(!sel){ unanswered=true; } else { gradable++; if(parseInt(sel.value,10)===q.a) correct++; } } });
         if(unanswered){ if(msg){ msg.style.color='#c0264b'; msg.textContent='Please answer every question.'; } return; }
-        var total=qs.length||1; var score=Math.round(100*correct/total); var pass=score>=(c.pass_pct||80);
+        var score=gradable>0?Math.round(100*correct/gradable):100; var total=gradable||(qs.length||1); var pass=score>=(c.pass_pct||80);
         if(msg){ msg.style.color='#5b6472'; msg.textContent='Saving…'; }
         lmsRecord(c.id,score,pass,correct,total);
     }
@@ -8357,23 +8356,23 @@
     }
     function tdCourseForm(pathId,id,c){
         var pagesText=((c.pages)||[]).join('\n---\n');
-        var quizText=((c.quiz)||[]).map(function(q){ return [q.q].concat(q.choices||[]).join(' | ')+' | '+(q.a!=null?q.a+1:1); }).join('\n');
+        window._tdQuiz=((c.quiz)||[]).map(function(q){ return {q:q.q||'',type:q.type||'mc',choices:(q.choices&&q.choices.length?q.choices.slice():['','','']),a:(q.a!=null?q.a:0),accept:q.accept||''}; });
         var h='<h3 style="margin:0 0 4px;color:#1f2a44;">'+(id?'Edit course':'New course')+'</h3>';
         h+=tdField('tdcTitle','Course title',c.title||'');
         h+=tdField('tdcSummary','Short summary',c.summary||'');
         h+=tdField('tdcVideo','Video link (YouTube, Vimeo, or .mp4) — optional',c.video_url||'');
         h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Lesson pages (separate each page with a line containing only ---)</label><textarea id="tdcPages" style="width:100%;height:120px;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;">'+escapeHtml(pagesText)+'</textarea>';
-        h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Quiz &mdash; one question per line:<br>Question | choice 1 | choice 2 | choice 3 | correct# (1-based)</label><textarea id="tdcQuiz" style="width:100%;height:90px;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;">'+escapeHtml(quizText)+'</textarea>';
+        h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Quiz questions</label><div id="tdcQuizWrap"></div><button onclick="tdQuizAdd()" style="width:100%;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;">&#10133; Add question</button>';
         h+='<div id="tdcMsg" style="font-size:12.5px;color:#c0264b;margin:6px 0;"></div>';
         h+='<div style="display:flex;gap:8px;"><button onclick="tdModalClose()" style="flex:1;background:#eef0f3;border:none;border-radius:9px;padding:11px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="tdSaveCourse('+pathId+','+(id||'null')+')" style="flex:2;background:#185FA5;color:#fff;border:none;border-radius:9px;padding:11px;font-weight:800;cursor:pointer;">Save course</button></div>';
         tdModal(h);
+        tdRenderQuizBuilder();
     }
     function tdSaveCourse(pathId,id){
         var t=tdVal('tdcTitle').trim(); if(!t){ document.getElementById('tdcMsg').textContent='Give it a title.'; return; }
         var pagesRaw=document.getElementById('tdcPages').value||'';
         var pages=pagesRaw.split(/\n-{3,}\n/).map(function(x){return x.trim();}).filter(function(x){return x.length;});
-        var quizRaw=document.getElementById('tdcQuiz').value||'';
-        var quiz=[]; quizRaw.split('\n').forEach(function(line){ line=line.trim(); if(!line) return; var parts=line.split('|').map(function(x){return x.trim();}); if(parts.length<3) return; var ans=parseInt(parts[parts.length-1],10); var choices=parts.slice(1,parts.length-1); var aIdx=(isNaN(ans)?1:ans)-1; if(aIdx<0)aIdx=0; if(aIdx>choices.length-1)aIdx=choices.length-1; quiz.push({q:parts[0],choices:choices,a:aIdx}); });
+        tdQuizCapture(); var quiz=tdQuizClean();
         withPin(function(pin){
             supabaseClient.rpc('app_lp_save_course',{p_username:currentUser.username,p_password:pin,p_id:(id||null),p_path_id:pathId,p_title:t,p_summary:tdVal('tdcSummary'),p_pages:pages,p_quiz:quiz,p_pass_pct:null,p_sort:null,p_active:true,p_video_url:tdVal('tdcVideo')}).then(function(r){
                 if(r.error){ document.getElementById('tdcMsg').textContent=(String(r.error.message).indexOf('forbidden')>=0?'Managers only.':r.error.message); return; }
@@ -8381,6 +8380,25 @@
             }).catch(function(){ document.getElementById('tdcMsg').textContent='Could not save.'; });
         });
     }
+    var _tdQuiz=[];
+    function tdQuizCapture(){ (_tdQuiz||[]).forEach(function(q,i){ var te=document.getElementById('tdq_'+i+'_text'); if(te) q.q=te.value; var ty=document.getElementById('tdq_'+i+'_type'); if(ty) q.type=ty.value; if(q.type==='mc'){ (q.choices||[]).forEach(function(c,ci){ var ce=document.getElementById('tdq_'+i+'_c'+ci); if(ce) q.choices[ci]=ce.value; }); var r=document.querySelector('input[name="tdq_'+i+'_correct"]:checked'); if(r) q.a=parseInt(r.value,10); } else if(q.type==='short'){ var ae=document.getElementById('tdq_'+i+'_accept'); if(ae) q.accept=ae.value; } }); }
+    function tdRenderQuizBuilder(){ var wrap=document.getElementById('tdcQuizWrap'); if(!wrap) return; if(!_tdQuiz) _tdQuiz=[]; var h='';
+        if(!_tdQuiz.length) h+='<div style="font-size:12.5px;color:#9aa7b4;padding:4px 0 8px;">No questions yet. Tap &ldquo;Add question&rdquo; below.</div>';
+        _tdQuiz.forEach(function(q,i){ h+='<div style="border:1px solid #e6ebf2;border-radius:10px;padding:11px;margin-bottom:9px;background:#fbfcfe;">';
+          h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><b style="font-size:12px;color:#185FA5;">Q'+(i+1)+'</b><select id="tdq_'+i+'_type" onchange="tdQuizType('+i+',this.value)" style="flex:1;padding:6px;border:1px solid #ddd;border-radius:7px;font-size:12.5px;"><option value="mc"'+(q.type==='mc'?' selected':'')+'>Multiple choice</option><option value="short"'+(q.type==='short'?' selected':'')+'>Short answer</option><option value="long"'+(q.type==='long'?' selected':'')+'>Long response</option></select><button onclick="tdQuizDel('+i+')" style="background:none;border:none;color:#c0264b;font-size:17px;cursor:pointer;line-height:1;">&times;</button></div>';
+          h+='<input id="tdq_'+i+'_text" value="'+String(q.q||'').replace(/"/g,'&quot;')+'" placeholder="Question" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;margin-bottom:6px;">';
+          if(q.type==='mc'){ (q.choices||[]).forEach(function(c,ci){ h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><input type="radio" name="tdq_'+i+'_correct" value="'+ci+'"'+(q.a===ci?' checked':'')+' title="Mark correct" style="width:16px;height:16px;"><input id="tdq_'+i+'_c'+ci+'" value="'+String(c||'').replace(/"/g,'&quot;')+'" placeholder="Choice '+(ci+1)+'" style="flex:1;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:12.5px;">'+((q.choices.length>2)?'<button onclick="tdQuizChoiceDel('+i+','+ci+')" style="background:none;border:none;color:#c0264b;font-size:15px;cursor:pointer;">&times;</button>':'')+'</div>'; });
+            h+='<button onclick="tdQuizChoiceAdd('+i+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;margin-top:2px;">+ Choice</button> <span style="font-size:11px;color:#9aa7b4;">select the dot = correct answer</span>'; }
+          else if(q.type==='short'){ h+='<input id="tdq_'+i+'_accept" value="'+String(q.accept||'').replace(/"/g,'&quot;')+'" placeholder="Accepted answer (optional, enables auto-grading)" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:12.5px;box-sizing:border-box;">'; }
+          else { h+='<div style="font-size:11.5px;color:#9aa7b4;">Trainee writes a paragraph. Counts as answered; reviewed by a manager (not auto-scored).</div>'; }
+          h+='</div>'; });
+        wrap.innerHTML=h; }
+    function tdQuizAdd(){ tdQuizCapture(); _tdQuiz.push({q:'',type:'mc',choices:['','',''],a:0,accept:''}); tdRenderQuizBuilder(); }
+    function tdQuizDel(i){ tdQuizCapture(); _tdQuiz.splice(i,1); tdRenderQuizBuilder(); }
+    function tdQuizType(i,t){ tdQuizCapture(); _tdQuiz[i].type=t; if(t==='mc'&&(!_tdQuiz[i].choices||_tdQuiz[i].choices.length<2)) _tdQuiz[i].choices=['','','']; tdRenderQuizBuilder(); }
+    function tdQuizChoiceAdd(i){ tdQuizCapture(); _tdQuiz[i].choices.push(''); tdRenderQuizBuilder(); }
+    function tdQuizChoiceDel(i,ci){ tdQuizCapture(); _tdQuiz[i].choices.splice(ci,1); if(_tdQuiz[i].a>=_tdQuiz[i].choices.length) _tdQuiz[i].a=0; tdRenderQuizBuilder(); }
+    function tdQuizClean(){ tdQuizCapture(); return (_tdQuiz||[]).filter(function(q){ return (q.q||'').trim(); }).map(function(q){ var o={q:q.q.trim(),type:q.type||'mc'}; if(o.type==='mc'){ o.choices=(q.choices||[]).map(function(c){return (c||'').trim();}).filter(function(c){return c.length;}); if(o.choices.length<2){ o.choices=(o.choices.concat(['Yes','No'])).slice(0,2); } o.a=Math.min(q.a||0,o.choices.length-1); } else if(o.type==='short'){ o.accept=(q.accept||'').trim(); } return o; }); }
     function tdArchive(kind,id,name){
         if(!confirm('Archive this '+kind+'? Staff will no longer see it. (Hidden, not deleted.)')) return;
         withPin(function(pin){ supabaseClient.rpc('app_lp_archive',{p_username:currentUser.username,p_password:pin,p_kind:kind,p_id:id}).then(function(r){ if(r.error){ alert(r.error.message); return; } tdLoad(function(){ _td.tab='paths'; tdRender(); }); }); });
