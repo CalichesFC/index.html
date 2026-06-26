@@ -2508,7 +2508,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.26.0008';
+    const APP_VERSION = '2026.06.26.0012';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4675,48 +4675,110 @@
         box.innerHTML='<div style="margin-top:16px;color:#9aa7b4;font-size:13px;">Loading development passport&hellip;</div>';
         Promise.all([
             supabaseClient.rpc('app_passport_get',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId}),
-            supabaseClient.rpc('app_position_tally',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId}).then(function(r){return r;},function(){return {data:null};})
+            supabaseClient.rpc('app_position_tally',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId}).then(function(r){return r;},function(){return {data:null};}),
+            supabaseClient.rpc('app_passport_extra_get',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId}).then(function(r){return r;},function(){return {data:null};})
         ]).then(function(res){
             var pr=res[0]; if(pr.error){ box.innerHTML=''; return; }
             var tally=(res[1]&&res[1].data)||{};
-            renderPassport(empId, pr.data||{}, tally);
+            var extra=(res[2]&&res[2].data)||{};
+            renderPassport(empId, pr.data||{}, tally, extra);
         }).catch(function(){ box.innerHTML=''; });
     }
-    function renderPassport(empId,d,tally){
+    function passportBadges(positions, certs){
+        var b=[];
+        positions.filter(function(p){return p.level==='Coach';}).forEach(function(p){ b.push({ic:'&#127891;',t:'Coach · '+(p.name||''),c:'#7b2d8b',bg:'#f3e9f7'}); });
+        var aces=positions.filter(function(p){return p.level==='Ace';});
+        if(aces.length) b.push({ic:'&#11088;',t:aces.length+' Ace'+(aces.length>1?' stations':''),c:'#9a6b00',bg:'#fdf0dd'});
+        var qplus=positions.filter(function(p){return passportRank(p.level)>=3;});
+        if(positions.length && qplus.length===positions.length) b.push({ic:'&#127942;',t:'All-Rounder',c:'#1f7a3d',bg:'#e7f6ec'});
+        else if(qplus.length>=3) b.push({ic:'&#128081;',t:qplus.length+' stations qualified',c:'#1f7a3d',bg:'#e7f6ec'});
+        (certs||[]).forEach(function(c){ var exp=c.expires?new Date(String(c.expires)):null; if(!exp||exp>=new Date()) b.push({ic:'&#128203;',t:(c.type||'Certified'),c:'#185FA5',bg:'#e9f1fb'}); });
+        return b;
+    }
+    function renderPassport(empId,d,tally,extra){
+        extra=extra||{};
         var box=document.getElementById('empPassportBox'); if(!box) return;
         var positions=d.positions||[]; var byPos=(tally&&tally.days_by_position)||{}; var totalDays=(tally&&tally.total_days)||0;
-        var canManage=!!d.can_manage;
+        var canManage=!!d.can_manage; window._passportPositions=positions;
+        var hours=extra.hours||{}; var goals=extra.goals||[]; var history=extra.history||[];
         var qualified=positions.filter(function(p){return passportRank(p.level)>=3;}).length;
         var certCount=(d.certs||[]).length;
+        var totalHours=0; Object.keys(hours).forEach(function(k){ var hh=hours[k]||{}; totalHours+=(+hh.confirmed||0)+(+hh.unconfirmed||0); });
         var h='<div style="margin-top:18px;border:1px solid #ece6f5;border-radius:16px;overflow:hidden;">';
         h+='<div style="background:linear-gradient(120deg,#7b2d8b,#ec3e7e 55%,#f0772f);padding:15px 16px 14px;color:#fff;">';
         h+='<div style="display:flex;align-items:center;justify-content:space-between;"><div><div style="font-size:11px;font-weight:800;letter-spacing:.09em;opacity:.85;">DEVELOPMENT PASSPORT</div><div style="font-size:17px;font-weight:800;margin-top:1px;">Skills &amp; Growth</div></div><div style="font-size:25px;">&#128706;</div></div>';
-        h+='<div style="display:flex;gap:8px;margin-top:12px;">'+passStat(qualified,'Stations qualified+')+passStat(certCount,'Certifications')+passStat(totalDays,'Days on floor')+'</div>';
+        h+='<div style="display:flex;gap:8px;margin-top:12px;">'+passStat(qualified,'Stations qualified+')+passStat(certCount,'Certifications')+passStat(totalHours>0?(Math.round(totalHours)+'h'):totalDays,totalHours>0?'Hours logged':'Days on floor')+'</div>';
         h+='</div>';
+        var badges=passportBadges(positions, d.certs||[]);
+        if(badges.length){ h+='<div style="padding:11px 13px;border-bottom:1px solid #f0ecf7;display:flex;flex-wrap:wrap;gap:6px;">'; badges.forEach(function(bd){ h+='<span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:'+bd.c+';background:'+bd.bg+';padding:4px 9px;border-radius:99px;">'+bd.ic+' '+escapeHtml(bd.t)+'</span>'; }); h+='</div>'; }
         h+='<div style="padding:11px 13px;background:#faf8fd;border-bottom:1px solid #f0ecf7;display:flex;flex-wrap:wrap;gap:6px;">';
         PASSPORT_LEVELS.forEach(function(L){ h+='<span title="'+escapeHtml(L.d)+'" style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#5b5566;background:#fff;border:1px solid #ece6f5;padding:3px 8px;border-radius:99px;"><span style="width:9px;height:9px;border-radius:50%;background:'+L.c+';"></span>'+L.k+'</span>'; });
         h+='</div>';
-        if(!positions.length){
-            h+='<div style="padding:16px;color:#9aa7b4;font-size:13px;">No stations configured yet. Add positions under Manage roles.</div>';
-        } else {
+        if(!positions.length){ h+='<div style="padding:16px;color:#9aa7b4;font-size:13px;">No stations configured yet.</div>'; }
+        else {
             h+='<div style="padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
             positions.forEach(function(p){
-                var days=byPos[p.name]||0; var c=passportColor(p.level);
-                var nmJs=(p.name||'').replace(/&/g,'').replace(/"/g,'');
+                var days=byPos[p.name]||0; var c=passportColor(p.level); var nmJs=(p.name||'').replace(/&/g,'').replace(/"/g,'');
+                var hr=hours[String(p.position_id)]||{}; var logged=(+hr.confirmed||0)+(+hr.unconfirmed||0); var conf=(+hr.confirmed||0);
+                var hrsHtml; if(logged>0){ hrsHtml=Math.round(logged)+'h'+(conf>=logged?' &#10003;':(conf>0?' ('+Math.round(conf)+'h conf)':' unconf')); } else if(days>0){ hrsHtml='~'+(days*5)+'h est'; } else { hrsHtml='&mdash;'; }
                 h+='<div style="border:1px solid #eef0f5;border-radius:13px;padding:12px;background:#fff;">';
                 h+='<div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;"><span style="width:10px;height:10px;border-radius:50%;flex:0 0 auto;background:'+(p.color||'#bbb')+';"></span><span style="font-weight:700;font-size:13px;color:#1f2a44;flex:1;line-height:1.2;">'+escapeHtml(p.name||'')+'</span>'+(p.cleared?'<span style="font-size:9.5px;font-weight:800;color:#1f7a3d;background:#e7f6ec;padding:2px 6px;border-radius:6px;letter-spacing:.04em;">CLEARED</span>':'')+'</div>';
                 h+=passportMeter(p.level);
-                h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:8px;"><span style="font-size:13px;font-weight:800;color:'+c+';">'+escapeHtml(p.level)+'</span><span style="font-size:11.5px;color:#9aa7b4;">'+days+' day'+(days===1?'':'s')+'</span></div>';
-                if(p.approved_by) h+='<div style="font-size:10px;color:#aab2bd;margin-top:5px;">&#10003; '+escapeHtml(String(p.approved_by))+'</div>';
-                if(canManage) h+='<button onclick="openPassportAdjust('+empId+','+p.position_id+',&quot;'+escapeHtml(nmJs)+'&quot;,&quot;'+p.level+'&quot;)" style="margin-top:9px;width:100%;background:#f7f4fc;color:#7b2d8b;border:none;border-radius:8px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;">Adjust level</button>';
+                h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:8px;"><span style="font-size:13px;font-weight:800;color:'+c+';">'+escapeHtml(p.level)+'</span><span style="font-size:11.5px;color:#9aa7b4;">'+hrsHtml+'</span></div>';
+                h+='<div style="font-size:10px;color:#c2c9d4;margin-top:2px;">'+days+' day'+(days===1?'':'s')+' on floor</div>';
+                if(p.approved_by) h+='<div style="font-size:10px;color:#aab2bd;margin-top:4px;">&#10003; '+escapeHtml(String(p.approved_by))+'</div>';
+                if(canManage){ h+='<div style="display:flex;gap:6px;margin-top:9px;"><button onclick="openPassportAdjust('+empId+','+p.position_id+',&quot;'+escapeHtml(nmJs)+'&quot;,&quot;'+p.level+'&quot;)" style="flex:1;background:#f7f4fc;color:#7b2d8b;border:none;border-radius:8px;padding:7px;font-size:11.5px;font-weight:700;cursor:pointer;">Level</button><button onclick="openPassportHours('+empId+','+p.position_id+',&quot;'+escapeHtml(nmJs)+'&quot;)" style="flex:1;background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:7px;font-size:11.5px;font-weight:700;cursor:pointer;">Hours</button></div>'; }
                 h+='</div>';
             });
             h+='</div>';
         }
-        h+='<div style="padding:0 13px 13px;"><div style="font-size:11px;color:#9aa7b4;background:#faf8fd;border:1px dashed #e3dcf0;border-radius:9px;padding:9px;">&#9201; Experience shows as <b>days on the floor</b> today. Position <b>hours</b> (estimated &rarr; confirmed) switch on automatically once the time clock + published schedule go live.</div></div>';
+        h+='<div style="padding:0 13px 10px;"><div style="font-size:11px;color:#9aa7b4;background:#faf8fd;border:1px dashed #e3dcf0;border-radius:9px;padding:9px;">&#9201; Hours show as <b>logged</b> where recorded (estimated &rarr; confirmed), and a <b>~estimate from days</b> otherwise. They fill in automatically once the time clock + published schedule are in everyday use.</div></div>';
+        h+='<div style="padding:2px 13px 12px;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;"><div style="font-size:11px;font-weight:800;color:#9aa7b4;text-transform:uppercase;letter-spacing:.05em;">Growth goals &amp; cross-training</div>'+(canManage?'<button onclick="openPassportGoal('+empId+')" style="background:#fff;border:1px solid #7b2d8b;color:#7b2d8b;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;cursor:pointer;">+ Add</button>':'')+'</div>';
+        if(goals.length){ goals.forEach(function(g){ var label=g.kind==='cross_train'?('Wants to train on <b>'+escapeHtml(g.position||'a station')+'</b>'):escapeHtml(g.text||'Goal'); h+='<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0eef4;font-size:13px;"><span style="font-size:14px;">'+(g.kind==='cross_train'?'&#127891;':'&#127919;')+'</span><span style="flex:1;color:#33303a;">'+label+(g.by?(' <span style="color:#aab2bd;font-size:11px;">· '+escapeHtml(g.by)+'</span>'):'')+'</span>'+(canManage?'<button onclick="passportGoalDone('+g.id+','+empId+')" style="background:#eef7f0;color:#1f7a3d;border:none;font-size:11px;font-weight:700;padding:4px 9px;border-radius:7px;cursor:pointer;">Done</button>':'')+'</div>'; }); }
+        else { h+='<div style="font-size:12.5px;color:#9aa7b4;">No goals yet. '+(canManage?'Add a growth goal or a station someone wants to learn.':'Ask your manager to add one.')+'</div>'; }
+        h+='</div>';
+        if(history.length){ h+='<div style="padding:2px 13px 14px;"><div style="font-size:11px;font-weight:800;color:#9aa7b4;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px;">Level history</div>'; history.slice(0,8).forEach(function(e){ var when=e.at?String(e.at).slice(0,10):''; h+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0eef4;font-size:12.5px;"><span style="color:#33303a;"><b>'+escapeHtml(e.position||'Station')+'</b> &rarr; '+escapeHtml(e.level||'')+(e['from']?(' <span style="color:#aab2bd;">(from '+escapeHtml(e['from'])+')</span>'):'')+'</span><span style="color:#9aa7b4;">'+escapeHtml(when)+'</span></div>'; }); h+='</div>'; }
         h+='</div>';
         box.innerHTML=h;
     }
+    function openPassportGoal(empId){
+        var ex=document.getElementById('passportGoalModal'); if(ex&&ex.parentNode) ex.parentNode.removeChild(ex);
+        var posOpts=(window._passportPositions||[]).map(function(p){return '<option value="'+p.position_id+'">'+escapeHtml(p.name||'')+'</option>';}).join('');
+        var m=document.createElement('div'); m.id='passportGoalModal'; m.style.cssText='position:fixed;inset:0;background:rgba(20,16,30,.55);display:flex;align-items:center;justify-content:center;z-index:99999;padding:18px;';
+        m.innerHTML='<div style="background:#fff;border-radius:16px;max-width:380px;width:100%;padding:18px;"><div style="font-size:16px;font-weight:800;color:#1f2a44;">Add a goal or interest</div><div style="font-size:12px;color:#6b7686;margin:4px 0 12px;">A growth goal, or a station this person wants to learn.</div><label style="font-size:12px;color:#6b7686;display:block;margin-bottom:3px;">Type</label><select id="pgKind" onchange="pgKindChange()" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:14px;margin-bottom:10px;"><option value="goal">Growth goal</option><option value="cross_train">Cross-training interest</option></select><div id="pgGoalWrap"><label style="font-size:12px;color:#6b7686;display:block;margin-bottom:3px;">Goal</label><textarea id="pgText" rows="2" placeholder="e.g., Ready for Shift Leader by fall" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:14px;box-sizing:border-box;"></textarea></div><div id="pgPosWrap" style="display:none;"><label style="font-size:12px;color:#6b7686;display:block;margin-bottom:3px;">Station of interest</label><select id="pgPos" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:14px;">'+posOpts+'</select></div><div id="pgMsg" style="display:none;font-size:13px;margin-top:8px;"></div><div style="display:flex;gap:8px;margin-top:14px;"><button onclick="submitPassportGoal('+empId+')" style="flex:1;background:linear-gradient(90deg,#ec3e7e,#7b2d8b);color:#fff;font-weight:800;border:none;padding:11px;border-radius:10px;cursor:pointer;font-size:14px;">Save</button><button onclick="closePassportModal(\'passportGoalModal\')" style="background:#eef1f5;color:#5b6472;border:none;padding:11px 16px;border-radius:10px;cursor:pointer;font-size:14px;">Cancel</button></div></div>';
+        document.body.appendChild(m);
+    }
+    function pgKindChange(){ var k=(document.getElementById('pgKind')||{}).value; var g=document.getElementById('pgGoalWrap'), p=document.getElementById('pgPosWrap'); if(g&&p){ g.style.display=k==='goal'?'block':'none'; p.style.display=k==='cross_train'?'block':'none'; } }
+    function closePassportModal(id){ var e=document.getElementById(id); if(e&&e.parentNode) e.parentNode.removeChild(e); }
+    function submitPassportGoal(empId){
+        var kind=(document.getElementById('pgKind')||{}).value||'goal'; var text=((document.getElementById('pgText')||{}).value||'').trim(); var pos=(document.getElementById('pgPos')||{}).value||null;
+        var msg=document.getElementById('pgMsg'); function show(t,c){ if(msg){msg.style.display='block';msg.style.color=c||'#c0264b';msg.innerHTML=t;} }
+        if(kind==='goal' && !text){ show('Enter the goal.'); return; } if(kind==='cross_train' && !pos){ show('Pick a station.'); return; }
+        show('Saving&hellip;','#6b7686');
+        supabaseClient.rpc('app_dev_goal_add',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId,p_kind:kind,p_position_id:kind==='cross_train'?parseInt(pos,10):null,p_text:kind==='goal'?text:null}).then(function(r){
+            if(r.error){ show(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have permission.':'Could not save.'); return; }
+            closePassportModal('passportGoalModal'); loadPassport(empId);
+        }).catch(function(){ show('Connection error.'); });
+    }
+    function passportGoalDone(goalId,empId){ supabaseClient.rpc('app_dev_goal_done',{p_username:currentUser.username,p_password:sessionPin,p_goal_id:goalId}).then(function(r){ if(!r.error) loadPassport(empId); }).catch(function(){}); }
+    function openPassportHours(empId,posId,posName){
+        var ex=document.getElementById('passportHoursModal'); if(ex&&ex.parentNode) ex.parentNode.removeChild(ex);
+        var posOpts=(window._passportPositions||[]).map(function(p){return '<option value="'+p.position_id+'">'+escapeHtml(p.name||'')+'</option>';}).join('');
+        var today=new Date().toISOString().slice(0,10);
+        var m=document.createElement('div'); m.id='passportHoursModal'; m.style.cssText='position:fixed;inset:0;background:rgba(20,16,30,.55);display:flex;align-items:center;justify-content:center;z-index:99999;padding:18px;';
+        m.innerHTML='<div style="background:#fff;border-radius:16px;max-width:380px;width:100%;padding:18px;"><div style="font-size:16px;font-weight:800;color:#1f2a44;">Log hours &mdash; '+escapeHtml(posName)+'</div><div style="font-size:12px;color:#6b7686;margin:4px 0 12px;">Record floor time on this station. Set <b>scheduled</b> if they were planned elsewhere (planned vs actual). Auto-fills from the clock + schedule once those are live.</div><label style="font-size:12px;color:#6b7686;display:block;margin-bottom:3px;">Date</label><input type="date" id="phDate" value="'+today+'" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:14px;margin-bottom:10px;"><label style="font-size:12px;color:#6b7686;display:block;margin-bottom:3px;">Hours</label><input type="number" id="phHours" min="0" step="0.25" value="6" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:14px;margin-bottom:10px;"><label style="font-size:12px;color:#6b7686;display:block;margin-bottom:3px;">Scheduled (planned) station</label><select id="phPlanned" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:14px;margin-bottom:10px;"><option value="">&mdash; same / not set &mdash;</option>'+posOpts+'</select><label style="font-size:12px;color:#6b7686;display:block;margin-bottom:3px;">Status</label><select id="phStatus" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:14px;margin-bottom:10px;"><option value="confirmed">Confirmed</option><option value="unconfirmed">Unconfirmed</option><option value="estimated">Estimated</option></select><div id="phMsg" style="display:none;font-size:13px;margin-top:4px;"></div><div style="display:flex;gap:8px;margin-top:12px;"><button onclick="submitPassportHours('+empId+','+posId+')" style="flex:1;background:linear-gradient(90deg,#ec3e7e,#7b2d8b);color:#fff;font-weight:800;border:none;padding:11px;border-radius:10px;cursor:pointer;font-size:14px;">Save hours</button><button onclick="closePassportModal(\'passportHoursModal\')" style="background:#eef1f5;color:#5b6472;border:none;padding:11px 16px;border-radius:10px;cursor:pointer;font-size:14px;">Cancel</button></div></div>';
+        document.body.appendChild(m);
+    }
+    function submitPassportHours(empId,posId){
+        var date=(document.getElementById('phDate')||{}).value||null; var hrs=parseFloat((document.getElementById('phHours')||{}).value||'0')||0; var planned=(document.getElementById('phPlanned')||{}).value||null; var status=(document.getElementById('phStatus')||{}).value||'confirmed';
+        var msg=document.getElementById('phMsg'); function show(t,c){ if(msg){msg.style.display='block';msg.style.color=c||'#c0264b';msg.innerHTML=t;} }
+        show('Saving&hellip;','#6b7686');
+        supabaseClient.rpc('app_passport_hours_log',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId,p_position_id:posId,p_work_date:date,p_planned_position_id:planned?parseInt(planned,10):null,p_hours:hrs,p_status:status,p_note:null}).then(function(r){
+            if(r.error){ show(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have permission.':'Could not save.'); return; }
+            closePassportModal('passportHoursModal'); loadPassport(empId);
+        }).catch(function(){ show('Connection error.'); });
+    }
+
     function openPassportAdjust(empId,posId,posName,curLevel){
         var ex=document.getElementById('passportAdjustModal'); if(ex&&ex.parentNode) ex.parentNode.removeChild(ex);
         var lvls=PASSPORT_LEVELS.map(function(L){ return '<option value="'+L.k+'"'+(L.k===curLevel?' selected':'')+'>'+L.k+'</option>'; }).join('');
