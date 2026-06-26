@@ -2508,7 +2508,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.25.2317';
+    const APP_VERSION = '2026.06.25.2330';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -8691,7 +8691,7 @@
     function woIsMaint(){ var r=currentUser.role; return r==='Maintenance Lead'||r==='Maintenance Contributor'; }
     function woIsMgr(){ return currentUser.is_developer===true||['Admin Manager','Manager','Vice President/Co-Owner','Store Manager'].indexOf(currentUser.role)>=0; }
     function openWorkOrders(){ _wo.tab=woIsMaint()?'queue':(woIsMgr()?'board':'report'); woLoad(function(){ woRender(); }); }
-    function woScope(){ return _wo.tab==='queue'?'queue':(_wo.tab==='board'?(woIsMgr()?'all':'mine'):'mine'); }
+    function woScope(){ return _wo.tab==='queue'?'queue':((_wo.tab==='board'||_wo.tab==='history')?(woIsMgr()?'all':'mine'):'mine'); }
     function woLoad(cb){
         var ov=woOverlay(); ov.innerHTML=woHeader('Work Orders','')+'<div style="max-width:680px;margin:0 auto;padding:40px 16px;text-align:center;color:#888;">Loading&hellip;</div>';
         withPin(function(pin){
@@ -8706,9 +8706,9 @@
         }, function(){ ov.innerHTML=woHeader('Work Orders','')+'<div style="max-width:680px;margin:0 auto;padding:30px 16px;color:#888;text-align:center;">PIN required.</div>'; });
     }
     function woTabs(){ var t=_wo.tab; function b(id,lbl,show){ if(!show) return ''; return '<button onclick="woSetTab(&quot;'+id+'&quot;)" style="flex:1;background:'+(t===id?'#D85A30':'#eef0f3')+';color:'+(t===id?'#fff':'#5b6472')+';border:none;padding:10px;font-size:13px;font-weight:700;cursor:pointer;border-radius:9px;">'+lbl+'</button>'; }
-        return '<div style="display:flex;gap:6px;max-width:680px;margin:14px auto 0;padding:0 16px;">'+b('report','Report',true)+b('board','Board',woIsMgr())+b('queue','My Queue',woIsMaint()||woIsMgr())+'</div>'; }
+        return '<div style="display:flex;gap:6px;max-width:680px;margin:14px auto 0;padding:0 16px;">'+b('report','Report',true)+b('board','Board',woIsMgr())+b('queue','My Queue',woIsMaint()||woIsMgr())+b('history','Completed',woIsMgr()||woIsMaint())+'</div>'; }
     function woSetTab(t){ _wo.tab=t; if(t==='report'){ woRender(); } else { woLoad(function(){ woRender(); }); } }
-    function woRender(){ var ov=woOverlay(); var body=_wo.tab==='report'?woReportHtml():woBoardHtml(); ov.innerHTML=woHeader('Work Orders','')+woTabs()+'<div style="max-width:680px;margin:0 auto;padding:14px 16px 40px;">'+body+'</div>'; }
+    function woRender(){ var ov=woOverlay(); var body=_wo.tab==='report'?woReportHtml():(_wo.tab==='history'?woHistoryHtml():woBoardHtml()); ov.innerHTML=woHeader('Work Orders','')+woTabs()+'<div style="max-width:680px;margin:0 auto;padding:14px 16px 40px;">'+body+'</div>'; }
     function woPriColor(p){ return {critical:'#c0264b',high:'#b8860b',medium:'#185FA5',low:'#6b7686'}[p]||'#6b7686'; }
     function woStatusChip(s){ var m={'Reported':['#eef0f3','#5b6472'],'Assigned':['#eef3fb','#185FA5'],'In Progress':['#fff4e0','#9a5b00'],'On Hold':['#fdeee8','#a85217'],'Documented':['#f3eefb','#5b3aa6'],'Verified':['#e8f5ec','#1b7a3d'],'Closed':['#e8f5ec','#1b7a3d'],'Cancelled':['#f0f0f0','#999999']}; var c=m[s]||m['Reported']; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:2px 9px;border-radius:99px;white-space:nowrap;">'+escapeHtml(s||'')+'</span>'; }
     function woField(id,label,val){ return '<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">'+label+'</label><input id="'+id+'" value="'+String(val||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;">'; }
@@ -8742,10 +8742,14 @@
             }).catch(function(){ document.getElementById('woRepMsg').textContent='Could not submit.'; });
         });
     }
+    function woIsDone(s){ return ['Closed','Cancelled','Verified'].indexOf(s)>=0; }
+    function woCardHtml(w){ var x='<div onclick="woOpenDetail('+w.id+')" style="background:#fff;border:1px solid #ececf2;border-left:4px solid '+woPriColor(w.priority)+';border-radius:12px;padding:12px 14px;margin-bottom:9px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.04);">'; x+='<div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:14px;color:#26242b;">'+escapeHtml(w.title||'')+'</b>'+woStatusChip(w.status)+'</div>'; x+='<div style="font-size:11.5px;color:#9aa7b4;margin-top:3px;">'+escapeHtml(w.wo_number||'')+' &middot; '+escapeHtml(w.location||'')+(w.asset_label?(' &middot; '+escapeHtml(w.asset_label)):'')+(w.safety?' &middot; &#9888; safety':'')+'</div>'; x+='</div>'; return x; }
+    function woHistoryHtml(){ var done=(_wo.list||[]).filter(function(w){return woIsDone(w.status);}); var h='<div style="font-size:12px;color:#9aa7b4;margin:0 2px 10px;">Completed &amp; past work orders'+(woIsMgr()?'':' assigned to you')+' &middot; '+done.length+' total</div>'; if(!done.length){ return h+'<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:20px;text-align:center;color:#8a8594;">No completed work orders yet.</div>'; } done.forEach(function(w){ h+=woCardHtml(w); }); return h; }
     function woBoardHtml(){
-        if(!_wo.list.length){ return '<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:20px;text-align:center;color:#8a8594;">No work orders'+(_wo.tab==='queue'?' assigned to you':'')+' yet.</div>'; }
+        var _act=(_wo.list||[]).filter(function(w){return !woIsDone(w.status);});
+        if(!_act.length){ return '<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:20px;text-align:center;color:#8a8594;">No open work orders'+(_wo.tab==='queue'?' assigned to you':'')+' right now.</div>'; }
         var h='';
-        _wo.list.forEach(function(w){
+        _act.forEach(function(w){
             h+='<div onclick="woOpenDetail('+w.id+')" style="background:#fff;border:1px solid #ececf2;border-left:4px solid '+woPriColor(w.priority)+';border-radius:12px;padding:12px 14px;margin-bottom:9px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.04);">';
             h+='<div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:14px;color:#26242b;">'+escapeHtml(w.title||'')+'</b>'+woStatusChip(w.status)+'</div>';
             h+='<div style="font-size:11.5px;color:#9aa7b4;margin-top:3px;">'+escapeHtml(w.wo_number||'')+' &middot; '+escapeHtml(w.location||'')+(w.asset_label?(' &middot; '+escapeHtml(w.asset_label)):'')+(w.safety?' &middot; &#9888; safety':'')+'</div>';
