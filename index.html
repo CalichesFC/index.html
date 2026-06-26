@@ -2508,7 +2508,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.26.0012';
+    const APP_VERSION = '2026.06.26.0033';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -8585,7 +8585,7 @@
         h+=tdField('tdcVideo','Video link (YouTube, Vimeo, or .mp4) — optional',c.video_url||'');
         h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Lesson pages (separate each page with a line containing only ---)</label><textarea id="tdcPages" style="width:100%;height:120px;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;">'+escapeHtml(pagesText)+'</textarea>';
         h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Quiz questions</label><div id="tdcQuizWrap"></div><button onclick="tdQuizAdd()" style="width:100%;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;">&#10133; Add question</button>';
-        h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Materials &amp; resources (PDF, slides, image, audio &mdash; paste a link)</label><div id="tdcMatsWrap"></div><button onclick="tdMatAdd()" style="width:100%;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;">&#10133; Add material</button>';
+        h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Materials &amp; resources (PDF, slides, image, audio &mdash; paste a link)</label><div id="tdcMatsWrap"></div><button onclick="tdMatUpload()" style="width:100%;background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;">⬆ Upload a file</button><button onclick="tdMatAdd()" style="width:100%;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;">&#10133; Add material</button>';
         h+='<div id="tdcMsg" style="font-size:12.5px;color:#c0264b;margin:6px 0;"></div>';
         h+='<div style="display:flex;gap:8px;"><button onclick="tdModalClose()" style="flex:1;background:#eef0f3;border:none;border-radius:9px;padding:11px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="tdSaveCourse('+pathId+','+(id||'null')+')" style="flex:2;background:#185FA5;color:#fff;border:none;border-radius:9px;padding:11px;font-weight:800;cursor:pointer;">Save course</button></div>';
         tdModal(h);
@@ -8687,6 +8687,27 @@
         var h='<div style="margin-top:14px;background:#f7f8fb;border:1px solid #eef0f5;border-radius:10px;padding:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:7px;">Resources</div>';
         m.forEach(function(x){ var lbl=x.label||x.url; h+='<a href="'+escapeHtml(x.url||'')+'" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff;border:1px solid #e6e6ee;border-radius:8px;margin-bottom:5px;text-decoration:none;color:#185FA5;font-size:13px;font-weight:600;"><span>'+lmsMatIcon(x.url)+'</span><span style="flex:1;">'+escapeHtml(lbl)+'</span><span style="color:#9aa7b4;">&#8599;</span></a>'; });
         h+='</div>'; return h; }
+    function tdMatUpload(){
+        var inp=document.createElement('input'); inp.type='file';
+        inp.onchange=function(){ var f=inp.files&&inp.files[0]; if(!f) return;
+            if(f.size>26214400){ alert('That file is over 25 MB. For big videos, paste a YouTube or Vimeo link in the Video field instead.'); return; }
+            var st=document.getElementById('tdcMsg'); if(st){ st.style.color='#185FA5'; st.textContent='Uploading '+f.name+'…'; }
+            var rd=new FileReader();
+            rd.onload=function(){ var b64=String(rd.result).split(',')[1];
+                withPin(function(pin){
+                    supabaseClient.functions.invoke('material-upload',{body:{username:currentUser.username,pin:pin,filename:f.name,contentType:f.type,dataB64:b64}}).then(function(res){
+                        var m=document.getElementById('tdcMsg'); if(m) m.textContent='';
+                        var err=(res&&res.error)?res.error.message:((res&&res.data&&res.data.error)?res.data.error:null);
+                        if(err){ alert('Upload failed: '+(String(err).indexOf('forbidden')>=0?'managers only':err)); return; }
+                        var url=res&&res.data&&res.data.url; if(!url){ alert('Upload failed.'); return; }
+                        tdMatCapture(); _tdMats.push({label:f.name,url:url}); tdRenderMats();
+                    }).catch(function(){ var m=document.getElementById('tdcMsg'); if(m) m.textContent=''; alert('Upload failed.'); });
+                });
+            };
+            rd.readAsDataURL(f);
+        };
+        inp.click();
+    }
     function tdArchive(kind,id,name){
         if(!confirm('Archive this '+kind+'? Staff will no longer see it. (Hidden, not deleted.)')) return;
         withPin(function(pin){ supabaseClient.rpc('app_lp_archive',{p_username:currentUser.username,p_password:pin,p_kind:kind,p_id:id}).then(function(r){ if(r.error){ alert(r.error.message); return; } tdLoad(function(){ _td.tab='paths'; tdRender(); }); }); });
