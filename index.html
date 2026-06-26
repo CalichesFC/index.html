@@ -2508,7 +2508,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.26.0103';
+    const APP_VERSION = '2026.06.26.0140';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -8398,27 +8398,70 @@
             }).catch(function(){ ov.innerHTML=lmsHeader('Lesson','lmsHome()')+'<div style="max-width:640px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">Connection error.</div>'; });
         });
     }
+    function lmsVidKey(u){ var s=String(u||''),h=0,i; for(i=0;i<s.length;i++){ h=((h<<5)-h+s.charCodeAt(i))|0; } return 'cv'+Math.abs(h); }
     function lmsVideoEmbed(url){
-        url=String(url||'').trim(); if(!url) return '';
+        url=String(url||'').trim(); if(!url) return ''; var key=lmsVidKey(url);
         var yt=url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([\w-]{6,})/);
         var vim=url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-        var src=''; if(yt) src='https://www.youtube.com/embed/'+yt[1]; else if(vim) src='https://player.vimeo.com/video/'+vim[1];
-        if(src) return '<div style="position:relative;padding-bottom:56.25%;height:0;border-radius:10px;overflow:hidden;margin-bottom:8px;background:#000;"><iframe src="'+escapeHtml(src)+'" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe></div>';
-        if(/\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(url)) return '<video controls playsinline style="width:100%;border-radius:10px;margin-bottom:8px;background:#000;" src="'+escapeHtml(url)+'"></video>';
-        return '<a href="'+escapeHtml(url)+'" target="_blank" rel="noopener" style="display:inline-block;background:#185FA5;color:#fff;padding:10px 14px;border-radius:9px;text-decoration:none;font-weight:700;margin-bottom:8px;">&#9654; Watch the video</a>';
+        var bar='<div style="height:7px;background:#e9edf3;border-radius:99px;overflow:hidden;margin-top:8px;"><div id="'+key+'_bar" style="height:100%;width:0%;background:#1f7a3d;transition:width .3s;"></div></div><div id="'+key+'_lbl" style="font-size:11.5px;color:#8a8594;margin-top:4px;">&#9654; Press play &mdash; watch to continue</div>';
+        if(yt) return '<div class="lmsVid" data-vkey="'+key+'" data-vtype="yt"><div style="position:relative;padding-bottom:56.25%;height:0;border-radius:12px;overflow:hidden;background:#000;"><iframe id="'+key+'_if" src="https://www.youtube.com/embed/'+escapeHtml(yt[1])+'?enablejsapi=1&rel=0&modestbranding=1" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>'+bar+'</div>';
+        if(vim) return '<div class="lmsVid" data-vkey="'+key+'" data-vtype="vimeo"><div style="position:relative;padding-bottom:56.25%;height:0;border-radius:12px;overflow:hidden;background:#000;"><iframe id="'+key+'_if" src="https://player.vimeo.com/video/'+escapeHtml(vim[1])+'" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="autoplay; fullscreen; picture-in-picture"></iframe></div>'+bar+'</div>';
+        if(/\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(url)) return '<div class="lmsVid" data-vkey="'+key+'" data-vtype="native"><video id="'+key+'_if" playsinline preload="metadata" controls controlsList="nodownload" style="width:100%;border-radius:12px;background:#000;display:block;" src="'+escapeHtml(url)+'"></video>'+bar+'</div>';
+        return '<a href="'+escapeHtml(url)+'" target="_blank" rel="noopener" style="display:inline-block;background:#185FA5;color:#fff;padding:10px 14px;border-radius:9px;text-decoration:none;font-weight:700;">&#9654; Watch the video</a>';
     }
+    var _lmsGate={req:0,done:{}};
+    function lmsThr(){ return 0.95; }
+    function lmsSetBar(key,pct){ pct=Math.max(0,Math.min(1,pct||0)); var b=document.getElementById(key+'_bar'); if(b) b.style.width=Math.round(pct*100)+'%'; var l=document.getElementById(key+'_lbl'); if(l){ if(pct>=lmsThr()){ l.innerHTML='&#10003; Watched &mdash; you can continue'; l.style.color='#1b7a3d'; } else { l.textContent='Watched '+Math.round(pct*100)+'% — keep watching to continue'; l.style.color='#8a8594'; } } }
+    function lmsMarkWatched(key){ if(_lmsGate.done[key]) return; _lmsGate.done[key]=true; lmsSetBar(key,1); lmsGateCheck(); }
+    function lmsGateCheck(){ var btn=document.getElementById('lmsAdvBtn'); if(!btn) return; var n=0,k; for(k in _lmsGate.done){ if(_lmsGate.done[k]) n++; } if(n>=_lmsGate.req){ btn.disabled=false; btn.style.opacity='1'; btn.style.cursor='pointer'; } }
+    function lmsInitPlayers(){
+        _lmsGate={req:0,done:{}}; var ov=lmsOverlay(); var vids=ov.querySelectorAll('.lmsVid'); var btn=document.getElementById('lmsAdvBtn');
+        if(!vids||!vids.length) return;
+        _lmsGate.req=vids.length;
+        if(btn){ btn.disabled=true; btn.style.opacity='.5'; btn.style.cursor='not-allowed'; }
+        [].forEach.call(vids,function(el){ var key=el.getAttribute('data-vkey'); var ty=el.getAttribute('data-vtype');
+            var w=parseFloat(localStorage.getItem('cvw_w_'+key)||'0'); var d=parseFloat(localStorage.getItem('cvw_d_'+key)||'0');
+            if(d>0 && w/d>=lmsThr()){ lmsSetBar(key,1); lmsMarkWatched(key); }
+            if(ty==='native') lmsWireNative(key); else if(ty==='yt') lmsWireYT(key); else if(ty==='vimeo') lmsWireVimeo(key); else lmsMarkWatched(key);
+        });
+    }
+    function lmsWireNative(key){
+        var v=document.getElementById(key+'_if'); if(!v) return; var watched=parseFloat(localStorage.getItem('cvw_w_'+key)||'0');
+        v.addEventListener('loadedmetadata',function(){ var d=v.duration||0; if(d){ localStorage.setItem('cvw_d_'+key,String(d)); var pos=parseFloat(localStorage.getItem('cvw_pos_'+key)||'0'); if(pos>1 && pos<d-1){ try{ v.currentTime=pos; }catch(e){} } lmsSetBar(key,Math.min(1,watched/d)); } else { lmsManualConfirm(key); } });
+        v.addEventListener('timeupdate',function(){ var d=v.duration||0; if(!d) return; if(v.currentTime>watched+2.5){ try{ v.currentTime=watched; }catch(e){} return; } watched=Math.max(watched,v.currentTime); localStorage.setItem('cvw_w_'+key,String(watched)); localStorage.setItem('cvw_pos_'+key,String(v.currentTime)); var pct=watched/d; lmsSetBar(key,pct); if(pct>=lmsThr()) lmsMarkWatched(key); });
+        v.addEventListener('ended',function(){ watched=v.duration||watched; localStorage.setItem('cvw_w_'+key,String(watched)); lmsMarkWatched(key); });
+        v.addEventListener('error',function(){ lmsManualConfirm(key); });
+    }
+    function lmsLoadYT(cb){ if(window.YT&&window.YT.Player){ cb(); return; } if(!window._lmsYTcbs){ window._lmsYTcbs=[]; var t=document.createElement('script'); t.src='https://www.youtube.com/iframe_api'; document.head.appendChild(t); window.onYouTubeIframeAPIReady=function(){ var a=window._lmsYTcbs||[]; window._lmsYTcbs=null; a.forEach(function(f){ try{ f(); }catch(e){} }); }; } if(window._lmsYTcbs) window._lmsYTcbs.push(cb); else cb(); }
+    function lmsWireYT(key){
+        lmsLoadYT(function(){ try{
+          var watched=parseFloat(localStorage.getItem('cvw_w_'+key)||'0'); var dur=0; var poll=null;
+          var p=new YT.Player(key+'_if',{ events:{
+            onReady:function(){ try{ dur=p.getDuration()||0; if(dur) localStorage.setItem('cvw_d_'+key,String(dur)); }catch(e){} },
+            onStateChange:function(e){ if(e.data===1){ if(poll) clearInterval(poll); poll=setInterval(function(){ try{ var t=p.getCurrentTime(); if(!dur) dur=p.getDuration()||0; if(t>watched+2.6){ p.seekTo(watched,true); return; } watched=Math.max(watched,t); localStorage.setItem('cvw_w_'+key,String(watched)); if(dur){ var pct=watched/dur; lmsSetBar(key,pct); if(pct>=lmsThr()) lmsMarkWatched(key); } }catch(e){} },800); } else { if(poll){ clearInterval(poll); poll=null; } if(e.data===0) lmsMarkWatched(key); } }
+          }});
+        }catch(e){ lmsManualConfirm(key); } });
+    }
+    function lmsLoadVimeo(cb){ if(window.Vimeo&&window.Vimeo.Player){ cb(); return; } if(!window._lmsVcbs){ window._lmsVcbs=[]; var t=document.createElement('script'); t.src='https://player.vimeo.com/api/player.js'; t.onload=function(){ var a=window._lmsVcbs||[]; window._lmsVcbs=null; a.forEach(function(f){ try{ f(); }catch(e){} }); }; document.head.appendChild(t); } if(window._lmsVcbs) window._lmsVcbs.push(cb); else cb(); }
+    function lmsWireVimeo(key){
+        lmsLoadVimeo(function(){ try{ var ifr=document.getElementById(key+'_if'); if(!ifr) return; var pl=new Vimeo.Player(ifr); var watched=parseFloat(localStorage.getItem('cvw_w_'+key)||'0'); var dur=0;
+          pl.getDuration().then(function(d){ dur=d||0; if(dur) localStorage.setItem('cvw_d_'+key,String(dur)); });
+          pl.on('timeupdate',function(data){ var t=(data&&data.seconds)||0; if(!dur) dur=(data&&data.duration)||0; if(t>watched+2.6){ pl.setCurrentTime(watched); return; } watched=Math.max(watched,t); localStorage.setItem('cvw_w_'+key,String(watched)); if(dur){ var pct=watched/dur; lmsSetBar(key,pct); if(pct>=lmsThr()) lmsMarkWatched(key); } });
+          pl.on('ended',function(){ lmsMarkWatched(key); });
+        }catch(e){ lmsManualConfirm(key); } });
+    }
+    function lmsManualConfirm(key){ var l=document.getElementById(key+'_lbl'); if(l){ l.innerHTML='<button onclick="lmsMarkWatched(\''+key+'\')" style="background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;">&#10003; I finished watching</button>'; } }
     function lmsRenderLesson(){
         var cur=window._lmsCur; if(!cur) return; var c=cur.course; var _vp=(c.video_url?[lmsVideoEmbed(c.video_url)]:[]); var _tp=(c.pages&&c.pages.length)?c.pages:[]; var pages=_vp.concat(_tp); if(!pages.length) pages=['<p>(No lesson content yet.)</p>']; var pg=Math.max(0,Math.min(pages.length-1,cur.page||0)); cur.page=pg;
         var dots=''; for(var i=0;i<pages.length;i++){ dots+='<span style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;background:'+(i<=pg?'#185FA5':'#d6dbe6')+';"></span>'; }
         var h=lmsHeader('Lesson','lmsHome()')+'<div style="max-width:640px;margin:0 auto;padding:16px;"><div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.05);">';
         h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;"><div>'+dots+'</div><span style="font-size:11.5px;color:#9aa7b4;">Page '+(pg+1)+' of '+pages.length+'</span></div>';
-        h+='<h2 style="margin:0 0 10px;font-size:19px;color:#26242b;">'+escapeHtml(c.title)+'</h2><div style="font-size:14.5px;color:#33303a;line-height:1.6;">'+pages[pg]+'</div>'+lmsMatsHtml(c);
+        h+='<h2 style="margin:0 0 10px;font-size:19px;color:#26242b;">'+escapeHtml(c.title)+'</h2><div style="font-size:14.5px;color:#33303a;line-height:1.6;">'+pages[pg]+'</div>'+((pg===pages.length-1)?lmsMatsHtml(c):'');
         h+='<div style="display:flex;gap:8px;margin-top:16px;">';
         if(pg>0) h+='<button onclick="lmsLessonPage(-1)" style="background:#eef3fb;color:#185FA5;border:none;border-radius:10px;padding:12px 16px;font-size:14px;font-weight:700;cursor:pointer;">&lsaquo; Back</button>';
-        if(pg<pages.length-1) h+='<button onclick="lmsLessonPage(1)" style="flex:1;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">Next &rsaquo;</button>';
-        else if((c.quiz||[]).length) h+='<button onclick="lmsStartQuiz()" style="flex:1;background:#1f7a3d;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">Take the quick check &rsaquo;</button>';
-        else h+='<button onclick="lmsMarkDone()" style="flex:1;background:#1f7a3d;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">Mark complete &rsaquo;</button>';
-        h+='</div></div></div>'; lmsOverlay().innerHTML=h;
+        var _al,_aa,_ac='#185FA5'; if(pg<pages.length-1){ _al='Next &rsaquo;'; _aa='lmsLessonPage(1)'; } else if((c.quiz||[]).length){ _al='Take the quick check &rsaquo;'; _aa='lmsStartQuiz()'; _ac='#1f7a3d'; } else { _al='Mark complete &rsaquo;'; _aa='lmsMarkDone()'; _ac='#1f7a3d'; }
+        h+='<button id="lmsAdvBtn" onclick="'+_aa+'" style="flex:1;background:'+_ac+';color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">'+_al+'</button>';
+        h+='</div></div></div>'; lmsOverlay().innerHTML=h; lmsInitPlayers();
     }
     function lmsLessonPage(dir){ var cur=window._lmsCur; if(!cur) return; cur.page=(cur.page||0)+dir; lmsRenderLesson(); }
     function lmsMarkDone(){ var c=window._lmsCur&&window._lmsCur.course; if(!c) return; lmsRecord(c.id,100,true,null,null); }
@@ -8603,7 +8646,7 @@
         h+=tdField('tdcVideo','Video link (YouTube, Vimeo, or .mp4) — optional',c.video_url||'');
         h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Lesson pages (separate each page with a line containing only ---)</label><textarea id="tdcPages" style="width:100%;height:120px;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;">'+escapeHtml(pagesText)+'</textarea>';
         h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Quiz questions</label><div id="tdcQuizWrap"></div><button onclick="tdQuizAdd()" style="width:100%;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;">&#10133; Add question</button>';
-        h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Materials &amp; resources (PDF, slides, image, audio &mdash; paste a link)</label><div id="tdcMatsWrap"></div><button onclick="tdMatUpload()" style="width:100%;background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;">⬆ Upload a file</button><button onclick="tdMatAdd()" style="width:100%;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;">&#10133; Add material</button>';
+        h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Materials &amp; resources &mdash; upload a file or paste a link. Images &amp; videos show right inside the lesson.</label><div id="tdcMatsWrap"></div><button onclick="tdMatUpload()" style="width:100%;background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;">⬆ Upload a file</button><button onclick="tdMatAdd()" style="width:100%;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;">&#10133; Add material</button>';
         h+='<div id="tdcMsg" style="font-size:12.5px;color:#c0264b;margin:6px 0;"></div>';
         h+='<div style="display:flex;gap:8px;"><button onclick="tdModalClose()" style="flex:1;background:#eef0f3;border:none;border-radius:9px;padding:11px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="tdSaveCourse('+pathId+','+(id||'null')+')" style="flex:2;background:#185FA5;color:#fff;border:none;border-radius:9px;padding:11px;font-weight:800;cursor:pointer;">Save course</button></div>';
         tdModal(h);
@@ -8694,35 +8737,43 @@
     var _tdMats=[];
     function tdMatCapture(){ (_tdMats||[]).forEach(function(m,i){ var l=document.getElementById('tdm_'+i+'_label'); if(l) m.label=l.value; var u=document.getElementById('tdm_'+i+'_url'); if(u) m.url=u.value; }); }
     function tdRenderMats(){ var wrap=document.getElementById('tdcMatsWrap'); if(!wrap) return; if(!_tdMats) _tdMats=[]; var h='';
-        if(!_tdMats.length) h+='<div style="font-size:12px;color:#9aa7b4;padding:2px 0 6px;">Optional. Add a PDF, slide deck, image, or audio link learners can open.</div>';
+        if(!_tdMats.length) h+='<div style="font-size:12px;color:#9aa7b4;padding:2px 0 6px;">Optional. Upload or link a PDF, image, audio, or video. Images and videos play right inside the lesson, and videos track watch progress.</div>';
         _tdMats.forEach(function(m,i){ h+='<div style="display:flex;gap:6px;margin-bottom:5px;align-items:center;"><input id="tdm_'+i+'_label" value="'+String(m.label||'').replace(/"/g,'&quot;')+'" placeholder="Label (e.g. Recipe PDF)" style="flex:1;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:12.5px;box-sizing:border-box;"><input id="tdm_'+i+'_url" value="'+String(m.url||'').replace(/"/g,'&quot;')+'" placeholder="https://link-to-file" style="flex:1.4;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:12.5px;box-sizing:border-box;"><button onclick="tdMatDel('+i+')" style="background:none;border:none;color:#c0264b;font-size:16px;cursor:pointer;line-height:1;">&times;</button></div>'; });
         wrap.innerHTML=h; }
     function tdMatAdd(){ tdMatCapture(); _tdMats.push({label:'',url:''}); tdRenderMats(); }
     function tdMatDel(i){ tdMatCapture(); _tdMats.splice(i,1); tdRenderMats(); }
     function tdMatsClean(){ tdMatCapture(); return (_tdMats||[]).filter(function(m){ return (m.url||'').trim(); }).map(function(m){ return {label:(m.label||'').trim()||(m.url||'').trim(),url:(m.url||'').trim()}; }); }
     function lmsMatIcon(u){ u=String(u||'').toLowerCase(); if(/\.pdf(\?|#|$)/.test(u)) return '📄'; if(/\.(jpg|jpeg|png|gif|webp)(\?|#|$)/.test(u)) return '🖼️'; if(/\.(mp3|wav|m4a|ogg)(\?|#|$)/.test(u)) return '🎧'; if(/\.(mp4|mov|webm)(\?|#|$)/.test(u)) return '🎬'; if(/\.(doc|docx)(\?|#|$)/.test(u)) return '📝'; if(/\.(xls|xlsx|csv)(\?|#|$)/.test(u)) return '📊'; if(/\.(ppt|pptx)(\?|#|$)/.test(u)) return '📑'; return '🔗'; }
+    function lmsMatType(u){ u=String(u||'').toLowerCase(); if(/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|#|$)/.test(u)) return 'image'; if(/\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/.test(u)||/youtube\.com|youtu\.be|vimeo\.com/.test(u)) return 'video'; if(/\.(mp3|wav|m4a|aac|oga)(\?|#|$)/.test(u)) return 'audio'; if(/\.pdf(\?|#|$)/.test(u)) return 'pdf'; return 'file'; }
     function lmsMatsHtml(c){ var m=(c&&c.materials)||[]; if(!m.length) return '';
-        var h='<div style="margin-top:14px;background:#f7f8fb;border:1px solid #eef0f5;border-radius:10px;padding:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:7px;">Resources</div>';
-        m.forEach(function(x){ var lbl=x.label||x.url; h+='<a href="'+escapeHtml(x.url||'')+'" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff;border:1px solid #e6e6ee;border-radius:8px;margin-bottom:5px;text-decoration:none;color:#185FA5;font-size:13px;font-weight:600;"><span>'+lmsMatIcon(x.url)+'</span><span style="flex:1;">'+escapeHtml(lbl)+'</span><span style="color:#9aa7b4;">&#8599;</span></a>'; });
-        h+='</div>'; return h; }
+        var h='<div style="margin-top:16px;">';
+        m.forEach(function(x){ var url=x.url||''; var lbl=x.label||url; var ty=lmsMatType(url); h+='<div style="margin-top:12px;">';
+          if(lbl && ty!=='file') h+='<div style="font-size:12px;font-weight:700;color:#6b7686;margin-bottom:5px;">'+escapeHtml(lbl)+'</div>';
+          if(ty==='image') h+='<img src="'+escapeHtml(url)+'" alt="'+escapeHtml(lbl)+'" style="width:100%;border-radius:12px;border:1px solid #eef0f5;display:block;">';
+          else if(ty==='video') h+=lmsVideoEmbed(url);
+          else if(ty==='audio') h+='<audio controls preload="metadata" style="width:100%;" src="'+escapeHtml(url)+'"></audio>';
+          else if(ty==='pdf') h+='<div style="border:1px solid #eef0f5;border-radius:12px;overflow:hidden;"><iframe src="'+escapeHtml(url)+'" style="width:100%;height:460px;border:0;display:block;"></iframe></div><a href="'+escapeHtml(url)+'" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;font-size:12.5px;color:#185FA5;font-weight:700;text-decoration:none;">Open '+escapeHtml(lbl)+' &#8599;</a>';
+          else h+='<a href="'+escapeHtml(url)+'" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#fff;border:1px solid #e6e6ee;border-radius:9px;text-decoration:none;color:#185FA5;font-size:13px;font-weight:700;"><span>'+lmsMatIcon(url)+'</span><span style="flex:1;">'+escapeHtml(lbl)+'</span><span style="color:#9aa7b4;">&#8599;</span></a>';
+          h+='</div>'; });
+        return h+'</div>'; }
     function tdMatUpload(){
-        var inp=document.createElement('input'); inp.type='file';
+        var inp=document.createElement('input'); inp.type='file'; inp.accept='image/*,video/*,audio/*,application/pdf';
         inp.onchange=function(){ var f=inp.files&&inp.files[0]; if(!f) return;
-            if(f.size>26214400){ alert('That file is over 25 MB. For big videos, paste a YouTube or Vimeo link in the Video field instead.'); return; }
-            var st=document.getElementById('tdcMsg'); if(st){ st.style.color='#185FA5'; st.textContent='Uploading '+f.name+'…'; }
-            var rd=new FileReader();
-            rd.onload=function(){ var b64=String(rd.result).split(',')[1];
-                withPin(function(pin){
-                    supabaseClient.functions.invoke('material-upload',{body:{username:currentUser.username,pin:pin,filename:f.name,contentType:f.type,dataB64:b64}}).then(function(res){
-                        var m=document.getElementById('tdcMsg'); if(m) m.textContent='';
-                        var err=(res&&res.error)?res.error.message:((res&&res.data&&res.data.error)?res.data.error:null);
-                        if(err){ alert('Upload failed: '+(String(err).indexOf('forbidden')>=0?'managers only':err)); return; }
-                        var url=res&&res.data&&res.data.url; if(!url){ alert('Upload failed.'); return; }
-                        tdMatCapture(); _tdMats.push({label:f.name,url:url}); tdRenderMats();
-                    }).catch(function(){ var m=document.getElementById('tdcMsg'); if(m) m.textContent=''; alert('Upload failed.'); });
-                });
-            };
-            rd.readAsDataURL(f);
+            if(f.size>524288000){ alert('That file is over 500 MB. Please compress or trim it first.'); return; }
+            var st=document.getElementById('tdcMsg'); function say(t,c){ if(st){ st.style.color=c||'#185FA5'; st.textContent=t; } }
+            say('Preparing upload for '+f.name+'…');
+            withPin(function(pin){
+                supabaseClient.functions.invoke('material-upload',{body:{username:currentUser.username,pin:pin,filename:f.name,contentType:f.type||'application/octet-stream'}}).then(function(res){
+                    var err=(res&&res.error)?res.error.message:((res&&res.data&&res.data.error)?res.data.error:null);
+                    if(err){ say('',''); alert('Upload failed: '+(String(err).indexOf('forbidden')>=0?'managers only':err)); return; }
+                    var d=res&&res.data; if(!d||!d.token){ say('',''); alert('Upload could not start.'); return; }
+                    say('Uploading '+f.name+'… (large videos can take a minute)');
+                    supabaseClient.storage.from('training-materials').uploadToSignedUrl(d.path,d.token,f,{contentType:f.type||undefined}).then(function(up){
+                        if(up.error){ say('',''); alert('Upload failed: '+up.error.message); return; }
+                        tdMatCapture(); _tdMats.push({label:f.name,url:d.url}); tdRenderMats(); say('Added '+f.name+' ✓','#1b7a3d'); setTimeout(function(){ say('',''); },2200);
+                    }).catch(function(){ say('',''); alert('Upload failed during transfer.'); });
+                }).catch(function(){ say('',''); alert('Upload failed.'); });
+            });
         };
         inp.click();
     }
