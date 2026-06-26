@@ -635,12 +635,10 @@
         <!-- ── TAB BAR ── -->
         <div class="menu-tab-bar">
             <button class="menu-tab active" id="tab-home" onclick="switchMenuTab('home')">🏠 Home</button>
-            <button class="menu-tab" id="tab-scheduling" onclick="switchMenuTab('scheduling')">👥 People &amp; Scheduling</button>
-            <button class="menu-tab" id="tab-training" onclick="switchMenuTab('training')">🎓 Training</button>
+            <button class="menu-tab" id="tab-scheduling" onclick="switchMenuTab('scheduling')">📅 Scheduling</button>
             <button class="menu-tab" id="tab-operations" onclick="switchMenuTab('operations')">&#127846; Store Operations</button>
-            <button class="menu-tab" id="tab-maintenance" onclick="switchMenuTab('maintenance')">🔧 Maintenance</button>
-            <button class="menu-tab" id="tab-fleet" onclick="switchMenuTab('fleet')">🎉 Sales &amp; Catering</button>
-            <button class="menu-tab" id="tab-management" style="display:none;" onclick="switchMenuTab('management')">⚡ Business &amp; Admin</button>
+            <button class="menu-tab" id="tab-fleet" onclick="switchMenuTab('fleet')">🚚 Mobile Vending &amp; Catering</button>
+            <button class="menu-tab" id="tab-management" style="display:none;" onclick="switchMenuTab('management')">⚡ Admin Dashboard</button>
         </div>
 
         <!-- ── HOME (personal) ── -->
@@ -683,8 +681,6 @@
         <div id="tab-content-sections" class="menu-tab-content">
             <div class="sec-title"><h2>All Sections</h2><span class="tag">Everything in one place</span></div>
             <div class="quick">
-                <div class="qcard" onclick="switchMenuTab('training')"><div class="ic">🎓</div><b>Training</b><small>Learn, coach &amp; certify</small></div>
-                <div class="qcard" onclick="switchMenuTab('maintenance')"><div class="ic">🔧</div><b>Maintenance</b><small>Repairs, equipment &amp; vehicles</small></div>
                 <div class="qcard" onclick="switchMenuTab('scheduling')"><div class="ic">&#128197;</div><b>Scheduling</b><small>Shifts, clock &amp; time-off</small></div>
                 <div class="qcard" onclick="switchMenuTab('operations')"><div class="ic">&#127846;</div><b>Store Operations</b><small>Daily tasks &amp; logs</small></div>
                 <div class="qcard" onclick="switchMenuTab('fleet')"><div class="ic">&#128666;</div><b>Driver &amp; Catering</b><small>Checks, quotes &amp; events</small></div>
@@ -742,7 +738,7 @@
             <div id="maintPaneReport" class="sched-pane">
                 <button id="btn-maintenance" class="menu-btn" onclick="openForm('maintenanceView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128295;</span><b>Required Maintenance</b><small>Flag a repair</small></button>
                 <button id="btn-equipment" class="menu-btn" onclick="openEquipment()"><span class="rchip staff">Staff</span><span class="tile-ic">&#9881;</span><b>Equipment History</b><small>Records, QR codes &amp; repairs</small></button>
-                <button id="btn-workorders" class="menu-btn" style="display:none;" onclick="openWorkOrders()"><span class="rchip" style="background:#fde7df;color:#D85A30;">Beta</span><span class="tile-ic">&#128736;</span><b>Work Orders</b><small>Unified repair workflow (test)</small></button>
+                <button id="btn-workorders" class="menu-btn" style="display:none;" onclick="openWorkOrders()"><span class="rchip mgr">Maint</span><span class="tile-ic">&#128736;</span><b>Work Orders</b><small>Report, assign &amp; track repairs</small></button>
                 <button id="btn-contacts" class="menu-btn" onclick="openContactsDir()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128222;</span><b>Important Contacts</b><small>Vendors, repairs, utilities &amp; escalation</small></button>
                 <button id="btn-damage" class="menu-btn" onclick="openForm('damageView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#9888;</span><b>Vehicle / Trailer Damage</b><small>Report damage with photos</small></button>
             </div>
@@ -764,16 +760,6 @@
         </div>
 
         <!-- ── ADMIN (Manager+ only) ── -->
-        <div id="tab-content-training" class="menu-tab-content">
-            <button class="sec-back" onclick="hubNav('more')">&#8249; All Sections</button>
-            <div class="sec-title"><h2>🎓 Training</h2><span class="tag">Learn, coach &amp; certify</span></div>
-            <p style="color:#8a93a3;font-size:12.5px;margin:0 0 6px;">Recipes &amp; how-tos, Crew Trainer sign-offs, and Mr. Scoopy.</p>
-        </div>
-        <div id="tab-content-maintenance" class="menu-tab-content">
-            <button class="sec-back" onclick="hubNav('more')">&#8249; All Sections</button>
-            <div class="sec-title"><h2>🔧 Maintenance</h2><span class="tag">Repairs, equipment &amp; vehicles</span></div>
-            <p style="color:#8a93a3;font-size:12.5px;margin:0 0 6px;">Flag repairs, work orders, equipment history, vehicles &amp; vendor contacts.</p>
-        </div>
         <div id="tab-content-management" class="menu-tab-content">
             <button class="sec-back" onclick="hubNav('more')">&#8249; All Sections</button>
             <div class="sec-title"><h2>⚡ Admin Dashboard</h2><span class="tag">Metrics &amp; management tools</span></div>
@@ -2522,7 +2508,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.25.2146';
+    const APP_VERSION = '2026.06.25.2224';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2600,7 +2586,6 @@
 
     // ── MENU TAB SWITCHER ─────────────────────────────────────────
     function switchMenuTab(tab) {
-        if(typeof hubReorg==='function'){ try{ hubReorg(); }catch(e){} }
         document.querySelectorAll('.menu-tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.menu-tab-content').forEach(c => c.classList.remove('tab-visible'));
         const btn = document.getElementById('tab-' + tab);
@@ -4819,15 +4804,6 @@
             var rows=keys.length?keys.map(function(k){ return '<div class="emp-row"><span>'+escapeHtml(k)+'</span><span>'+by[k]+' day'+(by[k]==1?'':'s')+'</span></div>'; }).join(''):'<div class="emp-empty">No floor time recorded yet.</div>';
             box.innerHTML=rows+'<div class="emp-row" style="border:none;"><span><b>Total days on the floor</b></span><span><b>'+total+'</b></span></div><p class="emp-note">Lessons &amp; the training library live in the Training Portal. Hours-based experience turns on with the time clock + published schedule.</p>';
         }).catch(function(){ box.innerHTML='Could not load training.'; });
-    }
-
-    function hubReorg(){
-        if(window._hubReorged) return;
-        var plan=[['tab-content-maintenance',['btn-maintenance','btn-equipment','btn-workorders','maintBoardBtn','btn-damage','btn-contacts','btn-driver']],
-                  ['tab-content-training',['btn-training','btn-crewtrainer','knowledgeBaseBtn','developerBtn']]];
-        var any=false;
-        plan.forEach(function(m){ var cont=document.getElementById(m[0]); if(!cont) return; m[1].forEach(function(id){ var b=document.getElementById(id); if(b && b.parentNode!==cont){ cont.appendChild(b); any=true; } }); });
-        if(any) window._hubReorged=true;
     }
 
     function renderRosterTable(){
