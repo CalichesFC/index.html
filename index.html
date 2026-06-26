@@ -736,7 +736,7 @@
                 <button class="sgb" id="maintSegBoard" style="display:none;" onclick="maintSeg('board')">Board</button>
             </div>
             <div id="maintPaneReport" class="sched-pane">
-                <button id="btn-maintenance" class="menu-btn" onclick="openForm('maintenanceView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128295;</span><b>Required Maintenance</b><small>Flag a repair</small></button>
+                <button id="btn-maintenance" class="menu-btn" style="display:none;" onclick="openForm('maintenanceView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128295;</span><b>Required Maintenance</b><small>Flag a repair</small></button>
                 <button id="btn-equipment" class="menu-btn" onclick="openEquipment()"><span class="rchip staff">Staff</span><span class="tile-ic">&#9881;</span><b>Equipment History</b><small>Records, QR codes &amp; repairs</small></button>
                 <button id="btn-workorders" class="menu-btn" style="display:none;" onclick="openWorkOrders()"><span class="rchip mgr">Maint</span><span class="tile-ic">&#128736;</span><b>Work Orders</b><small>Report, assign &amp; track repairs</small></button>
                 <button id="btn-contacts" class="menu-btn" onclick="openContactsDir()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128222;</span><b>Important Contacts</b><small>Vendors, repairs, utilities &amp; escalation</small></button>
@@ -2508,7 +2508,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.25.2330';
+    const APP_VERSION = '2026.06.25.2349';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -5598,8 +5598,8 @@
         if (futureIntegrations) futureIntegrations.style.display = devOverride ? 'block' : 'none';
 
         // ── Buttons within Maintenance tab ──
-        document.getElementById('maintBoardBtn').style.display = (devOverride || (isManager && maintBoardAllowed)) ? 'block' : 'none';
-        var _woBtn=document.getElementById('btn-workorders'); if(_woBtn){ var _wr=currentUser.role; _woBtn.style.display=(currentUser.is_developer===true||_wr==='Admin Manager'||_wr==='Vice President/Co-Owner'||_wr==='Maintenance Lead'||_wr==='Maintenance Contributor'||_wr==='Finance Approver')?'block':'none'; }
+        document.getElementById('maintBoardBtn').style.display = 'none'; /* retired: Work Orders replaces the Maintenance Board (kept in code, hidden) */
+        var _woBtn=document.getElementById('btn-workorders'); if(_woBtn){ _woBtn.style.display='block'; /* Work Orders is now the single repair flow for all staff */ }
         document.getElementById('mySubmissionsBtn').style.display = (!devOverride && role === 'Maintenance') ? 'none' : 'block';
 
         // ── AI widget, announce, badge ──
@@ -8697,10 +8697,11 @@
         withPin(function(pin){
             Promise.all([
                 supabaseClient.rpc('app_wo_list',{p_username:currentUser.username,p_password:pin,p_scope:woScope()}),
-                supabaseClient.rpc('app_wo_people',{p_username:currentUser.username,p_password:pin})
+                supabaseClient.rpc('app_wo_people',{p_username:currentUser.username,p_password:pin}),
+                supabaseClient.rpc('app_equipment_list',{p_username:currentUser.username,p_password:pin,p_store:(currentUser.store||currentUser.location||'')})
             ]).then(function(res){
                 if(res[0].error){ ov.innerHTML=woHeader('Work Orders','')+'<div style="max-width:680px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">'+(String(res[0].error.message||'').indexOf('forbidden')>=0?'Not available for your role.':escapeHtml(res[0].error.message))+'</div>'; return; }
-                _wo.list=res[0].data||[]; _wo.people=(res[1]&&res[1].data)||{maint:[]};
+                _wo.list=res[0].data||[]; _wo.people=(res[1]&&res[1].data)||{maint:[]}; _wo.equip=(res[2]&&res[2].data)||[];
                 if(cb)cb();
             }).catch(function(){ ov.innerHTML=woHeader('Work Orders','')+'<div style="max-width:680px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">Connection error.</div>'; });
         }, function(){ ov.innerHTML=woHeader('Work Orders','')+'<div style="max-width:680px;margin:0 auto;padding:30px 16px;color:#888;text-align:center;">PIN required.</div>'; });
@@ -8714,6 +8715,8 @@
     function woField(id,label,val){ return '<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">'+label+'</label><input id="'+id+'" value="'+String(val||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;">'; }
     function woSelect(id,label,opts,sel){ return '<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">'+label+'</label><select id="'+id+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;">'+opts.map(function(o){ var lbl=o===''?'—':o.replace(/_/g,' '); return '<option value="'+o+'"'+(o===sel?' selected':'')+'>'+lbl+'</option>'; }).join('')+'</select>'; }
     function woVal(id){ var e=document.getElementById(id); return e?e.value:''; }
+    function woAssetField(){ var eq=(_wo.equip||[]); if(!eq.length){ return woField('woAsset','Equipment / item','')+'<input type="hidden" id="woAssetSel" value="">'; } var opts='<option value="">&mdash; select equipment &mdash;</option>'+eq.map(function(e){return '<option value="'+e.id+'">'+escapeHtml(e.name||('#'+e.id))+'</option>';}).join('')+'<option value="__other__">Other / not listed</option>'; var h='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Equipment / item</label>'; h+='<select id="woAssetSel" onchange="woAssetPick()" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;">'+opts+'</select>'; h+='<input id="woAsset" placeholder="Describe the item" value="" style="display:none;width:100%;margin-top:6px;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;">'; return h; }
+    function woAssetPick(){ var s=document.getElementById('woAssetSel'); var t=document.getElementById('woAsset'); if(!s||!t)return; t.style.display=(s.value==='__other__')?'block':'none'; if(s.value!=='__other__') t.value=''; }
     function woReportHtml(){
         var stores=['Roadrunner','Valley','Lenox','Alamogordo','Roswell','Warehouse'];
         var def=(currentUser.store||currentUser.location||'Roadrunner');
@@ -8722,7 +8725,7 @@
         h+=woField('woTitle','What is wrong?','');
         h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Details</label><textarea id="woDesc" style="width:100%;height:64px;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;"></textarea>';
         h+=woSelect('woStore','Store / location',stores,def);
-        h+=woField('woAsset','Equipment / item','');
+        h+=woAssetField();
         h+=woSelect('woCat','Type',['repair','damage','safety','other'],'repair');
         h+=woSelect('woPri','Priority',['low','medium','high','critical'],'medium');
         h+=woSelect('woUse','Equipment status',['','in_use','backup','out_of_service'],'');
@@ -8735,8 +8738,10 @@
     function woSubmitReport(){
         var t=woVal('woTitle').trim(); if(!t){ document.getElementById('woRepMsg').textContent='Describe what is wrong.'; return; }
         var safety=document.getElementById('woSafety').checked;
+        var _sel=document.getElementById('woAssetSel'); var _aid=null, _alabel=woVal('woAsset');
+        if(_sel && _sel.value && _sel.value!=='__other__'){ _aid=parseInt(_sel.value,10); _alabel=((_sel.options[_sel.selectedIndex]||{}).text||_alabel); }
         withPin(function(pin){
-            supabaseClient.rpc('app_wo_create',{p_username:currentUser.username,p_password:pin,p_title:t,p_description:woVal('woDesc'),p_asset_id:null,p_asset_label:woVal('woAsset'),p_location:woVal('woStore'),p_category:woVal('woCat'),p_priority:woVal('woPri'),p_equipment_use_status:woVal('woUse')||null,p_safety_impact:safety}).then(function(r){
+            supabaseClient.rpc('app_wo_create',{p_username:currentUser.username,p_password:pin,p_title:t,p_description:woVal('woDesc'),p_asset_id:_aid,p_asset_label:_alabel,p_location:woVal('woStore'),p_category:woVal('woCat'),p_priority:woVal('woPri'),p_equipment_use_status:woVal('woUse')||null,p_safety_impact:safety}).then(function(r){
                 if(r.error){ document.getElementById('woRepMsg').textContent=r.error.message; return; }
                 alert('Work order '+((r.data&&r.data.wo_number)||'')+' created.'); _wo.tab=woIsMgr()?'board':'queue'; woLoad(function(){ woRender(); });
             }).catch(function(){ document.getElementById('woRepMsg').textContent='Could not submit.'; });
