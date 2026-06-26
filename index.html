@@ -2508,7 +2508,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.26.0033';
+    const APP_VERSION = '2026.06.26.0103';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -8350,18 +8350,30 @@
         withPin(function(pin){
             Promise.all([
                 supabaseClient.rpc('app_lp_catalog',{p_username:currentUser.username,p_password:pin}),
-                supabaseClient.rpc('app_lp_my',{p_username:currentUser.username,p_password:pin})
+                supabaseClient.rpc('app_lp_my',{p_username:currentUser.username,p_password:pin}),
+                supabaseClient.rpc('app_lp_gamify',{p_username:currentUser.username,p_password:pin}),
+                supabaseClient.rpc('app_lp_leaderboard',{p_username:currentUser.username,p_password:pin,p_store:''})
             ]).then(function(res){
                 if(res[0].error){ ov.innerHTML=lmsHeader('My Training','')+'<div style="max-width:640px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">Could not load training: '+escapeHtml(res[0].error.message)+'</div>'; return; }
-                _lms.catalog=res[0].data||[]; _lms.my=(res[1]&&res[1].data)?res[1].data:{passed_course_ids:[],completions:[],enrollments:[]};
+                _lms.catalog=res[0].data||[]; _lms.my=(res[1]&&res[1].data)?res[1].data:{passed_course_ids:[],completions:[],enrollments:[]}; _lms.gamify=(res[2]&&res[2].data)||null; _lms.board=(res[3]&&res[3].data)||null;
                 if(cb) cb();
             }).catch(function(){ ov.innerHTML=lmsHeader('My Training','')+'<div style="max-width:640px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">Connection error.</div>'; });
         }, function(){ ov.innerHTML=lmsHeader('My Training','')+'<div style="max-width:640px;margin:0 auto;padding:30px 16px;color:#888;text-align:center;">PIN required.</div>'; });
     }
+    function lmsGamifyCard(){
+        var g=_lms.gamify, brd=_lms.board; if(!g&&!brd) return '';
+        var h='<div style="background:linear-gradient(120deg,#185FA5,#7d1d4b);color:#fff;border-radius:14px;padding:15px;margin-bottom:14px;box-shadow:0 3px 12px rgba(0,0,0,.12);">';
+        h+='<div style="display:flex;align-items:center;gap:12px;"><div style="font-size:30px;font-weight:800;line-height:1;">'+((g&&g.points)||0)+'</div><div style="flex:1;"><div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;opacity:.9;">My points</div><div style="font-size:11.5px;opacity:.85;">'+((g&&g.courses)||0)+' course'+(((g&&g.courses)===1)?'':'s')+' passed'+((brd&&brd.me&&brd.me.rank)?(' &middot; #'+brd.me.rank+' at '+escapeHtml(brd.store||'your store')):'')+'</div></div></div>';
+        if(g&&g.badges&&g.badges.length){ h+='<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:11px;">'+g.badges.map(function(x){return '<span style="background:rgba(255,255,255,.18);border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:700;">'+x.icon+' '+escapeHtml(x.name)+'</span>';}).join('')+'</div>'; }
+        if(brd&&brd.top&&brd.top.length){ h+='<div style="background:rgba(255,255,255,.12);border-radius:10px;padding:9px 11px;margin-top:11px;"><div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;opacity:.9;margin-bottom:5px;">'+escapeHtml(brd.store||'Store')+' leaderboard</div>';
+            brd.top.slice(0,5).forEach(function(pp){ h+='<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;padding:2px 0;'+(pp.me?'font-weight:800;':'')+'"><span style="width:18px;opacity:.85;">'+pp.rank+'</span><span style="flex:1;">'+escapeHtml(pp.name||'')+(pp.me?' (you)':'')+'</span><span>'+pp.points+'</span></div>'; });
+            h+='</div>'; }
+        return h+'</div>';
+    }
     function lmsHome(){
         var ov=lmsOverlay(); var passed=lmsPassedSet(); var paths=_lms.catalog||[]; var next=null;
         paths.forEach(function(p){ (p.courses||[]).forEach(function(c){ if(!next && !passed[c.id]) next={c:c,p:p}; }); });
-        var h='';
+        var h=''; h+=lmsGamifyCard();
         if(next){ h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px rgba(0,0,0,.05);"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;">Continue learning</div><div style="font-size:16px;font-weight:700;color:#26242b;margin:4px 0 2px;">'+escapeHtml(next.c.title)+'</div><div style="font-size:12px;color:#8a8594;margin-bottom:10px;">'+escapeHtml(next.p.title)+'</div><button onclick="lmsOpenCourse('+next.c.id+')" style="width:100%;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">Continue &rsaquo;</button></div>'; }
         else if(paths.length){ h+='<div style="background:#e8f5ec;border:1px solid #cdeed7;border-radius:14px;padding:16px;margin-bottom:14px;text-align:center;"><div style="font-size:32px;">&#127881;</div><b style="color:#1b7a3d;">All paths complete!</b><div style="font-size:12.5px;color:#5b6472;">You have earned every available certification. Nice work!</div></div>'; }
         if(!paths.length){ h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:20px;text-align:center;color:#8a8594;">No learning paths yet. A manager can add them under Team Development.</div>'; }
@@ -8418,18 +8430,19 @@
         lmsOverlay().innerHTML=h;
     }
     function lmsSubmitQuiz(){
-        var cur=window._lmsCur; if(!cur) return; var c=cur.course; var qs=c.quiz||[]; var msg=document.getElementById('lmsQuizMsg'); var correct=0, gradable=0, unanswered=false;
-        qs.forEach(function(q,i){ var ty=q.type||'mc'; if(ty==='long'){ var ta=document.getElementById('lq_long_'+i); if(!ta||!ta.value.trim()) unanswered=true; } else if(ty==='short'){ var si=document.getElementById('lq_short_'+i); if(!si||!si.value.trim()){ unanswered=true; } else if(q.accept&&String(q.accept).trim()){ gradable++; if(si.value.trim().toLowerCase()===String(q.accept).trim().toLowerCase()) correct++; } } else { var sel=document.querySelector('input[name="lq'+i+'"]:checked'); if(!sel){ unanswered=true; } else { gradable++; if(parseInt(sel.value,10)===q.a) correct++; } } });
+        var cur=window._lmsCur; if(!cur) return; var c=cur.course; var qs=c.quiz||[]; var msg=document.getElementById('lmsQuizMsg'); var correct=0, gradable=0, unanswered=false; var responses=[];
+        qs.forEach(function(q,i){ var ty=q.type||'mc'; if(ty==='long'){ var ta=document.getElementById('lq_long_'+i); if(!ta||!ta.value.trim()) unanswered=true; else responses.push({q:q.q,type:'long',answer:ta.value.trim()}); } else if(ty==='short'){ var si=document.getElementById('lq_short_'+i); if(!si||!si.value.trim()){ unanswered=true; } else { responses.push({q:q.q,type:'short',answer:si.value.trim()}); if(q.accept&&String(q.accept).trim()){ gradable++; if(si.value.trim().toLowerCase()===String(q.accept).trim().toLowerCase()) correct++; } } } else { var sel=document.querySelector('input[name="lq'+i+'"]:checked'); if(!sel){ unanswered=true; } else { gradable++; var _ci=parseInt(sel.value,10); if(_ci===q.a) correct++; responses.push({q:q.q,type:'mc',answer:((q.choices||[])[_ci]||''),correct:(_ci===q.a)}); } } });
         if(unanswered){ if(msg){ msg.style.color='#c0264b'; msg.textContent='Please answer every question.'; } return; }
         var score=gradable>0?Math.round(100*correct/gradable):100; var total=gradable||(qs.length||1); var pass=score>=(c.pass_pct||80);
         if(msg){ msg.style.color='#5b6472'; msg.textContent='Saving…'; }
-        lmsRecord(c.id,score,pass,correct,total);
+        lmsRecord(c.id,score,pass,correct,total,responses);
     }
-    function lmsRecord(courseId,score,pass,correct,total){
+    function lmsRecord(courseId,score,pass,correct,total,responses){
         withPin(function(pin){
-            supabaseClient.rpc('app_lp_complete',{p_username:currentUser.username,p_password:pin,p_course_id:courseId,p_score:score,p_passed:pass}).then(function(r){
-                supabaseClient.rpc('app_lp_my',{p_username:currentUser.username,p_password:pin}).then(function(mr){
-                    if(mr&&mr.data) _lms.my=mr.data;
+            supabaseClient.rpc('app_lp_complete',{p_username:currentUser.username,p_password:pin,p_course_id:courseId,p_score:score,p_passed:pass,p_responses:(responses||[])}).then(function(r){
+                Promise.all([supabaseClient.rpc('app_lp_my',{p_username:currentUser.username,p_password:pin}),supabaseClient.rpc('app_lp_gamify',{p_username:currentUser.username,p_password:pin})]).then(function(gr){
+                    if(gr[0]&&gr[0].data) _lms.my=gr[0].data;
+                    if(gr[1]&&gr[1].data) _lms.gamify=gr[1].data;
                     lmsResult(courseId,score,pass,correct,total,(r&&r.data)?r.data:null);
                 });
             }).catch(function(){ var msg=document.getElementById('lmsQuizMsg'); if(msg){ msg.style.color='#c0264b'; msg.textContent='Could not save. Try again.'; } });
@@ -8446,6 +8459,7 @@
         if(pathDone&&path){ h+='<p style="color:#1b7a3d;font-size:13.5px;font-weight:700;">&#127894; '+escapeHtml(path.title)+' complete &mdash; certification earned!</p>'; }
         else if(pass){ h+='<p style="color:#1b7a3d;font-size:13px;">Course complete &mdash; saved to your record.</p>'; }
         else { h+='<p style="color:#9a5b00;font-size:13px;">You need '+((c&&c.pass_pct)||80)+'% to pass. Review the lesson and try again.</p>'; }
+        if(_lms.gamify){ var _g=_lms.gamify; h+='<div style="background:#fff7e6;border:1px solid #ffe2a8;border-radius:12px;padding:11px;margin-top:8px;"><div style="font-size:22px;font-weight:800;color:#9a5b00;">'+(_g.points||0)+' pts</div>'+((_g.badges&&_g.badges.length)?('<div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:6px;">'+_g.badges.map(function(_b){return '<span style="background:#fff;border:1px solid #ffe2a8;border-radius:99px;padding:3px 9px;font-size:11.5px;font-weight:700;color:#9a5b00;">'+_b.icon+' '+escapeHtml(_b.name)+'</span>';}).join('')+'</div>'):'')+'</div>'; }
         h+='<div style="display:flex;gap:8px;margin-top:14px;">';
         if(!pass) h+='<button onclick="lmsRenderLesson()" style="flex:1;background:#eef3fb;color:#185FA5;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;">Review lesson</button>';
         if(pass && nextC) h+='<button onclick="lmsOpenCourse('+nextC.id+')" style="flex:1;background:#1f7a3d;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;">Next lesson &rsaquo;</button>';
@@ -8501,12 +8515,15 @@
         var e=_td.team.filter(function(x){return x.employee_id===empId;})[0]; if(!e) return;
         var ov=tdOverlay(); ov.innerHTML=tdHeader('Loading&hellip;','tdRender()')+'<div style="max-width:640px;margin:0 auto;padding:40px 16px;text-align:center;color:#888;">Loading '+escapeHtml(e.name||'')+'&hellip;</div>';
         withPin(function(pin){
-            supabaseClient.rpc('app_lp_promo',{p_username:currentUser.username,p_password:pin,p_employee_id:empId}).then(function(r){
-                tdEmpRender(e,(r&&r.data)||{});
-            }).catch(function(){ tdEmpRender(e,{}); });
+            Promise.all([
+                supabaseClient.rpc('app_lp_promo',{p_username:currentUser.username,p_password:pin,p_employee_id:empId}),
+                supabaseClient.rpc('app_lp_responses',{p_username:currentUser.username,p_password:pin,p_employee_id:empId})
+            ]).then(function(res){
+                tdEmpRender(e,(res[0]&&res[0].data)||{},(res[1]&&res[1].data)||[]);
+            }).catch(function(){ tdEmpRender(e,{},[]); });
         });
     }
-    function tdEmpRender(e,pr){
+    function tdEmpRender(e,pr,resp){
         var ov=tdOverlay(); var paths=e.paths||[];
         var h='<div style="max-width:640px;margin:0 auto;padding:16px;">';
         h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="font-size:18px;font-weight:800;color:#1f2a44;">'+escapeHtml(e.name||'')+'</div><div style="font-size:13px;color:#6b7686;">'+escapeHtml(e.role||'')+(e.store?(' &middot; '+escapeHtml(e.store)):'')+'</div></div>';
@@ -8519,6 +8536,7 @@
         if(reqs.length){ h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:8px;">Promotion readiness</div>';
           reqs.forEach(function(rq){ var rr=tdReadiness(rq,pr,e); h+='<div style="border:1px solid #eef0f5;border-radius:10px;padding:10px;margin-bottom:7px;"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:13.5px;color:#26242b;">'+escapeHtml(rq.role||'')+'</b><span style="background:'+(rr.ready?'#e8f5ec':'#fdeee8')+';color:'+(rr.ready?'#1b7a3d':'#a85217')+';font-size:11px;font-weight:800;padding:2px 9px;border-radius:99px;">'+(rr.ready?'Ready':'In progress')+'</span></div>'+(rr.items.length?'<div style="font-size:11.5px;color:#6b7686;margin-top:5px;">'+rr.items.join(' &nbsp;&middot;&nbsp; ')+'</div>':'')+'</div>'; });
           h+='</div>'; }
+        if(resp&&resp.length){ h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-top:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:8px;">Written quiz answers</div>'; resp.forEach(function(rc){ h+='<div style="border:1px solid #eef0f5;border-radius:10px;padding:10px;margin-bottom:8px;"><div style="font-size:12.5px;font-weight:700;color:#185FA5;margin-bottom:5px;">'+escapeHtml(rc.course||'Course')+'</div>'; (rc.answers||[]).filter(function(a){return a&&(a.type==='long'||a.type==='short');}).forEach(function(a){ h+='<div style="margin-bottom:6px;"><div style="font-size:12px;color:#6b7686;">'+escapeHtml(a.q||'')+'</div><div style="font-size:13px;color:#26242b;background:#faf9fc;border:1px solid #f0eef4;border-radius:8px;padding:7px 9px;margin-top:2px;white-space:pre-wrap;">'+escapeHtml(a.answer||'')+'</div></div>'; }); h+='</div>'; }); h+='</div>'; }
         h+='</div>';
         ov.innerHTML=tdHeader(e.name||'Employee','tdRender()')+h;
     }
