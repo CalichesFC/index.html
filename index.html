@@ -2510,7 +2510,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.26.1934';
+    const APP_VERSION = '2026.06.26.1944';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4446,7 +4446,7 @@
     function certExpiryBadge(exp){
         if(!exp) return '<span style="background:#eef0f3;color:#6b7686;font-size:11px;font-weight:700;padding:2px 7px;border-radius:99px;">No expiry</span>';
         var today=new Date().toISOString().slice(0,10); var soon=new Date(); soon.setDate(soon.getDate()+30); var soonStr=soon.toISOString().slice(0,10);
-        if(exp<today) return '<span style="background:#fdeaea;color:#a01b3e;font-size:11px;font-weight:800;padding:2px 7px;border-radius:99px;">Expired '+exp+'</span>';
+        if(exp<today) return '<span style="background:#fdeaea;color:#a01b3e;font-size:11px;font-weight:800;padding:2px 7px;border-radius:99px;" title="Expired '+exp+'">Expired &ndash; Renewal Required</span>';
         if(exp<=soonStr) return '<span style="background:#fff4e0;color:#9a5b00;font-size:11px;font-weight:800;padding:2px 7px;border-radius:99px;">Expires '+exp+'</span>';
         return '<span style="background:#e8f5ec;color:#1b7a3d;font-size:11px;font-weight:700;padding:2px 7px;border-radius:99px;">Valid to '+exp+'</span>';
     }
@@ -9264,6 +9264,7 @@
             (c.account_number?'<div style="font-size:11.5px;color:#8a8594;margin-top:4px;">Acct #: '+escapeHtml(c.account_number)+'</div>':'')+
             (acts?'<div style="display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;">'+acts+'</div>':'')+
             (c.last_verified?'<div style="font-size:10.5px;color:#aab;margin-top:6px;">Last verified: '+escapeHtml(c.last_verified)+'</div>':'')+
+            '<div style="margin-top:6px;text-align:right;"><a href="javascript:void(0)" onclick="cdFlag('+c.id+')" style="font-size:11px;color:#a01b3e;text-decoration:none;">&#9873; Report incorrect info</a></div>'+
             '</div>';
     }
     function renderContactsDir(){
@@ -9281,12 +9282,15 @@
         });
         box.innerHTML=h;
     }
+    function cdFlag(id){ var note=prompt('What is incorrect about this contact? (optional)'); if(note===null) return; withPin(function(pin){ supabaseClient.rpc('app_contact_flag',{p_username:currentUser.username,p_password:pin,p_id:id,p_note:note||''}).then(function(r){ if(r.error){ alert(r.error.message); return; } alert('Thanks \u2014 flagged for a manager to review.'); }); }); }
+    function cdResolveFlag(id){ withPin(function(pin){ supabaseClient.rpc('app_contact_flag_clear',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){ if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':r.error.message); return; } loadImportantContacts(); }); }); }
+    function cdRenderFlagPanel(){ var box=document.getElementById('admContactsDirBox'); if(!box) return; var fl=window._admFlags||[]; if(!fl.length) return; var h='<div style="background:#fdeaea;border:1px solid #f3b4b4;border-radius:10px;padding:10px 12px;margin-bottom:10px;"><div style="font-size:12px;font-weight:800;color:#a01b3e;margin-bottom:6px;">&#9873; Flagged for review ('+fl.length+')</div>'; fl.forEach(function(f){ h+='<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid #f6d5d5;font-size:12.5px;"><div style="flex:1;"><b>'+escapeHtml(f.name||'')+'</b>'+(f.note?(' &middot; '+escapeHtml(f.note)):'')+'<div style="font-size:10.5px;color:#9aa;">flagged by '+escapeHtml(f.by||'')+'</div></div><button onclick="cdResolveFlag('+f.id+')" style="background:#1f7a3d;color:#fff;border:none;border-radius:7px;padding:5px 10px;font-size:11.5px;cursor:pointer;">Resolve</button></div>'; }); h+='</div>'; box.insertAdjacentHTML('afterbegin',h); }
     function loadImportantContacts(){
         var box=document.getElementById('admContactsDirBox'); if(!box) return;
         withPin(function(pin){
             supabaseClient.rpc('app_contacts_admin_list',{p_username:currentUser.username,p_password:pin}).then(function(r){
                 if(r.error){ box.innerHTML='<p style="color:#c0264b;font-size:13px;">'+escapeHtml(r.error.message)+'</p>'; return; }
-                window._admContacts=r.data||[]; renderAdminContactsDir();
+                window._admContacts=r.data||[]; renderAdminContactsDir(); supabaseClient.rpc('app_contact_flags',{p_username:currentUser.username,p_password:pin}).then(function(fr){ window._admFlags=(fr&&fr.data)||[]; cdRenderFlagPanel(); }).catch(function(){});
             }).catch(function(){ box.innerHTML='<p style="color:#c0264b;font-size:13px;">Could not load.</p>'; });
         });
     }
