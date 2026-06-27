@@ -1334,7 +1334,7 @@
             <button class="dash-tab" onclick="fetchDashboard('Maintenance Logs',this)">Maint.</button>
             <button class="dash-tab" onclick="fetchDashboard('Damage Reports',this)">Damage</button>
             <button class="dash-tab" style="background:var(--caliches-pink);color:white;" onclick="fetchUsers(this)">&#128101; Users</button>
-            <button class="dash-tab" style="background:#7b2d8b;color:white;display:none;" onclick="fetchActivityLog(this)">&#128196; Activity</button>
+            <button class="dash-tab" style="background:#7b2d8b;color:white;" onclick="fetchActivityLog(this)">&#128196; Activity</button>
         </div>
         <div class="filter-box" id="dashboardFilterDiv">
             <label style="font-size:14px;font-weight:bold;color:var(--caliches-blue);">&#128197; Filter: </label>
@@ -2293,7 +2293,7 @@
             <div style="background:#fff;border:1px solid #e6ebf2;border-radius:14px;padding:16px;">
                 <div id="supplyReqInfo" style="font-size:12px;color:#6b7686;margin-bottom:12px;"></div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                    <div style="flex:1;min-width:150px;"><label style="font-size:12px;color:#6b7686;">Store / location</label><input id="supplyStore" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;"></div>
+                    <div style="flex:1;min-width:150px;"><label style="font-size:12px;color:#6b7686;">Store / location</label><select id="supplyStore" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;"><option value="">Select store&hellip;</option></select></div>
                     <div style="flex:1;min-width:120px;"><label style="font-size:12px;color:#6b7686;">Urgency</label><select id="supplyUrgency" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;"><option>Normal</option><option>High</option><option>Critical</option><option>Low</option></select></div>
                 </div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
@@ -2515,7 +2515,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.27.0148';
+    const APP_VERSION = '2026.06.27.0157';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2532,7 +2532,7 @@
             location.reload();
         }
     }
-    let currentSlide = 0; let slideTimer; let currentUser = { name:'', role:'' }; let currentDashTab = 'Pop-Ins';
+    let currentSlide = 0; let slideTimer; let currentUser = { name:'', role:'' }; let currentDashTab = 'Pop-Ins'; var _activityLogData = [];
     let deferredInstallPrompt = null;
     // In-memory only PIN cache (never persisted to localStorage). Used to re-verify
     // sensitive account/admin actions against the secure RPC functions.
@@ -3342,7 +3342,8 @@
                 if (error && error.code === '42501') sessionPin = null;
                 if (error) { results.innerHTML = '<p style="color:red;padding:20px;">Error (' + error.code + '): ' + error.message + '</p>'; return; }
                 if (!data || data.length === 0) { results.innerHTML = '<p style="padding:20px;">No activity recorded yet. Activity is logged on each login.</p>'; return; }
-                let html = '<div class="table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Action</th><th>Time</th></tr></thead><tbody>';
+                _activityLogData = data;
+                let html = '<div style="text-align:right;margin:0 0 8px;"><button onclick="exportActivityCSV()" style="background:var(--pass-green);color:#fff;border:none;padding:8px 14px;border-radius:8px;font-weight:bold;font-size:13px;cursor:pointer;">&#11015; Export to CSV</button></div><div class="table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Action</th><th>Time</th></tr></thead><tbody>';
                 data.forEach(row => {
                     let time = row.created_at ? new Date(row.created_at).toLocaleString() : '';
                     let col = row.action === 'login' ? 'var(--pass-green)' : 'var(--caliches-blue)';
@@ -9068,6 +9069,7 @@
     function downloadCSV(filename, rows){ try{ var csv=rows.map(function(r){ return r.map(function(c){ c=(c==null?'':String(c)); if(/[",\n]/.test(c)) c='"'+c.replace(/"/g,'""')+'"'; return c; }).join(','); }).join('\r\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){ URL.revokeObjectURL(url); },1000); }catch(e){ alert('Export failed.'); } }
     function tdExportCSV(){ var rows=[['Name','Role','Store','Training %','Positions cleared','Certifications','Coaching logs']]; (_td.team||[]).forEach(function(e){ var paths=e.paths||[]; var d=0,t=0; paths.forEach(function(p){ d+=(p.done||0); t+=(p.total||0); }); var pct=t>0?Math.round(100*d/t):0; rows.push([e.name||'',e.role||'',e.store||_td.store||'',pct,(e.cleared_positions||0),(e.certs_count||0),(e.coaching_count||0)]); }); downloadCSV('team_development.csv',rows); }
     function fhExportCSV(){ var rows=[['Code','Organization','Status','Market','Owner','Approved start','Approved end','Return due','Cards approved','Cards issued']]; (_fh.list||[]).forEach(function(x){ rows.push([x.code,x.org,x.status,x.market||'',x.owner||'',x.approved_start||'',x.approved_end||'',x.return_due||'',x.cards_approved||0,x.cards_issued||0]); }); downloadCSV('fundraisers.csv',rows); }
+    function exportActivityCSV(){ var data=(typeof _activityLogData!=='undefined'&&_activityLogData)?_activityLogData:[]; if(!data.length){ alert('Load the activity log first.'); return; } var rows=[['Name','Username','Action','Time']]; data.forEach(function(r){ var t=r.created_at?new Date(r.created_at).toLocaleString():''; rows.push([r.name||'',r.username||'',r.action||'',t]); }); downloadCSV('activity_log_'+new Date().toISOString().slice(0,10)+'.csv',rows); }
     function tdTeamHtml(){
         var stores=[''].concat((typeof HUB_STORES!=='undefined'?HUB_STORES:['Roadrunner','Valley','Lenox','Alamogordo','Roswell'])).concat(['Warehouse']);
         var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><span style="font-size:12px;color:#8a8594;">Store</span><select onchange="_td.store=this.value; tdLoad(function(){tdRender();});" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:9px;font-size:13px;">'+stores.map(function(s){return '<option value="'+s+'"'+(_td.store===s?' selected':'')+'>'+(s||'All stores')+'</option>';}).join('')+'</select><button onclick="tdExportCSV()" style="background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:8px 12px;font-size:12.5px;font-weight:700;cursor:pointer;">&#8595; CSV</button></div>';
@@ -9480,7 +9482,7 @@
     function wobInvoice(){ var iv=_wob.cur; if(!iv) return; var perm=iv.perm||{}; var lines=iv.lines||[]; var locked=(iv.status==='finance_approved'||iv.status==='paid'||iv.status==='void'); var canEdit=perm.mgr&&!locked;
       var h='<div style="max-width:680px;margin:0 auto;">';
       h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:18px;color:#1f2a44;">'+escapeHtml(iv.invoice_number||'')+'</b>'+wobStatusPill(iv.status)+'</div><div style="font-size:12.5px;color:#6b7686;margin-top:3px;">'+escapeHtml(iv.vendor||'(no vendor)')+(iv.work_order&&iv.work_order.wo_number?(' &middot; WO '+escapeHtml(iv.work_order.wo_number)+' — '+escapeHtml(iv.work_order.title||'')):'')+'</div>'+(iv.operational_verified_by?'<div style="font-size:11.5px;color:#9a5b00;margin-top:4px;">Operationally verified by '+escapeHtml(iv.operational_verified_by)+'</div>':'')+(iv.finance_approved_by?'<div style="font-size:11.5px;color:#1b7a3d;">Finance approved by '+escapeHtml(iv.finance_approved_by)+'</div>':'')+(iv.status==='paid'?'<div style="font-size:11.5px;color:#1b7a3d;">Paid'+(iv.payment_ref?(' &middot; ref '+escapeHtml(iv.payment_ref)):'')+(iv.qb_ref?(' &middot; QB '+escapeHtml(iv.qb_ref)):'')+'</div>':'')+(iv.void_reason?'<div style="font-size:11.5px;color:#a01b3e;">Void: '+escapeHtml(iv.void_reason)+'</div>':'')+'</div>';
-      var lh=''; lines.forEach(function(l){ lh+='<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f3f4f8;font-size:13px;"><span style="background:#f3eefb;color:#5b3aa6;font-size:10px;font-weight:800;padding:2px 7px;border-radius:99px;text-transform:capitalize;">'+escapeHtml(l.kind||'')+'</span><span style="flex:1;color:#33303a;">'+escapeHtml(l.description||'')+' <small style="color:#9aa7b4;">'+(l.qty||1)+' &times; '+wobMoney(l.rate)+'</small></span><b style="color:#1f2a44;">'+wobMoney(l.amount)+'</b>'+(canEdit?'<button onclick="wobLineDel('+l.id+')" style="background:none;border:none;color:#c0264b;font-size:16px;cursor:pointer;">&times;</button>':'')+'</div>'; });
+      var lh=''; lines.forEach(function(l){ lh+='<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f3f4f8;font-size:13px;"><span style="background:#f3eefb;color:#5b3aa6;font-size:10px;font-weight:800;padding:2px 7px;border-radius:99px;text-transform:capitalize;">'+escapeHtml(l.kind||'')+'</span><span style="flex:1;color:#33303a;">'+escapeHtml(l.description||'')+' <small style="color:#9aa7b4;">'+(l.qty||1)+' &times; '+wobMoney(l.rate)+'</small></span><b style="color:#1f2a44;">'+wobMoney(l.amount)+'</b>'+(canEdit?'<button onclick="wobLineDel('+l.id+')" title="Remove line" style="background:none;border:none;color:#c0264b;font-size:18px;cursor:pointer;padding:8px 12px;min-width:40px;line-height:1;border-radius:8px;">&times;</button>':'')+'</div>'; });
       h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:6px;">Line items</div>'+(lh||'<div style="font-size:13px;color:#9aa7b4;">No line items yet.</div>')+'<div style="display:flex;justify-content:space-between;padding:9px 0 2px;font-size:15px;"><b>Total</b><b style="color:#1f2a44;">'+wobMoney(iv.total)+'</b></div>';
       if(canEdit){ h+='<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;"><select id="wobK" style="padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px;"><option value="labor">Labor</option><option value="materials">Materials</option><option value="travel">Travel</option><option value="other">Other</option></select><input id="wobD" placeholder="Description" style="flex:1;min-width:110px;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px;"><input id="wobQ" type="number" step="0.1" value="1" style="width:60px;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px;"><input id="wobR" type="number" step="0.01" placeholder="rate" style="width:80px;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:13px;"><button onclick="wobLineAdd()" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-weight:700;cursor:pointer;font-size:13px;">Add</button></div>'; }
       h+='</div>';
@@ -11178,6 +11180,8 @@
         var mgr=(typeof isManagerRole==='function'&&isManagerRole())||(typeof isMgmt==='function'&&isMgmt());
         document.getElementById('supplyTab-incoming').setAttribute('data-mgr', mgr?'1':'0'); var _ct=document.getElementById('supplyTab-catalog'); if(_ct) _ct.setAttribute('data-mgr', mgr?'1':'0');
         document.getElementById('supplyReqInfo').innerHTML='Requested by <b>'+escapeHtml((currentUser&&currentUser.name)||'')+'</b> &middot; '+new Date().toLocaleDateString();
+        var _ss=document.getElementById('supplyStore'); if(_ss){ var _cur=_ss.value; var _stores=(typeof HUB_STORES!=='undefined'?HUB_STORES:['Roadrunner','Valley','Lenox','Alamogordo','Roswell']); _ss.innerHTML='<option value="">Select store&hellip;</option>'+_stores.map(function(s){return '<option>'+escapeHtml(s)+'</option>';}).join('')+'<option>Warehouse</option>'; if(_cur) _ss.value=_cur; else if(currentUser&&currentUser.store){ _ss.value=currentUser.store; } }
+        var _nd=document.getElementById('supplyNeededDate'); if(_nd){ try{ _nd.min=new Date().toISOString().slice(0,10); }catch(e){} }
         var st=document.getElementById('supplyStore'); if(st && !st.value) st.value=(currentUser&&currentUser.store)||'';
         if(!document.getElementById('supplyItems').children.length) supplyAddItemRow();
         supplyLoadCatalog();
