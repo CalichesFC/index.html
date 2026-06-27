@@ -263,7 +263,7 @@
         .fl-link:hover { border-color:var(--caliches-pink); background:#fff5f9; transform:translateX(2px); }
         .fl-link:active { transform:scale(0.98); }
         /* ── AI CHAT WIDGET ── */
-        #aiChatWidget { position:fixed; bottom:22px; right:18px; z-index:9000; display:none; flex-direction:column; align-items:flex-end; gap:10px; }
+        #aiChatWidget { position:fixed; bottom:22px; right:18px; z-index:9001; display:none; flex-direction:column; align-items:flex-end; gap:10px; }
         #aiChatToggle { background:var(--caliches-pink); color:#fff; border:none; border-radius:50px; padding:12px 20px; font-size:15px; font-weight:bold; cursor:pointer; box-shadow:0 4px 16px rgba(237,60,126,0.35); display:flex; align-items:center; gap:8px; }
         #aiChatToggle:hover { opacity:0.9; }
         #aiChatPanel { width:330px; height:460px; background:#fff; border-radius:18px; box-shadow:0 8px 32px rgba(0,0,0,0.22); display:none; flex-direction:column; overflow:hidden; }
@@ -2514,7 +2514,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.27.0114';
+    const APP_VERSION = '2026.06.27.0133';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2836,12 +2836,12 @@
     function mdMoney(n){ var x=parseFloat(n); return '$'+(isNaN(x)?'0':x.toLocaleString(undefined,{maximumFractionDigits:0})); }
     function openMaintDashboard(){ mdLoad(90); }
     function mdLoad(days){
-        mdOv().innerHTML='<div style="text-align:center;color:#888;padding:44px;">Loading maintenance dashboard&hellip;</div>';
+        mdOv().innerHTML='<div style="padding:12px 14px;"><button onclick="mdClose()" style="background:#eef0f3;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;">&times; Close</button></div><div style="text-align:center;color:#888;padding:40px;">Loading maintenance dashboard&hellip;</div>';
         withPin(function(pin){
             supabaseClient.rpc('app_maint_dashboard',{p_username:currentUser.username,p_password:pin,p_days:days}).then(function(r){
-                if(r.error){ mdOv().innerHTML='<div style="padding:30px;text-align:center;color:#c0264b;">'+(String(r.error.message||'').indexOf('forbidden')>=0?'This view is for managers and finance.':escapeHtml(r.error.message||'Error'))+'</div><div style="text-align:center;"><button onclick="mdClose()" style="background:#eef0f3;border:none;border-radius:9px;padding:10px 16px;cursor:pointer;">Close</button></div>'; return; }
+                if(r.error){ mdOv().innerHTML='<div style="padding:12px 14px;"><button onclick="mdClose()" style="background:#eef0f3;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;">&times; Close</button></div><div style="padding:24px;text-align:center;color:#c0264b;">'+(String(r.error.message||'').indexOf('forbidden')>=0?'This view is for managers and finance.':escapeHtml(r.error.message||'Error'))+'</div>'; return; }
                 mdRender(r.data||{}, days);
-            }).catch(function(){ mdOv().innerHTML='<div style="padding:30px;text-align:center;color:#c0264b;">Connection error.</div>'; });
+            }).catch(function(){ mdOv().innerHTML='<div style="padding:12px 14px;"><button onclick="mdClose()" style="background:#eef0f3;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;">&times; Close</button></div><div style="padding:30px;text-align:center;color:#c0264b;">Connection error.</div>'; });
         });
     }
     function mdTile(label,val,sub,color){ return '<div style="flex:1;min-width:120px;background:#fff;border:1px solid #eef0f5;border-radius:11px;padding:11px 13px;"><div style="font-size:10.5px;font-weight:800;text-transform:uppercase;color:#9aa7b4;letter-spacing:.3px;">'+label+'</div><div style="font-size:20px;font-weight:800;color:'+(color||'#1f2a44')+';margin-top:2px;">'+val+'</div>'+(sub?'<div style="font-size:11px;color:#8a8594;">'+sub+'</div>':'')+'</div>'; }
@@ -9368,7 +9368,7 @@
     function scMoney(n){ if(n==null||n==='') return '—'; var x=parseFloat(n); return '$'+(isNaN(x)?'0':x.toLocaleString()); }
     function scNum(n){ return (n==null||n==='')?'—':String(n); }
     function openScorecards(){ scLoad(); }
-    function scLoad(){ scOv().innerHTML='<div style="text-align:center;color:#888;padding:40px;">Loading scorecards&hellip;</div>'; scRpc('app_metrics_latest',{},function(d){ _sc.rows=d||[]; scRender(); }); }
+    function scLoad(){ scOv().innerHTML='<div style="padding:12px 14px;"><button onclick="scClose()" style="background:#eef0f3;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;">&times; Close</button></div><div style="text-align:center;color:#888;padding:38px;">Loading scorecards&hellip;</div>'; scRpc('app_metrics_latest',{},function(d){ _sc.rows=d||[]; scRender(); }); }
     function scTile(label,val,sub,color){ return '<div style="flex:1;min-width:88px;background:#fff;border:1px solid #eef0f5;border-radius:10px;padding:8px 10px;"><div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#9aa7b4;letter-spacing:.3px;">'+label+'</div><div style="font-size:16px;font-weight:800;color:'+(color||'#1f2a44')+';">'+val+'</div>'+(sub?'<div style="font-size:10.5px;color:#8a8594;">'+sub+'</div>':'')+'</div>'; }
     function scRender(){
         var stores=(typeof HUB_STORES!=='undefined'?HUB_STORES:['Roadrunner','Valley','Lenox','Alamogordo','Roswell']);
@@ -12404,24 +12404,7 @@
     </div>
 </div>
 
-<!-- AI CHAT WIDGET -->
-<div id="aiChatWidget" style="display:none;">
-    <div id="aiChatPanel" style="display:none;">
-        <div id="aiChatHeader">
-            <span style="display:flex;align-items:center;gap:8px;"><img src="scoopy-hero.png" alt="" style="width:24px;height:24px;object-fit:contain;border-radius:50%;background:#fff;" onerror="this.style.display='none'">Ask Mr. Scoopy</span>
-            <button id="aiChatCloseBtn" onclick="toggleAIChatPanel()">&#10005;</button>
-        </div>
-        <div id="aiChatMessages"></div>
-        <div id="aiChatInputRow">
-            <input id="aiChatInput" type="text" placeholder="Ask a question..." autocomplete="off">
-            <button onclick="sendAIMessage()" style="background:var(--caliches-pink);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:16px;cursor:pointer;flex-shrink:0;">&#10148;</button>
-        </div>
-    </div>
-    <button id="aiChatToggle" onclick="toggleAIChatPanel()">
-        <img src="scoopy-hero.png" alt="" style="width:22px;height:22px;object-fit:contain;" onerror="this.style.display='none'">
-        Ask Mr. Scoopy
-    </button>
-</div>
+<!-- AI CHAT WIDGET — duplicate removed; single global widget is defined near top of body (id aiChatWidget) -->
 
 <!-- CELEBRATION POPUP (birthdays, anniversaries, achievements) -->
 <style>
