@@ -240,7 +240,7 @@
         /* Draft Toast */
         #draftToast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.82);color:white;padding:10px 22px;border-radius:99px;font-size:14px;font-weight:bold;display:none;z-index:99999;pointer-events:none;white-space:nowrap}
         /* Modal Overlay */
-        .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:99998;justify-content:center;align-items:center;padding:20px;box-sizing:border-box}
+        .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:100065;justify-content:center;align-items:center;padding:20px;box-sizing:border-box}
         .modal-box{background:white;border-radius:16px;padding:18px 20px;width:100%;max-width:400px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.3);max-height:82vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
         @media (min-width:600px){ .modal-box{max-width:440px;max-height:80vh} }
         .modal-box h3{margin-top:0}
@@ -264,6 +264,7 @@
         .fl-link:active { transform:scale(0.98); }
         /* ── AI CHAT WIDGET ── */
         #aiChatWidget { position:fixed; bottom:22px; right:18px; z-index:9001; display:none; flex-direction:column; align-items:flex-end; gap:10px; }
+        #aiChatWidget.scoopy-hidden { display:none !important; }
         #aiChatToggle { background:var(--caliches-pink); color:#fff; border:none; border-radius:50px; padding:12px 20px; font-size:15px; font-weight:bold; cursor:pointer; box-shadow:0 4px 16px rgba(237,60,126,0.35); display:flex; align-items:center; gap:8px; }
         #aiChatToggle:hover { opacity:0.9; }
         #aiChatPanel { width:330px; height:460px; background:#fff; border-radius:18px; box-shadow:0 8px 32px rgba(0,0,0,0.22); display:none; flex-direction:column; overflow:hidden; }
@@ -2514,7 +2515,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.27.0133';
+    const APP_VERSION = '2026.06.27.0148';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2805,6 +2806,20 @@
         });
     }
     /* =================== END NEEDS YOU TODAY =================== */
+    /* Hide the Ask Mr. Scoopy widget while a form or modal is open so it never covers a Save/Submit button */
+    function hubSyncScoopy(){
+        try{
+            var w=document.getElementById('aiChatWidget'); if(!w) return;
+            var panel=document.getElementById('aiChatPanel');
+            if(panel){ var pcs=window.getComputedStyle(panel); if(pcs.display!=='none'){ w.classList.remove('scoopy-hidden'); return; } }
+            var blocked=false,i,els;
+            els=document.querySelectorAll('.modal-overlay,[id$="Modal"]');
+            for(i=0;i<els.length;i++){ if(els[i].id==='aiChatPanel') continue; var cs=window.getComputedStyle(els[i]); if(cs.display!=='none' && cs.visibility!=='hidden'){ blocked=true; break; } }
+            if(!blocked){ els=document.getElementsByClassName('save-btn'); for(i=0;i<els.length;i++){ if(els[i].offsetParent!==null){ blocked=true; break; } } }
+            w.classList.toggle('scoopy-hidden', blocked);
+        }catch(e){}
+    }
+    try{ if(!window._scoopySyncStarted){ window._scoopySyncStarted=true; setInterval(hubSyncScoopy, 500); } }catch(e){}
     /* ===================== HOME QUICK-JUMP SEARCH ===================== */
     function renderHomeSearch(){
         var host=document.getElementById('homeDayCard'); if(!host) return;
@@ -3822,12 +3837,25 @@
         if (_navCurrent){ _navStack.push(_navCurrent); if(_navStack.length>50) _navStack.shift(); }
         _navCurrent=s;
     }
+    // Opt-in reloaders so a deep Back refreshes list screens instead of showing stale data.
+    var _viewReload = {
+        'view:rosterView': function(){ if(typeof loadRoster==='function') loadRoster(); },
+        'view:requestsView': function(){ if(typeof loadRequests==='function') loadRequests(); },
+        'view:inventoryView': function(){ if(typeof loadInventory==='function') loadInventory(); },
+        'view:trainingPortalView': function(){ if(typeof loadTraining==='function') loadTraining(); },
+        'view:timesheetsView': function(){ if(typeof loadTimesheet==='function') loadTimesheet(); },
+        'view:availabilityView': function(){ if(typeof loadAvailability==='function') loadAvailability(); },
+        'view:mySubmissionsView': function(){ if(typeof fetchMySubmissions==='function') fetchMySubmissions(); },
+        'view:shortageTrendsView': function(){ if(typeof fetchShortageTrends==='function') fetchShortageTrends(); },
+        'view:messagesView': function(){ if(typeof loadMsgTab==='function') loadMsgTab(); }
+    };
     function _navApply(screen){
         if (screen.indexOf('view:')===0){
             var id=screen.slice(5);
             var m=document.getElementById('main-menu'); if(m) m.style.display='none';
             document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
             var el=document.getElementById(id); if(el) el.style.display='block';
+            try{ if(_viewReload[screen]) _viewReload[screen](); }catch(e){}
             window.scrollTo(0,0);
         } else if (screen==='menu'){
             document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
@@ -3836,6 +3864,11 @@
         }
     }
     function goBack(){
+        // A Back press first dismisses any visible dynamically-created full-screen overlay
+        // (ids ending in "Modal", incl. the yv2 overlay) — these are not .app-view/.modal-overlay.
+        var _dynOv=null;
+        document.querySelectorAll('[id$="Modal"]').forEach(function(x){ try{ if(getComputedStyle(x).display!=='none') _dynOv=x; }catch(e){} });
+        if (_dynOv){ _dynOv.style.display='none'; return; }
         // If a modal is open, a Back just closes it
         var openM=null; document.querySelectorAll('.modal-overlay').forEach(function(x){ var d=x.style.display; if(d==='flex'||d==='block') openM=x; });
         if (openM){ openM.style.display='none'; return; }
@@ -7097,12 +7130,16 @@
         var tx=parseInt(document.getElementById('salesTx').value,10);
         var note=document.getElementById('salesNote').value.trim();
         if(isNaN(gross)){ alert('Enter gross sales.'); return; }
+        if(gross<0||(!isNaN(labor)&&labor<0)){ alert('Sales and labor cannot be negative.'); return; }
+        if(window._savingSales) return;
         withPin(function(pin){
+            window._savingSales=true;
             supabaseClient.rpc('app_sales_save',{p_username:currentUser.username,p_password:pin,p_location:loc,p_date:date,p_gross:gross,p_labor:isNaN(labor)?null:labor,p_tx:isNaN(tx)?null:tx,p_note:note}).then(function(r){
+                window._savingSales=false;
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
                 document.getElementById('salesGross').value=''; document.getElementById('salesLabor').value=''; document.getElementById('salesTx').value=''; document.getElementById('salesNote').value='';
                 loadSalesRecent();
-            }).catch(function(){ alert('Connection error.'); });
+            }).catch(function(){ window._savingSales=false; alert('Connection error.'); });
         });
     }
     function loadSalesRecent(){
@@ -9416,6 +9453,7 @@
     function scSave(loc){
         var payload={}; SC_FIELDS.forEach(function(f){ var v=(document.getElementById('scf_'+f[0])||{}).value; if(v!==''&&v!=null) payload[f[0]]=v; });
         payload.note=(document.getElementById('scfNote')||{}).value||'';
+        var bad=false; SC_FIELDS.forEach(function(f){ var v=payload[f[0]]; if(v!=null&&v!==''&&parseFloat(v)<0) bad=true; }); if(bad){ alert('Values cannot be negative.'); return; }
         var date=(document.getElementById('scfDate')||{}).value||null;
         scRpc('app_metrics_save',{p_location:loc,p_date:date,p_payload:payload},function(){ scLoad(); });
     }
@@ -9455,7 +9493,7 @@
       if(act) h+='<div style="display:flex;gap:8px;">'+act+'</div>';
       h+='<div style="font-size:11px;color:#9aa7b4;text-align:center;margin-top:10px;">Separation of duties: the person who operationally verifies an invoice cannot also finance-approve it.</div>';
       h+='</div>'; wobOv().innerHTML=wobHead('Invoice','wobLoad()')+'<div style="max-width:680px;margin:0 auto;padding:16px;">'+h+'</div>'; }
-    function wobLineAdd(){ var k=(document.getElementById('wobK')||{}).value||'materials'; var d=(document.getElementById('wobD')||{}).value||''; var q=parseFloat((document.getElementById('wobQ')||{}).value)||1; var r=parseFloat((document.getElementById('wobR')||{}).value)||0; if(!d){ alert('Add a description.'); return; } wobRpc('wo_invoice_line_add',{p_invoice_id:_wob.cur.id,p_kind:k,p_description:d,p_qty:q,p_rate:r},function(){ wobOpen(_wob.cur.id); }); }
+    function wobLineAdd(){ var k=(document.getElementById('wobK')||{}).value||'materials'; var d=(document.getElementById('wobD')||{}).value||''; var q=parseFloat((document.getElementById('wobQ')||{}).value)||1; var r=parseFloat((document.getElementById('wobR')||{}).value)||0; if(!d){ alert('Add a description.'); return; } if(q<0||r<0){ alert('Quantity and rate cannot be negative.'); return; } wobRpc('wo_invoice_line_add',{p_invoice_id:_wob.cur.id,p_kind:k,p_description:d,p_qty:q,p_rate:r},function(){ wobOpen(_wob.cur.id); }); }
     function wobLineDel(id){ wobRpc('wo_invoice_line_remove',{p_line_id:id},function(){ wobOpen(_wob.cur.id); }); }
     function wobVerify(id){ if(!confirm('Confirm the work and charges are correct (operational verification)?')) return; wobRpc('wo_invoice_verify',{p_id:id},function(){ wobOpen(id); }); }
     function wobApprove(id){ if(!confirm('Finance-approve this invoice for payment?')) return; wobRpc('wo_invoice_approve',{p_id:id},function(){ wobOpen(id); },function(e){ alert(e.message||'Could not approve.'); }); }
