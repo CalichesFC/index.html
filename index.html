@@ -2510,7 +2510,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.26.0823';
+    const APP_VERSION = '2026.06.26.1824';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3273,10 +3273,29 @@
                 }
                 resetTimer();
             });
+            if (user.must_set_password === true) { setTimeout(function(){ promptSetPassword(); }, 800); }
             btn.innerText = 'ENTER HUB'; btn.disabled = false; form.reset();
         }).catch(err => { errorMsg.innerText = 'Connection error. Check your internet.'; errorMsg.style.display = 'block'; btn.innerText = 'ENTER HUB'; btn.disabled = false; });
     }
 
+    function promptSetPassword(){
+        var ov=document.getElementById('setPwModal');
+        if(!ov){ ov=document.createElement('div'); ov.id='setPwModal'; ov.style.cssText='position:fixed;inset:0;background:rgba(20,20,30,.6);z-index:100050;display:flex;align-items:center;justify-content:center;padding:18px;'; document.body.appendChild(ov); }
+        ov.innerHTML='<div style="background:#fff;border-radius:16px;max-width:420px;width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.3);"><div style="font-size:19px;font-weight:800;color:#1f2a44;margin-bottom:4px;">Set a secure password</div><div style="font-size:13px;color:#6b7686;margin-bottom:14px;">We are upgrading logins from short PINs to passwords to better protect employee and customer information. Please choose a password (at least 8 characters).</div><input id="setPw1" type="password" placeholder="New password" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;margin-bottom:8px;"><input id="setPw2" type="password" placeholder="Confirm new password" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;margin-bottom:8px;"><div id="setPwMsg" style="font-size:12.5px;color:#c0264b;min-height:16px;margin-bottom:8px;"></div><button onclick="submitSetPassword()" style="width:100%;background:#185FA5;color:#fff;border:none;border-radius:9px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;">Save password</button><button onclick="var m=document.getElementById(\'setPwModal\'); if(m) m.style.display=\'none\';" style="width:100%;background:none;border:none;color:#8a8594;font-size:13px;cursor:pointer;margin-top:8px;">Remind me later</button></div>';
+        ov.style.display='flex';
+    }
+    function submitSetPassword(){
+        var p1=(document.getElementById('setPw1')||{}).value||''; var p2=(document.getElementById('setPw2')||{}).value||''; var msg=document.getElementById('setPwMsg');
+        if(p1.length<8){ if(msg){ msg.style.color='#c0264b'; msg.textContent='Password must be at least 8 characters.'; } return; }
+        if(p1!==p2){ if(msg){ msg.style.color='#c0264b'; msg.textContent='Passwords do not match.'; } return; }
+        if(msg){ msg.style.color='#6b7686'; msg.textContent='Saving...'; }
+        supabaseClient.rpc('app_set_password',{p_username:currentUser.username,p_current:sessionPin,p_new:p1}).then(function(r){
+            if(r.error){ if(msg){ msg.style.color='#c0264b'; msg.textContent=(r.error.message||'Could not save.'); } return; }
+            sessionPin=p1; try{ if(localStorage.getItem('calichesKeep')!=='0') sessionStorage.setItem('calichesPin', sessionPin); }catch(e){}
+            var ov=document.getElementById('setPwModal'); if(ov) ov.style.display='none';
+            try{ alert('Password set. Use it the next time you log in.'); }catch(e){}
+        }).catch(function(){ if(msg){ msg.style.color='#c0264b'; msg.textContent='Connection error.'; } });
+    }
     function attemptRegister() {
         const btn = document.getElementById('registerBtn'); const form = document.getElementById('registerForm'); const errorMsg = document.getElementById('registerError');
         if (!form.name.value || !form.username.value || !form.email.value || !form.password.value) { errorMsg.innerText = 'Please fill all fields.'; errorMsg.style.display = 'block'; return; }
