@@ -2510,7 +2510,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.26.1824';
+    const APP_VERSION = '2026.06.26.1925';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -8557,9 +8557,12 @@
     function tdSetTab(t){ _td.tab=t; tdRender(); }
     function tdRender(){ var ov=tdOverlay(); var body=(_td.tab==='team')?tdTeamHtml():(_td.tab==='paths')?tdPathsHtml():(_td.tab==='rules')?tdRulesHtml():tdPromoHtml(); ov.innerHTML=tdHeader('Team Development','')+tdTabs()+'<div style="max-width:760px;margin:0 auto;padding:14px 16px 40px;">'+body+'</div>'; }
     function tdPct(done,total){ return total>0?Math.round(100*done/total):0; }
+    function downloadCSV(filename, rows){ try{ var csv=rows.map(function(r){ return r.map(function(c){ c=(c==null?'':String(c)); if(/[",\n]/.test(c)) c='"'+c.replace(/"/g,'""')+'"'; return c; }).join(','); }).join('\r\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){ URL.revokeObjectURL(url); },1000); }catch(e){ alert('Export failed.'); } }
+    function tdExportCSV(){ var rows=[['Name','Role','Store','Training %','Positions cleared','Certifications','Coaching logs']]; (_td.team||[]).forEach(function(e){ var paths=e.paths||[]; var d=0,t=0; paths.forEach(function(p){ d+=(p.done||0); t+=(p.total||0); }); var pct=t>0?Math.round(100*d/t):0; rows.push([e.name||'',e.role||'',e.store||_td.store||'',pct,(e.cleared_positions||0),(e.certs_count||0),(e.coaching_count||0)]); }); downloadCSV('team_development.csv',rows); }
+    function fhExportCSV(){ var rows=[['Code','Organization','Status','Market','Owner','Approved start','Approved end','Return due','Cards approved','Cards issued']]; (_fh.list||[]).forEach(function(x){ rows.push([x.code,x.org,x.status,x.market||'',x.owner||'',x.approved_start||'',x.approved_end||'',x.return_due||'',x.cards_approved||0,x.cards_issued||0]); }); downloadCSV('fundraisers.csv',rows); }
     function tdTeamHtml(){
         var stores=['','Roadrunner','Valley','Lenox','Alamogordo','Roswell','Warehouse'];
-        var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><span style="font-size:12px;color:#8a8594;">Store</span><select onchange="_td.store=this.value; tdLoad(function(){tdRender();});" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:9px;font-size:13px;">'+stores.map(function(s){return '<option value="'+s+'"'+(_td.store===s?' selected':'')+'>'+(s||'All stores')+'</option>';}).join('')+'</select></div>';
+        var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><span style="font-size:12px;color:#8a8594;">Store</span><select onchange="_td.store=this.value; tdLoad(function(){tdRender();});" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:9px;font-size:13px;">'+stores.map(function(s){return '<option value="'+s+'"'+(_td.store===s?' selected':'')+'>'+(s||'All stores')+'</option>';}).join('')+'</select><button onclick="tdExportCSV()" style="background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:8px 12px;font-size:12.5px;font-weight:700;cursor:pointer;">&#8595; CSV</button></div>';
         if(!_td.team.length){ return h+'<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:20px;text-align:center;color:#8a8594;">No team members here.</div>'; }
         _td.team.forEach(function(e){
             var paths=e.paths||[]; var totalDone=0,totalAll=0; paths.forEach(function(p){ totalDone+=(p.done||0); totalAll+=(p.total||0); });
@@ -8582,13 +8585,14 @@
         withPin(function(pin){
             Promise.all([
                 supabaseClient.rpc('app_lp_promo',{p_username:currentUser.username,p_password:pin,p_employee_id:empId}),
-                supabaseClient.rpc('app_lp_responses',{p_username:currentUser.username,p_password:pin,p_employee_id:empId})
+                supabaseClient.rpc('app_lp_responses',{p_username:currentUser.username,p_password:pin,p_employee_id:empId}),
+                supabaseClient.rpc('app_lp_attempts',{p_username:currentUser.username,p_password:pin,p_employee_id:empId})
             ]).then(function(res){
-                tdEmpRender(e,(res[0]&&res[0].data)||{},(res[1]&&res[1].data)||[]);
-            }).catch(function(){ tdEmpRender(e,{},[]); });
+                tdEmpRender(e,(res[0]&&res[0].data)||{},(res[1]&&res[1].data)||[],(res[2]&&res[2].data)||[]);
+            }).catch(function(){ tdEmpRender(e,{},[],[]); });
         });
     }
-    function tdEmpRender(e,pr,resp){
+    function tdEmpRender(e,pr,resp,attempts){
         var ov=tdOverlay(); var paths=e.paths||[];
         var h='<div style="max-width:640px;margin:0 auto;padding:16px;">';
         h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="font-size:18px;font-weight:800;color:#1f2a44;">'+escapeHtml(e.name||'')+'</div><div style="font-size:13px;color:#6b7686;">'+escapeHtml(e.role||'')+(e.store?(' &middot; '+escapeHtml(e.store)):'')+'</div></div>';
@@ -8602,6 +8606,7 @@
           reqs.forEach(function(rq){ var rr=tdReadiness(rq,pr,e); h+='<div style="border:1px solid #eef0f5;border-radius:10px;padding:10px;margin-bottom:7px;"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:13.5px;color:#26242b;">'+escapeHtml(rq.role||'')+'</b><span style="background:'+(rr.ready?'#e8f5ec':'#fdeee8')+';color:'+(rr.ready?'#1b7a3d':'#a85217')+';font-size:11px;font-weight:800;padding:2px 9px;border-radius:99px;">'+(rr.ready?'Ready':'In progress')+'</span></div>'+(rr.items.length?'<div style="font-size:11.5px;color:#6b7686;margin-top:5px;">'+rr.items.join(' &nbsp;&middot;&nbsp; ')+'</div>':'')+'</div>'; });
           h+='</div>'; }
         if(resp&&resp.length){ h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-top:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:8px;">Written quiz answers</div>'; resp.forEach(function(rc){ h+='<div style="border:1px solid #eef0f5;border-radius:10px;padding:10px;margin-bottom:8px;"><div style="font-size:12.5px;font-weight:700;color:#185FA5;margin-bottom:5px;">'+escapeHtml(rc.course||'Course')+'</div>'; (rc.answers||[]).filter(function(a){return a&&(a.type==='long'||a.type==='short');}).forEach(function(a){ h+='<div style="margin-bottom:6px;"><div style="font-size:12px;color:#6b7686;">'+escapeHtml(a.q||'')+'</div><div style="font-size:13px;color:#26242b;background:#faf9fc;border:1px solid #f0eef4;border-radius:8px;padding:7px 9px;margin-top:2px;white-space:pre-wrap;">'+escapeHtml(a.answer||'')+'</div></div>'; }); h+='</div>'; }); h+='</div>'; }
+        if(attempts&&attempts.length){ h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-top:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:8px;">Quiz attempt history ('+attempts.length+')</div>'; attempts.forEach(function(at){ var dt=''; try{ dt=new Date(at.at).toLocaleDateString(); }catch(e2){} h+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f3f4f8;font-size:12.5px;"><span style="flex:1;color:#33303a;">'+escapeHtml(at.course||'Course')+'</span><span style="color:#9aa7b4;">'+dt+'</span><span style="font-weight:700;color:'+(at.passed?'#1b7a3d':'#c0264b')+';">'+(at.score!=null?at.score+'%':'')+(at.passed?' \u2713':' \u2717')+'</span>'+((at.missed&&at.missed>0)?'<span style="color:#9a5b00;font-size:11px;">'+at.missed+' missed</span>':'')+'</div>'; }); h+='</div>'; }
         h+='</div>';
         ov.innerHTML=tdHeader(e.name||'Employee','tdRender()')+h;
     }
@@ -8936,7 +8941,7 @@
     function fhLoadList(){ fhLoading(); fhRpc('fr_list',{p_filters:_fh.filters||{}},function(d){ _fh.list=d||[]; fhRenderList(); }); }
     function fhApplyFilters(){ _fh.filters={q:fhVal('fhq'),status:fhVal('fhfs')}; fhLoadList(); }
     function fhRenderList(){ var statuses=['','Inquiry Received','Initial Review','Awaiting Information','Application Sent','Application Received','Approved & Scheduled','Cards Ordered','Cards Received','Pickup Scheduled','Cards Issued / Active','Return Due Soon','Reconciliation Pending','Exception / Discrepancy','Receipt / Payout Pending','Completed']; var f=_fh.filters||{};
-      var h='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;"><input id="fhq" value="'+escapeHtml(f.q||'')+'" placeholder="Search org / code&hellip;" style="flex:1;min-width:140px;padding:8px;border:1px solid #ddd;border-radius:8px;"><select id="fhfs" style="padding:8px;border:1px solid #ddd;border-radius:8px;">'+statuses.map(function(s){ return '<option value="'+escapeHtml(s)+'"'+(f.status===s?' selected':'')+'>'+(s||'All statuses')+'</option>'; }).join('')+'</select><button onclick="fhApplyFilters()" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;">Filter</button>';
+      var h='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;"><input id="fhq" value="'+escapeHtml(f.q||'')+'" placeholder="Search org / code&hellip;" style="flex:1;min-width:140px;padding:8px;border:1px solid #ddd;border-radius:8px;"><select id="fhfs" style="padding:8px;border:1px solid #ddd;border-radius:8px;">'+statuses.map(function(s){ return '<option value="'+escapeHtml(s)+'"'+(f.status===s?' selected':'')+'>'+(s||'All statuses')+'</option>'; }).join('')+'</select><button onclick="fhApplyFilters()" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;">Filter</button><button onclick="fhExportCSV()" style="background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;">&#8595; CSV</button>';
       if(_fh.perm&&_fh.perm.admin) h+='<button onclick="fhNew()" style="background:var(--caliches-pink,#ec3e7e);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:800;cursor:pointer;">&#10133; New</button>';
       h+='</div>';
       if(!_fh.list.length) h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:30px;text-align:center;color:#8a8594;">No fundraisers match.</div>';
