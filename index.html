@@ -2513,7 +2513,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.27.0044';
+    const APP_VERSION = '2026.06.27.0108';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2767,6 +2767,68 @@
             }).catch(function(){ renderHomeDay(null); });
         }, function(){ renderHomeDay(null); });
     }
+    /* ===================== NEEDS YOU TODAY (personal action hub) ===================== */
+    function _aiIsFinance(){ var r=(currentUser&&currentUser.role)||''; var m=false; try{ m=(typeof woIsMgr==='function'&&woIsMgr()); }catch(e){} return m || r==='Finance Approver'; }
+    function aiCard(){ var host=document.getElementById('homeDayCard'); if(!host) return null; var c=document.getElementById('homeActionCard'); if(!c){ c=document.createElement('div'); c.id='homeActionCard'; host.parentNode.insertBefore(c, host); } return c; }
+    function aiRow(emoji,label,count,color,onclick){
+        return '<button onclick="'+onclick+'" style="display:flex;width:100%;align-items:center;gap:10px;text-align:left;background:#fff;border:1px solid #ececf2;border-radius:11px;padding:11px 13px;margin-bottom:7px;cursor:pointer;">'+
+            '<span style="font-size:18px;">'+emoji+'</span>'+
+            '<span style="flex:1;font-size:13.5px;color:#26242b;font-weight:600;">'+label+'</span>'+
+            '<span style="background:'+(color||'#185FA5')+';color:#fff;font-size:12px;font-weight:800;min-width:22px;text-align:center;padding:2px 8px;border-radius:99px;">'+count+'</span>'+
+            '<span style="color:#c2c7d0;font-size:16px;">&rsaquo;</span></button>';
+    }
+    function loadActionItems(){
+        var card=aiCard(); if(!card) return;
+        withPin(function(pin){
+            var u={p_username:currentUser.username,p_password:pin};
+            function rc(fn,extra){ return supabaseClient.rpc(fn,Object.assign({},u,extra||{})).then(function(r){ return r.error?null:r.data; }).catch(function(){ return null; }); }
+            var jobs=[ rc('app_pending_schedule_confirm'), rc('app_supply_list',{p_scope:'incoming'}), rc('app_wo_list',{p_scope:'queue'}), rc('app_lp_my'), rc('app_my_support_notes'), (_aiIsFinance()?rc('wo_invoice_list'):Promise.resolve(null)) ];
+            Promise.all(jobs).then(function(res){
+                var sched=res[0], supply=res[1]||[], wo=res[2]||[], lp=res[3]||{}, notes=res[4], inv=res[5];
+                var items=[];
+                if(sched && sched.needs_confirm===true){ items.push(aiRow('&#128197;','Confirm your schedule for the week','!','#a01b3e','hubNav(\'schedule\')')); }
+                var sCount=(supply||[]).filter(function(x){ return ['Received','Closed','Cancelled','Denied'].indexOf(String(x.status||''))<0; }).length;
+                if(sCount>0){ items.push(aiRow('&#128230;','Supply requests need your action',sCount,'#9a5b00','openSupplyRequest()')); }
+                var wCount=(wo||[]).filter(function(x){ return String(x.status||'').toLowerCase().indexOf('complet')<0; }).length;
+                if(wCount>0){ items.push(aiRow('&#128295;','Work orders assigned to you',wCount,'#185FA5','openWorkOrders()')); }
+                if(Array.isArray(inv)){ var iCount=inv.filter(function(x){ var s=String(x.status||''); return s==='submitted'||s==='operational_verified'; }).length; if(iCount>0){ items.push(aiRow('&#129534;','Invoices awaiting your approval',iCount,'#5b3aa6','openMaintBilling()')); } }
+                var tCount=((lp&&lp.enrollments)||[]).filter(function(e){ return String(e.status||'')!=='completed'; }).length;
+                if(tCount>0){ items.push(aiRow('&#127891;','Training to finish',tCount,'#1f7a3d','openTrainingPortal()')); }
+                var nCount=(notes&&notes.notes)?notes.notes.length:0;
+                if(nCount>0){ items.push(aiRow('&#128172;','New coaching notes for you',nCount,'#5b3aa6','openMyNotes()')); }
+                if(!items.length){ card.innerHTML=''; return; }
+                card.innerHTML='<div class="home-card" style="background:linear-gradient(135deg,#ffffff,#f6f4ff);border:1px solid #e6e2f3;">'+
+                    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;"><span style="font-size:18px;">&#9889;</span><div class="home-card-label" style="color:#5b3aa6;">NEEDS YOU TODAY</div><span style="flex:1;"></span><span style="font-size:11px;color:#9aa7b4;">'+items.length+' item'+(items.length===1?'':'s')+'</span></div>'+
+                    items.join('')+'</div>';
+            });
+        });
+    }
+    /* =================== END NEEDS YOU TODAY =================== */
+    /* ===================== HOME QUICK-JUMP SEARCH ===================== */
+    function renderHomeSearch(){
+        var host=document.getElementById('homeDayCard'); if(!host) return;
+        var c=document.getElementById('homeSearchCard');
+        if(!c){ c=document.createElement('div'); c.id='homeSearchCard'; host.parentNode.insertBefore(c, host); }
+        if(document.getElementById('hubSearchInput')) return;
+        c.innerHTML='<div style="position:relative;margin-bottom:10px;"><span style="position:absolute;left:12px;top:11px;font-size:15px;opacity:.6;">&#128269;</span><input id="hubSearchInput" oninput="hubQuickSearch(this.value)" onfocus="hubQuickSearch(this.value)" placeholder="Jump to a tool&hellip;" autocomplete="off" style="width:100%;padding:11px 13px 11px 36px;border:1px solid #e0e0ea;border-radius:11px;font-size:14px;box-sizing:border-box;background:#fff;"><div id="hubSearchResults" style="display:none;position:absolute;left:0;right:0;top:46px;background:#fff;border:1px solid #ececf2;border-radius:11px;box-shadow:0 6px 22px rgba(0,0,0,.12);z-index:50;overflow:hidden;"></div></div>';
+    }
+    function hubQuickSearch(q){
+        var box=document.getElementById('hubSearchResults'); if(!box) return;
+        q=(q||'').trim().toLowerCase();
+        if(!q){ box.style.display='none'; box.innerHTML=''; return; }
+        var matches=(typeof QUICK_REG!=='undefined'?QUICK_REG:[]).filter(function(it){ return String(it.label||'').toLowerCase().indexOf(q)>=0; });
+        if(!matches.length){ box.style.display='block'; box.innerHTML='<div style="padding:11px 13px;color:#9aa7b4;font-size:13px;">No tools match that.</div>'; return; }
+        box.innerHTML='';
+        matches.slice(0,8).forEach(function(it){
+            var b=document.createElement('button');
+            b.style.cssText='display:flex;width:100%;align-items:center;gap:9px;text-align:left;background:#fff;border:none;border-bottom:1px solid #f3f4f8;padding:11px 13px;cursor:pointer;font-size:13.5px;color:#26242b;';
+            b.innerHTML='<span style="font-size:16px;">'+(it.emoji||'')+'</span><span>'+escapeHtml(it.label||'')+'</span>';
+            b.addEventListener('click',function(){ var inp=document.getElementById('hubSearchInput'); if(inp) inp.value=''; box.style.display='none'; try{ trackUse(it.key); }catch(e){} try{ it.fn(); }catch(e){} });
+            box.appendChild(b);
+        });
+        box.style.display='block';
+    }
+    /* =================== END HOME QUICK-JUMP SEARCH =================== */
     /* ===================== MY COACHING NOTES (employee self-view) ===================== */
     function myNotesOv(){ var o=document.getElementById('myNotesModal'); if(!o){ o=document.createElement('div'); o.id='myNotesModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100040;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
     function myNotesClose(){ var o=document.getElementById('myNotesModal'); if(o) o.style.display='none'; }
@@ -2814,6 +2876,8 @@
             }
         }
         el.innerHTML = h + _homeMyNotesCard();
+        try{ renderHomeSearch(); }catch(e){}
+        try{ loadActionItems(); }catch(e){}
     }
 
     // ── Personalized "Jump to": most-used tools, learned from clicks ──
