@@ -2513,7 +2513,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.27.0017';
+    const APP_VERSION = '2026.06.27.0044';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2767,22 +2767,53 @@
             }).catch(function(){ renderHomeDay(null); });
         }, function(){ renderHomeDay(null); });
     }
+    /* ===================== MY COACHING NOTES (employee self-view) ===================== */
+    function myNotesOv(){ var o=document.getElementById('myNotesModal'); if(!o){ o=document.createElement('div'); o.id='myNotesModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100040;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
+    function myNotesClose(){ var o=document.getElementById('myNotesModal'); if(o) o.style.display='none'; }
+    function openMyNotes(){
+        var ov=myNotesOv();
+        ov.innerHTML='<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;"><b style="flex:1;font-size:16px;">My Coaching Notes</b><button onclick="myNotesClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;font-size:15px;">&times;</button></div><div style="max-width:620px;margin:0 auto;padding:16px 16px 50px;" id="myNotesBody"><div style="text-align:center;color:#888;padding:40px;">Loading&hellip;</div></div>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_my_support_notes',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                var box=document.getElementById('myNotesBody'); if(!box) return;
+                if(r.error){ box.innerHTML='<div style="background:#fff;border:1px solid #f3d9d9;border-radius:12px;padding:20px;color:#c0264b;">Could not load your notes right now.</div>'; return; }
+                var notes=(r.data&&r.data.notes)||[];
+                var intro='<p style="font-size:12.5px;color:#6b7686;margin-top:0;">Supportive notes your managers have shared with you. These are for encouragement and coaching &mdash; they are not discipline.</p>';
+                if(!notes.length){ box.innerHTML=intro+'<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:26px;text-align:center;color:#8a8594;"><div style="font-size:30px;margin-bottom:6px;">&#128172;</div>No coaching notes yet. When a manager shares a supportive note with you, it will show up here.</div>'; return; }
+                var rows=notes.map(function(n){
+                    var when=String(n.created_at||'').slice(0,10);
+                    return '<div style="background:#fff;border:1px solid #eef0f5;border-radius:12px;padding:13px 14px;margin-bottom:9px;">'+
+                        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;"><span style="background:#e8f5ec;color:#1b7a3d;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.3px;">Support</span><span style="flex:1;"></span><span style="font-size:11.5px;color:#9aa7b4;">'+escapeHtml(when)+'</span></div>'+
+                        '<div style="font-size:14px;color:#26242b;white-space:pre-wrap;line-height:1.45;">'+escapeHtml(n.body||'')+'</div>'+
+                        '<div style="font-size:11.5px;color:#9aa7b4;margin-top:6px;">&mdash; '+escapeHtml(n.author_name||'A manager')+'</div>'+
+                    '</div>';
+                }).join('');
+                box.innerHTML=intro+rows;
+            }).catch(function(){ var box=document.getElementById('myNotesBody'); if(box) box.innerHTML='<div style="background:#fff;border:1px solid #f3d9d9;border-radius:12px;padding:20px;color:#c0264b;">Connection error. Please try again.</div>'; });
+        });
+    }
+    function _homeMyNotesCard(){
+        return '<button onclick="openMyNotes()" class="home-card" style="display:block;width:100%;text-align:left;border:1px solid #e6e2f3;background:#faf8ff;cursor:pointer;margin-top:10px;"><div style="display:flex;align-items:center;gap:9px;"><span style="font-size:18px;">&#128172;</span><div style="flex:1;"><div class="home-card-label" style="color:#5b3aa6;">MY COACHING NOTES</div><div style="font-size:12.5px;color:#6b6477;margin-top:2px;">Supportive notes your managers shared with you</div></div><span style="color:#9b8fc2;font-size:18px;">&rsaquo;</span></div></button>';
+    }
+    /* =================== END MY COACHING NOTES =================== */
     function renderHomeDay(d) {
         var el = document.getElementById('homeDayCard');
         if (!el) return;
+        var h;
         if (!d || d.linked !== true) {
-            el.innerHTML = '<div class="home-card"><div class="home-card-label">YOUR NEXT SHIFT</div><p style="margin:6px 0 0;color:#667;font-size:13px;">Your shifts show here once a manager links your login in the Roster.</p></div>';
-            return;
+            h = '<div class="home-card"><div class="home-card-label">YOUR NEXT SHIFT</div><p style="margin:6px 0 0;color:#667;font-size:13px;">Your shifts show here once a manager links your login in the Roster.</p></div>';
+        } else {
+            var shifts = d.shifts || [];
+            if (!shifts.length) {
+                h = '<div class="home-card"><div class="home-card-label">YOUR NEXT SHIFT</div><p style="margin:6px 0 0;color:#445;font-size:14px;">No upcoming shifts scheduled &mdash; enjoy the break! &#127846;</p></div>';
+            } else {
+                var s = shifts[0];
+                h = '<div class="home-card"><div style="display:flex;justify-content:space-between;align-items:center;"><div class="home-card-label">YOUR NEXT SHIFT</div><span style="font-size:18px;">&#128197;</span></div>' +
+                    '<div style="font-size:17px;font-weight:800;color:var(--caliches-blue);margin-top:4px;">' + escapeHtml(s.date || '') + ' &middot; ' + escapeHtml((s.start || '') + '-' + (s.end || '')) + '</div>' +
+                    (s.location ? '<div style="font-size:13px;color:#7a8aa0;">' + escapeHtml(s.location) + '</div>' : '') + '</div>';
+            }
         }
-        var shifts = d.shifts || [];
-        if (!shifts.length) {
-            el.innerHTML = '<div class="home-card"><div class="home-card-label">YOUR NEXT SHIFT</div><p style="margin:6px 0 0;color:#445;font-size:14px;">No upcoming shifts scheduled &mdash; enjoy the break! &#127846;</p></div>';
-            return;
-        }
-        var s = shifts[0];
-        el.innerHTML = '<div class="home-card"><div style="display:flex;justify-content:space-between;align-items:center;"><div class="home-card-label">YOUR NEXT SHIFT</div><span style="font-size:18px;">&#128197;</span></div>' +
-            '<div style="font-size:17px;font-weight:800;color:var(--caliches-blue);margin-top:4px;">' + escapeHtml(s.date || '') + ' &middot; ' + escapeHtml((s.start || '') + '-' + (s.end || '')) + '</div>' +
-            (s.location ? '<div style="font-size:13px;color:#7a8aa0;">' + escapeHtml(s.location) + '</div>' : '') + '</div>';
+        el.innerHTML = h + _homeMyNotesCard();
     }
 
     // ── Personalized "Jump to": most-used tools, learned from clicks ──
@@ -8546,12 +8577,24 @@
       yv2Wrap(h); }
     function yv2Case(id){ yv2Wrap('<div style="text-align:center;color:#888;padding:30px;">Loading&hellip;</div>'); yvRpc('yv_get',{p_id:id},function(c){ yv2CaseRender(c); },function(e){ yv2Wrap('<div style="background:#fff;border-radius:12px;padding:20px;text-align:center;color:#a01b3e;">'+escapeHtml(e.message||'Could not open.')+'</div><div style="text-align:center;margin-top:10px;"><button onclick="yv2Dash()" style="background:#eef0f3;border:none;border-radius:9px;padding:10px 16px;cursor:pointer;">Back to dashboard</button></div>'); }); }
     function yv2CaseRender(c){ var ev=(c.events||[]); var h='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="font-size:12px;color:#8a8594;">'+escapeHtml(c.ref_code||'')+' &middot; '+escapeHtml(YV2_TITLES[c.pathway]||c.pathway||'')+'</div><div style="font-size:18px;font-weight:800;color:#1f2a44;">'+escapeHtml(c.subject||'(no subject)')+'</div><div style="font-size:12.5px;color:#5b6472;margin-top:3px;">From: <b>'+escapeHtml(c.submitter||'Anonymous')+'</b>'+(c.category?(' &middot; '+escapeHtml(c.category)):'')+(c.store?(' &middot; '+escapeHtml(c.store)):'')+(c.urgency?(' &middot; '+escapeHtml(c.urgency)):'')+'</div>'+(c.body?'<div style="font-size:13.5px;color:#26242b;margin-top:8px;background:#f7f8fb;border-radius:8px;padding:9px 11px;white-space:pre-wrap;">'+escapeHtml(c.body)+'</div>':'')+'<div style="margin-top:10px;"><span style="background:#ede4fb;color:#5b3aa6;font-size:12px;font-weight:800;padding:3px 10px;border-radius:99px;">'+escapeHtml(c.status||'New')+'</span>'+(c.assigned_to?'<span style="margin-left:6px;font-size:12px;color:#6b7686;">Reviewer: '+escapeHtml(c.assigned_to)+'</span>':'')+'</div></div>';
-      h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:14px;margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:8px;">Manage</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"><select id="yvcStatus" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:12.5px;">'+['New','Reviewing','In progress','Resolved','Closed'].map(function(s){return '<option'+(c.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select><button onclick="yv2Advance('+c.id+')" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;">Update</button></div><div style="display:flex;gap:6px;margin-bottom:8px;"><input id="yvcAssign" placeholder="Assign reviewer (name)" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:12.5px;"><button onclick="yv2AssignGo('+c.id+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;">Assign</button></div><textarea id="yvcMsg" rows="2" placeholder="Message or internal note" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;margin-bottom:6px;"></textarea><div style="display:flex;gap:6px;"><button onclick="yv2Note('+c.id+',true)" style="flex:1;background:#f4f5f8;color:#5b6472;border:none;border-radius:8px;padding:9px;font-weight:700;font-size:12.5px;cursor:pointer;">Add internal note</button><button onclick="yv2Note('+c.id+',false)" style="flex:1;background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:9px;font-weight:700;font-size:12.5px;cursor:pointer;">Send to submitter</button></div></div>';
+      h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:14px;margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:8px;">Manage</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"><select id="yvcStatus" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:12.5px;">'+['New','Reviewing','In progress','Resolved','Closed'].map(function(s){return '<option'+(c.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select><button onclick="yv2Advance('+c.id+')" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;">Update</button></div><div style="display:flex;gap:6px;margin-bottom:8px;"><select id="yvcAssign" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:12.5px;"><option value="">Assign reviewer&hellip;</option></select><button onclick="yv2AssignGo('+c.id+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;">Assign</button></div><textarea id="yvcMsg" rows="2" placeholder="Message or internal note" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;margin-bottom:6px;"></textarea><div style="display:flex;gap:6px;"><button onclick="yv2Note('+c.id+',true)" style="flex:1;background:#f4f5f8;color:#5b6472;border:none;border-radius:8px;padding:9px;font-weight:700;font-size:12.5px;cursor:pointer;">Add internal note</button><button onclick="yv2Note('+c.id+',false)" style="flex:1;background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:9px;font-weight:700;font-size:12.5px;cursor:pointer;">Send to submitter</button></div></div>';
       var th=''; ev.forEach(function(e){ var dt=''; try{ dt=new Date(e.at).toLocaleString(); }catch(x){} th+='<div style="padding:6px 0;border-bottom:1px solid #f3f4f8;font-size:12.5px;"><span style="font-size:10px;color:#9aa7b4;">'+dt+(e.internal?' &middot; internal':' &middot; shared')+'</span><div style="color:#33303a;"><b>'+escapeHtml(e.actor||'')+':</b> '+escapeHtml(e.detail||e.kind||'')+'</div></div>'; });
       h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:14px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:6px;">Activity</div>'+(th||'<div style="color:#9aa7b4;font-size:13px;">No activity.</div>')+'</div>';
-      yv2Ov().innerHTML=yv2Head('Case')+'<div style="max-width:600px;margin:0 auto;padding:16px;"><div style="margin-bottom:10px;"><button onclick="yv2Dash()" style="background:#eef0f3;border:none;border-radius:8px;padding:7px 12px;font-size:12.5px;cursor:pointer;">&lsaquo; All submissions</button></div>'+h+'</div>'; }
+      yv2Ov().innerHTML=yv2Head('Case')+'<div style="max-width:600px;margin:0 auto;padding:16px;"><div style="margin-bottom:10px;"><button onclick="yv2Dash()" style="background:#eef0f3;border:none;border-radius:8px;padding:7px 12px;font-size:12.5px;cursor:pointer;">&lsaquo; All submissions</button></div>'+h+'</div>'; yvFillAssignable(c.assigned_to||''); }
+    function yvFillAssignable(current){
+      var sel=document.getElementById('yvcAssign'); if(!sel) return;
+      yvRpc('yv_assignable',{},function(list){
+        var s=document.getElementById('yvcAssign'); if(!s) return; var cur=current||'';
+        var opts='<option value="">Assign reviewer&hellip;</option>';
+        var found=false;
+        (list||[]).forEach(function(p){ var isC=(p.name===cur); if(isC) found=true; opts+='<option value="'+escapeHtml(p.name)+'"'+(isC?' selected':'')+'>'+escapeHtml(p.name)+' &mdash; '+escapeHtml(p.role)+'</option>'; });
+        if(cur && !found){ opts+='<option value="'+escapeHtml(cur)+'" selected>'+escapeHtml(cur)+'</option>'; }
+        opts+='<option value="__other__">Other&hellip; (type a name)</option>';
+        s.innerHTML=opts;
+      }, function(){ /* not privileged or offline — leave the basic select usable via Other */ var s=document.getElementById('yvcAssign'); if(s){ s.innerHTML='<option value="">Assign reviewer&hellip;</option>'+(current?'<option value="'+escapeHtml(current)+'" selected>'+escapeHtml(current)+'</option>':'')+'<option value="__other__">Other&hellip; (type a name)</option>'; } });
+    }
     function yv2Advance(id){ yvRpc('yv_advance',{p_id:id,p_status:yv2val('yvcStatus'),p_note:null},function(){ yv2Case(id); }); }
-    function yv2AssignGo(id){ var r=yv2val('yvcAssign'); if(!r) return; yvRpc('yv_assign',{p_id:id,p_reviewer:r},function(){ yv2Case(id); }); }
+    function yv2AssignGo(id){ var sel=document.getElementById('yvcAssign'); var r=sel?sel.value:''; if(r==='__other__'){ r=(prompt('Reviewer name:')||'').trim(); } if(!r) return; yvRpc('yv_assign',{p_id:id,p_reviewer:r},function(){ yv2Case(id); }); }
     function yv2Note(id,internal){ var b=yv2val('yvcMsg'); if(!b){ alert('Type a note or message first.'); return; } yvRpc('yv_note',{p_id:id,p_body:b,p_internal:internal},function(){ yv2Case(id); }); }
     function yv2WinAdd(){ var t=prompt('Win title (what changed because someone spoke up):'); if(!t) return; var b=prompt('A sentence of detail (optional):')||''; yvRpc('yv_win_save',{p_title:t,p_body:b},function(){ alert('Posted to You Spoke, We Listened.'); yv2Dash(); }); }
     /* =================== END YOUR VOICE 2.0 =================== */
