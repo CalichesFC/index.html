@@ -2513,7 +2513,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.27.0009';
+    const APP_VERSION = '2026.06.27.0017';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -5748,7 +5748,7 @@
     function applyRoleUI() {
         let role = currentUser.role;
         if (role === 'Vice President/Co-Owner') role = 'Admin Manager';
-        const isManager = (role === 'Admin Manager' || role === 'Manager');
+        const isManager = (role === 'Admin Manager' || role === 'Manager' || role === 'Vice President/Co-Owner');
         const maintBoardAllowed = (currentUser.maint_board_access !== false);
         const devOverride = currentUser.is_developer === true && !isPreviewMode();
 
@@ -5868,7 +5868,7 @@
     function fetchVehicleMaintTracker() {
         const container = document.getElementById('vehicleMaintTracker');
         if (!container) return;
-        const isManager = (currentUser.role === 'Admin Manager' || currentUser.role === 'Manager');
+        const isManager = (currentUser.role === 'Admin Manager' || currentUser.role === 'Manager' || currentUser.role === 'Vice President/Co-Owner');
         const canEdit = (currentUser.role === 'Maintenance' || isManager);
         container.innerHTML = '<p style="text-align:center;padding:10px;color:#888;font-size:13px;">Loading vehicle maintenance...</p>';
         withPin(function(pin) {
@@ -5938,7 +5938,7 @@
 
     function fetchMaintenanceBoard() {
         const container = document.getElementById('maintBoardResults');
-        const isManager = (currentUser.role === 'Admin Manager' || currentUser.role === 'Manager');
+        const isManager = (currentUser.role === 'Admin Manager' || currentUser.role === 'Manager' || currentUser.role === 'Vice President/Co-Owner');
         const canEditTech = (currentUser.role === 'Maintenance' || isManager);
         container.innerHTML = '<p style="text-align:center;padding:30px;color:#888;">Loading maintenance board...</p>';
         withPin(function(pin) {
@@ -8501,7 +8501,7 @@
       box.innerHTML=h;
       yvRpc('yv_win_list',{},function(w){ if(w&&w.length){ var wh='<div style="margin-top:16px;background:#eef7ee;border:1px solid #cfe9cf;border-radius:12px;padding:13px;"><div style="font-size:12px;font-weight:800;color:#1b7a3d;text-transform:uppercase;margin-bottom:6px;">&#127881; You Spoke, We Listened</div>'; w.slice(0,5).forEach(function(x){ wh+='<div style="font-size:13px;color:#26242b;padding:5px 0;border-top:1px solid #dcecdc;"><b>'+escapeHtml(x.title||'')+'</b>'+(x.body?'<div style="font-size:12px;color:#5b6472;">'+escapeHtml(x.body)+'</div>':'')+'</div>'; }); wh+='</div>'; box.insertAdjacentHTML('beforeend',wh); } },function(){}); }
     function yv2val(id){ var e=document.getElementById(id); return e?String(e.value).trim():''; }
-    function yv2Form(type){ var cats=YV2_CATS[type]||[]; var stores=['','Roadrunner','Valley','Lenox','Alamogordo','Roswell','Multiple / Companywide'];
+    function yv2Form(type){ var cats=YV2_CATS[type]||[]; var stores=[''].concat((typeof HUB_STORES!=='undefined'?HUB_STORES:['Roadrunner','Valley','Lenox','Alamogordo','Roswell'])).concat(['Multiple / Companywide']);
       var h='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;">';
       h+='<div style="font-size:18px;font-weight:800;color:#1f2a44;">'+escapeHtml(YV2_TITLES[type]||'Your Voice')+'</div><div style="font-size:12px;color:#8a8594;margin-bottom:10px;">Share as much or as little as you like.</div>';
       if(cats.length) h+='<label style="font-size:12px;color:#6b7686;">'+(type==='talk'?'Who would you like to speak with?':'Category')+'</label><select id="yvfCat" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;margin:3px 0 9px;box-sizing:border-box;">'+cats.map(function(c){return '<option>'+escapeHtml(c)+'</option>';}).join('')+'</select>';
@@ -8578,7 +8578,7 @@
         window._voiceType=type;
         var titles={talk:'Talk to Someone',idea:'Share an Idea',feedback:'Give Feedback',help:'Ask for Help'};
         var catLabel={talk:'Who would you like to speak with?',idea:'Category',help:'What do you need help with?',feedback:'Feedback about'};
-        var catList=VOICE_CATS[type]||[]; var stores=['','Roadrunner','Valley','Lenox','Alamogordo','Roswell','Multiple / Companywide'];
+        var catList=VOICE_CATS[type]||[]; var stores=[''].concat((typeof HUB_STORES!=='undefined'?HUB_STORES:['Roadrunner','Valley','Lenox','Alamogordo','Roswell'])).concat(['Multiple / Companywide']);
         var ov=certOverlay('voiceFormModal');
         ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:480px;width:100%;margin-top:22px;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.3);max-height:90vh;overflow:auto;">'+
           '<div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:16px;color:#1f2a44;">'+titles[type]+'</b><button data-x style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;">&times;</button></div>'+
@@ -8869,7 +8869,7 @@
     function tdExportCSV(){ var rows=[['Name','Role','Store','Training %','Positions cleared','Certifications','Coaching logs']]; (_td.team||[]).forEach(function(e){ var paths=e.paths||[]; var d=0,t=0; paths.forEach(function(p){ d+=(p.done||0); t+=(p.total||0); }); var pct=t>0?Math.round(100*d/t):0; rows.push([e.name||'',e.role||'',e.store||_td.store||'',pct,(e.cleared_positions||0),(e.certs_count||0),(e.coaching_count||0)]); }); downloadCSV('team_development.csv',rows); }
     function fhExportCSV(){ var rows=[['Code','Organization','Status','Market','Owner','Approved start','Approved end','Return due','Cards approved','Cards issued']]; (_fh.list||[]).forEach(function(x){ rows.push([x.code,x.org,x.status,x.market||'',x.owner||'',x.approved_start||'',x.approved_end||'',x.return_due||'',x.cards_approved||0,x.cards_issued||0]); }); downloadCSV('fundraisers.csv',rows); }
     function tdTeamHtml(){
-        var stores=['','Roadrunner','Valley','Lenox','Alamogordo','Roswell','Warehouse'];
+        var stores=[''].concat((typeof HUB_STORES!=='undefined'?HUB_STORES:['Roadrunner','Valley','Lenox','Alamogordo','Roswell'])).concat(['Warehouse']);
         var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><span style="font-size:12px;color:#8a8594;">Store</span><select onchange="_td.store=this.value; tdLoad(function(){tdRender();});" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:9px;font-size:13px;">'+stores.map(function(s){return '<option value="'+s+'"'+(_td.store===s?' selected':'')+'>'+(s||'All stores')+'</option>';}).join('')+'</select><button onclick="tdExportCSV()" style="background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:8px 12px;font-size:12.5px;font-weight:700;cursor:pointer;">&#8595; CSV</button></div>';
         if(!_td.team.length){ return h+'<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:20px;text-align:center;color:#8a8594;">No team members here.</div>'; }
         _td.team.forEach(function(e){
@@ -9037,7 +9037,7 @@
         var r=id?(_td.rules.filter(function(x){return x.id===id;})[0]||{}):{scope:'newhire',due_offset_days:14,active:true};
         var pathOpts=(_td.catalog||[]).map(function(p){return '<option value="'+p.id+'"'+(r.path_id===p.id?' selected':'')+'>'+escapeHtml(p.title)+'</option>';}).join('');
         var roles={}; (_td.team||[]).forEach(function(e){ if(e.role) roles[e.role]=1; });
-        window._trRoles=Object.keys(roles); window._trStores=['Roadrunner','Valley','Lenox','Alamogordo','Roswell','Warehouse']; window._trVal=r.scope_value||'';
+        window._trRoles=Object.keys(roles); window._trStores=((typeof HUB_STORES!=='undefined'?HUB_STORES.slice():['Roadrunner','Valley','Lenox','Alamogordo','Roswell']).concat(['Warehouse'])); window._trVal=r.scope_value||'';
         var h='<h3 style="margin:0 0 12px;color:#1f2a44;">'+(id?'Edit rule':'New auto-assign rule')+'</h3>';
         h+='<label style="display:block;font-size:12px;color:#6b7686;margin-bottom:3px;">Path to assign</label><select id="trPath" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;margin-bottom:10px;box-sizing:border-box;">'+pathOpts+'</select>';
         h+='<label style="display:block;font-size:12px;color:#6b7686;margin-bottom:3px;">Assign to</label><select id="trScope" onchange="tdRuleScopeChange()" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;margin-bottom:10px;box-sizing:border-box;"><option value="newhire"'+(r.scope==='newhire'?' selected':'')+'>New hires (auto-onboard)</option><option value="role"'+(r.scope==='role'?' selected':'')+'>A role</option><option value="store"'+(r.scope==='store'?' selected':'')+'>A store</option><option value="everyone"'+(r.scope==='everyone'?' selected':'')+'>Everyone</option></select>';
@@ -9492,7 +9492,7 @@
     function woPhotoView(src){ woModal('<div style="background:#fff;border-radius:12px;padding:10px;max-width:92%;max-height:88%;overflow:auto;text-align:center;"><img src="'+src+'" style="max-width:100%;max-height:78vh;border-radius:8px;"><br><button onclick="woModalClose()" style="margin-top:10px;padding:9px 16px;border:none;background:#185FA5;color:#fff;border-radius:8px;font-weight:700;cursor:pointer;">Close</button></div>'); }
     function woDetailPhotoPick(ev){ var fs=ev.target.files; if(!fs||!fs.length) return; var won=window._woDetailWoNum; if(!won) return; var box=document.getElementById('woPhotoList'); if(box) box.innerHTML='<span style="font-size:12.5px;color:#9aa7b4;">Uploading&hellip;</span>'; var arr=Array.prototype.slice.call(fs); ev.target.value=''; withPin(function(pin){ var i=0; (function up(){ if(i>=arr.length){ woLoadPhotos(won); return; } woCompress(arr[i],function(d){ if(!d){ i++; up(); return; } supabaseClient.rpc('app_wo_add_photo',{p_username:currentUser.username,p_password:pin,p_wo_number:won,p_photo:d}).then(function(){ i++; up(); }).catch(function(){ i++; up(); }); }); })(); }); }
     function woReportHtml(){ _wo.repPhotos=[];
-        var stores=['Roadrunner','Valley','Lenox','Alamogordo','Roswell','Warehouse'];
+        var stores=((typeof HUB_STORES!=='undefined'?HUB_STORES.slice():['Roadrunner','Valley','Lenox','Alamogordo','Roswell']).concat(['Warehouse']));
         var def=(currentUser.store||currentUser.location||'Roadrunner');
         var h='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;">';
         h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#9aa7b4;margin-bottom:8px;">Report a maintenance issue</div>';
@@ -11713,7 +11713,7 @@
         }
 
         function setupNotifications() {
-            const isManager = (currentUser.role === 'Admin Manager');
+            const isManager = (currentUser.role === 'Admin Manager' || currentUser.role === 'Manager' || currentUser.role === 'Vice President/Co-Owner');
             const wrap = document.getElementById('notifBellWrap');
             if (!wrap) return;
 
