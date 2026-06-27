@@ -2515,7 +2515,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.27.0157';
+    const APP_VERSION = '2026.06.27.0213';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2845,6 +2845,38 @@
         box.style.display='block';
     }
     /* =================== END HOME QUICK-JUMP SEARCH =================== */
+    /* ===================== DATA RETENTION ===================== */
+    var HUB_RETENTION_YEARS='7';
+    function rtOv(){ var o=document.getElementById('rtModal'); if(!o){ o=document.createElement('div'); o.id='rtModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100050;overflow:auto;'; document.body.appendChild(o);} o.style.display='block'; return o; }
+    function rtClose(){ var o=document.getElementById('rtModal'); if(o) o.style.display='none'; }
+    function rtIsAdmin(){ return !!(currentUser&&(currentUser.is_developer===true||['Admin Manager','Vice President/Co-Owner'].indexOf(currentUser.role)>=0)); }
+    function rtLabel(t){ var m={discipline_actions:'Discipline actions',employee_notes:'Employee notes',work_orders:'Work orders',wo_invoices:'Maintenance invoices',supply_requests:'Supply requests',yv_cases:'Your Voice cases',store_metrics:'Store scorecards',fr_fundraisers:'Fundraisers'}; return m[t]||t; }
+    function openRetention(){ if(!rtIsAdmin()){ alert('Data retention is for admins.'); return; }
+        rtOv().innerHTML='<div style="padding:12px 14px;"><button onclick="rtClose()" style="background:#eef0f3;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;">&times; Close</button></div><div style="text-align:center;color:#888;padding:34px;">Loading data retention&hellip;</div>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_settings_get',{p_username:currentUser.username,p_password:pin,p_group:'retention'}).then(function(r){
+                var yrs='7'; (r.data||[]).forEach(function(x){ if(x.key==='years') yrs=x.value||'7'; }); HUB_RETENTION_YEARS=yrs;
+                supabaseClient.rpc('app_retention_status',{p_username:currentUser.username,p_password:pin}).then(function(s){ rtRender(yrs,s.data||[],s.error); }).catch(function(){ rtRender(yrs,[],{message:'Could not load status.'}); });
+            }).catch(function(){ rtOv().innerHTML='<div style="padding:30px;text-align:center;color:#c0264b;">Could not load.</div><div style="text-align:center;"><button onclick="rtClose()" style="background:#eef0f3;border:none;border-radius:9px;padding:10px 16px;cursor:pointer;">Close</button></div>'; });
+        });
+    }
+    function rtSaveYears(){ var v=(document.getElementById('rtYears')||{}).value||'7'; v=String(v).trim(); if(!(parseInt(v,10)>=1)){ alert('Enter a number of years (1 or more).'); return; }
+        withPin(function(pin){ supabaseClient.rpc('app_settings_set',{p_username:currentUser.username,p_password:pin,p_key:'years',p_group:'retention',p_label:'Minimum retention (years)',p_value:v,p_sort:0}).then(function(r){ if(r.error){ alert(r.error.message||'Could not save.'); return; } HUB_RETENTION_YEARS=v; alert('Saved. Records are kept at least '+v+' years.'); }).catch(function(){ alert('Could not save.'); }); });
+    }
+    function rtRender(yrs,rows,err){
+        var h='<div style="background:linear-gradient(120deg,#3b2f6b,#106ab3);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;"><b style="flex:1;font-size:16px;">Data Retention</b><button onclick="rtClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;font-size:15px;">&times;</button></div>';
+        h+='<div style="max-width:680px;margin:0 auto;padding:16px 16px 50px;">';
+        h+='<p style="font-size:13px;color:#6b7686;margin-top:0;">Records are <b>retained, not deleted</b> &mdash; everything in the Hub soft-archives. This sets the minimum number of years we keep data, and shows how far back each record type currently goes.</p>';
+        h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:14px;margin-bottom:14px;"><label style="font-size:13px;font-weight:700;color:#26242b;">Minimum retention (years)</label><div style="display:flex;gap:8px;margin-top:6px;"><input id="rtYears" type="number" min="1" value="'+escapeHtml(yrs)+'" style="flex:1;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;"><button onclick="rtSaveYears()" style="background:var(--caliches-blue,#185FA5);color:#fff;border:none;border-radius:8px;padding:0 18px;font-weight:800;cursor:pointer;">Save</button></div></div>';
+        h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:6px;">How far back our records go</div>';
+        if(err){ h+='<div style="color:#c0264b;font-size:13px;">'+escapeHtml(err.message||'Could not load status.')+'</div>'; }
+        else if(!rows.length){ h+='<div style="color:#9aa7b4;font-size:13px;">No records yet.</div>'; }
+        else { h+='<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="text-align:left;color:#9aa7b4;font-size:11px;text-transform:uppercase;"><th style="padding:6px;">Record type</th><th style="padding:6px;text-align:right;">Rows</th><th style="padding:6px;text-align:right;">Oldest</th></tr></thead><tbody>';
+            rows.forEach(function(r){ h+='<tr style="border-top:1px solid #f0eef4;"><td style="padding:6px;font-weight:600;color:#26242b;">'+escapeHtml(rtLabel(r.tbl))+'</td><td style="padding:6px;text-align:right;">'+(r.row_count==null?'&mdash;':r.row_count)+'</td><td style="padding:6px;text-align:right;color:#6b7686;">'+(r.oldest?escapeHtml(String(r.oldest).slice(0,10)):'&mdash;')+'</td></tr>'; });
+            h+='</tbody></table>'; }
+        h+='</div>'; rtOv().innerHTML=h;
+    }
+    /* =================== END DATA RETENTION =================== */
     /* ===================== MAINTENANCE LEADERSHIP DASHBOARD ===================== */
     function mdOv(){ var o=document.getElementById('mdModal'); if(!o){ o=document.createElement('div'); o.id='mdModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100040;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
     function mdClose(){ var o=document.getElementById('mdModal'); if(o) o.style.display='none'; }
@@ -12479,6 +12511,10 @@
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:18px;">&#128222;</span><b style="flex:1;font-size:15px;color:var(--txt,#26242b);">Important Contacts directory</b><button onclick="openContactEdit(null)" style="background:var(--caliches-pink);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;">&#10133; Add</button></div>
       <div style="font-size:12.5px;color:var(--txt2,#8a8594);margin-bottom:8px;">The vendor, repair, utility, and escalation directory staff see under Store Operations &rarr; Important Contacts. Add and manage them here.</div>
       <div id="admContactsDirBox"><p style="color:var(--txt2,#8a8594);font-size:13px;">Loading&hellip;</p></div>
+    </div>
+    <div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);margin-top:14px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:18px;">&#128451;</span><b style="flex:1;font-size:15px;color:var(--txt,#26242b);">Data retention</b><button onclick="openRetention()" style="background:var(--caliches-pink);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;">Open</button></div>
+      <div style="font-size:12.5px;color:var(--txt2,#8a8594);">Set how long records are kept (default 7 years) and see how far back discipline, HR notes, work orders, invoices and more currently go. Records are archived, never hard-deleted.</div>
     </div>
     <p style="font-size:12px;color:var(--txt2,#8a8594);margin:14px 2px 0;line-height:1.5;">More management tools (roster, roles, equipment, training, Teach&nbsp;Scoopy, announcements) live in the <b>&#9889; Admin Dashboard</b> menu. More controls are coming to this console.</p>
   </div>
