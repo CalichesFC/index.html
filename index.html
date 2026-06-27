@@ -2512,7 +2512,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.26.2205';
+    const APP_VERSION = '2026.06.26.2231';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -7583,6 +7583,74 @@
         var c=m[st]||m.ok;
         return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:3px 8px;border-radius:99px;white-space:nowrap;">'+c[2]+'</span>';
     }
+    /* ===== PM structured checklists ===== */
+    var _pmck={pmId:null,equipId:null,steps:[],ver:1,title:''};
+    function completePmSimple(pmId,equipId){
+        var notes=prompt('Log this service as done today?\n\nOptional note (e.g. parts replaced):','');
+        if(notes===null) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_pm_complete',{p_username:currentUser.username,p_password:pin,p_id:pmId,p_done_on:null,p_notes:notes||null}).then(function(r){
+                if(r.error){ alert('Could not log: '+r.error.message); return; }
+                supabaseClient.rpc('app_pm_close_tickets',{p_username:currentUser.username,p_password:pin,p_pm_id:pmId}).catch(function(){});
+                loadPmFor(equipId);
+            }).catch(function(){ alert('Could not log the service.'); });
+        });
+    }
+    function pmckStart(pmId,equipId,title){
+        withPin(function(pin){
+            supabaseClient.rpc('app_pm_checklist_get',{p_username:currentUser.username,p_password:pin,p_pm_id:pmId}).then(function(r){
+                var steps=(r.data&&r.data.steps)||[];
+                if(!steps.length){ completePmSimple(pmId,equipId); return; }
+                _pmck={pmId:pmId,equipId:equipId,steps:steps,ver:(r.data&&r.data.version)||1,title:title||'Service'};
+                pmckRender();
+            }).catch(function(){ completePmSimple(pmId,equipId); });
+        });
+    }
+    function pmckOv(){ var o=document.getElementById('pmckModal'); if(!o){ o=document.createElement('div'); o.id='pmckModal'; o.style.cssText='position:fixed;inset:0;background:rgba(20,20,30,.55);z-index:100060;display:flex;align-items:flex-end;justify-content:center;'; document.body.appendChild(o); } o.style.display='flex'; return o; }
+    function pmckClose(){ var o=document.getElementById('pmckModal'); if(o) o.style.display='none'; }
+    function pmckRender(){
+        var steps=_pmck.steps||[];
+        var rows=steps.map(function(s,i){ return '<label style="display:flex;align-items:flex-start;gap:9px;padding:9px 4px;border-bottom:1px solid #f0f2f6;font-size:13.5px;color:#26242b;cursor:pointer;"><input type="checkbox" id="pmck_'+i+'" style="width:19px;height:19px;margin-top:1px;flex:none;cursor:pointer;"><span>'+escapeHtml(String(s))+'</span></label>'; }).join('');
+        var h='<div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:560px;max-height:88vh;overflow:auto;padding:16px 16px 26px;">';
+        h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><b style="flex:1;font-size:16px;color:#1f2a44;">'+escapeHtml(_pmck.title)+' &mdash; checklist</b><button onclick="pmckClose()" style="background:#eef0f3;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:15px;">&times;</button></div>';
+        h+='<div style="font-size:12px;color:#8a8594;margin-bottom:8px;">Check off each step as you complete it. Your answers are saved with this service record (checklist v'+_pmck.ver+').</div>';
+        h+=rows;
+        h+='<div style="display:flex;gap:8px;margin:10px 0 4px;"><button onclick="pmckAll(true)" style="flex:1;background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:7px;font-size:12.5px;font-weight:700;cursor:pointer;">Check all</button><button onclick="pmckAll(false)" style="flex:1;background:#f3f4f8;color:#6b7686;border:none;border-radius:8px;padding:7px;font-size:12.5px;font-weight:700;cursor:pointer;">Clear</button></div>';
+        h+='<textarea id="pmckNote" rows="2" placeholder="Optional note (parts replaced, issues found&hellip;)" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:9px;box-sizing:border-box;margin-top:6px;font-size:13px;"></textarea>';
+        h+='<button onclick="pmckSubmit()" style="width:100%;background:var(--pass-green,#1f7a3d);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14.5px;font-weight:800;cursor:pointer;margin-top:10px;">&#9989; Mark serviced</button>';
+        h+='</div>';
+        pmckOv().innerHTML=h;
+    }
+    function pmckAll(v){ (_pmck.steps||[]).forEach(function(s,i){ var c=document.getElementById('pmck_'+i); if(c) c.checked=v; }); }
+    function pmckSubmit(){
+        var steps=_pmck.steps||[]; var done=0;
+        var responses=steps.map(function(s,i){ var c=document.getElementById('pmck_'+i); var ok=!!(c&&c.checked); if(ok) done++; return {step:String(s),done:ok}; });
+        var note=(document.getElementById('pmckNote')||{}).value||'';
+        if(done<steps.length){ if(!confirm((steps.length-done)+' step(s) are not checked. Log the service anyway?')) return; }
+        var pmId=_pmck.pmId, equipId=_pmck.equipId;
+        withPin(function(pin){
+            supabaseClient.rpc('app_pm_complete',{p_username:currentUser.username,p_password:pin,p_id:pmId,p_done_on:null,p_notes:note||null}).then(function(r){
+                if(r.error){ alert('Could not log: '+r.error.message); return; }
+                supabaseClient.rpc('app_pm_checklist_record',{p_username:currentUser.username,p_password:pin,p_pm_id:pmId,p_responses:responses}).catch(function(){});
+                supabaseClient.rpc('app_pm_close_tickets',{p_username:currentUser.username,p_password:pin,p_pm_id:pmId}).catch(function(){});
+                pmckClose(); loadPmFor(equipId);
+            }).catch(function(){ alert('Could not log the service.'); });
+        });
+    }
+    function pmChecklistEdit(pmId,equipId){
+        withPin(function(pin){
+            supabaseClient.rpc('app_pm_checklist_get',{p_username:currentUser.username,p_password:pin,p_pm_id:pmId}).then(function(r){
+                var steps=(r.data&&r.data.steps)||[];
+                var txt=prompt('Checklist steps for this service — one per line. The crew checks these off when servicing:', steps.join('\n'));
+                if(txt===null) return;
+                var arr=txt.split('\n').map(function(s){return s.trim();}).filter(Boolean);
+                supabaseClient.rpc('app_pm_checklist_set',{p_username:currentUser.username,p_password:pin,p_pm_id:pmId,p_steps:arr}).then(function(rr){
+                    if(rr.error){ alert(String(rr.error.message||'').indexOf('forbidden')>=0?'Only managers can edit checklists.':rr.error.message); return; }
+                    loadPmFor(equipId);
+                }).catch(function(){ alert('Could not save checklist.'); });
+            }).catch(function(){ alert('Could not load checklist.'); });
+        });
+    }
     function pmIsMgr(){ return (typeof isManagerRole==='function'?isManagerRole():(typeof isAdminManager==='function'&&isAdminManager())); }
     function loadPmFor(equipId){
         window._pmEquipId=equipId;
@@ -7611,12 +7679,12 @@
                 h+='<details style="border:1px solid var(--bd,#f0eef4);border-radius:11px;padding:11px 12px;margin-bottom:8px;">'+
                    '<summary style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;"><div style="flex:1;min-width:0;">'+
                    '<div style="font-weight:700;font-size:14px;color:var(--txt,#26242b);">'+escapeHtml(sc.title)+'</div>'+
-                   '<div style="font-size:12px;color:var(--txt2,#8a8594);margin-top:2px;">Every '+sc.interval_days+' days &middot; next '+escapeHtml(sc.next_due||'')+' &middot; '+dt+'</div>'+
+                   '<div style="font-size:12px;color:var(--txt2,#8a8594);margin-top:2px;">Every '+sc.interval_days+' days &middot; next '+escapeHtml(sc.next_due||'')+' &middot; '+dt+((sc.checklist&&sc.checklist.length)?(' &middot; &#9776; '+sc.checklist.length+'-step list'):'')+'</div>'+
                    '</div>'+pmStatusBadge(sc.status)+'</summary>'+
                    (sc.instructions?'<div style="font-size:12px;color:var(--txt2,#8a8594);margin-top:8px;white-space:pre-wrap;">'+escapeHtml(sc.instructions)+'</div>':'')+
                    '<div style="display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;">'+
                    '<button onclick="completePm('+sc.id+','+equipId+')" style="flex:1;min-width:120px;background:var(--pass-green);color:#fff;border:none;border-radius:8px;padding:8px;font-size:12.5px;font-weight:700;cursor:pointer;">&#9989; Mark serviced</button>'+
-                   (mgr?'<button onclick="openPmEdit('+equipId+','+sc.id+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:8px 11px;font-size:12.5px;font-weight:700;cursor:pointer;">&#9998;</button>'+
+                   (mgr?'<button onclick="openPmEdit('+equipId+','+sc.id+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:8px 11px;font-size:12.5px;font-weight:700;cursor:pointer;">&#9998;</button>'+'<button onclick="pmChecklistEdit('+sc.id+','+equipId+')" style="background:#fff4e0;color:#9a5b00;border:none;border-radius:8px;padding:8px 11px;font-size:12.5px;font-weight:700;cursor:pointer;">&#9776;</button>'+
                         '<button onclick="deletePmSched('+sc.id+','+equipId+')" style="background:#fdeaea;color:#c0264b;border:none;border-radius:8px;padding:8px 11px;font-size:12.5px;font-weight:700;cursor:pointer;">&#128465;&#65039;</button>':'')+
                    '</div></details>';
             });
@@ -7630,17 +7698,7 @@
         h+='</div>';
         box.innerHTML=h;
     }
-    function completePm(pmId,equipId){
-        var notes=prompt('Log this service as done today?\n\nOptional note (e.g. parts replaced):','');
-        if(notes===null) return;
-        withPin(function(pin){
-            supabaseClient.rpc('app_pm_complete',{p_username:currentUser.username,p_password:pin,p_id:pmId,p_done_on:null,p_notes:notes||null}).then(function(r){
-                if(r.error){ alert('Could not log: '+r.error.message); return; }
-                supabaseClient.rpc('app_pm_close_tickets',{p_username:currentUser.username,p_password:pin,p_pm_id:pmId}).catch(function(){});
-                loadPmFor(equipId);
-            }).catch(function(){ alert('Could not log the service.'); });
-        });
-    }
+    function completePm(pmId,equipId){ var sc=(window._pmScheds||[]).filter(function(x){return x.id===pmId;})[0]; pmckStart(pmId,equipId,sc?sc.title:'Service'); }
     function openPmEdit(equipId,pmId){
         window._pmEquipId=equipId; window._pmEditId=pmId;
         var sc=(window._pmScheds||[]).filter(function(x){return x.id===pmId;})[0]||null;
