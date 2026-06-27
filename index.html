@@ -2513,7 +2513,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.26.2312';
+    const APP_VERSION = '2026.06.26.2322';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -8032,6 +8032,7 @@
         window._psSlotSeq=0;
         var dl='<datalist id="psNames">'+(roster||[]).map(function(e){ return '<option value="'+escapeHtml(e.name)+'"></option>'; }).join('')+'</datalist>';
         var h=dl;
+        h+='<button type="button" onclick="psLoadScheduled()" style="width:100%;margin-bottom:8px;background:#e8f1fb;color:#185FA5;border:1px solid #b9d4f1;border-radius:9px;padding:9px;font-size:12.5px;font-weight:700;cursor:pointer;">&#128197; Load today&rsquo;s scheduled crew</button>';
         slots.forEach(function(s){ h+=psSlotHtml(s.pos,s.name); });
         h+='<button type="button" onclick="psAddSlot()" style="width:100%;margin-top:4px;background:#eef3fb;color:#185FA5;border:1px dashed #9cc0ec;border-radius:9px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;">+ Add slot</button>';
         if(!(roster||[]).length){ h='<p style="text-align:center;color:#9a7400;background:#fff8e6;border:1px solid #ffe39a;border-radius:9px;padding:9px;margin-bottom:8px;font-size:12.5px;">No active crew loaded for this store yet — you can still type names in below.</p>'+h; }
@@ -8073,6 +8074,20 @@
                 if(r.error){ msg.style.color='#c0264b'; msg.textContent='Error: '+r.error.message; return; }
                 msg.style.color='#1f7a3d'; msg.textContent='✓ Lineup saved ('+assignments.length+' assigned).';
             }).catch(function(){ msg.style.color='#c0264b'; msg.textContent='Could not save.'; });
+        });
+    }
+    function psLoadScheduled(){
+        var store=document.getElementById('psStore').value, date=document.getElementById('psDate').value||psTodayStr();
+        var msg=document.getElementById('psMsg'); msg.style.color='#5b6472'; msg.textContent='Loading the published schedule…';
+        withPin(function(pin){
+            supabaseClient.rpc('app_preshift_scheduled',{p_username:currentUser.username,p_password:pin,p_location:store,p_date:date}).then(function(r){
+                if(r.error){ msg.style.color='#c0264b'; msg.textContent=(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have access to the schedule.':r.error.message); return; }
+                var sched=r.data||[];
+                if(!sched.length){ msg.style.color='#9a7400'; msg.textContent='No published schedule for this store/day yet — type names below. (This auto-loads once a weekly schedule is published.)'; return; }
+                var exa=sched.map(function(a){ return {pos:(a.position||'Item Maker'), name:(a.employee_name||''), empId:a.employee_id}; }).filter(function(a){ return a.name; });
+                renderPreshiftSlots(window._psRoster||[], exa);
+                msg.style.color='#1f7a3d'; msg.textContent='✓ Loaded '+exa.length+' crew from the published schedule. Adjust if needed, then Save.';
+            }).catch(function(){ msg.style.color='#c0264b'; msg.textContent='Could not load the scheduled crew.'; });
         });
     }
     function psBar(label, done, goal){
@@ -10968,6 +10983,7 @@
         if(!items.length){ show('Add at least one item.'); return; }
         var reason=(document.getElementById('supplyReason').value||'').trim();
         if(!reason){ show('Please add a short reason.'); return; }
+        if((document.getElementById('supplyUrgency').value||'Normal')==='Critical' && reason.trim().length<10){ show('Critical requests need a clear explanation — what ran out and the impact on the store.'); return; }
         show('Submitting&hellip;','#6b7686');
         supabaseClient.rpc('app_supply_create',{p_username:currentUser.username,p_password:sessionPin,
             p_store:document.getElementById('supplyStore').value||'',
