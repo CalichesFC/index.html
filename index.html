@@ -2516,7 +2516,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.27.0228';
+    const APP_VERSION = '2026.06.27.0232';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2906,6 +2906,35 @@
     }
     function frOrgRoute(){ try{ var p=new URLSearchParams(location.search); var c=p.get('fundraiser'); if(!c) return false; var k=p.get('k')||''; var sp=document.getElementById('splash-screen'); if(sp) sp.style.display='none'; var lv=document.getElementById('login-view'); if(lv) lv.style.display='none'; frOrgGate(c,k); if(k) frOrgGo(); return true; }catch(e){ return false; } }
     /* =================== END FUNDRAISER ORGANIZER PORTAL =================== */
+    /* ===================== EMPLOYEE DUPLICATE SCAN (read-only) ===================== */
+    function dsOv(){ var o=document.getElementById('dsModal'); if(!o){ o=document.createElement('div'); o.id='dsModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100050;overflow:auto;'; document.body.appendChild(o);} o.style.display='block'; return o; }
+    function dsClose(){ var o=document.getElementById('dsModal'); if(o) o.style.display='none'; }
+    function openDupScan(){ if(!(currentUser&&(currentUser.is_developer===true||['Admin Manager','Vice President/Co-Owner','Store Manager'].indexOf(currentUser.role)>=0))){ alert('This is for admins.'); return; }
+        dsOv().innerHTML='<div style="padding:12px 14px;"><button onclick="dsClose()" style="background:#eef0f3;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;">&times; Close</button></div><div style="text-align:center;color:#888;padding:34px;">Scanning for possible duplicate employees&hellip;</div>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_emp_dupscan',{p_username:currentUser.username,p_password:pin,p_threshold:0.5}).then(function(r){
+                if(r.error){ dsOv().innerHTML='<div style="padding:30px;text-align:center;color:#c0264b;">'+escapeHtml(r.error.message||'Error')+'</div><div style="text-align:center;"><button onclick="dsClose()" style="background:#eef0f3;border:none;border-radius:9px;padding:10px 16px;cursor:pointer;">Close</button></div>'; return; }
+                dsRender((r.data&&r.data.pairs)||[]);
+            }).catch(function(){ dsOv().innerHTML='<div style="padding:30px;text-align:center;color:#c0264b;">Connection error.</div>'; });
+        });
+    }
+    function dsRender(pairs){
+        var h='<div style="background:linear-gradient(120deg,#3b2f6b,#106ab3);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;"><b style="flex:1;font-size:16px;">Possible duplicate employees</b><button onclick="dsClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;font-size:15px;">&times;</button></div>';
+        h+='<div style="max-width:680px;margin:0 auto;padding:16px 16px 50px;">';
+        h+='<p style="font-size:12.5px;color:#6b7686;margin-top:0;">Pairs of roster names that look similar &mdash; for <b>review only</b>. Nothing is changed or merged here; this just surfaces possible duplicates so you can check them. (Safe merge &amp; rehire tools come next.)</p>';
+        if(!pairs.length){ h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:24px;text-align:center;color:#8a8594;">No likely duplicates found. &#127881;</div>'; }
+        else { h+='<div style="font-size:11px;color:#9aa7b4;margin-bottom:6px;">'+pairs.length+' pair'+(pairs.length===1?'':'s')+' to review</div>';
+            pairs.forEach(function(p){
+                var pct=Math.round((p.score||0)*100);
+                h+='<div style="background:#fff;border:1px solid #eef0f5;border-radius:12px;padding:12px;margin-bottom:8px;">'+
+                    '<div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:14px;color:#26242b;">'+escapeHtml(p.a_name||'')+' &harr; '+escapeHtml(p.b_name||'')+'</b><span style="background:'+(pct>=70?'#fbe4ea':'#eef0f5')+';color:'+(pct>=70?'#a01b3e':'#5b6472')+';font-size:11px;font-weight:800;padding:2px 8px;border-radius:99px;">'+pct+'% match</span></div>'+
+                    '<div style="font-size:11.5px;color:#8a8594;margin-top:3px;">'+escapeHtml(p.a_store||'—')+(p.a_active?'':' (inactive)')+' &middot; '+escapeHtml(p.b_store||'—')+(p.b_active?'':' (inactive)')+(p.same_store?' &middot; <b style="color:#9a5b00;">same store</b>':'')+'</div>'+
+                '</div>';
+            });
+        }
+        h+='</div>'; dsOv().innerHTML=h;
+    }
+    /* =================== END EMPLOYEE DUPLICATE SCAN =================== */
     /* ===================== MAINTENANCE LEADERSHIP DASHBOARD ===================== */
     function mdOv(){ var o=document.getElementById('mdModal'); if(!o){ o=document.createElement('div'); o.id='mdModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100040;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
     function mdClose(){ var o=document.getElementById('mdModal'); if(o) o.style.display='none'; }
@@ -12545,6 +12574,10 @@
     <div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);margin-top:14px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:18px;">&#128451;</span><b style="flex:1;font-size:15px;color:var(--txt,#26242b);">Data retention</b><button onclick="openRetention()" style="background:var(--caliches-pink);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;">Open</button></div>
       <div style="font-size:12.5px;color:var(--txt2,#8a8594);">Set how long records are kept (default 7 years) and see how far back discipline, HR notes, work orders, invoices and more currently go. Records are archived, never hard-deleted.</div>
+    </div>
+    <div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);margin-top:14px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:18px;">&#128101;</span><b style="flex:1;font-size:15px;color:var(--txt,#26242b);">Possible duplicate employees</b><button onclick="openDupScan()" style="background:var(--caliches-pink);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;">Scan</button></div>
+      <div style="font-size:12.5px;color:var(--txt2,#8a8594);">Surfaces roster names that look alike so you can review possible duplicate records. Read-only &mdash; nothing is merged or changed.</div>
     </div>
     <p style="font-size:12px;color:var(--txt2,#8a8594);margin:14px 2px 0;line-height:1.5;">More management tools (roster, roles, equipment, training, Teach&nbsp;Scoopy, announcements) live in the <b>&#9889; Admin Dashboard</b> menu. More controls are coming to this console.</p>
   </div>
