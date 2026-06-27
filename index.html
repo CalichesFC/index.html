@@ -2512,7 +2512,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.26.2139';
+    const APP_VERSION = '2026.06.26.2142';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3724,12 +3724,14 @@
     var DEFAULT_STORES=['Roadrunner','Valley','Lenox','Alamogordo','Roswell'];
     var HUB_STORES=DEFAULT_STORES.slice();
     var HUB_STORE_ABBR={Roadrunner:'RR',Valley:'V',Lenox:'L',Alamogordo:'A',Roswell:'R'};
+    var STORE_NAME_SET={}; DEFAULT_STORES.forEach(function(s){STORE_NAME_SET[s]=1;});
     var HUB_STORE_EMOJI={Roadrunner:'🛣️',Valley:'🌄',Lenox:'🏙️',Alamogordo:'🌵',Roswell:'🛸'};
     function hubStoreEmoji(s){ return HUB_STORE_EMOJI[s]||'📍'; }
     function hubStoreAbbr(s){ return HUB_STORE_ABBR[s]||(s?String(s).replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase():''); }
     function applyStoreCfgFromRows(rows){
         if(!rows||!rows.length) return;
         HUB_STORES=rows.map(function(x){return x.label;}).filter(Boolean);
+        HUB_STORES.forEach(function(s){STORE_NAME_SET[s]=1;});
         HUB_STORE_ABBR={}; HUB_STORE_EMOJI={};
         rows.forEach(function(x){ var v=String(x.value||'').split('|'); HUB_STORE_ABBR[x.label]=v[0]||hubStoreAbbr(x.label); if(v[1]) HUB_STORE_EMOJI[x.label]=v[1]; });
         try{ SCHED_LOCATIONS=HUB_STORES.concat(['Catering & Vending']); }catch(e){}
@@ -3748,16 +3750,13 @@
             var sels=document.querySelectorAll('select');
             for(var k=0;k<sels.length;k++){
                 var sel=sels[k]; var opts=[].slice.call(sel.options);
-                var isStore=false; for(var j=0;j<opts.length;j++){ if(opts[j].text==='Roadrunner'){ isStore=true; break; } }
-                if(!isStore) continue;
-                var hadWh=false, hadCat=false;
-                for(var j2=0;j2<opts.length;j2++){ if(opts[j2].text==='Warehouse') hadWh=true; if(opts[j2].text.indexOf('Catering')>=0) hadCat=true; }
-                var cur=sel.value, lead='';
-                for(var i=0;i<opts.length;i++){ var t=opts[i].text; if(DEFAULT_STORES.indexOf(t)>=0||t==='Warehouse'||t.indexOf('Catering')>=0) break; lead+=opts[i].outerHTML; }
-                var html=lead;
+                var first=-1,last=-1;
+                for(var i=0;i<opts.length;i++){ if(STORE_NAME_SET[opts[i].text]){ if(first<0)first=i; last=i; } }
+                if(first<0) continue;
+                var cur=sel.value, html='';
+                for(var a=0;a<first;a++) html+=opts[a].outerHTML;
                 HUB_STORES.forEach(function(s){ html+='<option>'+String(s).replace(/[<>]/g,'')+'</option>'; });
-                if(hadWh) html+='<option>Warehouse</option>';
-                if(hadCat) html+='<option>Catering &amp; Vending</option>';
+                for(var z=last+1;z<opts.length;z++) html+=opts[z].outerHTML;
                 sel.innerHTML=html; if(cur){ try{ sel.value=cur; }catch(e){} }
             }
         }catch(e){}
