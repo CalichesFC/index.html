@@ -2510,7 +2510,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.26.1925';
+    const APP_VERSION = '2026.06.26.1934';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -10557,20 +10557,46 @@
         box.innerHTML='<p style="text-align:center;color:#888;padding:20px;">Loading&hellip;</p>';
         supabaseClient.rpc('app_supply_list',{p_username:currentUser.username,p_password:sessionPin,p_scope:scope}).then(function(r){
             if(r.error){ box.innerHTML='<p style="color:#c0264b;padding:14px;">'+(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have access to this list.':escapeHtml(r.error.message))+'</p>'; return; }
-            var rows=r.data||[];
-            if(!rows.length){ box.innerHTML='<p style="text-align:center;color:#9aa7b4;padding:24px;">No requests'+(scope==='incoming'?' in the queue.':' yet.')+'</p>'; return; }
-            box.innerHTML=rows.map(function(rq){
-                var items=(rq.items||[]).map(function(i){return escapeHtml(i.name||'')+(i.qty?(' &times;'+i.qty):'')+(i.uom?(' '+escapeHtml(i.uom)):'');}).join(', ');
-                var adv=(scope==='incoming')?supplyAdvanceBtns(rq):'';
-                var urg=(rq.urgency&&rq.urgency!=='Normal')?'<span style="font-size:11px;font-weight:700;color:'+(rq.urgency==='Critical'?'#c0264b':'#b8860b')+';">'+escapeHtml(rq.urgency)+'</span> &middot; ':'';
-                return '<div onclick="supplyOpenDetail('+rq.id+')" style="background:#fff;border:1px solid #e6ebf2;border-radius:12px;padding:13px;margin-bottom:10px;cursor:pointer;">'
-                  +'<div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-weight:800;color:#1f2a44;font-size:14px;">'+escapeHtml(rq.no||('SR-'+rq.id))+'</div><span style="background:'+supplyStatusColor(rq.status)+';color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;">'+escapeHtml(rq.status||'')+'</span></div>'
-                  +'<div style="font-size:12px;color:#6b7686;margin-top:4px;">'+urg+escapeHtml(rq.store||'')+(scope==='incoming'?(' &middot; '+escapeHtml(rq.requester||'')):'')+(rq.needed_by?(' &middot; needed '+escapeHtml(String(rq.needed_by))):'')+'</div>'
-                  +'<div style="font-size:13px;color:#1f2a44;margin-top:6px;">'+items+'</div>'
-                  +(rq.reason?('<div style="font-size:12px;color:#9aa7b4;margin-top:4px;">'+escapeHtml(rq.reason)+'</div>'):'')
-                  +'<div style="text-align:right;color:#9aa7b4;font-size:11px;margin-top:6px;">Tap for details &amp; status &rsaquo;</div></div>';
-            }).join('');
+            window._supplyData=window._supplyData||{}; window._supplyData[scope]=r.data||[];
+            supplyRenderRows(scope);
         }).catch(function(){ box.innerHTML='<p style="color:#c0264b;padding:14px;">Connection error.</p>'; });
+    }
+    function supplyRenderRows(scope){
+        var box=document.getElementById(scope==='incoming'?'supplyIncomingList':'supplyMineList'); if(!box) return;
+        var all=(window._supplyData&&window._supplyData[scope])||[]; var bar='';
+        if(scope==='incoming'){
+            window._supplyFilter=window._supplyFilter||{status:'',urgency:'',q:''}; var f=window._supplyFilter;
+            var sts=['','New','Submitted','Reviewing','Approved','Assigned','In transit','Received','Closed','Declined'];
+            bar='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">'
+              +'<select onchange="window._supplyFilter.status=this.value;supplyRenderRows(\'incoming\')" style="padding:7px;border:1px solid #ddd;border-radius:8px;font-size:12.5px;">'+sts.map(function(x){return '<option value="'+x+'"'+(f.status===x?' selected':'')+'>'+(x||'All statuses')+'</option>';}).join('')+'</select>'
+              +'<select onchange="window._supplyFilter.urgency=this.value;supplyRenderRows(\'incoming\')" style="padding:7px;border:1px solid #ddd;border-radius:8px;font-size:12.5px;"><option value="">All urgency</option><option'+(f.urgency==='Critical'?' selected':'')+'>Critical</option><option'+(f.urgency==='High'?' selected':'')+'>High</option><option'+(f.urgency==='Normal'?' selected':'')+'>Normal</option></select>'
+              +'<input value="'+escapeHtml(f.q||'')+'" oninput="window._supplyFilter.q=this.value;supplyRenderRows(\'incoming\')" placeholder="Search store / item&hellip;" style="flex:1;min-width:120px;padding:7px;border:1px solid #ddd;border-radius:8px;font-size:12.5px;">'
+              +'<button onclick="supplyExportCSV(\'incoming\')" style="background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-weight:700;font-size:12.5px;cursor:pointer;">&#8595; CSV</button></div>';
+            var q=(f.q||'').toLowerCase();
+            all=all.filter(function(rq){
+                if(f.status && rq.status!==f.status) return false;
+                if(f.urgency && (rq.urgency||'Normal')!==f.urgency) return false;
+                if(q){ var hay=((rq.store||'')+' '+(rq.requester||'')+' '+((rq.items||[]).map(function(i){return i.name||'';}).join(' '))).toLowerCase(); if(hay.indexOf(q)<0) return false; }
+                return true;
+            });
+        }
+        if(!all.length){ box.innerHTML=bar+'<p style="text-align:center;color:#9aa7b4;padding:24px;">No requests'+(scope==='incoming'?' match.':' yet.')+'</p>'; return; }
+        box.innerHTML=bar+all.map(function(rq){
+            var items=(rq.items||[]).map(function(i){return escapeHtml(i.name||'')+(i.qty?(' &times;'+i.qty):'')+(i.uom?(' '+escapeHtml(i.uom)):'');}).join(', ');
+            var crit=(rq.urgency==='Critical');
+            var urg=(rq.urgency&&rq.urgency!=='Normal')?'<span style="font-size:11px;font-weight:700;color:'+(crit?'#c0264b':'#b8860b')+';">'+escapeHtml(rq.urgency)+(crit?' &#9888;':'')+'</span> &middot; ':'';
+            return '<div onclick="supplyOpenDetail('+rq.id+')" style="background:#fff;border:1px solid '+(crit?'#f3b4b4':'#e6ebf2')+';border-left:'+(crit?'4px solid #c0264b':'1px solid #e6ebf2')+';border-radius:12px;padding:13px;margin-bottom:10px;cursor:pointer;">'
+              +'<div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-weight:800;color:#1f2a44;font-size:14px;">'+escapeHtml(rq.no||('SR-'+rq.id))+'</div><span style="background:'+supplyStatusColor(rq.status)+';color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;">'+escapeHtml(rq.status||'')+'</span></div>'
+              +'<div style="font-size:12px;color:#6b7686;margin-top:4px;">'+urg+escapeHtml(rq.store||'')+(scope==='incoming'?(' &middot; '+escapeHtml(rq.requester||'')):'')+(rq.needed_by?(' &middot; needed '+escapeHtml(String(rq.needed_by))):'')+'</div>'
+              +'<div style="font-size:13px;color:#1f2a44;margin-top:6px;">'+items+'</div>'
+              +(rq.reason?('<div style="font-size:12px;color:#9aa7b4;margin-top:4px;">'+escapeHtml(rq.reason)+'</div>'):'')
+              +'<div style="text-align:right;color:#9aa7b4;font-size:11px;margin-top:6px;">Tap for details &amp; status &rsaquo;</div></div>';
+        }).join('');
+    }
+    function supplyExportCSV(scope){
+        var all=(window._supplyData&&window._supplyData[scope])||[]; var rows=[['Request #','Status','Urgency','Store','Requester','Needed by','Items','Reason']];
+        all.forEach(function(rq){ rows.push([rq.no||('SR-'+rq.id),rq.status||'',rq.urgency||'',rq.store||'',rq.requester||'',rq.needed_by||'',(rq.items||[]).map(function(i){return (i.name||'')+(i.qty?(' x'+i.qty):'');}).join('; '),rq.reason||'']); });
+        if(typeof downloadCSV==='function') downloadCSV('supply_requests.csv',rows); else alert('Export unavailable.');
     }
     function supplyAdvance(id, status){
         supabaseClient.rpc('app_supply_advance',{p_username:currentUser.username,p_password:sessionPin,p_request_id:id,p_new_status:status,p_note:''}).then(function(r){
