@@ -2513,7 +2513,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.27.0001';
+    const APP_VERSION = '2026.06.27.0009';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -9274,7 +9274,7 @@
       if(!_wob.list.length) h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:30px;text-align:center;color:#8a8594;">No invoices yet.</div>';
       _wob.list.forEach(function(i){ h+='<div onclick="wobOpen('+i.id+')" style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:14px;color:#26242b;">'+escapeHtml(i.invoice_number||'')+'</b>'+wobStatusPill(i.status)+'</div><div style="font-size:11.5px;color:#8a8594;margin-top:3px;">'+escapeHtml(i.vendor||'(no vendor)')+(i.wo?(' &middot; WO '+escapeHtml(i.wo)):'')+' &middot; '+wobMoney(i.total)+'</div></div>'; });
       wobShell(h); }
-    function wobNew(){ var v=prompt('Vendor / provider for this invoice:'); if(v===null) return; var wo=prompt('Work order # (optional — leave blank for a standalone invoice):')||''; wobRpc('wo_invoice_create',{p_work_order_id:(wo?parseInt(wo,10):null),p_vendor:v},function(r){ wobOpen(r.id); }); }
+    function wobNew(){ var v=prompt('Vendor / provider for this invoice:'); if(v===null) return; var wo=prompt('Work order ID to link (optional). Leave blank for a standalone invoice. Tip: to pull a repair\'s logged costs in automatically, use the Billing button inside that work order instead:')||''; wobRpc('wo_invoice_create',{p_work_order_id:(wo?parseInt(wo,10):null),p_vendor:v},function(r){ wobOpen(r.id); }); }
     function wobOpen(id){ wobOv().innerHTML=wobHead('Invoice','wobLoad()')+'<div style="text-align:center;color:#888;padding:40px;">Loading&hellip;</div>'; wobRpc('wo_invoice_get',{p_id:id},function(d){ _wob.cur=d; wobInvoice(); }); }
     function wobInvoice(){ var iv=_wob.cur; if(!iv) return; var perm=iv.perm||{}; var lines=iv.lines||[]; var locked=(iv.status==='finance_approved'||iv.status==='paid'||iv.status==='void'); var canEdit=perm.mgr&&!locked;
       var h='<div style="max-width:680px;margin:0 auto;">';
@@ -9570,8 +9570,8 @@
             var mine=(list||[]).filter(function(i){return i.wo===woNum;});
             if(mine.length===1) return wobOpen(mine[0].id);
             if(mine.length>1){ _wob.tab='invoices'; _wob.list=mine; wobRender(); return; }
-            var v=prompt('Vendor / provider for this invoice (for work order '+woNum+'):'); if(!v) return;
-            wobRpc('wo_invoice_create',{p_work_order_id:woId,p_vendor:v},function(c){ wobOpen(c.id); });
+            var v=prompt('Vendor for this invoice \u2014 leave blank for in-house Caliche\'s Maintenance. Any costs already logged on this work order are pulled in automatically:'); if(v===null) return;
+            wobRpc('wo_invoice_from_wo',{p_work_order_id:woId,p_vendor:v},function(c){ wobOpen(c.id); });
         });
     }
     function woBtn(label,onclick,bg,fg){ return '<button onclick="'+onclick+'" style="width:100%;background:'+bg+';color:'+(fg||'#fff')+';border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:800;cursor:pointer;">'+label+'</button>'; }
@@ -10771,7 +10771,7 @@
         h+='<div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin:12px 0 4px;">Items</div>'+items;
         h+='<div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin:14px 0 4px;">Status</div><div style="background:#fafbfd;border:1px solid #eef0f5;border-radius:10px;padding:10px;">'+timeline+'</div>';
         if(d.fulfillment_source||d.transporter){ h+='<div style="font-size:12px;color:#6b7686;margin-top:8px;">'+(d.fulfillment_source?('<b>Source:</b> '+escapeHtml(d.fulfillment_source)+' '):'')+(d.transporter?('&middot; <b>Transporter:</b> '+escapeHtml(d.transporter)):'')+'</div>'; }
-        if(['Assigned','Fulfilling','In transit'].indexOf(d.status)>=0){ h+='<button onclick="supplyConfirmReceive()" style="width:100%;background:#1f7a3d;color:#fff;border:none;font-weight:800;padding:11px;border-radius:9px;cursor:pointer;font-size:14px;margin-top:10px;">&#10003; Confirm receipt at store</button>'; }
+        if(['Assigned','Fulfilling','In transit'].indexOf(d.status)>=0 && (d.can_manage || (currentUser&&currentUser.name===d.requester_name) || (currentUser&&currentUser.store&&currentUser.store===d.location))){ h+='<button onclick="supplyConfirmReceive()" style="width:100%;background:#1f7a3d;color:#fff;border:none;font-weight:800;padding:11px;border-radius:9px;cursor:pointer;font-size:14px;margin-top:10px;">&#10003; Confirm receipt at store</button>'; }
         if(d.can_manage){
             var next=({'Submitted':'Assigned','Assigned':'Fulfilling','Fulfilling':'In transit','In transit':'Received','Received':'Closed'})[d.status];
             h+='<div style="border-top:1px solid #eef0f5;margin-top:14px;padding-top:12px;">';
