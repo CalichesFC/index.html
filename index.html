@@ -2512,7 +2512,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.26.2246';
+    const APP_VERSION = '2026.06.26.2258';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -9608,18 +9608,39 @@
             }).catch(function(){ box.innerHTML='<p style="color:#c0264b;font-size:13px;">Could not load.</p>'; });
         });
     }
+    function _ctStale(c){ if(!c.last_verified) return true; try{ var d=new Date(c.last_verified); return (Date.now()-d.getTime())>90*864e5; }catch(e){ return false; } }
     function renderAdminContactsDir(){
         var box=document.getElementById('admContactsDirBox'); if(!box) return;
         var list=window._admContacts||[];
         if(!list.length){ box.innerHTML='<p style="color:var(--txt2,#8a8594);font-size:13px;">No contacts yet. Tap + Add to create the first one.</p>'; return; }
+        var active=list.filter(function(c){return c.active;});
+        var stale=active.filter(_ctStale).length;
+        var flagged=active.filter(function(c){return c.flagged;}).length;
         var h='';
+        if(stale||flagged){
+            h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">';
+            if(flagged) h+='<span style="background:#fdeaea;color:#a01b3e;font-size:12px;font-weight:800;padding:5px 11px;border-radius:99px;">&#9873; '+flagged+' flagged for review</span>';
+            if(stale) h+='<span style="background:#fff4e0;color:#9a5b00;font-size:12px;font-weight:800;padding:5px 11px;border-radius:99px;">&#9888; '+stale+' need re-verifying (90+ days)</span>';
+            h+='</div>';
+        }
         list.forEach(function(c){
-            h+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd,#f0eef4);'+(c.active?'':'opacity:.55;')+'"><div style="flex:1;min-width:0;"><b style="font-size:13.5px;color:var(--txt,#26242b);">'+escapeHtml(c.name)+'</b>'+(c.active?'':' <small style="color:#c0264b;">(archived)</small>')+
-               '<div style="font-size:11.5px;color:var(--txt2,#8a8594);">'+escapeHtml(c.category||'')+(c.service_type?' &middot; '+escapeHtml(c.service_type):'')+'</div></div>'+
+            var stl=c.active&&_ctStale(c);
+            var ver=c.last_verified?('verified '+escapeHtml(String(c.last_verified))):'never verified';
+            h+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd,#f0eef4);'+(c.active?'':'opacity:.55;')+'"><div style="flex:1;min-width:0;"><b style="font-size:13.5px;color:var(--txt,#26242b);">'+escapeHtml(c.name)+'</b>'+(c.active?'':' <small style="color:#c0264b;">(archived)</small>')+(c.flagged?' <span style="color:#a01b3e;font-size:11px;font-weight:700;">&#9873; flagged</span>':'')+
+               '<div style="font-size:11.5px;color:var(--txt2,#8a8594);">'+escapeHtml(c.category||'')+(c.service_type?' &middot; '+escapeHtml(c.service_type):'')+' &middot; <span style="color:'+(stl?'#9a5b00':'#9aa7b4')+';">'+ver+(stl?' &#9888;':'')+'</span></div></div>'+
+               (c.active?'<button onclick="cdVerifyContact('+c.id+')" style="background:#e8f5ec;color:#1b7a3d;border:none;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;">Verify</button>':'')+
                '<button onclick="openContactEdit('+c.id+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;">Edit</button>'+
                '<button onclick="archiveContact('+c.id+','+(c.active?'false':'true')+')" style="background:'+(c.active?'#fdeaea':'#e8f5ec')+';color:'+(c.active?'#c0264b':'#1b7a3d')+';border:none;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;">'+(c.active?'Archive':'Restore')+'</button></div>';
         });
         box.innerHTML=h;
+    }
+    function cdVerifyContact(id){
+        withPin(function(pin){
+            supabaseClient.rpc('app_contact_verify',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){
+                if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':r.error.message); return; }
+                loadImportantContacts();
+            }).catch(function(){ alert('Could not verify.'); });
+        });
     }
     function openContactEdit(id){
         var c=id?(window._admContacts||[]).filter(function(x){return x.id===id;})[0]:null; window._contactEditId=id||null;
