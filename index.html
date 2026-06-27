@@ -2512,7 +2512,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.26.2231';
+    const APP_VERSION = '2026.06.26.2246';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4928,7 +4928,7 @@
         else if(k==='schedule'){ body.innerHTML='<div class="emp-card"><div class="emp-sec">Scheduling &amp; attendance</div><div class="emp-empty">No published schedule yet. Once weekly schedules are published and the time clock is in everyday use, this tab shows '+empFirst(p)+'&rsquo;s upcoming shifts, hours, and attendance.</div></div>'; }
         else if(k==='recognition'){ body.innerHTML='<div class="emp-card"><div class="emp-sec">Recognition</div><div class="emp-empty">Shout-outs, milestones, and anniversaries for '+empFirst(p)+' will surface here from the Recognition feed.</div></div>'; }
         else if(k==='documents'){ body.innerHTML='<div class="emp-card"><div class="emp-sec">Employment documents</div><div class="emp-empty">This tab tracks document <b>status</b> (offer, I-9, handbook, food-handler card) as a checklist. Files are intentionally not stored here yet &mdash; they&rsquo;ll be served only through secure, backend-gated links once that path is approved.</div></div>'; }
-        else if(k==='notes'){ body.innerHTML='<div class="emp-card"><div class="emp-sec">Manager notes</div><div class="emp-empty">Private manager notes &mdash; separate from formal corrective action &mdash; live here once the coaching tier is built. Restricted to management.</div></div>'; }
+        else if(k==='notes'){ body.innerHTML='<div id="empNotesBox" class="emp-card"><div class="emp-sec">Notes</div><div class="emp-empty">Loading&hellip;</div></div>'; loadEmpNotes(p.id); }
         else if(k==='corrective'){ body.innerHTML=empPipHtml(p)||'<div class="emp-card"><div class="emp-sec">Corrective action</div><div class="emp-empty">No corrective action on file.</div></div>'; }
         else if(k==='confidential'){ body.innerHTML='<div class="emp-card"><div class="emp-sec">Confidential records</div><div class="emp-empty">Medical, banking, background, and other sensitive records are gated behind the full permission + audit foundation. They are intentionally not accessible until that foundation is complete and every access is logged per category.</div></div>'; }
     }
@@ -4957,6 +4957,65 @@
         }).catch(function(){ box.innerHTML='Could not load training.'; });
     }
 
+    /* ===== Employee tiered notes (#98) ===== */
+    function _noteTierMeta(t){ return ({support:['Support','#e7f6ec','#1b7a3d'],manager:['Manager','#eef3fb','#185FA5'],corrective:['Corrective','#fdeaea','#a01b3e']})[t]||['Note','#eef0f3','#5b6472']; }
+    function loadEmpNotes(empId){
+        var box=document.getElementById('empNotesBox'); if(!box) return; window._empNotesId=empId;
+        supabaseClient.rpc('app_emp_notes_list',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId}).then(function(r){
+            if(r.error){ box.innerHTML='<div class="emp-sec">Notes</div><div class="emp-empty">'+(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have access to notes for this person.':escapeHtml(r.error.message))+'</div>'; return; }
+            renderEmpNotes(r.data||{},empId);
+        }).catch(function(){ box.innerHTML='<div class="emp-sec">Notes</div><div class="emp-empty">Could not load notes.</div>'; });
+    }
+    function renderEmpNotes(d,empId){
+        var box=document.getElementById('empNotesBox'); if(!box) return; var notes=d.notes||[];
+        var h='<div class="emp-sec">Notes &middot; tiered</div>';
+        if(d.can_add){
+            var topts='<option value="support">Support / coaching</option><option value="manager">Manager note</option>'+(d.can_add_corrective?'<option value="corrective">Corrective (sensitive)</option>':'');
+            h+='<div style="background:#fbfcfe;border:1px solid #e6ebf2;border-radius:10px;padding:11px;margin-bottom:10px;"><div style="margin-bottom:6px;"><select id="empNoteTier" style="padding:8px;border:1px solid #d6deea;border-radius:8px;font-size:12.5px;width:100%;">'+topts+'</select></div><textarea id="empNoteBody" rows="2" placeholder="Add a note&hellip;" style="width:100%;padding:8px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;font-size:13px;"></textarea><button onclick="empNoteAdd('+empId+')" style="margin-top:8px;background:#185FA5;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-weight:700;font-size:13px;cursor:pointer;">Add note</button></div>';
+        }
+        if(!notes.length){ h+='<div class="emp-empty">No notes on file'+(d.can_add?'. Use the box above to add one.':'.')+'</div>'; }
+        notes.forEach(function(n){
+            var m=_noteTierMeta(n.tier); var del=n.is_deleted;
+            h+='<div style="border:1px solid #eef0f5;border-radius:10px;padding:10px;margin-bottom:8px;'+(del?'opacity:.65;':'')+'">'+
+               '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="background:'+m[1]+';color:'+m[2]+';font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:99px;">'+m[0]+'</span><span style="flex:1;font-size:11px;color:#9aa7b4;">'+escapeHtml(n.author||'')+' &middot; '+escapeHtml(String(n.created_at||'').slice(0,10))+(n.edited_at?' &middot; edited':'')+'</span></div>'+
+               '<div style="font-size:13px;color:#26242b;white-space:pre-wrap;'+(del?'text-decoration:line-through;':'')+'">'+escapeHtml(n.body||'')+'</div>'+
+               (del?'<div style="font-size:11px;color:#a01b3e;margin-top:3px;">Removed: '+escapeHtml(n.delete_reason||'')+'</div>':'')+
+               '<div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap;">'+
+               ((n.can_edit&&!del)?'<button onclick="empNoteEdit('+n.id+','+empId+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:7px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Edit</button>':'')+
+               ((n.can_delete&&!del)?'<button onclick="empNoteDelete('+n.id+','+empId+')" style="background:#fdeaea;color:#c0264b;border:none;border-radius:7px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Remove</button>':'')+
+               (d.senior?'<button onclick="empNoteAudit('+n.id+')" style="background:#f3f4f8;color:#6b7686;border:none;border-radius:7px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">History</button>':'')+
+               '</div></div>';
+        });
+        h+='<p class="emp-note">Support notes are visible to the team member; Manager and Corrective notes are management-only. Every edit and removal is recorded in the audit log.</p>';
+        box.innerHTML=h;
+    }
+    function empNoteAdd(empId){
+        var tier=(document.getElementById('empNoteTier')||{}).value||'support'; var body=(document.getElementById('empNoteBody')||{}).value||'';
+        if(!body.trim()){ alert('Type a note first.'); return; }
+        supabaseClient.rpc('app_emp_note_add',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId,p_tier:tier,p_body:body}).then(function(r){
+            if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'You cannot add that note tier.':r.error.message); return; }
+            loadEmpNotes(empId);
+        }).catch(function(){ alert('Could not save.'); });
+    }
+    function empNoteEdit(noteId,empId){
+        var nb=prompt('Edit note:'); if(nb===null) return; if(!nb.trim()){ alert('Note cannot be empty.'); return; }
+        supabaseClient.rpc('app_emp_note_edit',{p_username:currentUser.username,p_password:sessionPin,p_note_id:noteId,p_body:nb}).then(function(r){
+            if(r.error){ alert(r.error.message); return; } loadEmpNotes(empId);
+        }).catch(function(){ alert('Could not save.'); });
+    }
+    function empNoteDelete(noteId,empId){
+        var rs=prompt('Reason for removing this note (recorded in the audit log):'); if(rs===null) return; if(!rs.trim()){ alert('A reason is required.'); return; }
+        supabaseClient.rpc('app_emp_note_delete',{p_username:currentUser.username,p_password:sessionPin,p_note_id:noteId,p_reason:rs}).then(function(r){
+            if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Only senior managers can remove notes.':r.error.message); return; } loadEmpNotes(empId);
+        }).catch(function(){ alert('Could not remove.'); });
+    }
+    function empNoteAudit(noteId){
+        supabaseClient.rpc('app_emp_note_audit',{p_username:currentUser.username,p_password:sessionPin,p_note_id:noteId}).then(function(r){
+            if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Senior managers only.':r.error.message); return; }
+            var a=r.data||[]; var txt=a.length?a.map(function(x){return (String(x.at||'').slice(0,16).replace('T',' '))+'  '+x.action+'  '+(x.actor||'')+((x.detail&&x.detail.reason)?(' — '+x.detail.reason):'');}).join('\n'):'No history.';
+            alert('Note history:\n\n'+txt);
+        }).catch(function(){ alert('Could not load history.'); });
+    }
     function renderRosterTable(){
         const box=document.getElementById('rosterList');
         const q=(document.getElementById('rosterSearch').value||'').toLowerCase();
