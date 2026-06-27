@@ -776,6 +776,7 @@
             <button id="teamDevBtn" class="menu-btn" style="display:none;" onclick="openTeamDev()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128218;</span><b>Team Development</b><small>Everyone&rsquo;s training, growth &amp; promotions</small></button>
             <button id="btn-fundraiserHub" class="menu-btn" style="display:none;" onclick="openFundraiserHub()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128203;</span><b>Fundraiser Hub</b><small>Inquiries, cards, returns, reconciliation &amp; reports</small></button>
             <button id="btn-maintBilling" class="menu-btn" style="display:none;" onclick="openMaintBilling()"><span class="rchip mgr">Finance</span><span class="tile-ic">&#129534;</span><b>Maintenance Billing</b><small>Invoices, approvals &amp; vendor rates</small></button>
+            <button id="btn-maintDash" class="menu-btn" style="display:none;" onclick="openMaintDashboard()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128295;</span><b>Maintenance Dashboard</b><small>Open work, costs by store, vendor spend</small></button>
             <button id="btn-storeManager" class="menu-btn" style="display:none;" onclick="openStoreManager()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#127978;</span><b>Manage Stores</b><small>Add, rename or remove store locations</small></button>
             <button id="btn-scorecards" class="menu-btn" style="display:none;" onclick="openScorecards()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Store Scorecards</b><small>Sales vs LY, labor, speed, inspection &amp; more</small></button>
             <button id="developerBtn" class="menu-btn" style="display:none;" onclick="openTrainingPortal()"><span class="rchip admin">Dev</span><span class="tile-ic">&#128187;</span><b>Training Portal</b><small>Developer tools</small></button>
@@ -2513,7 +2514,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.27.0108';
+    const APP_VERSION = '2026.06.27.0114';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2829,6 +2830,60 @@
         box.style.display='block';
     }
     /* =================== END HOME QUICK-JUMP SEARCH =================== */
+    /* ===================== MAINTENANCE LEADERSHIP DASHBOARD ===================== */
+    function mdOv(){ var o=document.getElementById('mdModal'); if(!o){ o=document.createElement('div'); o.id='mdModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100040;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
+    function mdClose(){ var o=document.getElementById('mdModal'); if(o) o.style.display='none'; }
+    function mdMoney(n){ var x=parseFloat(n); return '$'+(isNaN(x)?'0':x.toLocaleString(undefined,{maximumFractionDigits:0})); }
+    function openMaintDashboard(){ mdLoad(90); }
+    function mdLoad(days){
+        mdOv().innerHTML='<div style="text-align:center;color:#888;padding:44px;">Loading maintenance dashboard&hellip;</div>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_maint_dashboard',{p_username:currentUser.username,p_password:pin,p_days:days}).then(function(r){
+                if(r.error){ mdOv().innerHTML='<div style="padding:30px;text-align:center;color:#c0264b;">'+(String(r.error.message||'').indexOf('forbidden')>=0?'This view is for managers and finance.':escapeHtml(r.error.message||'Error'))+'</div><div style="text-align:center;"><button onclick="mdClose()" style="background:#eef0f3;border:none;border-radius:9px;padding:10px 16px;cursor:pointer;">Close</button></div>'; return; }
+                mdRender(r.data||{}, days);
+            }).catch(function(){ mdOv().innerHTML='<div style="padding:30px;text-align:center;color:#c0264b;">Connection error.</div>'; });
+        });
+    }
+    function mdTile(label,val,sub,color){ return '<div style="flex:1;min-width:120px;background:#fff;border:1px solid #eef0f5;border-radius:11px;padding:11px 13px;"><div style="font-size:10.5px;font-weight:800;text-transform:uppercase;color:#9aa7b4;letter-spacing:.3px;">'+label+'</div><div style="font-size:20px;font-weight:800;color:'+(color||'#1f2a44')+';margin-top:2px;">'+val+'</div>'+(sub?'<div style="font-size:11px;color:#8a8594;">'+sub+'</div>':'')+'</div>'; }
+    function mdRender(d, days){
+        var s=d.summary||{};
+        var winBtn=function(n,lbl){ return '<button onclick="mdLoad('+n+')" style="background:'+(days===n?'#185FA5':'#eef0f3')+';color:'+(days===n?'#fff':'#5b6472')+';border:none;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;">'+lbl+'</button>'; };
+        var h='<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;"><b style="flex:1;font-size:16px;">Maintenance &mdash; Leadership View</b><button onclick="mdClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;font-size:15px;">&times;</button></div>';
+        h+='<div style="max-width:880px;margin:0 auto;padding:14px 16px 50px;">';
+        h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;"><span style="font-size:12px;color:#6b7686;">Window:</span>'+winBtn(30,'30 days')+winBtn(90,'90 days')+winBtn(365,'1 year')+'</div>';
+        h+='<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px;">';
+        h+=mdTile('Open work orders', (s.open_wo!=null?s.open_wo:'0'),'',(s.open_wo>0?'#9a5b00':'#1b7a3d'));
+        h+=mdTile('On hold', (s.on_hold!=null?s.on_hold:'0'),'',(s.on_hold>0?'#a01b3e':'#1f2a44'));
+        h+=mdTile('Completed', (s.completed_in_window!=null?s.completed_in_window:'0'),'in window','#1b7a3d');
+        h+=mdTile('Cost logged', mdMoney(d.cost_logged),'in window');
+        h+=mdTile('Invoices open', mdMoney(d.invoice_open_total),'awaiting',(d.invoice_open_total>0?'#9a5b00':'#1f2a44'));
+        h+=mdTile('Invoices paid', mdMoney(d.invoice_paid_total),'in window','#1b7a3d');
+        h+='</div>';
+        h+='<div style="background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:13px;margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:8px;">By store</div>';
+        var bs=d.by_store||[];
+        if(!bs.length){ h+='<div style="color:#9aa7b4;font-size:13px;">No work orders yet.</div>'; }
+        else { h+='<table style="width:100%;border-collapse:collapse;font-size:13px;"><tr style="color:#9aa7b4;font-size:11px;text-transform:uppercase;"><td style="text-align:left;padding:3px 0;">Store</td><td style="text-align:center;">Open WOs</td><td style="text-align:right;">Cost (window)</td></tr>';
+            bs.forEach(function(r){ h+='<tr style="border-top:1px solid #f3f4f8;"><td style="padding:6px 0;color:#26242b;font-weight:600;">'+escapeHtml(r.location||'')+'</td><td style="text-align:center;color:'+(r.open_wo>0?'#9a5b00':'#1b7a3d')+';font-weight:700;">'+(r.open_wo||0)+'</td><td style="text-align:right;color:#1f2a44;">'+mdMoney(r.cost)+'</td></tr>'; });
+            h+='</table>'; }
+        h+='</div>';
+        h+='<div style="display:flex;gap:12px;flex-wrap:wrap;">';
+        h+='<div style="flex:1;min-width:240px;background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:13px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:8px;">Open by category</div>';
+        var bc=d.by_category||[];
+        if(!bc.length){ h+='<div style="color:#9aa7b4;font-size:13px;">Nothing open.</div>'; } else { bc.forEach(function(r){ h+='<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid #f7f8fb;font-size:13px;"><span style="color:#33303a;">'+escapeHtml(r.category||'')+'</span><b style="color:#185FA5;">'+(r.open_wo||0)+'</b></div>'; }); }
+        h+='</div>';
+        h+='<div style="flex:1;min-width:240px;background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:13px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:8px;">Cost by type (window)</div>';
+        var bk=d.cost_by_kind||[];
+        if(!bk.length){ h+='<div style="color:#9aa7b4;font-size:13px;">No costs logged.</div>'; } else { bk.forEach(function(r){ h+='<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid #f7f8fb;font-size:13px;"><span style="color:#33303a;text-transform:capitalize;">'+escapeHtml(r.kind||'')+'</span><b style="color:#1f2a44;">'+mdMoney(r.total)+'</b></div>'; }); }
+        h+='</div></div>';
+        var bv=d.by_vendor||[];
+        if(bv.length){ h+='<div style="background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:13px;margin-top:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:8px;">Invoice spend by vendor</div><table style="width:100%;border-collapse:collapse;font-size:13px;">';
+            bv.forEach(function(r){ h+='<tr style="border-top:1px solid #f3f4f8;"><td style="padding:6px 0;color:#26242b;">'+escapeHtml(r.vendor||'')+'</td><td style="text-align:center;color:#9aa7b4;">'+(r.invoices||0)+' inv</td><td style="text-align:right;color:#1f2a44;font-weight:700;">'+mdMoney(r.total)+'</td></tr>'; });
+            h+='</table></div>'; }
+        h+='<p style="font-size:11.5px;color:#9aa7b4;margin-top:14px;">Numbers come from logged work-order costs and maintenance invoices. As more work orders are closed and invoices entered, this view fills in automatically.</p>';
+        h+='</div>';
+        mdOv().innerHTML=h;
+    }
+    /* =================== END MAINTENANCE LEADERSHIP DASHBOARD =================== */
     /* ===================== MY COACHING NOTES (employee self-view) ===================== */
     function myNotesOv(){ var o=document.getElementById('myNotesModal'); if(!o){ o=document.createElement('div'); o.id='myNotesModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100040;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
     function myNotesClose(){ var o=document.getElementById('myNotesModal'); if(o) o.style.display='none'; }
@@ -5897,6 +5952,7 @@
         var _mbBtn=document.getElementById('btn-maintBilling'); if(_mbBtn) _mbBtn.style.display=(devOverride||isManager||['Vice President/Co-Owner','Store Manager','Finance Approver','Maintenance Lead'].indexOf(role)>=0)?'block':'none';
         var _smBtn=document.getElementById('btn-storeManager'); if(_smBtn) _smBtn.style.display=(devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0)?'block':'none';
         var _scBtn=document.getElementById('btn-scorecards'); if(_scBtn) _scBtn.style.display=(devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0)?'block':'none';
+        var _mdBtn=document.getElementById('btn-maintDash'); if(_mdBtn) _mdBtn.style.display=(devOverride||isManager||['Vice President/Co-Owner','Store Manager','Finance Approver','Maintenance Lead'].indexOf(role)>=0)?'block':'none';
         const formsLinksBtn = document.getElementById('formsLinksBtn');
         if (formsLinksBtn) formsLinksBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         const quotesBtn = document.getElementById('quotesBtn');
