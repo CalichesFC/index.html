@@ -2513,7 +2513,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.26.2348';
+    const APP_VERSION = '2026.06.27.0001';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -5799,9 +5799,9 @@
         if (shortageTrendsBtn) shortageTrendsBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         var _teamDevBtn=document.getElementById('teamDevBtn'); if(_teamDevBtn) _teamDevBtn.style.display=(devOverride||isManager)?'block':'none';
         var _frBtn=document.getElementById('btn-fundraiserHub'); if(_frBtn) _frBtn.style.display=(devOverride||isManager)?'block':'none';
-        var _mbBtn=document.getElementById('btn-maintBilling'); if(_mbBtn) _mbBtn.style.display=(devOverride||isManager)?'block':'none';
-        var _smBtn=document.getElementById('btn-storeManager'); if(_smBtn) _smBtn.style.display=(devOverride||isManager)?'block':'none';
-        var _scBtn=document.getElementById('btn-scorecards'); if(_scBtn) _scBtn.style.display=(devOverride||isManager)?'block':'none';
+        var _mbBtn=document.getElementById('btn-maintBilling'); if(_mbBtn) _mbBtn.style.display=(devOverride||isManager||['Vice President/Co-Owner','Store Manager','Finance Approver','Maintenance Lead'].indexOf(role)>=0)?'block':'none';
+        var _smBtn=document.getElementById('btn-storeManager'); if(_smBtn) _smBtn.style.display=(devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0)?'block':'none';
+        var _scBtn=document.getElementById('btn-scorecards'); if(_scBtn) _scBtn.style.display=(devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0)?'block':'none';
         const formsLinksBtn = document.getElementById('formsLinksBtn');
         if (formsLinksBtn) formsLinksBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         const quotesBtn = document.getElementById('quotesBtn');
