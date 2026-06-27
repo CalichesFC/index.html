@@ -2512,7 +2512,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.26.2142';
+    const APP_VERSION = '2026.06.26.2205';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -10509,7 +10509,7 @@
             var who=(st==='Assigned'&&d.assigned_to)?(' &middot; '+escapeHtml(d.assigned_to)):((st==='Received'&&d.received_by)?(' &middot; '+escapeHtml(d.received_by)):'');
             return '<div style="display:flex;align-items:center;gap:9px;padding:4px 0;"><div style="width:18px;height:18px;border-radius:50%;flex:none;background:'+(done?supplyStatusColor(st):'#e6ebf2')+';color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;">'+(done?'&#10003;':'')+'</div><div style="font-size:13px;color:'+(done?'#1f2a44':'#9aa7b4')+';font-weight:'+(i===ci?'700':'400')+';">'+st+who+ts+'</div></div>';
         }).join('');
-        var items=(d.items||[]).map(function(i){ return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f2f6;font-size:13px;"><span>'+escapeHtml(i.item_name||'')+'</span><span style="color:#6b7686;">'+(i.requested_qty?escapeHtml(String(i.requested_qty)):'')+' '+escapeHtml(i.unit_of_measure||'')+(i.on_hand!=null?(' &middot; on hand '+escapeHtml(String(i.on_hand))):'')+'</span></div>'; }).join('')||'<div style="color:#9aa7b4;font-size:13px;">No items.</div>';
+        var items=supplyItemsHtml(d);
         var urg=(d.urgency&&d.urgency!=='Normal')?'<span style="font-weight:700;color:'+(d.urgency==='Critical'?'#c0264b':'#b8860b')+';">'+escapeHtml(d.urgency)+'</span> &middot; ':'';
         var h='<div style="font-size:12px;color:#6b7686;margin-bottom:10px;">'+urg+escapeHtml(d.location||'')+' &middot; '+escapeHtml(d.requester_name||'')+(d.needed_by_date?(' &middot; needed '+escapeHtml(String(d.needed_by_date))+(d.needed_by_time?(' '+escapeHtml(d.needed_by_time)):'')):'')+'</div>';
         if(d.reason) h+='<div style="font-size:13px;color:#1f2a44;margin-bottom:4px;"><b>Reason:</b> '+escapeHtml(d.reason)+'</div>';
@@ -10517,6 +10517,7 @@
         h+='<div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin:12px 0 4px;">Items</div>'+items;
         h+='<div style="font-size:11px;font-weight:700;color:#9aa7b4;text-transform:uppercase;margin:14px 0 4px;">Status</div><div style="background:#fafbfd;border:1px solid #eef0f5;border-radius:10px;padding:10px;">'+timeline+'</div>';
         if(d.fulfillment_source||d.transporter){ h+='<div style="font-size:12px;color:#6b7686;margin-top:8px;">'+(d.fulfillment_source?('<b>Source:</b> '+escapeHtml(d.fulfillment_source)+' '):'')+(d.transporter?('&middot; <b>Transporter:</b> '+escapeHtml(d.transporter)):'')+'</div>'; }
+        if(['Assigned','Fulfilling','In transit'].indexOf(d.status)>=0){ h+='<button onclick="supplyConfirmReceive()" style="width:100%;background:#1f7a3d;color:#fff;border:none;font-weight:800;padding:11px;border-radius:9px;cursor:pointer;font-size:14px;margin-top:10px;">&#10003; Confirm receipt at store</button>'; }
         if(d.can_manage){
             var next=({'Submitted':'Assigned','Assigned':'Fulfilling','Fulfilling':'In transit','In transit':'Received','Received':'Closed'})[d.status];
             h+='<div style="border-top:1px solid #eef0f5;margin-top:14px;padding-top:12px;">';
@@ -10545,6 +10546,40 @@
         supabaseClient.rpc('app_supply_fulfill',{p_username:currentUser.username,p_password:sessionPin,p_request_id:id,p_source:src,p_transporter:tr}).then(function(r){
             if(r.error){ alert(r.error.message); return; }
             supplyOpenDetail(id);
+        }).catch(function(){ alert('Connection error.'); });
+    }
+    function supplyItemsHtml(d){
+        var mng=!!d.can_manage; var editable=['Assigned','Fulfilling','In transit'].indexOf(d.status)>=0;
+        var rows=(d.items||[]).map(function(i){
+            var ful=(i.fulfilled_qty!=null&&i.fulfilled_qty!=='')?('<span style="color:#1f7a3d;font-weight:700;"> &middot; fulfilled '+escapeHtml(String(i.fulfilled_qty))+'</span>'):'';
+            var sub=i.approved_substitute?('<div style="color:#9a5b00;font-size:11.5px;">&#8631; approved substitute: '+escapeHtml(i.approved_substitute)+'</div>'):'';
+            var line='<div style="padding:6px 0;border-bottom:1px solid #f0f2f6;font-size:13px;">';
+            line+='<div style="display:flex;justify-content:space-between;gap:8px;"><span>'+escapeHtml(i.item_name||'')+'</span><span style="color:#6b7686;white-space:nowrap;">'+(i.requested_qty?escapeHtml(String(i.requested_qty)):'')+' '+escapeHtml(i.unit_of_measure||'')+(i.on_hand!=null?(' &middot; on hand '+escapeHtml(String(i.on_hand))):'')+ful+'</span></div>';
+            if(i.item_note) line+='<div style="color:#9aa7b4;font-size:11.5px;">'+escapeHtml(i.item_note)+'</div>';
+            line+=sub;
+            if(mng&&editable){
+                line+='<div style="display:flex;gap:6px;margin-top:5px;align-items:center;flex-wrap:wrap;"><input id="supF_'+i.id+'" type="number" step="0.1" min="0" placeholder="fulfilled qty" value="'+(i.fulfilled_qty!=null?escapeHtml(String(i.fulfilled_qty)):'')+'" style="width:100px;padding:6px;border:1px solid #d6deea;border-radius:6px;font-size:12.5px;"><input id="supS_'+i.id+'" placeholder="approved substitute (optional)" value="'+escapeHtml(i.approved_substitute||'')+'" style="flex:1;min-width:130px;padding:6px;border:1px solid #d6deea;border-radius:6px;font-size:12.5px;"><button onclick="supplyItemSet('+i.id+')" style="background:#0a6cb4;color:#fff;border:none;border-radius:6px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;">Save</button></div>';
+            }
+            line+='</div>';
+            return line;
+        }).join('')||'<div style="color:#9aa7b4;font-size:13px;">No items.</div>';
+        return rows;
+    }
+    function supplyItemSet(itemId){
+        var f=(document.getElementById('supF_'+itemId)||{}).value; var s=(document.getElementById('supS_'+itemId)||{}).value||'';
+        supabaseClient.rpc('app_supply_item_set',{p_username:currentUser.username,p_password:sessionPin,p_item_id:itemId,p_fulfilled_qty:(f===''||f==null?null:parseFloat(f)),p_approved_substitute:s}).then(function(r){
+            if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Only the office or the assigned person can update items.':r.error.message); return; }
+            supplyOpenDetail(window._supplyDetailId);
+        }).catch(function(){ alert('Connection error.'); });
+    }
+    function supplyConfirmReceive(){
+        var id=window._supplyDetailId;
+        if(!confirm('Confirm that this order was received at your store?')) return;
+        supabaseClient.rpc('app_supply_receive',{p_username:currentUser.username,p_password:sessionPin,p_request_id:id}).then(function(r){
+            if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Only the requester, store staff, or the office can confirm receipt.':r.error.message); return; }
+            supplyOpenDetail(id);
+            var inc=document.getElementById('supplyPanel-incoming'); if(inc&&inc.style.display!=='none') supplyLoadList('incoming');
+            var mine=document.getElementById('supplyPanel-mine'); if(mine&&mine.style.display!=='none') supplyLoadList('mine');
         }).catch(function(){ alert('Connection error.'); });
     }
     function supplyCatalogClear(){ document.getElementById('supplyCatId').value=''; document.getElementById('supplyCatName').value=''; document.getElementById('supplyCatCategory').value=''; document.getElementById('supplyCatUom').value=''; var m=document.getElementById('supplyCatMsg'); if(m) m.style.display='none'; }
