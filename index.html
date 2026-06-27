@@ -777,6 +777,7 @@
             <button id="btn-fundraiserHub" class="menu-btn" style="display:none;" onclick="openFundraiserHub()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128203;</span><b>Fundraiser Hub</b><small>Inquiries, cards, returns, reconciliation &amp; reports</small></button>
             <button id="btn-maintBilling" class="menu-btn" style="display:none;" onclick="openMaintBilling()"><span class="rchip mgr">Finance</span><span class="tile-ic">&#129534;</span><b>Maintenance Billing</b><small>Invoices, approvals &amp; vendor rates</small></button>
             <button id="btn-storeManager" class="menu-btn" style="display:none;" onclick="openStoreManager()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#127978;</span><b>Manage Stores</b><small>Add, rename or remove store locations</small></button>
+            <button id="btn-scorecards" class="menu-btn" style="display:none;" onclick="openScorecards()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Store Scorecards</b><small>Sales vs LY, labor, speed, inspection &amp; more</small></button>
             <button id="developerBtn" class="menu-btn" style="display:none;" onclick="openTrainingPortal()"><span class="rchip admin">Dev</span><span class="tile-ic">&#128187;</span><b>Training Portal</b><small>Developer tools</small></button>
             <button id="previewToggleBtn" class="menu-btn" style="display:none;" onclick="togglePreviewMode()"><span class="rchip admin">Dev</span><span class="tile-ic">&#128065;</span><b>Preview as Staff</b><small>Hide dev tabs</small></button>
             <button id="installBtn" class="menu-btn" style="display:none;" onclick="installApp()"><span class="tile-ic">&#128242;</span><b>Install App on Phone</b><small>Add to home screen</small></button>
@@ -2512,7 +2513,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.26.2258';
+    const APP_VERSION = '2026.06.26.2312';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -5800,6 +5801,7 @@
         var _frBtn=document.getElementById('btn-fundraiserHub'); if(_frBtn) _frBtn.style.display=(devOverride||isManager)?'block':'none';
         var _mbBtn=document.getElementById('btn-maintBilling'); if(_mbBtn) _mbBtn.style.display=(devOverride||isManager)?'block':'none';
         var _smBtn=document.getElementById('btn-storeManager'); if(_smBtn) _smBtn.style.display=(devOverride||isManager)?'block':'none';
+        var _scBtn=document.getElementById('btn-scorecards'); if(_scBtn) _scBtn.style.display=(devOverride||isManager)?'block':'none';
         const formsLinksBtn = document.getElementById('formsLinksBtn');
         if (formsLinksBtn) formsLinksBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
         const quotesBtn = document.getElementById('quotesBtn');
@@ -9141,6 +9143,68 @@
     function woIsMaint(){ var r=currentUser.role; return r==='Maintenance Lead'||r==='Maintenance Contributor'; }
     function woIsMgr(){ return currentUser.is_developer===true||['Admin Manager','Manager','Vice President/Co-Owner','Store Manager'].indexOf(currentUser.role)>=0; }
     function openWorkOrders(){ _wo.tab=woIsMaint()?'queue':(woIsMgr()?'board':'report'); woLoad(function(){ woRender(); }); }
+    /* ===================== STORE SCORECARDS ===================== */
+    var _sc={rows:[]};
+    var SC_FIELDS=[['sales','Sales ($)'],['sales_ly','Sales last year ($)'],['guest_count','Guest count'],['speed_seconds','Speed of service (sec)'],['labor_pct','Labor %'],['inspection_score','Inspection score'],['training_pct','Training %'],['maintenance_open','Open maintenance'],['pick_n_take','Pick-N-Take'],['flips','Flips'],['complaints','Complaints']];
+    function scIsMgr(){ return !!(currentUser&&(currentUser.is_developer===true||(typeof woIsMgr==='function'&&woIsMgr()))); }
+    function scRpc(name,args,cb){ withPin(function(pin){ supabaseClient.rpc(name,Object.assign({p_username:currentUser.username,p_password:pin},args||{})).then(function(r){ if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':r.error.message); return; } cb(r.data); }).catch(function(){ alert('Connection error.'); }); }); }
+    function scOv(){ var o=document.getElementById('scModal'); if(!o){ o=document.createElement('div'); o.id='scModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100040;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
+    function scClose(){ var o=document.getElementById('scModal'); if(o) o.style.display='none'; }
+    function scMoney(n){ if(n==null||n==='') return '—'; var x=parseFloat(n); return '$'+(isNaN(x)?'0':x.toLocaleString()); }
+    function scNum(n){ return (n==null||n==='')?'—':String(n); }
+    function openScorecards(){ scLoad(); }
+    function scLoad(){ scOv().innerHTML='<div style="text-align:center;color:#888;padding:40px;">Loading scorecards&hellip;</div>'; scRpc('app_metrics_latest',{},function(d){ _sc.rows=d||[]; scRender(); }); }
+    function scTile(label,val,sub,color){ return '<div style="flex:1;min-width:88px;background:#fff;border:1px solid #eef0f5;border-radius:10px;padding:8px 10px;"><div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#9aa7b4;letter-spacing:.3px;">'+label+'</div><div style="font-size:16px;font-weight:800;color:'+(color||'#1f2a44')+';">'+val+'</div>'+(sub?'<div style="font-size:10.5px;color:#8a8594;">'+sub+'</div>':'')+'</div>'; }
+    function scRender(){
+        var stores=(typeof HUB_STORES!=='undefined'?HUB_STORES:['Roadrunner','Valley','Lenox','Alamogordo','Roswell']);
+        var byLoc={}; (_sc.rows||[]).forEach(function(m){ byLoc[m.location]=m; });
+        var h='<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;"><b style="flex:1;font-size:16px;">Store Scorecards</b><button onclick="scClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;">&times;</button></div>';
+        h+='<div style="max-width:840px;margin:0 auto;padding:14px 16px 50px;">';
+        h+='<p style="font-size:12.5px;color:#6b7686;margin-top:0;">A snapshot per store. Managers can enter numbers now; once the POS (Aloha) feed is connected these auto-fill from sales/labor data.</p>';
+        stores.forEach(function(loc){
+            var m=byLoc[loc]; var emoji=(typeof hubStoreEmoji==='function'?hubStoreEmoji(loc):'📍');
+            h+='<div style="background:#fafbfd;border:1px solid #e6ebf2;border-radius:14px;padding:13px;margin-bottom:10px;">';
+            h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><b style="flex:1;font-size:15px;color:#1f2a44;">'+emoji+' '+escapeHtml(loc)+'</b>'+(m&&m.metric_date?'<span style="font-size:11px;color:#9aa7b4;">as of '+escapeHtml(String(m.metric_date))+'</span>':'')+(scIsMgr()?'<button onclick="scEnter(\''+loc.replace(/'/g,"")+'\')" style="background:#185FA5;color:#fff;border:none;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;">'+(m?'Update':'Enter')+'</button>':'')+'</div>';
+            if(!m){ h+='<div style="font-size:12.5px;color:#9aa7b4;">No numbers entered yet'+(scIsMgr()?' — tap Enter to add them.':'.')+'</div>'; }
+            else {
+                var dly=''; if(m.sales!=null&&m.sales_ly){ var pct=Math.round(((m.sales-m.sales_ly)/m.sales_ly)*100); dly=(pct>=0?'▲ +':'▼ ')+pct+'% vs LY'; }
+                h+='<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+                h+=scTile('Sales',scMoney(m.sales),dly,(m.sales!=null&&m.sales_ly&&m.sales>=m.sales_ly)?'#1b7a3d':(m.sales_ly?'#a01b3e':'#1f2a44'));
+                h+=scTile('Guests',scNum(m.guest_count),'');
+                h+=scTile('Speed',m.speed_seconds!=null?(m.speed_seconds+'s'):'—','');
+                h+=scTile('Labor',m.labor_pct!=null?(m.labor_pct+'%'):'—','',(m.labor_pct>25?'#a01b3e':(m.labor_pct!=null?'#1b7a3d':'#1f2a44')));
+                h+=scTile('Inspection',scNum(m.inspection_score),'');
+                h+=scTile('Training',m.training_pct!=null?(m.training_pct+'%'):'—','');
+                h+=scTile('Maint open',scNum(m.maintenance_open),'',(m.maintenance_open>0?'#9a5b00':'#1f2a44'));
+                h+=scTile('Pick-N-Take',scNum(m.pick_n_take),'');
+                h+=scTile('Flips',scNum(m.flips),'');
+                h+=scTile('Complaints',scNum(m.complaints),'',(m.complaints>0?'#a01b3e':'#1f2a44'));
+                h+='</div>';
+                if(m.note) h+='<div style="font-size:11.5px;color:#8a8594;margin-top:6px;">'+escapeHtml(m.note)+'</div>';
+            }
+            h+='</div>';
+        });
+        h+='</div>'; scOv().innerHTML=h;
+    }
+    function scEnter(loc){
+        var m=(_sc.rows||[]).filter(function(x){return x.location===loc;})[0]||{};
+        var today=new Date().toISOString().slice(0,10);
+        var fields=SC_FIELDS.map(function(f){ return '<div style="flex:1;min-width:130px;"><label style="font-size:11.5px;color:#6b7686;display:block;margin-bottom:2px;">'+f[1]+'</label><input id="scf_'+f[0]+'" type="number" step="any" value="'+(m[f[0]]!=null?escapeHtml(String(m[f[0]])):'')+'" style="width:100%;padding:8px;border:1px solid #d6deea;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>'; }).join('');
+        var h='<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;"><button onclick="scLoad()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;">&lsaquo; Back</button><b style="flex:1;font-size:16px;">'+escapeHtml(loc)+' — enter numbers</b></div>';
+        h+='<div style="max-width:620px;margin:0 auto;padding:16px 16px 50px;">';
+        h+='<label style="font-size:11.5px;color:#6b7686;display:block;margin-bottom:2px;">Date</label><input id="scfDate" type="date" value="'+(m.metric_date||today)+'" style="padding:8px;border:1px solid #d6deea;border-radius:8px;font-size:13px;margin-bottom:10px;">';
+        h+='<div style="display:flex;gap:10px;flex-wrap:wrap;">'+fields+'</div>';
+        h+='<label style="font-size:11.5px;color:#6b7686;display:block;margin:10px 0 2px;">Note (optional)</label><textarea id="scfNote" rows="2" style="width:100%;padding:8px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;font-size:13px;">'+escapeHtml(m.note||'')+'</textarea>';
+        h+='<button onclick="scSave(\''+loc.replace(/'/g,"")+'\')" style="width:100%;background:var(--pass-green,#1f7a3d);color:#fff;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;margin-top:12px;">Save scorecard</button>';
+        h+='</div>'; scOv().innerHTML=h;
+    }
+    function scSave(loc){
+        var payload={}; SC_FIELDS.forEach(function(f){ var v=(document.getElementById('scf_'+f[0])||{}).value; if(v!==''&&v!=null) payload[f[0]]=v; });
+        payload.note=(document.getElementById('scfNote')||{}).value||'';
+        var date=(document.getElementById('scfDate')||{}).value||null;
+        scRpc('app_metrics_save',{p_location:loc,p_date:date,p_payload:payload},function(){ scLoad(); });
+    }
+    /* =================== END STORE SCORECARDS =================== */
     /* ===================== MAINTENANCE BILLING / INVOICES ===================== */
     var _wob={tab:'invoices',list:[],cur:null,rates:[],filter:{}};
     function wobRpc(name,args,cb,onerr){ withPin(function(pin){ var a=Object.assign({p_username:currentUser.username,p_password:pin},args||{}); supabaseClient.rpc(name,a).then(function(r){ if(r.error){ if(onerr) onerr(r.error); else alert(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have access to this.':r.error.message); return; } cb(r.data); }).catch(function(){ if(onerr) onerr({message:'Connection error'}); else alert('Connection error.'); }); }); }
