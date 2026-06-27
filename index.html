@@ -778,7 +778,7 @@
             <button id="teamDevBtn" class="menu-btn" style="display:none;" onclick="openTeamDev()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128218;</span><b>Team Development</b><small>Everyone&rsquo;s training, growth &amp; promotions</small></button>
             <button id="btn-fundraiserHub" class="menu-btn" style="display:none;" onclick="openFundraiserHub()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128203;</span><b>Fundraiser Hub</b><small>Inquiries, cards, returns, reconciliation &amp; reports</small></button>
             <button id="btn-maintBilling" class="menu-btn" style="display:none;" onclick="openMaintBilling()"><span class="rchip mgr">Finance</span><span class="tile-ic">&#129534;</span><b>Maintenance Billing</b><small>Invoices, approvals &amp; vendor rates</small></button>
-            <button id="btn-maintDash" class="menu-btn" style="display:none;" onclick="openMaintDashboard()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128295;</span><b>Maintenance Dashboard</b><small>Open work, costs by store, vendor spend</small></button>
+            <button id="btn-maintDash" class="menu-btn" style="display:none;" onclick="openMaintDashboard()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128295;</span><b>Maintenance Leadership Dashboard</b><small>Open work, costs by store, vendor spend</small></button>
             <button id="btn-storeManager" class="menu-btn" style="display:none;" onclick="openStoreManager()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#127978;</span><b>Manage Stores</b><small>Add, rename or remove store locations</small></button>
             <button id="btn-scorecards" class="menu-btn" style="display:none;" onclick="openScorecards()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Store Scorecards</b><small>Sales vs LY, labor, speed, inspection &amp; more</small></button>
             <button id="developerBtn" class="menu-btn" style="display:none;" onclick="openTrainingPortal()"><span class="rchip admin">Dev</span><span class="tile-ic">&#128187;</span><b>Training Portal</b><small>Developer tools</small></button>
@@ -2516,7 +2516,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.27.0322';
+    const APP_VERSION = '2026.06.27.0337';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2799,7 +2799,7 @@
                 if(tCount>0){ items.push(aiRow('&#127891;','Training to finish',tCount,'#1f7a3d','openTrainingPortal()')); }
                 var nCount=(notes&&notes.notes)?notes.notes.length:0;
                 if(nCount>0){ items.push(aiRow('&#128172;','New coaching notes for you',nCount,'#5b3aa6','openMyNotes()')); }
-                if(!items.length){ card.innerHTML=''; return; }
+                if(!items.length){ card.innerHTML='<div class="home-card" style="background:#f3faf5;border:1px solid #d8eede;"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">&#9989;</span><div style="font-size:13.5px;color:#1b7a3d;font-weight:700;">You&rsquo;re all caught up today</div></div></div>'; return; }
                 card.innerHTML='<div class="home-card" style="background:linear-gradient(135deg,#ffffff,#f6f4ff);border:1px solid #e6e2f3;">'+
                     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;"><span style="font-size:18px;">&#9889;</span><div class="home-card-label" style="color:#5b3aa6;">NEEDS YOU TODAY</div><span style="flex:1;"></span><span style="font-size:11px;color:#9aa7b4;">'+items.length+' item'+(items.length===1?'':'s')+'</span></div>'+
                     items.join('')+'</div>';
@@ -2833,7 +2833,7 @@
         var box=document.getElementById('hubSearchResults'); if(!box) return;
         q=(q||'').trim().toLowerCase();
         if(!q){ box.style.display='none'; box.innerHTML=''; return; }
-        var matches=(typeof QUICK_REG!=='undefined'?QUICK_REG:[]).filter(function(it){ return String(it.label||'').toLowerCase().indexOf(q)>=0; });
+        var matches=(typeof QUICK_REG!=='undefined'?QUICK_REG:[]).filter(function(it){ if(String(it.label||'').toLowerCase().indexOf(q)<0) return false; if(it.btn){ var _b=document.getElementById(it.btn); if(_b && _b.offsetParent===null) return false; } return true; });
         if(!matches.length){ box.style.display='block'; box.innerHTML='<div style="padding:11px 13px;color:#9aa7b4;font-size:13px;">No tools match that.</div>'; return; }
         box.innerHTML='';
         matches.slice(0,8).forEach(function(it){
@@ -2888,7 +2888,7 @@
         });
     }
     function frOrgOv(){ var o=document.getElementById('frOrgModal'); if(!o){ o=document.createElement('div'); o.id='frOrgModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100050;overflow:auto;'; document.body.appendChild(o);} o.style.display='block'; return o; }
-    function frOrgClose(){ var o=document.getElementById('frOrgModal'); if(o) o.style.display='none'; }
+    function frOrgClose(){ var o=document.getElementById('frOrgModal'); if(o) o.style.display='none'; try{ if(new URLSearchParams(location.search).get('fundraiser')){ location.href=location.origin+location.pathname; } }catch(e){} }
     function frOrgWrap(b){ frOrgOv().innerHTML='<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;"><b style="flex:1;font-size:16px;">Fundraiser status</b><button onclick="frOrgClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;font-size:15px;">&times;</button></div><div style="max-width:520px;margin:0 auto;padding:16px;">'+b+'</div>'; }
     function foVal(id){ var e=document.getElementById(id); return e?e.value.trim():''; }
     function frOrgGate(c,k){ var h='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;"><div style="font-size:18px;font-weight:800;color:#1f2a44;">Check your fundraiser</div><p style="font-size:13px;color:#6b7686;">Enter the two codes Caliche&rsquo;s gave you &mdash; no login needed.</p><label style="font-size:12px;color:#6b7686;">Fundraiser code</label><input id="foCode" value="'+escapeHtml(c||'')+'" placeholder="FR-YYYYMMDD-####" autocomplete="off" style="width:100%;padding:10px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;margin-bottom:8px;"><label style="font-size:12px;color:#6b7686;">Access code</label><input id="foAcc" value="'+escapeHtml(k||'')+'" placeholder="8 characters" autocomplete="off" style="width:100%;padding:10px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;"><div id="foErr" style="color:#c0264b;font-size:12.5px;margin:8px 0;min-height:16px;"></div><button onclick="frOrgGo()" style="width:100%;background:#185FA5;color:#fff;border:none;border-radius:9px;padding:12px;font-weight:800;cursor:pointer;">Check status</button></div>'; frOrgWrap(h); }
@@ -2967,7 +2967,7 @@
         mdOv().innerHTML='<div style="padding:12px 14px;"><button onclick="mdClose()" style="background:#eef0f3;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;">&times; Close</button></div><div style="text-align:center;color:#888;padding:40px;">Loading maintenance dashboard&hellip;</div>';
         withPin(function(pin){
             supabaseClient.rpc('app_maint_dashboard',{p_username:currentUser.username,p_password:pin,p_days:days}).then(function(r){
-                if(r.error){ mdOv().innerHTML='<div style="padding:12px 14px;"><button onclick="mdClose()" style="background:#eef0f3;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;">&times; Close</button></div><div style="padding:24px;text-align:center;color:#c0264b;">'+(String(r.error.message||'').indexOf('forbidden')>=0?'This view is for managers and finance.':escapeHtml(r.error.message||'Error'))+'</div>'; return; }
+                if(r.error){ mdOv().innerHTML='<div style="padding:12px 14px;"><button onclick="mdClose()" style="background:#eef0f3;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;">&times; Close</button></div><div style="padding:24px;text-align:center;color:#c0264b;">'+(String(r.error.message||'').indexOf('forbidden')>=0?'You don&rsquo;t have access to this view.':escapeHtml(r.error.message||'Error'))+'</div>'; return; }
                 mdRender(r.data||{}, days);
             }).catch(function(){ mdOv().innerHTML='<div style="padding:12px 14px;"><button onclick="mdClose()" style="background:#eef0f3;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;">&times; Close</button></div><div style="padding:30px;text-align:center;color:#c0264b;">Connection error.</div>'; });
         });
@@ -3075,7 +3075,16 @@
         { key:'maintenance', btn:'btn-maintenance', label:'Maintenance',     emoji:'&#128295;', fn:function(){ openForm('maintenanceView'); } },
         { key:'damage',      btn:'btn-damage',      label:'Damage Report',   emoji:'&#9888;',   fn:function(){ openForm('damageView'); } },
         { key:'messages',    btn:'topMessagesBtn',  label:'Messages',        emoji:'&#128172;', fn:function(){ openMessages(); } },
-        { key:'quotes',      btn:'quotesBtn',       label:'Catering Quote',  emoji:'&#128221;', fn:function(){ if(typeof clearQuoteEdit==='function')clearQuoteEdit(); openForm('quotesView'); } }
+        { key:'quotes',      btn:'quotesBtn',       label:'Catering Quote',  emoji:'&#128221;', fn:function(){ if(typeof clearQuoteEdit==='function')clearQuoteEdit(); openForm('quotesView'); } },
+        { key:'mynotes',    btn:'',                 label:'My Coaching Notes',         emoji:'&#128172;', fn:function(){ if(typeof openMyNotes==='function') openMyNotes(); } },
+        { key:'maintdash',  btn:'btn-maintDash',    label:'Maintenance Dashboard',     emoji:'&#128295;', fn:function(){ if(typeof openMaintDashboard==='function') openMaintDashboard(); } },
+        { key:'scorecards2',btn:'btn-scorecards',   label:'Store Scorecards',          emoji:'&#128202;', fn:function(){ if(typeof openScorecards==='function') openScorecards(); } },
+        { key:'maintbill',  btn:'btn-maintBilling', label:'Maintenance Billing',       emoji:'&#129534;', fn:function(){ if(typeof openMaintBilling==='function') openMaintBilling(); } },
+        { key:'fundraiser2',btn:'btn-fundraiserHub',label:'Fundraiser Hub',            emoji:'&#128203;', fn:function(){ if(typeof openFundraiserHub==='function') openFundraiserHub(); } },
+        { key:'stores2',    btn:'btn-storeManager', label:'Manage Stores',             emoji:'&#127978;', fn:function(){ if(typeof openStoreManager==='function') openStoreManager(); } },
+        { key:'admincon',   btn:'btn-admin-console',label:'Admin Console',             emoji:'&#128736;', fn:function(){ if(typeof openAdminConsole==='function') openAdminConsole(); } },
+        { key:'retention',  btn:'btn-admin-console',label:'Data Retention',            emoji:'&#128451;', fn:function(){ if(typeof openRetention==='function') openRetention(); } },
+        { key:'dupscan',    btn:'btn-admin-console',label:'Duplicate Employees',       emoji:'&#128101;', fn:function(){ if(typeof openDupScan==='function') openDupScan(); } }
     ];
     function getUsage(){ try { return JSON.parse(localStorage.getItem('calichesUsage') || '{}'); } catch(e){ return {}; } }
     function trackUse(key){ try { var u = getUsage(); u[key] = (u[key] || 0) + 1; localStorage.setItem('calichesUsage', JSON.stringify(u)); } catch(e){} }
@@ -4080,7 +4089,7 @@
         h+='<p style="font-size:11.5px;color:#9aa7b4;margin-top:12px;">After adding or renaming, the change shows in dropdowns right away on this device; others see it next time they open the app.</p></div>';
         smOv().innerHTML=h;
     }
-    function smAdd(){ var name=prompt('New store name:'); if(!name) return; name=name.trim(); if(!name) return; var key='store_'+Date.now(); var sort=(_sm.rows.length?Math.max.apply(null,_sm.rows.map(function(r){return r.sort||0;})):0)+1; var emoji=(prompt('An emoji for this store (optional):')||'📍').trim()||'📍'; var abbr=name.replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase(); smRpc('app_settings_set',{p_key:key,p_group:'stores',p_label:name,p_value:abbr+'|'+emoji,p_sort:sort},function(){ smReload(); }); }
+    function smAdd(){ var name=prompt('New store name:'); if(!name) return; name=name.trim(); if(!name) return; if((_sm.rows||[]).some(function(r){return String(r.label||'').trim().toLowerCase()===name.toLowerCase();})){ alert('A store with that name already exists.'); return; } var key='store_'+Date.now(); var sort=(_sm.rows.length?Math.max.apply(null,_sm.rows.map(function(r){return r.sort||0;})):0)+1; var emoji=(prompt('An emoji for this store (optional):')||'📍').trim()||'📍'; var abbr=name.replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase(); smRpc('app_settings_set',{p_key:key,p_group:'stores',p_label:name,p_value:abbr+'|'+emoji,p_sort:sort},function(){ smReload(); }); }
     function smRename(key){ var row=_sm.rows.filter(function(r){return r.key===key;})[0]; if(!row) return; var name=prompt('Rename store:',row.label); if(name===null) return; name=name.trim(); if(!name) return; smRpc('app_settings_set',{p_key:key,p_group:'stores',p_label:name,p_value:row.value||'',p_sort:row.sort||0},function(){ smReload(); }); }
     function smRemove(key){ var row=_sm.rows.filter(function(r){return r.key===key;})[0]; if(!row) return; if(!confirm('Remove "'+row.label+'" from the store list? Existing records keep their store name; it just stops appearing in dropdowns.')) return; smRpc('app_settings_delete',{p_key:key},function(){ smReload(); }); }
     /* =================== END CONFIGURABLE STORES =================== */
@@ -9183,7 +9192,7 @@
     function downloadCSV(filename, rows){ try{ var csv=rows.map(function(r){ return r.map(function(c){ c=(c==null?'':String(c)); if(/[",\n]/.test(c)) c='"'+c.replace(/"/g,'""')+'"'; return c; }).join(','); }).join('\r\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){ URL.revokeObjectURL(url); },1000); }catch(e){ alert('Export failed.'); } }
     function tdExportCSV(){ var rows=[['Name','Role','Store','Training %','Positions cleared','Certifications','Coaching logs']]; (_td.team||[]).forEach(function(e){ var paths=e.paths||[]; var d=0,t=0; paths.forEach(function(p){ d+=(p.done||0); t+=(p.total||0); }); var pct=t>0?Math.round(100*d/t):0; rows.push([e.name||'',e.role||'',e.store||_td.store||'',pct,(e.cleared_positions||0),(e.certs_count||0),(e.coaching_count||0)]); }); downloadCSV('team_development.csv',rows); }
     function fhExportCSV(){ var rows=[['Code','Organization','Status','Market','Owner','Approved start','Approved end','Return due','Cards approved','Cards issued']]; (_fh.list||[]).forEach(function(x){ rows.push([x.code,x.org,x.status,x.market||'',x.owner||'',x.approved_start||'',x.approved_end||'',x.return_due||'',x.cards_approved||0,x.cards_issued||0]); }); downloadCSV('fundraisers.csv',rows); }
-    function exportActivityCSV(){ var data=(typeof _activityLogData!=='undefined'&&_activityLogData)?_activityLogData:[]; if(!data.length){ alert('Load the activity log first.'); return; } var rows=[['Name','Username','Action','Time']]; data.forEach(function(r){ var t=r.created_at?new Date(r.created_at).toLocaleString():''; rows.push([r.name||'',r.username||'',r.action||'',t]); }); downloadCSV('activity_log_'+new Date().toISOString().slice(0,10)+'.csv',rows); }
+    function exportActivityCSV(){ var data=(typeof _activityLogData!=='undefined'&&_activityLogData)?_activityLogData:[]; if(!data.length){ alert('No activity to export yet.'); return; } var rows=[['Name','Username','Action','Time']]; data.forEach(function(r){ var t=r.created_at?new Date(r.created_at).toLocaleString():''; rows.push([r.name||'',r.username||'',r.action||'',t]); }); downloadCSV('activity_log_'+new Date().toISOString().slice(0,10)+'.csv',rows); }
     function tdTeamHtml(){
         var stores=[''].concat((typeof HUB_STORES!=='undefined'?HUB_STORES:['Roadrunner','Valley','Lenox','Alamogordo','Roswell'])).concat(['Warehouse']);
         var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><span style="font-size:12px;color:#8a8594;">Store</span><select onchange="_td.store=this.value; tdLoad(function(){tdRender();});" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:9px;font-size:13px;">'+stores.map(function(s){return '<option value="'+s+'"'+(_td.store===s?' selected':'')+'>'+(s||'All stores')+'</option>';}).join('')+'</select><button onclick="tdExportCSV()" style="background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:8px 12px;font-size:12.5px;font-weight:700;cursor:pointer;">&#8595; CSV</button></div>';
