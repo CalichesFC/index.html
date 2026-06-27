@@ -85,7 +85,7 @@
         .notif-dismiss:hover { color: var(--fail-red); }
 
         /* TOP NOTIFICATION BANNER */
-        .notif-top-banner { position: fixed; top: -80px; left: 0; right: 0; z-index: 100000; background: var(--caliches-blue); color: white; padding: 14px 20px; font-size: 14px; font-weight: 700; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: top 0.4s ease; cursor: pointer; }
+        .notif-top-banner { position: fixed; top: -80px; left: 0; right: 0; z-index: 100080; background: var(--caliches-blue); color: white; padding: 14px 20px; font-size: 14px; font-weight: 700; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: top 0.4s ease; cursor: pointer; }
         .notif-top-banner.show { top: 0; }
         .notif-top-banner .notif-banner-title { color: var(--caliches-yellow); text-transform: uppercase; letter-spacing: 1px; font-size: 11px; display: block; margin-bottom: 2px; }
 
@@ -238,7 +238,7 @@
         #draftBanner{display:none;background:#fdf3e8;border-bottom:2px solid #f0a500;padding:12px 15px;align-items:center;justify-content:space-between;gap:10px}
         .draft-action-btn{padding:7px 14px;border:none;border-radius:6px;font-weight:bold;cursor:pointer;font-size:13px}
         /* Draft Toast */
-        #draftToast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.82);color:white;padding:10px 22px;border-radius:99px;font-size:14px;font-weight:bold;display:none;z-index:99999;pointer-events:none;white-space:nowrap}
+        #draftToast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.82);color:white;padding:10px 22px;border-radius:99px;font-size:14px;font-weight:bold;display:none;z-index:100078;pointer-events:none;white-space:nowrap}
         /* Modal Overlay */
         .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:100065;justify-content:center;align-items:center;padding:20px;box-sizing:border-box}
         .modal-box{background:white;border-radius:16px;padding:18px 20px;width:100%;max-width:400px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.3);max-height:82vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -582,6 +582,7 @@
                 <span class="text-link" onclick="openForgotPin()">Forgot PIN?</span>
                 <span class="text-link" onclick="toggleRegister()">Create Account</span>
             </div>
+            <div style="text-align:center;margin-top:10px;"><span class="text-link" onclick="frOrgGate('','')" style="font-size:13px;color:#6b7686;">&#127991; Fundraiser organizer? Check your event</span></div>
         </form>
         <form id="registerForm">
             <h2 style="color:var(--caliches-pink);margin-top:0;font-size:24px;text-transform:uppercase;">Create Account</h2>
@@ -2515,7 +2516,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.27.0213';
+    const APP_VERSION = '2026.06.27.0228';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2877,6 +2878,34 @@
         h+='</div>'; rtOv().innerHTML=h;
     }
     /* =================== END DATA RETENTION =================== */
+    /* ===================== FUNDRAISER ORGANIZER PORTAL ===================== */
+    function fhOrgPortal(){ var f=_fh.cur; if(!f) return;
+        fhRpc('app_fr_org_portal',{p_fundraiser_id:f.id,p_enable:true},function(r){
+            var base=location.origin+location.pathname;
+            var link=base+'?fundraiser='+encodeURIComponent(r.code||'')+'&k='+encodeURIComponent(r.access_code||'');
+            var msg='Organizer portal is ON for this fundraiser.\n\nFundraiser code: '+(r.code||'')+'\nAccess code: '+(r.access_code||'')+'\n\nShareable link (organizer needs no login):\n'+link;
+            if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(link).then(function(){ alert(msg+'\n\n(Link copied to your clipboard.)'); },function(){ alert(msg); }); } else { alert(msg); }
+        });
+    }
+    function frOrgOv(){ var o=document.getElementById('frOrgModal'); if(!o){ o=document.createElement('div'); o.id='frOrgModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100050;overflow:auto;'; document.body.appendChild(o);} o.style.display='block'; return o; }
+    function frOrgClose(){ var o=document.getElementById('frOrgModal'); if(o) o.style.display='none'; }
+    function frOrgWrap(b){ frOrgOv().innerHTML='<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;"><b style="flex:1;font-size:16px;">Fundraiser status</b><button onclick="frOrgClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;font-size:15px;">&times;</button></div><div style="max-width:520px;margin:0 auto;padding:16px;">'+b+'</div>'; }
+    function foVal(id){ var e=document.getElementById(id); return e?e.value.trim():''; }
+    function frOrgGate(c,k){ var h='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;"><div style="font-size:18px;font-weight:800;color:#1f2a44;">Check your fundraiser</div><p style="font-size:13px;color:#6b7686;">Enter the two codes Caliche&rsquo;s gave you &mdash; no login needed.</p><label style="font-size:12px;color:#6b7686;">Fundraiser code</label><input id="foCode" value="'+escapeHtml(c||'')+'" placeholder="FR-YYYYMMDD-####" autocomplete="off" style="width:100%;padding:10px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;margin-bottom:8px;"><label style="font-size:12px;color:#6b7686;">Access code</label><input id="foAcc" value="'+escapeHtml(k||'')+'" placeholder="8 characters" autocomplete="off" style="width:100%;padding:10px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;"><div id="foErr" style="color:#c0264b;font-size:12.5px;margin:8px 0;min-height:16px;"></div><button onclick="frOrgGo()" style="width:100%;background:#185FA5;color:#fff;border:none;border-radius:9px;padding:12px;font-weight:800;cursor:pointer;">Check status</button></div>'; frOrgWrap(h); }
+    function frOrgGo(){ var c=foVal('foCode'),k=foVal('foAcc'); var er=document.getElementById('foErr'); if(!c||!k){ if(er)er.textContent='Please enter both codes.'; return; } if(er)er.textContent='Checking…';
+        supabaseClient.rpc('app_fr_org_status',{p_code:c,p_access:k}).then(function(r){ if(r.error){ if(er)er.textContent=(String(r.error.message||'').indexOf('Too many')>=0?r.error.message:'Not found — please check your codes.'); return; } frOrgView(r.data); }).catch(function(){ if(er)er.textContent='Connection error. Please try again.'; });
+    }
+    function frOrgRow(l,v){ return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f4f8;font-size:13.5px;"><span style="color:#6b7686;">'+l+'</span><b style="color:#26242b;">'+escapeHtml(v==null||v===''?'—':String(v))+'</b></div>'; }
+    function frOrgView(d){ d=d||{};
+        var appr=parseInt(d.cards_approved,10)||0, iss=parseInt(d.cards_issued,10)||0; var pct=appr>0?Math.min(100,Math.round(100*iss/appr)):0;
+        var h='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;"><div style="font-size:12px;color:#8a8594;">'+escapeHtml(d.code||'')+'</div><div style="margin:4px 0 10px;"><span style="background:#ede4fb;color:#5b3aa6;font-size:13px;font-weight:800;padding:4px 12px;border-radius:99px;">'+escapeHtml(d.status||'In progress')+'</span></div>';
+        if(appr>0){ h+='<div style="margin:4px 0 12px;"><div style="display:flex;justify-content:space-between;font-size:11.5px;color:#6b7686;margin-bottom:3px;"><span>Cards issued</span><span>'+iss+' of '+appr+'</span></div><div style="height:9px;background:#eef0f5;border-radius:99px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#185FA5,#1f7a3d);"></div></div></div>'; }
+        h+=frOrgRow('Selling starts',d.approved_start)+frOrgRow('Selling ends',d.approved_end)+frOrgRow('Return due',d.return_due)+frOrgRow('Pickup',((d.pickup_at?String(d.pickup_at).slice(0,10):'')+(d.pickup_store?(' · '+d.pickup_store):'')).trim())+frOrgRow('Cards approved',d.cards_approved)+frOrgRow('Cards issued',d.cards_issued)+frOrgRow('Cards returned',d.cards_returned);
+        h+='<p style="font-size:11.5px;color:#9aa7b4;margin-top:12px;">Questions? Contact your Caliche&rsquo;s coordinator. Thank you for fundraising with us! &#127846;</p></div><div style="margin-top:10px;"><button onclick="frOrgClose()" style="background:#eef0f3;border:none;border-radius:9px;padding:10px 16px;cursor:pointer;">Close</button></div>';
+        frOrgWrap(h);
+    }
+    function frOrgRoute(){ try{ var p=new URLSearchParams(location.search); var c=p.get('fundraiser'); if(!c) return false; var k=p.get('k')||''; var sp=document.getElementById('splash-screen'); if(sp) sp.style.display='none'; var lv=document.getElementById('login-view'); if(lv) lv.style.display='none'; frOrgGate(c,k); if(k) frOrgGo(); return true; }catch(e){ return false; } }
+    /* =================== END FUNDRAISER ORGANIZER PORTAL =================== */
     /* ===================== MAINTENANCE LEADERSHIP DASHBOARD ===================== */
     function mdOv(){ var o=document.getElementById('mdModal'); if(!o){ o=document.createElement('div'); o.id='mdModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100040;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
     function mdClose(){ var o=document.getElementById('mdModal'); if(o) o.style.display='none'; }
@@ -3160,6 +3189,7 @@
     }
 
     window.addEventListener('load', function() {
+        if (frOrgRoute()) return;
         if (checkQuoteAcceptRoute()) return;
         try { window._pendingEquip = new URLSearchParams(window.location.search).get('equip'); } catch(e) {}
         addQuoteRow(); addQuoteRow(); addQuoteRow();
@@ -9509,7 +9539,7 @@
       if(!_wob.list.length) h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:30px;text-align:center;color:#8a8594;">No invoices yet.</div>';
       _wob.list.forEach(function(i){ h+='<div onclick="wobOpen('+i.id+')" style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:14px;color:#26242b;">'+escapeHtml(i.invoice_number||'')+'</b>'+wobStatusPill(i.status)+'</div><div style="font-size:11.5px;color:#8a8594;margin-top:3px;">'+escapeHtml(i.vendor||'(no vendor)')+(i.wo?(' &middot; WO '+escapeHtml(i.wo)):'')+' &middot; '+wobMoney(i.total)+'</div></div>'; });
       wobShell(h); }
-    function wobNew(){ var v=prompt('Vendor / provider for this invoice:'); if(v===null) return; var wo=prompt('Work order ID to link (optional). Leave blank for a standalone invoice. Tip: to pull a repair\'s logged costs in automatically, use the Billing button inside that work order instead:')||''; wobRpc('wo_invoice_create',{p_work_order_id:(wo?parseInt(wo,10):null),p_vendor:v},function(r){ wobOpen(r.id); }); }
+    function wobNew(){ var v=prompt('Vendor / provider for this invoice:'); if(v===null) return; v=v.trim(); if(!v){ alert('Vendor is required.'); return; } var wo=(prompt('Work order ID to link (optional). Leave blank for a standalone invoice. Tip: to pull a repair\'s logged costs in automatically, use the Billing button inside that work order instead:')||'').trim(); var woId=null; if(wo){ woId=parseInt(wo,10); if(isNaN(woId)||woId<0){ alert('Work order ID must be a number, or leave it blank.'); return; } } wobRpc('wo_invoice_create',{p_work_order_id:woId,p_vendor:v},function(r){ wobOpen(r.id); }); }
     function wobOpen(id){ wobOv().innerHTML=wobHead('Invoice','wobLoad()')+'<div style="text-align:center;color:#888;padding:40px;">Loading&hellip;</div>'; wobRpc('wo_invoice_get',{p_id:id},function(d){ _wob.cur=d; wobInvoice(); }); }
     function wobInvoice(){ var iv=_wob.cur; if(!iv) return; var perm=iv.perm||{}; var lines=iv.lines||[]; var locked=(iv.status==='finance_approved'||iv.status==='paid'||iv.status==='void'); var canEdit=perm.mgr&&!locked;
       var h='<div style="max-width:680px;margin:0 auto;">';
@@ -9531,15 +9561,15 @@
     function wobLineDel(id){ wobRpc('wo_invoice_line_remove',{p_line_id:id},function(){ wobOpen(_wob.cur.id); }); }
     function wobVerify(id){ if(!confirm('Confirm the work and charges are correct (operational verification)?')) return; wobRpc('wo_invoice_verify',{p_id:id},function(){ wobOpen(id); }); }
     function wobApprove(id){ if(!confirm('Finance-approve this invoice for payment?')) return; wobRpc('wo_invoice_approve',{p_id:id},function(){ wobOpen(id); },function(e){ alert(e.message||'Could not approve.'); }); }
-    function wobPay(id){ var ref=prompt('Payment reference (check #, transfer ID):')||''; var qb=prompt('QuickBooks reference (optional):')||''; wobRpc('wo_invoice_pay',{p_id:id,p_payment_ref:ref,p_qb_ref:qb},function(){ wobOpen(id); }); }
-    function wobVoid(id){ var r=prompt('Reason for voiding this invoice:'); if(!r) return; wobRpc('wo_invoice_void',{p_id:id,p_reason:r},function(){ wobOpen(id); }); }
+    function wobPay(id){ var ref=prompt('Payment reference (check #, transfer ID):'); if(ref===null) return; ref=ref.trim(); if(!ref){ alert('Payment reference is required to mark an invoice paid.'); return; } var qb=(prompt('QuickBooks reference (optional):')||'').trim(); wobRpc('wo_invoice_pay',{p_id:id,p_payment_ref:ref,p_qb_ref:qb},function(){ wobOpen(id); }); }
+    function wobVoid(id){ var r=prompt('Reason for voiding this invoice:'); if(r===null) return; r=r.trim(); if(!r){ alert('A void reason is required.'); return; } wobRpc('wo_invoice_void',{p_id:id,p_reason:r},function(){ wobOpen(id); }); }
     function wobExport(){ var rows=[['Invoice','Vendor','Status','Work order','Total']]; (_wob.list||[]).forEach(function(i){ rows.push([i.invoice_number,i.vendor||'',i.status,i.wo||'',i.total||0]); }); if(typeof downloadCSV==='function') downloadCSV('maintenance_invoices.csv',rows); }
     function wobRates(){ wobOv().innerHTML=wobHead('Maintenance Billing','')+'<div style="text-align:center;color:#888;padding:40px;">Loading&hellip;</div>'; wobRpc('wo_rate_list',{},function(d){ _wob.rates=d||[]; wobRatesRender(); }); }
     function wobRatesRender(){ var h='<button onclick="wobRateAdd()" style="width:100%;background:var(--caliches-pink,#ec3e7e);color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;margin-bottom:12px;">&#10133; New rate agreement</button>';
       if(!_wob.rates.length) h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:24px;text-align:center;color:#8a8594;">No rate agreements yet.</div>';
       _wob.rates.forEach(function(r){ h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:12px 14px;margin-bottom:8px;"><b style="font-size:14px;color:#26242b;">'+escapeHtml(r.vendor||'')+'</b><div style="font-size:12px;color:#6b7686;margin-top:3px;">Labor '+wobMoney(r.labor_rate)+'/hr &middot; Travel '+wobMoney(r.travel_rate)+(r.effective_from?(' &middot; from '+escapeHtml(String(r.effective_from))):'')+(r.effective_to?(' to '+escapeHtml(String(r.effective_to))):'')+'</div>'+(r.notes?'<div style="font-size:11.5px;color:#9aa7b4;margin-top:2px;">'+escapeHtml(r.notes)+'</div>':'')+'</div>'; });
       wobShell(h); }
-    function wobRateAdd(){ var v=prompt('Vendor name:'); if(!v) return; var lr=prompt('Labor rate per hour:')||''; var tr=prompt('Travel rate (flat or per trip):')||''; var ef=prompt('Effective from (YYYY-MM-DD, optional):')||''; wobRpc('wo_rate_save',{p_payload:{vendor:v,labor_rate:lr,travel_rate:tr,effective_from:ef}},function(){ wobRates(); }); }
+    function wobRateAdd(){ var v=prompt('Vendor name:'); if(v===null) return; v=v.trim(); if(!v){ alert('Vendor name is required.'); return; } var lr=(prompt('Labor rate per hour:')||'').trim(); if(lr&&(isNaN(parseFloat(lr))||parseFloat(lr)<0)){ alert('Labor rate must be a number 0 or greater.'); return; } var tr=(prompt('Travel rate (flat or per trip):')||'').trim(); if(tr&&(isNaN(parseFloat(tr))||parseFloat(tr)<0)){ alert('Travel rate must be a number 0 or greater.'); return; } var ef=(prompt('Effective from (YYYY-MM-DD, optional):')||'').trim(); wobRpc('wo_rate_save',{p_payload:{vendor:v,labor_rate:lr,travel_rate:tr,effective_from:ef}},function(){ wobRates(); }); }
     /* =================== END MAINTENANCE BILLING =================== */
     /* ===================== FUNDRAISER HUB ===================== */
     var _fh={tab:'dash',list:[],cur:null,curOrg:null,settings:null,perm:null,orgs:[],tasks:[],taskScope:'all',report:null,filters:{}};
@@ -9615,7 +9645,7 @@
     function fhRenderRecord(){ var f=_fh.cur; if(!f) return; var perm=f.perm||{};
       var h='<div style="max-width:760px;margin:0 auto;padding:16px;">';
       h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="display:flex;align-items:flex-start;gap:8px;"><div style="flex:1;"><div style="font-size:18px;font-weight:800;color:#1f2a44;">'+escapeHtml((f.org&&f.org.name)||'(no org)')+'</div><div style="font-size:12px;color:#6b7686;">'+escapeHtml(f.code)+' &middot; '+escapeHtml(f.market||'&mdash;')+' &middot; Owner: '+escapeHtml(f.owner||'&mdash;')+(f.locked?' &middot; &#128274; Locked':'')+'</div></div>'+fhStatusPill(f.status)+'</div><div style="font-size:12.5px;color:#33303a;margin-top:8px;">Next: <b>'+escapeHtml(f.next_action)+'</b></div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">'+fhAdvanceButtons(f)+'</div></div>';
-      if(perm.admin&&!f.locked) h+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">'+fhAct('&#9998; Edit details','fhEdit()')+fhAct('&#127183; Card move','fhCardMove()')+fhAct('&#129534; Reconcile','fhReconcile()')+fhAct('&#9989; Add task','fhAddTask()')+fhAct('&#128221; Note','fhAddNote()')+fhAct('&#128196; Receipt','fhGenReceipt()')+'</div>';
+      if(perm.admin&&!f.locked) h+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">'+fhAct('&#9998; Edit details','fhEdit()')+fhAct('&#127183; Card move','fhCardMove()')+fhAct('&#129534; Reconcile','fhReconcile()')+fhAct('&#9989; Add task','fhAddTask()')+fhAct('&#128221; Note','fhAddNote()')+fhAct('&#128196; Receipt','fhGenReceipt()')+fhAct('&#128279; Organizer link','fhOrgPortal()')+'</div>';
       h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:0;">'+fhPanel('Schedule &amp; details',fhDetailRows(f))+fhPanel('Cards',fhCardRows(f))+'</div>';
       h+=fhPanel('Financial',fhFinanceRows(f));
       var tasks=f.tasks||[]; var th=''; if(!tasks.length) th='<div style="color:#9aa7b4;font-size:13px;">No tasks.</div>'; tasks.forEach(function(t){ th+='<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f3f4f8;"><span style="flex:1;font-size:13px;'+(t.status==='done'?'color:#9aa7b4;text-decoration:line-through;':'')+'">'+escapeHtml(t.title)+(t.due_date?' &middot; <small style="color:#9aa7b4;">due '+escapeHtml(t.due_date)+'</small>':'')+'</span>'+(t.status!=='done'&&perm.access?'<button onclick="fhTaskDone('+t.id+')" style="background:#1f7a3d;color:#fff;border:none;border-radius:7px;padding:4px 9px;font-size:11.5px;cursor:pointer;">Done</button>':'')+'</div>'; });
@@ -12743,7 +12773,7 @@
   </div>
 </div>
 
-<div id="pushPromptBar" style="display:none;position:fixed;left:12px;right:12px;bottom:16px;z-index:99990;background:#fff;border:1px solid #e7e2f0;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:12px 14px;align-items:center;gap:10px;max-width:520px;margin:0 auto;">
+<div id="pushPromptBar" style="display:none;position:fixed;left:12px;right:12px;bottom:76px;z-index:100076;background:#fff;border:1px solid #e7e2f0;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:12px 14px;align-items:center;gap:10px;max-width:520px;margin:0 auto;">
   <span style="font-size:22px;">&#128276;</span>
   <div style="flex:1;font-size:13px;color:#26242b;line-height:1.4;">Turn on alerts for new tasks, schedules &amp; messages?</div>
   <button onclick="pushPromptNo()" style="background:none;border:none;color:#8a8594;font-size:13px;padding:8px;cursor:pointer;">Not now</button>
