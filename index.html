@@ -2516,7 +2516,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.27.0232';
+    const APP_VERSION = '2026.06.27.0322';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2935,6 +2935,29 @@
         h+='</div>'; dsOv().innerHTML=h;
     }
     /* =================== END EMPLOYEE DUPLICATE SCAN =================== */
+    /* ===================== SCORM RUNTIME + LAUNCHER ===================== */
+    var _scorm={cid:null,init:false,err:'0',data:{},done:false};
+    function _scStr(){ var d=_scorm.data; return d['cmi.core.lesson_status']||d['cmi.completion_status']||d['cmi.success_status']||''; }
+    function _scScore(){ var d=_scorm.data; var s=(d['cmi.core.score.raw']!=null)?d['cmi.core.score.raw']:d['cmi.score.raw']; var n=parseFloat(s); return isNaN(n)?100:Math.round(n); }
+    function _scMaybeComplete(){ if(_scorm.done) return; var st=String(_scStr()).toLowerCase(); if(st==='passed'||st==='completed'){ _scorm.done=true; var sc=_scScore(); var cid=_scorm.cid; withPin(function(pin){ supabaseClient.rpc('app_lp_complete',{p_username:currentUser.username,p_password:pin,p_course_id:cid,p_score:sc,p_passed:(st==='passed'||sc>=80),p_responses:[{q:'SCORM module',type:'scorm',answer:st,score:sc}]}).catch(function(){}); }); } }
+    function _scSet(k,v){ _scorm.data[k]=String(v); _scorm.err='0'; if(k==='cmi.core.lesson_status'||k==='cmi.completion_status'||k==='cmi.success_status') _scMaybeComplete(); return 'true'; }
+    function _scGet(k){ _scorm.err='0'; return (_scorm.data[k]!=null)?_scorm.data[k]:''; }
+    function _scInit(){ _scorm.init=true; _scorm.err='0'; return 'true'; }
+    function _scCommit(){ _scorm.err='0'; _scMaybeComplete(); return 'true'; }
+    function _scFinish(){ _scorm.init=false; _scorm.err='0'; _scMaybeComplete(); return 'true'; }
+    function lmsBuildScormApi(){
+        window.API={ LMSInitialize:_scInit, LMSFinish:_scFinish, LMSGetValue:_scGet, LMSSetValue:_scSet, LMSCommit:_scCommit, LMSGetLastError:function(){return _scorm.err;}, LMSGetErrorString:function(){return '';}, LMSGetDiagnostic:function(){return '';} };
+        window.API_1484_11={ Initialize:_scInit, Terminate:_scFinish, GetValue:_scGet, SetValue:_scSet, Commit:_scCommit, GetLastError:function(){return _scorm.err;}, GetErrorString:function(){return '';}, GetDiagnostic:function(){return '';} };
+    }
+    function lmsLaunchScorm(courseId,url,version){
+        if(!url){ alert('No SCORM package is attached to this course yet.'); return; }
+        _scorm={cid:courseId,init:false,err:'0',data:{},done:false}; lmsBuildScormApi();
+        /* IMPORTANT: the SCORM package must be served from the SAME ORIGIN as this app, or the browser blocks the package from reaching window.API / window.API_1484_11 (cross-origin policy). Host the unzipped package (imsmanifest.xml + launch page) under this site's domain. */
+        var ov=lmsOverlay(); ov.innerHTML=lmsHeader('Training module','lmsClose()')+'<div style="position:fixed;inset:0;top:52px;background:#000;"><iframe src="'+escapeHtml(url)+'" style="width:100%;height:100%;border:0;" allow="autoplay; fullscreen" allowfullscreen></iframe></div>';
+    }
+    function lmsSetScorm(courseId,cur){ var url=prompt('Paste the SCORM package launch URL (must be hosted on this site’s domain). Leave blank to remove.', cur||''); if(url===null) return; withPin(function(pin){ supabaseClient.rpc('app_lp_set_scorm',{p_username:currentUser.username,p_password:pin,p_course_id:courseId,p_url:url.trim(),p_version:'1.2'}).then(function(r){ if(r.error){ alert('Could not save: '+(r.error.message||'')); return; } alert(url.trim()?'SCORM module attached.':'SCORM module removed.'); if(typeof lmsOpenCourse==='function') lmsOpenCourse(courseId); }).catch(function(){ alert('Could not save.'); }); }); }
+    function lmsScormBtns(c){ if(!c) return ''; var h=''; var u=c.scorm_url?encodeURI(String(c.scorm_url)).replace(/'/g,'%27'):''; if(c.scorm_url){ h+='<button onclick="lmsLaunchScorm('+c.id+',\''+u+'\',\''+escapeHtml(c.scorm_version||'1.2')+'\')" style="width:100%;margin-top:14px;background:#7d1d4b;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">&#9654; Launch training module (SCORM)</button>'; } if(typeof isManagerRole==='function'&&isManagerRole()){ h+='<button onclick="lmsSetScorm('+c.id+',\''+u+'\')" style="width:100%;margin-top:8px;background:#eef0f3;color:#5b6472;border:none;border-radius:9px;padding:9px;font-size:12.5px;font-weight:700;cursor:pointer;">&#128279; '+(c.scorm_url?'Replace':'Attach')+' SCORM package</button>'; } return h; }
+    /* =================== END SCORM RUNTIME + LAUNCHER =================== */
     /* ===================== MAINTENANCE LEADERSHIP DASHBOARD ===================== */
     function mdOv(){ var o=document.getElementById('mdModal'); if(!o){ o=document.createElement('div'); o.id='mdModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100040;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
     function mdClose(){ var o=document.getElementById('mdModal'); if(o) o.style.display='none'; }
@@ -9078,7 +9101,7 @@
         var dots=''; for(var i=0;i<pages.length;i++){ dots+='<span style="width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;background:'+(i<=pg?'#185FA5':'#d6dbe6')+';"></span>'; }
         var h=lmsHeader('Lesson','lmsHome()')+'<div style="max-width:640px;margin:0 auto;padding:16px;"><div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,.05);">';
         h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;"><div>'+dots+'</div><span style="font-size:11.5px;color:#9aa7b4;">Page '+(pg+1)+' of '+pages.length+'</span></div>';
-        h+='<h2 style="margin:0 0 10px;font-size:19px;color:#26242b;">'+escapeHtml(c.title)+'</h2><div style="font-size:14.5px;color:#33303a;line-height:1.6;">'+pages[pg]+'</div>'+((pg===pages.length-1)?lmsMatsHtml(c):'');
+        h+='<h2 style="margin:0 0 10px;font-size:19px;color:#26242b;">'+escapeHtml(c.title)+'</h2><div style="font-size:14.5px;color:#33303a;line-height:1.6;">'+pages[pg]+'</div>'+((pg===pages.length-1)?(lmsMatsHtml(c)+lmsScormBtns(c)):'');
         h+='<div style="display:flex;gap:8px;margin-top:16px;">';
         if(pg>0) h+='<button onclick="lmsLessonPage(-1)" style="background:#eef3fb;color:#185FA5;border:none;border-radius:10px;padding:12px 16px;font-size:14px;font-weight:700;cursor:pointer;">&lsaquo; Back</button>';
         var _al,_aa,_ac='#185FA5'; if(pg<pages.length-1){ _al='Next &rsaquo;'; _aa='lmsLessonPage(1)'; } else if((c.quiz||[]).length){ _al='Take the quick check &rsaquo;'; _aa='lmsStartQuiz()'; _ac='#1f7a3d'; } else { _al='Mark complete &rsaquo;'; _aa='lmsMarkDone()'; _ac='#1f7a3d'; }
@@ -9487,7 +9510,7 @@
     function woHeader(title,back){ return '<div style="background:linear-gradient(120deg,#D85A30,#7d1d4b);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;">'+(back?'<button onclick="'+back+'" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;">&#8249; Back</button>':'')+'<b style="flex:1;font-size:16px;">'+title+'</b><button onclick="woClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;">&times;</button></div>'; }
     function woIsMaint(){ var r=currentUser.role; return r==='Maintenance Lead'||r==='Maintenance Contributor'; }
     function woIsMgr(){ return currentUser.is_developer===true||['Admin Manager','Manager','Vice President/Co-Owner','Store Manager'].indexOf(currentUser.role)>=0; }
-    function openWorkOrders(){ _wo.tab=woIsMaint()?'queue':(woIsMgr()?'board':'report'); woLoad(function(){ woRender(); }); }
+    function openWorkOrders(){ var _dt=woIsMaint()?'queue':(woIsMgr()?'board':'report'); var _st=lsGet('woTab',_dt); var _ok={report:1,board:woIsMgr(),queue:(woIsMaint()||woIsMgr()),history:(woIsMgr()||woIsMaint())}; _wo.tab=_ok[_st]?_st:_dt; woLoad(function(){ woRender(); }); }
     /* ===================== STORE SCORECARDS ===================== */
     var _sc={rows:[]};
     var SC_FIELDS=[['sales','Sales ($)'],['sales_ly','Sales last year ($)'],['guest_count','Guest count'],['speed_seconds','Speed of service (sec)'],['labor_pct','Labor %'],['inspection_score','Inspection score'],['training_pct','Training %'],['maintenance_open','Open maintenance'],['pick_n_take','Pick-N-Take'],['flips','Flips'],['complaints','Complaints']];
@@ -9769,7 +9792,7 @@
     }
     function woTabs(){ var t=_wo.tab; function b(id,lbl,show){ if(!show) return ''; return '<button onclick="woSetTab(&quot;'+id+'&quot;)" style="flex:1;background:'+(t===id?'#D85A30':'#eef0f3')+';color:'+(t===id?'#fff':'#5b6472')+';border:none;padding:10px;font-size:13px;font-weight:700;cursor:pointer;border-radius:9px;">'+lbl+'</button>'; }
         return '<div style="display:flex;gap:6px;max-width:680px;margin:14px auto 0;padding:0 16px;">'+b('report','Report',true)+b('board','Board',woIsMgr())+b('queue','My Queue',woIsMaint()||woIsMgr())+b('history','Completed',woIsMgr()||woIsMaint())+'</div>'; }
-    function woSetTab(t){ _wo.tab=t; if(t==='report'){ woRender(); } else { woLoad(function(){ woRender(); }); } }
+    function woSetTab(t){ _wo.tab=t; try{lsSet('woTab',t);}catch(e){} if(t==='report'){ woRender(); } else { woLoad(function(){ woRender(); }); } }
     function woRender(){ var ov=woOverlay(); var body=_wo.tab==='report'?woReportHtml():(_wo.tab==='history'?woHistoryHtml():woBoardHtml()); ov.innerHTML=woHeader('Work Orders','')+woTabs()+'<div style="max-width:680px;margin:0 auto;padding:14px 16px 40px;">'+body+'</div>'; }
     function woPriColor(p){ return {critical:'#c0264b',high:'#b8860b',medium:'#185FA5',low:'#6b7686'}[p]||'#6b7686'; }
     function woStatusChip(s){ var m={'Reported':['#eef0f3','#5b6472'],'Assigned':['#eef3fb','#185FA5'],'In Progress':['#fff4e0','#9a5b00'],'On Hold':['#fdeee8','#a85217'],'Documented':['#f3eefb','#5b3aa6'],'Verified':['#e8f5ec','#1b7a3d'],'Closed':['#e8f5ec','#1b7a3d'],'Cancelled':['#f0f0f0','#999999']}; var c=m[s]||m['Reported']; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:2px 9px;border-radius:99px;white-space:nowrap;">'+escapeHtml(s||'')+'</span>'; }
@@ -9853,6 +9876,7 @@
         h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:14px;margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#9aa7b4;margin-bottom:8px;">Photos</div><div id="woPhotoList" style="display:flex;flex-wrap:wrap;gap:8px;"><span style="font-size:12.5px;color:#9aa7b4;">Loading&hellip;</span></div><label style="display:inline-block;margin-top:10px;background:#185FA5;color:#fff;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;cursor:pointer;">&#128247; Add photo<input type="file" accept="image/*" capture="environment" multiple onchange="woDetailPhotoPick(event)" style="display:none;"></label></div>';
         h+='<div id="woCostBox" style="margin-bottom:12px;"></div>';
         if(woIsMgr()) h+='<div style="margin-bottom:12px;"><button onclick="woOpenBilling()" style="width:100%;background:#1f7a3d;color:#fff;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:800;cursor:pointer;">&#128179; Billing &amp; invoices for this work order</button></div>';
+        h+='<div style="margin-bottom:12px;"><button onclick="openContactsDir()" style="width:100%;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:800;cursor:pointer;">&#128199; Vendor / important contacts</button></div>';
         h+=woActions(d);
         h+='</div>';
         ov.innerHTML=woHeader(d.wo_number||'Work Order','woRender()')+h;
@@ -11352,7 +11376,7 @@
         var box=document.getElementById(scope==='incoming'?'supplyIncomingList':'supplyMineList'); if(!box) return;
         var all=(window._supplyData&&window._supplyData[scope])||[]; var bar='';
         if(scope==='incoming'){
-            window._supplyFilter=window._supplyFilter||{status:'',urgency:'',q:''}; var f=window._supplyFilter;
+            window._supplyFilter=window._supplyFilter||{status:lsGet('supFilterStatus',''),urgency:lsGet('supFilterUrg',''),q:''}; var f=window._supplyFilter; try{lsSet('supFilterStatus',f.status||'');lsSet('supFilterUrg',f.urgency||'');}catch(e){}
             var sts=['','New','Submitted','Reviewing','Approved','Assigned','In transit','Received','Closed','Declined'];
             bar='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">'
               +'<select onchange="window._supplyFilter.status=this.value;supplyRenderRows(\'incoming\')" style="padding:7px;border:1px solid #ddd;border-radius:8px;font-size:12.5px;">'+sts.map(function(x){return '<option value="'+x+'"'+(f.status===x?' selected':'')+'>'+(x||'All statuses')+'</option>';}).join('')+'</select>'
@@ -11998,6 +12022,8 @@
         let notifBannerTimer = null;
         let notifBannerLink = null;
 
+        function lsGet(k,d){try{var v=localStorage.getItem(k);return v===null?d:v;}catch(e){return d;}}
+        function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
         function escapeHtml(str) {
             if (str === null || str === undefined) return "";
             return String(str)
