@@ -2513,7 +2513,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.26.2322';
+    const APP_VERSION = '2026.06.26.2333';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -8673,13 +8673,35 @@
         paths.forEach(function(p){
             var courses=p.courses||[]; var done=courses.filter(function(c){return passed[c.id];}).length, tot=courses.length;
             h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.04);"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">'+escapeHtml(p.icon||'🎓')+'</span><b style="flex:1;font-size:15.5px;color:#26242b;">'+escapeHtml(p.title)+'</b><span style="font-size:12px;color:#8a8594;">'+done+'/'+tot+'</span></div>'+(p.description?'<div style="font-size:12.5px;color:#8a8594;margin:4px 0 8px;">'+escapeHtml(p.description)+'</div>':'<div style="height:6px;"></div>')+'<div style="background:#eee;border-radius:99px;height:7px;overflow:hidden;margin-bottom:10px;"><div style="height:100%;width:'+(tot?Math.round(100*done/tot):0)+'%;background:#1f7a3d;"></div></div>';
-            courses.forEach(function(c){ var sc=lmsScoreOf(c.id); h+='<button onclick="lmsOpenCourse('+c.id+')" style="width:100%;text-align:left;background:#faf9fc;border:1px solid #f0eef4;border-radius:10px;padding:11px 12px;margin-bottom:6px;cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="flex:1;font-size:13.5px;color:#33303a;">'+escapeHtml(c.title)+'<small style="display:block;color:#9aa7b4;font-size:11px;">'+(c.has_video?'\u25B6 video &middot; ':'')+(c.pages_count||0)+' lesson page'+((c.pages_count===1)?'':'s')+(sc!=null?' &middot; scored '+sc+'%':'')+'</small></span>'+lmsStatusBadge(lmsCourseStatus(c.id))+'</button>'; });
+            var _mgr=(currentUser&&(currentUser.is_developer===true||(typeof isManagerRole==='function'&&isManagerRole())));
+            courses.forEach(function(c){ var row=lmsCourseRow(c,_mgr); if(row) h+=row; });
             h+='</div>';
         });
         var certs=[]; paths.forEach(function(p){ (p.courses||[]).forEach(function(c){ if(passed[c.id]) certs.push(c.title); }); });
         h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:6px;">My certifications</div>'+(certs.length?('<div style="display:flex;flex-wrap:wrap;gap:6px;">'+certs.map(function(t){return '<span style="background:#e8f5ec;color:#1b7a3d;font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:99px;">&#127894; '+escapeHtml(t)+'</span>';}).join('')+'</div>'):'<div style="font-size:12.5px;color:#8a8594;">Pass a course quiz to earn its certification.</div>')+'</div>';
         if(currentUser&&(currentUser.is_developer===true||(typeof isManagerRole==='function'&&isManagerRole()))){ h+='<button onclick="lmsManageCourses()" style="width:100%;background:#fff;border:1px dashed #cdd5e0;color:#185FA5;border-radius:10px;padding:11px;font-size:13.5px;font-weight:700;cursor:pointer;margin-top:4px;">&#9999;&#65039; Add or edit courses &amp; videos (admins)</button>'; }
         ov.innerHTML=lmsHeader('My Training','')+'<div style="max-width:640px;margin:0 auto;padding:16px;">'+h+'</div>';
+    }
+    function lmsCourseRow(c,_mgr){
+        var draft=(c.pub_status==='draft');
+        if(draft && !_mgr) return '';
+        var sc=lmsScoreOf(c.id);
+        var badge=draft?'<span style="background:#fff4e0;color:#9a5b00;font-size:10px;font-weight:800;padding:1px 6px;border-radius:99px;margin-right:5px;">DRAFT</span>':'';
+        var h='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">';
+        h+='<button onclick="lmsOpenCourse('+c.id+')" style="flex:1;text-align:left;background:#faf9fc;border:1px solid '+(draft?'#f3d9a0':'#f0eef4')+';border-radius:10px;padding:11px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="flex:1;font-size:13.5px;color:#33303a;">'+badge+escapeHtml(c.title)+'<small style="display:block;color:#9aa7b4;font-size:11px;">'+(c.has_video?'▶ video &middot; ':'')+(c.pages_count||0)+' lesson page'+((c.pages_count===1)?'':'s')+(c.version?(' &middot; v'+c.version):'')+(sc!=null?' &middot; scored '+sc+'%':'')+'</small></span>'+lmsStatusBadge(lmsCourseStatus(c.id))+'</button>';
+        if(_mgr){ h+='<button onclick="lmsToggleStatus(event,'+c.id+',\''+(draft?'draft':'published')+'\')" title="'+(draft?'Publish for crew':'Move to draft')+'" style="flex:0 0 auto;background:'+(draft?'#e8f5ec':'#fff4e0')+';color:'+(draft?'#1b7a3d':'#9a5b00')+';border:none;border-radius:8px;padding:10px 11px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">'+(draft?'Publish':'Unpublish')+'</button>'; }
+        h+='</div>';
+        return h;
+    }
+    function lmsToggleStatus(ev,courseId,cur){
+        if(ev&&ev.stopPropagation) ev.stopPropagation();
+        var ns=(cur==='draft')?'published':'draft';
+        withPin(function(pin){
+            supabaseClient.rpc('app_lp_set_status',{p_username:currentUser.username,p_password:pin,p_course_id:courseId,p_status:ns}).then(function(r){
+                if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Only managers can publish courses.':r.error.message); return; }
+                lmsLoad(function(){ lmsHome(); });
+            }).catch(function(){ alert('Could not change status.'); });
+        });
     }
     function lmsManageCourses(){ lmsClose(); _td.tab='paths'; if(typeof tdLoad==='function'){ tdLoad(function(){ tdRender(); }); } else { alert('Open Admin Dashboard then Team Development then Paths to manage courses.'); } }
     function lmsOpenCourse(courseId){
