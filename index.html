@@ -2520,7 +2520,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.29.1408';
+    const APP_VERSION = '2026.06.29.1541';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2955,10 +2955,18 @@
     }
     function lmsLaunchScorm(courseId,url,version){
         if(!url){ alert('No SCORM package is attached to this course yet.'); return; }
-        if(url.indexOf('scorm-player.html')>=0 && url.indexOf('u=')<0){ try{ url=url+(url.indexOf('#')>=0?'&':'#')+'u='+encodeURIComponent(currentUser.username)+'&k='+encodeURIComponent(sessionPin||''); }catch(e){} }
         _scorm={cid:courseId,init:false,err:'0',data:{},done:false}; lmsBuildScormApi();
-        /* IMPORTANT: the SCORM package must be served from the SAME ORIGIN as this app, or the browser blocks the package from reaching window.API / window.API_1484_11 (cross-origin policy). Host the unzipped package (imsmanifest.xml + launch page) under this site's domain. */
-        var ov=lmsOverlay(); ov.innerHTML=lmsHeader('Training module','lmsClose()')+'<div style="position:fixed;inset:0;top:52px;background:#000;"><iframe src="'+escapeHtml(url)+'" style="width:100%;height:100%;border:0;" allow="autoplay; fullscreen" allowfullscreen></iframe></div>';
+        var ov=lmsOverlay(); ov.innerHTML=lmsHeader('Training module','lmsClose()')+'<div style="position:fixed;inset:0;top:52px;background:#000;"><iframe id="scoLaunchFrame" style="width:100%;height:100%;border:0;" allow="autoplay; fullscreen" allowfullscreen></iframe><div id="scoLaunchMsg" style="position:fixed;left:10px;top:60px;color:#cfd6df;font:12px -apple-system,Segoe UI,sans-serif;background:rgba(0,0,0,.55);padding:4px 9px;border-radius:7px;z-index:5;">Loading module&hellip;</div></div>';
+        /* Supabase signed uploads store files as text/plain, so iframing the storage URL shows blank. Fetch the launch page and render it through a SAME-ORIGIN blob (always parsed as HTML) with a <base> so the package's relative assets still resolve, and so the SCO can reach window.API directly. */
+        var launchUrl=url;
+        try{ var hash=url.indexOf('#')>=0?url.slice(url.indexOf('#')+1):''; var m=/(?:^|&)launch=([^&]+)/.exec(hash); if(m){ launchUrl=decodeURIComponent(m[1]); } else if(url.indexOf('scorm-player.html')>=0){ launchUrl=''; } }catch(e){}
+        if(!launchUrl){ var m0=document.getElementById('scoLaunchMsg'); if(m0) m0.textContent='Could not find the module launch file.'; return; }
+        var baseHref=launchUrl.split('?')[0].replace(/[^\/]*$/,'');
+        fetch(launchUrl,{cache:'no-store'}).then(function(r){ return r.text(); }).then(function(html){
+            if(/<head[^>]*>/i.test(html)){ html=html.replace(/<head([^>]*)>/i,'<head$1><base href="'+baseHref+'">'); } else { html='<!doctype html><base href="'+baseHref+'">'+html; }
+            var b=URL.createObjectURL(new Blob([html],{type:'text/html'}));
+            var fr=document.getElementById('scoLaunchFrame'); if(fr){ fr.src=b; } var m1=document.getElementById('scoLaunchMsg'); if(m1){ m1.style.display='none'; }
+        }).catch(function(){ var fr=document.getElementById('scoLaunchFrame'); if(fr){ fr.src=launchUrl; } var m2=document.getElementById('scoLaunchMsg'); if(m2){ m2.textContent='Could not load the module.'; } });
     }
     function lmsSetScorm(courseId,cur){ var url=prompt('Paste the SCORM package launch URL (must be hosted on this site’s domain). Leave blank to remove.', cur||''); if(url===null) return; withPin(function(pin){ supabaseClient.rpc('app_lp_set_scorm',{p_username:currentUser.username,p_password:pin,p_course_id:courseId,p_url:url.trim(),p_version:'1.2'}).then(function(r){ if(r.error){ alert('Could not save: '+(r.error.message||'')); return; } alert(url.trim()?'SCORM module attached.':'SCORM module removed.'); if(typeof lmsOpenCourse==='function') lmsOpenCourse(courseId); }).catch(function(){ alert('Could not save.'); }); }); }
     function lmsScormBtns(c){ if(!c) return ''; var h=''; var u=c.scorm_url?encodeURI(String(c.scorm_url)).replace(/'/g,'%27'):''; if(c.scorm_url){ h+='<button onclick="lmsLaunchScorm('+c.id+',\''+u+'\',\''+escapeHtml(c.scorm_version||'1.2')+'\')" style="width:100%;margin-top:14px;background:#7d1d4b;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">&#9654; Launch training module (SCORM)</button>'; } if(typeof isManagerRole==='function'&&isManagerRole()){ h+='<button onclick="lmsSetScorm('+c.id+',\''+u+'\')" style="width:100%;margin-top:8px;background:#eef0f3;color:#5b6472;border:none;border-radius:9px;padding:9px;font-size:12.5px;font-weight:700;cursor:pointer;">&#128279; '+(c.scorm_url?'Replace':'Attach')+' SCORM package</button>'; h+='<button onclick="lmsUploadScorm('+c.id+')" style="width:100%;margin-top:8px;background:#7d1d4b;color:#fff;border:none;border-radius:9px;padding:9px;font-size:12.5px;font-weight:700;cursor:pointer;">&#11014; Upload SCORM .zip</button>'; } return h; }
