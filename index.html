@@ -2520,7 +2520,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.29.0053';
+    const APP_VERSION = '2026.06.29.0113';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3266,9 +3266,29 @@
             '<p style="text-align:center;color:#6b7686;font-size:13.5px;margin:0 0 14px;">Please review your shifts for the week of <b>'+escapeHtml(String(d.week_start||''))+'</b> before you continue.</p>'+
             '<div style="background:#f6f8fb;border:1px solid #e6ebf2;border-radius:12px;padding:8px 14px;margin-bottom:16px;">'+rows+'</div>'+
             '<button id="scheduleGateBtn" onclick="confirmScheduleGate()" style="width:100%;background:#1f7a3d;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;">&#9989; I&rsquo;ve seen my schedule &mdash; Confirm</button>'+
-            '<p style="text-align:center;color:#9aa7b4;font-size:11.5px;margin:10px 0 0;">You must confirm to use the app. Questions about your shifts? Talk to your manager.</p>'+
+            '<button onclick="schedGateFlagConflict()" style="width:100%;background:none;border:1px solid #e6c200;color:#8a6d00;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;margin-top:10px;">Something is wrong &mdash; tell my manager</button>'+
+            '<p style="text-align:center;color:#9aa7b4;font-size:11.5px;margin:10px 0 0;">Confirm to continue, or tap &ldquo;Something is wrong&rdquo; to flag it for your manager.</p>'+
             '</div>';
         ov.style.display='flex';
+    }
+    function schedFlagConflict(){
+        var ws=(typeof schedFmt==='function' && schedState && schedState.weekStart)?schedFmt(schedState.weekStart):null; if(!ws) return;
+        var note=prompt('What is the conflict with this schedule? Your manager will be notified.'); if(note===null) return; note=(note||'').trim();
+        withPin(function(pin){
+            supabaseClient.rpc('app_week_flag_conflict',{p_username:currentUser.username,p_password:pin,p_week_start:ws,p_note:note}).then(function(r){
+                if(r&&r.error){ alert('Could not send: '+r.error.message); return; }
+                if(typeof showUndo==='function') showUndo('Sent to your manager.'); else alert('Sent to your manager.');
+            }).catch(function(){ alert('Could not send right now.'); });
+        });
+    }
+    function schedGateFlagConflict(){
+        var ws=window._gateWeek;
+        var note=prompt('What is the conflict with this schedule? Your manager will be notified.'); if(note===null) return; note=(note||'').trim();
+        var pin=window._gatePin||sessionPin;
+        supabaseClient.rpc('app_week_flag_conflict',{p_username:currentUser.username,p_password:pin,p_week_start:ws,p_note:note}).then(function(){
+            var ov=document.getElementById('scheduleGate'); if(ov) ov.style.display='none';
+            alert('Thanks - your manager has been notified about the conflict.');
+        }).catch(function(){ var ov=document.getElementById('scheduleGate'); if(ov) ov.style.display='none'; });
     }
     function confirmScheduleGate(){
         var ws=window._gateWeek; var btn=document.getElementById('scheduleGateBtn');
@@ -4550,7 +4570,7 @@
         });
         html += '<div class="sp-weekbar" style="margin-top:14px;border-radius:10px;"><span>This week</span><span><b>'+total.toFixed(1)+' hrs</b> scheduled</span></div>';
         html += '<div id="weekConfirmBar" style="margin-top:10px;"></div>';
-        html += '<p style="font-size:12px;color:#9aa7b4;margin-top:10px;">Only published shifts are shown. Need a day off? Use <b>Request time off</b> in the menu.</p></div>';
+        html += '<p style="font-size:12px;color:#9aa7b4;margin-top:10px;">Only published shifts are shown &mdash; if your week looks empty, your manager may not have posted it yet. Need a day off? Use <b>Request time off</b> in the menu.</p></div>';
         document.getElementById('schedGrid').innerHTML = html;
         loadWeekConfirm(schedFmt(schedState.weekStart), (mine.shifts||[]).length>0);
     }
@@ -4564,7 +4584,7 @@
                     var when=r.data.confirmed_at?(' on '+String(r.data.confirmed_at).slice(0,10)):'';
                     box.innerHTML='<div style="background:#e8f5ec;border:1px solid #b8e0c4;color:#1b7a3d;border-radius:10px;padding:10px 12px;text-align:center;font-size:13px;font-weight:700;">&#9989; You confirmed this schedule'+when+'</div>';
                 } else {
-                    box.innerHTML='<button onclick="confirmWeek(\''+ws+'\')" style="width:100%;background:var(--pass-green,#1f7a3d);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;">&#9989; Confirm my schedule</button><div style="font-size:11.5px;color:#9aa7b4;text-align:center;margin-top:5px;">Lets your manager know you have seen this week.</div>';
+                    box.innerHTML='<button onclick="confirmWeek(\''+ws+'\')" style="width:100%;background:var(--pass-green,#1f7a3d);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;">&#9989; Confirm my schedule</button><div style="font-size:11.5px;color:#9aa7b4;text-align:center;margin-top:5px;">Lets your manager know you have seen this week.</div><button onclick="schedFlagConflict()" style="width:100%;background:none;border:none;color:#b08600;font-size:12.5px;text-decoration:underline;cursor:pointer;margin-top:9px;padding:4px;">Something is wrong with my schedule</button>';
                 }
             }).catch(function(){ box.innerHTML=''; });
         });
@@ -8808,13 +8828,8 @@
     var HOWTO_VERSION = '2026.06.25.aaron'; // bump to re-show after future how-to updates
     function openHowTo(){ var m=document.getElementById('howtoModal'); if(m) m.style.display='flex'; }
     function closeHowTo(){ var m=document.getElementById('howtoModal'); if(m) m.style.display='none'; try{ localStorage.setItem('howtoSeen_'+HOWTO_VERSION,'1'); }catch(e){} }
-    function maybeShowHowTo(){
-        try{ if(localStorage.getItem('howtoSeen_'+HOWTO_VERSION)) return; }catch(e){}
-        var nm=((currentUser&&currentUser.name)||'').toLowerCase();
-        var isTarget = nm.indexOf('aaron')>=0 || nm.indexOf('issac')>=0 || nm.indexOf('isaac')>=0 ||
-                       (typeof isAdminManager==='function' && isAdminManager());
-        if(isTarget) openHowTo();
-    }
+    function maybeShowHowTo(){ /* auto-popup on login removed per request; How-To still reachable manually */ return; }
+    (function injectModalFitCss(){ try{ var st=document.createElement('style'); st.id='modal-fit-fix'; st.textContent='div[style*="position:fixed"][style*="align-items:center"]>div,div[style*="position: fixed"][style*="align-items: center"]>div{max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;}@media (max-height:640px){div[style*="position:fixed"][style*="align-items:center"]>div,div[style*="position: fixed"][style*="align-items: center"]>div{max-height:95vh;}}'; (document.head||document.documentElement).appendChild(st); }catch(e){} })();
 
     // ----- Maintenance Request: equipment picklist tie-in -----
     function maintLoadEquip(preName){
