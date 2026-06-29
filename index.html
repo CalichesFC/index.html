@@ -2520,7 +2520,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.29.1541';
+    const APP_VERSION = '2026.06.29.1754';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4238,7 +4238,7 @@
     function schedAddDays(dt,n){ const x=new Date(dt); x.setDate(x.getDate()+n); return x; }
 
     function initScheduleBuilder() {
-        const mgr = isAdminManager();
+        const mgr = (typeof schedIsMgr==='function' ? schedIsMgr() : isAdminManager());
         schedState.mode = mgr ? 'mgr' : 'staff';
         document.getElementById('schedNavMgr').style.display = mgr ? 'flex' : 'none';
         document.getElementById('schedNavStaff').style.display = mgr ? 'none' : 'flex';
@@ -5380,7 +5380,7 @@
     }
     function empFirst(p){ return escapeHtml(String(((p&&p.name)||'this team member')).split(' ')[0]); }
     function empTabsFor(p){
-        var t=[{k:'overview',label:'Overview'},{k:'passport',label:'Passport'},{k:'training',label:'Training'},{k:'schedule',label:'Schedule'},{k:'recognition',label:'Recognition'}];
+        var t=[{k:'overview',label:'Overview'},{k:'passport',label:'Passport'},{k:'training',label:'Training'}];
         if(typeof isManagerRole==='function' && isManagerRole()){ t.push({k:'documents',label:'Documents'}); t.push({k:'notes',label:'Manager Notes'}); }
         if(typeof isDiscAdmin==='function' && isDiscAdmin()){ t.push({k:'corrective',label:'Corrective Action'}); t.push({k:'confidential',label:'Confidential'}); }
         return t;
@@ -5427,7 +5427,7 @@
 
     /* ===== Employee tiered notes (#98) ===== */
     function _noteTierMeta(t){ return ({support:['Support','#e7f6ec','#1b7a3d'],manager:['Manager','#eef3fb','#185FA5'],corrective:['Corrective','#fdeaea','#a01b3e']})[t]||['Note','#eef0f3','#5b6472']; }
-    function loadEmpNotes(empId){
+    function loadEmpNotes(empId){ if(!sessionPin){ withPin(function(){ loadEmpNotes(empId); }); return; }
         var box=document.getElementById('empNotesBox'); if(!box) return; window._empNotesId=empId;
         supabaseClient.rpc('app_emp_notes_list',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId}).then(function(r){
             if(r.error){ box.innerHTML='<div class="emp-sec">Notes</div><div class="emp-empty">'+(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have access to notes for this person.':escapeHtml(r.error.message))+'</div>'; return; }
@@ -5457,7 +5457,7 @@
         h+='<p class="emp-note">Support notes are visible to the team member; Manager and Corrective notes are management-only. Every edit and removal is recorded in the audit log.</p>';
         box.innerHTML=h;
     }
-    function empNoteAdd(empId){
+    function empNoteAdd(empId){ if(!sessionPin){ withPin(function(){ empNoteAdd(empId); }); return; }
         var tier=(document.getElementById('empNoteTier')||{}).value||'support'; var body=(document.getElementById('empNoteBody')||{}).value||'';
         if(!body.trim()){ alert('Type a note first.'); return; }
         supabaseClient.rpc('app_emp_note_add',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId,p_tier:tier,p_body:body}).then(function(r){
@@ -5465,19 +5465,19 @@
             loadEmpNotes(empId);
         }).catch(function(){ alert('Could not save.'); });
     }
-    function empNoteEdit(noteId,empId){
+    function empNoteEdit(noteId,empId){ if(!sessionPin){ withPin(function(){ empNoteEdit(noteId,empId); }); return; }
         var nb=prompt('Edit note:'); if(nb===null) return; if(!nb.trim()){ alert('Note cannot be empty.'); return; }
         supabaseClient.rpc('app_emp_note_edit',{p_username:currentUser.username,p_password:sessionPin,p_note_id:noteId,p_body:nb}).then(function(r){
             if(r.error){ alert(r.error.message); return; } loadEmpNotes(empId);
         }).catch(function(){ alert('Could not save.'); });
     }
-    function empNoteDelete(noteId,empId){
+    function empNoteDelete(noteId,empId){ if(!sessionPin){ withPin(function(){ empNoteDelete(noteId,empId); }); return; }
         var rs=prompt('Reason for removing this note (recorded in the audit log):'); if(rs===null) return; if(!rs.trim()){ alert('A reason is required.'); return; }
         supabaseClient.rpc('app_emp_note_delete',{p_username:currentUser.username,p_password:sessionPin,p_note_id:noteId,p_reason:rs}).then(function(r){
             if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Only senior managers can remove notes.':r.error.message); return; } loadEmpNotes(empId);
         }).catch(function(){ alert('Could not remove.'); });
     }
-    function empNoteAudit(noteId){
+    function empNoteAudit(noteId){ if(!sessionPin){ withPin(function(){ empNoteAudit(noteId); }); return; }
         supabaseClient.rpc('app_emp_note_audit',{p_username:currentUser.username,p_password:sessionPin,p_note_id:noteId}).then(function(r){
             if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Senior managers only.':r.error.message); return; }
             var a=r.data||[]; var txt=a.length?a.map(function(x){return (String(x.at||'').slice(0,16).replace('T',' '))+'  '+x.action+'  '+(x.actor||'')+((x.detail&&x.detail.reason)?(' — '+x.detail.reason):'');}).join('\n'):'No history.';
@@ -5605,6 +5605,7 @@
                     if(error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; }
                     var newId=(typeof data==='number')?data:((data&&data.id)||(data&&data[0]&&data[0].id));
                     if(newId && (startD||bdayD)){ supabaseClient.rpc('app_emp_set_dates',{p_username:currentUser.username,p_password:pin,p_employee_id:newId,p_start_date:startD,p_birthday:bdayD}).catch(function(){}); }
+                    var _rphone=((document.getElementById('rosterPhone')||{}).value||'').trim(); if(newId && _rphone){ supabaseClient.rpc('app_emp_set_phone',{p_username:currentUser.username,p_password:pin,p_emp_id:newId,p_phone:_rphone}).catch(function(){}); }
                     closeRosterModal();
                     var sv=document.getElementById('scheduleBuilderView');
                     if(sv && sv.style.display==='block'){ fetchScheduleWeek(); } else { loadRoster(); }
@@ -6117,13 +6118,16 @@
 
     function clockToggle() {
         const emp = clockSelectedEmp(); if (!emp) { alert('Pick an employee first.'); return; }
+        if (window._clockBusy) return;
         const open = clockState.status && clockState.status.open_punch;
         const loc = document.getElementById('clockLocSelect').value;
         withPin(function(pin){
+            if (window._clockBusy) return; window._clockBusy = true; var _clkDone=function(){ window._clockBusy=false; }; setTimeout(_clkDone, 8000);
             const rpc = open ? 'app_clock_out' : 'app_clock_in';
             const params = open ? { p_username: currentUser.username, p_password: pin, p_employee_id: emp }
                                 : { p_username: currentUser.username, p_password: pin, p_employee_id: emp, p_location: loc };
             supabaseClient.rpc(rpc, params).then(({ data, error }) => {
+                _clkDone();
                 if (error) { alert('Error: ' + error.message); return; }
                 if (data && data.ok === false) { alert(data.error || 'Could not complete.'); }
                 clockRefreshStatus();
@@ -6258,6 +6262,7 @@
         if (!inD || !inT) { alert('Clock-in date & time required.'); return; }
         const pIn = inD + ' ' + inT;
         const pOut = (outD && outT) ? (outD + ' ' + outT) : '';
+        if(pOut && new Date(pOut.replace(' ','T')) <= new Date(pIn.replace(' ','T'))){ alert('Clock-out must be after clock-in.'); return; }
         withPin(function(pin){
             supabaseClient.rpc('app_punch_edit', { p_username: currentUser.username, p_password: pin, p_id: id, p_in: pIn, p_out: pOut, p_reason: reason })
             .then(({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } if (data && data.ok === false) { alert(data.error); return; } loadPunchList(empId); loadTimesheet(); });
@@ -6364,9 +6369,9 @@
         const formsLinksBtn = document.getElementById('formsLinksBtn');
         if (formsLinksBtn) formsLinksBtn.style.display = permAllow('forms_links', (devOverride || isManager)) ? 'block' : 'none';
         const quotesBtn = document.getElementById('quotesBtn');
-        if (quotesBtn) quotesBtn.style.display = devOverride ? 'block' : 'none';
+        if (quotesBtn) quotesBtn.style.display = ((typeof isManagerRole==='function'&&isManagerRole())||devOverride) ? 'block' : 'none';
         const salesPipelineBtn = document.getElementById('salesPipelineBtn');
-        if (salesPipelineBtn) salesPipelineBtn.style.display = devOverride ? 'block' : 'none';
+        if (salesPipelineBtn) salesPipelineBtn.style.display = ((typeof isManagerRole==='function'&&isManagerRole())||devOverride) ? 'block' : 'none';
         document.getElementById('developerBtn').style.display = (currentUser.is_developer === true) ? 'block' : 'none';
         const futureIntegrations = document.getElementById('futureIntegrations');
         if (futureIntegrations) futureIntegrations.style.display = devOverride ? 'block' : 'none';
@@ -9841,7 +9846,7 @@
     function wobClose(){ var o=document.getElementById('wobModal'); if(o) o.style.display='none'; }
     function wobHead(title,back){ return '<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;">'+(back?'<button onclick="'+back+'" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;">&lsaquo; Back</button>':'')+'<b style="flex:1;font-size:16px;">'+title+'</b><button onclick="wobClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;">&times;</button></div>'; }
     function wobStatusPill(s){ var m={draft:['#eef0f3','#5b6472'],submitted:['#eef3fb','#185FA5'],operational_verified:['#fff4e0','#9a5b00'],finance_approved:['#e8f5ec','#1b7a3d'],paid:['#dff3e6','#1b7a3d'],void:['#fdeaea','#a01b3e']}; var c=m[s]||m.draft; var lbl={draft:'Draft',submitted:'Submitted',operational_verified:'Verified (ops)',finance_approved:'Finance approved',paid:'Paid',void:'Void'}[s]||s; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:2px 9px;border-radius:99px;">'+lbl+'</span>'; }
-    function openMaintBilling(){ if(!(currentUser&&(currentUser.is_developer===true||(typeof isManagerRole==='function'&&isManagerRole())))){ alert('Maintenance billing is for managers and finance.'); return; } _wob.tab='invoices'; wobLoad(); }
+    function openMaintBilling(){ if(!(currentUser&&(currentUser.is_developer===true||(typeof isManagerRole==='function'&&isManagerRole())||['Finance Approver','Maintenance Lead'].indexOf(currentUser.role)>=0))){ alert('Maintenance billing is for managers and finance.'); return; } _wob.tab='invoices'; wobLoad(); }
     function wobShell(body){ var t=_wob.tab; function tb(id,l){ return '<button onclick="_wob.tab=\''+id+'\';'+(id==='invoices'?'wobLoad()':'wobRates()')+'" style="flex:1;background:'+(t===id?'#185FA5':'#eef0f3')+';color:'+(t===id?'#fff':'#5b6472')+';border:none;padding:10px;font-size:13px;font-weight:700;border-radius:9px;cursor:pointer;">'+l+'</button>'; }
       wobOv().innerHTML=wobHead('Maintenance Billing','')+'<div style="display:flex;gap:6px;max-width:820px;margin:12px auto 0;padding:0 16px;">'+tb('invoices','Invoices')+tb('rates','Rate cards')+'</div><div style="max-width:820px;margin:0 auto;padding:14px 16px 50px;">'+body+'</div>'; }
     function wobLoad(){ wobOv().innerHTML=wobHead('Maintenance Billing','')+'<div style="text-align:center;color:#888;padding:40px;">Loading&hellip;</div>'; wobRpc('wo_invoice_list',{p_filters:_wob.filter||{}},function(d){ _wob.list=d||[]; wobRender(); }); }
@@ -11881,6 +11886,8 @@
         const contactName = form.querySelector('input[name="ContactName"]').value.trim();
         const eventDate = form.querySelector('input[name="EventDate"]').value;
         if (!contactName || !eventDate) { return alert('Please enter the contact name and event date!'); }
+        var _qValid=[].slice.call(document.querySelectorAll('#quoteItemsContainer .quote-row')).filter(function(r){ return (r.querySelector('.quote-desc').value||'').trim() && (parseFloat(r.querySelector('.quote-price').value)||0)>0; });
+        if(_qValid.length===0){ return alert('Add at least one line item (a description and a price over $0) before sending the quote.'); }
         btn.innerText = 'Generating PDF...'; btn.disabled = true;
 
         const company = form.querySelector('input[name="Company"]').value;
