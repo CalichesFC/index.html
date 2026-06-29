@@ -2517,7 +2517,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.28.2139';
+    const APP_VERSION = '2026.06.28.2148';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2986,21 +2986,21 @@
             if(!launchRel){ var htmls=names.filter(function(n){return /\.html?$/i.test(n);}).sort(function(a,b){return a.length-b.length;}); launchRel=htmls[0]||''; }
             if(!launchRel){ msg('Could not find a launch page (no imsmanifest.xml or HTML file). Is this a SCORM package?'); return; }
             var launchClean=launchRel.split('?')[0].replace(/^\.?\//,''); var launchQuery=launchRel.indexOf('?')>=0?launchRel.slice(launchRel.indexOf('?')):'';
-            var launchUrl='';
+            var launchUrl=''; var scVer='v'+Date.now();
             for(var k=0;k<names.length;k++){ var name=names[k];
                 msg('Uploading file '+(k+1)+' of '+names.length+'…'); bar(100*k/(names.length+1));
                 var blob=await zip.files[name].async('blob');
-                var d=await _scSign(courseId,pin,name);
+                var d=await _scSign(courseId,pin,scVer+'/'+name);
                 var up=await supabaseClient.storage.from('training-materials').uploadToSignedUrl(d.path,d.token,blob,{contentType:lmsScormType(name)});
                 if(up.error) throw new Error(up.error.message);
                 if(name.replace(/^\.?\//,'')===launchClean) launchUrl=d.url+launchQuery;
             }
             msg('Installing the player…'); bar(100*names.length/(names.length+1));
             var playerTxt=await (await fetch('scorm-player.html',{cache:'no-store'})).text();
-            var pd=await _scSign(courseId,pin,'scorm-player.html');
+            var pd=await _scSign(courseId,pin,scVer+'/scorm-player.html');
             var pu=await supabaseClient.storage.from('training-materials').uploadToSignedUrl(pd.path,pd.token,new Blob([playerTxt],{type:'text/html'}),{contentType:'text/html'});
             if(pu.error) throw new Error(pu.error.message);
-            if(!launchUrl){ var ld=await _scSign(courseId,pin,launchClean); launchUrl=ld.url+launchQuery; }
+            if(!launchUrl){ var ld=await _scSign(courseId,pin,scVer+'/'+launchClean); launchUrl=ld.url+launchQuery; }
             var scormUrl=pd.url+'#course='+courseId+'&launch='+encodeURIComponent(launchUrl);
             await new Promise(function(res,rej){ supabaseClient.rpc('app_lp_set_scorm',{p_username:currentUser.username,p_password:pin,p_course_id:courseId,p_url:scormUrl,p_version:'1.2'}).then(function(r){ if(r.error) rej(new Error(r.error.message)); else res(); }).catch(rej); });
             bar(100); msg('✓ SCORM package uploaded and attached! Learners can launch it now.');
