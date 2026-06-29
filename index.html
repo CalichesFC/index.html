@@ -2517,7 +2517,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.28.2148';
+    const APP_VERSION = '2026.06.28.2236';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3053,13 +3053,44 @@
         var bk=d.cost_by_kind||[];
         if(!bk.length){ h+='<div style="color:#9aa7b4;font-size:13px;">No costs logged.</div>'; } else { bk.forEach(function(r){ h+='<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid #f7f8fb;font-size:13px;"><span style="color:#33303a;text-transform:capitalize;">'+escapeHtml(r.kind||'')+'</span><b style="color:#1f2a44;">'+mdMoney(r.total)+'</b></div>'; }); }
         h+='</div></div>';
-        var bv=d.by_vendor||[];
-        if(bv.length){ h+='<div style="background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:13px;margin-top:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;margin-bottom:8px;">Invoice spend by vendor</div><table style="width:100%;border-collapse:collapse;font-size:13px;">';
-            bv.forEach(function(r){ h+='<tr style="border-top:1px solid #f3f4f8;"><td style="padding:6px 0;color:#26242b;">'+escapeHtml(r.vendor||'')+'</td><td style="text-align:center;color:#9aa7b4;">'+(r.invoices||0)+' inv</td><td style="text-align:right;color:#1f2a44;font-weight:700;">'+mdMoney(r.total)+'</td></tr>'; });
-            h+='</table></div>'; }
+        h+='<div id="mdVendorSpend" style="margin-top:12px;"></div>';
         h+='<p style="font-size:11.5px;color:#9aa7b4;margin-top:14px;">Numbers come from logged work-order costs and maintenance invoices. As more work orders are closed and invoices entered, this view fills in automatically.</p>';
         h+='</div>';
         mdOv().innerHTML=h;
+        if(typeof mdLoadVendorSpend==='function') mdLoadVendorSpend(days);
+    }
+    function mdVendorDateFrom(days){ var d=new Date(Date.now()-(days||90)*86400000); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+    function mdLoadVendorSpend(days){
+        var box=document.getElementById('mdVendorSpend'); if(!box) return;
+        box.innerHTML='<div style="background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:13px;color:#9aa7b4;font-size:13px;">Loading vendor spend&hellip;</div>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_maint_vendor_spend',{p_username:currentUser.username,p_password:pin,p_from:mdVendorDateFrom(days),p_to:null}).then(function(r){
+                if(r.error||!r.data){ box.innerHTML='<div style="background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:13px;color:#9aa7b4;font-size:13px;">Vendor spend unavailable.</div>'; return; }
+                window._mdVendorData=r.data; mdRenderVendorSpend(r.data);
+            }).catch(function(){ box.innerHTML='<div style="background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:13px;color:#9aa7b4;font-size:13px;">Vendor spend unavailable.</div>'; });
+        });
+    }
+    function mdRenderVendorSpend(d){
+        var box=document.getElementById('mdVendorSpend'); if(!box) return;
+        var v=(d&&d.vendors)||[]; var t=(d&&d.totals)||{};
+        var h='<div style="background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:13px;">';
+        h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><div style="flex:1;font-size:11px;font-weight:800;text-transform:uppercase;color:#8a8594;">Invoice spend by vendor</div>';
+        if(v.length) h+='<button onclick="mdVendorCsv()" style="background:#eef3fb;color:#185FA5;border:none;border-radius:7px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">&#11015; CSV</button>';
+        h+='</div>';
+        if(!v.length){ h+='<div style="color:#9aa7b4;font-size:13px;">No vendor invoices in this window yet. As invoices are entered (including in-house Caliche&rsquo;s Maintenance), spend by vendor fills in here.</div></div>'; box.innerHTML=h; return; }
+        h+='<table style="width:100%;border-collapse:collapse;font-size:13px;"><tr style="color:#9aa7b4;font-size:10.5px;text-transform:uppercase;"><td style="text-align:left;padding:3px 0;">Vendor</td><td style="text-align:center;">Inv</td><td style="text-align:right;">Invoiced</td><td style="text-align:right;">Paid</td><td style="text-align:right;">Outstanding</td></tr>';
+        v.forEach(function(r){ h+='<tr style="border-top:1px solid #f3f4f8;"><td style="padding:6px 0;color:#26242b;font-weight:600;">'+escapeHtml(r.vendor||'')+'</td><td style="text-align:center;color:#9aa7b4;">'+(r.invoices||0)+'</td><td style="text-align:right;color:#1f2a44;">'+mdMoney(r.invoiced)+'</td><td style="text-align:right;color:#1b7a3d;">'+mdMoney(r.paid)+'</td><td style="text-align:right;color:'+((r.outstanding>0)?'#9a5b00':'#9aa7b4')+';font-weight:'+((r.outstanding>0)?'700':'400')+';">'+mdMoney(r.outstanding)+'</td></tr>'; });
+        h+='<tr style="border-top:2px solid #e6e9f0;font-weight:800;"><td style="padding:7px 0;color:#1f2a44;">Total</td><td style="text-align:center;color:#9aa7b4;">'+(t.invoices||0)+'</td><td style="text-align:right;color:#1f2a44;">'+mdMoney(t.invoiced)+'</td><td style="text-align:right;color:#1b7a3d;">'+mdMoney(t.paid)+'</td><td style="text-align:right;color:'+((t.outstanding>0)?'#9a5b00':'#1f2a44')+';">'+mdMoney(t.outstanding)+'</td></tr>';
+        h+='</table></div>';
+        box.innerHTML=h;
+    }
+    function mdVendorCsv(){
+        var d=window._mdVendorData; if(!d||!(d.vendors||[]).length){ alert('No vendor spend to export yet.'); return; }
+        var rows=[['Vendor','Invoices','Invoiced','Paid','Outstanding']];
+        (d.vendors||[]).forEach(function(r){ rows.push([r.vendor||'',r.invoices||0,r.invoiced||0,r.paid||0,r.outstanding||0]); });
+        var t=d.totals||{}; rows.push(['TOTAL',t.invoices||0,t.invoiced||0,t.paid||0,t.outstanding||0]);
+        var csv=rows.map(function(row){ return row.map(function(c){ var x=String(c); return /[",\n]/.test(x)?('"'+x.replace(/"/g,'""')+'"'):x; }).join(','); }).join('\r\n');
+        var blob=new Blob([csv],{type:'text/csv'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='vendor-spend_'+(d.from||'')+'_to_'+(d.to||'')+'.csv'; document.body.appendChild(a); a.click(); setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); },100);
     }
     /* =================== END MAINTENANCE LEADERSHIP DASHBOARD =================== */
     /* ===================== MY COACHING NOTES (employee self-view) ===================== */
@@ -3203,7 +3234,7 @@
             setTimeout(showAppTour, 800);
             setTimeout(maybeShowHowTo, 1300);
         }
-        if (window._pendingEquip) { var _eq=window._pendingEquip; window._pendingEquip=null; try { if(history.replaceState) history.replaceState(null,'',location.pathname); } catch(e){} setTimeout(function(){ if(typeof openEquipmentDetail==='function') openEquipmentDetail(parseInt(_eq,10)); }, 800); }
+        if (window._pendingEquip) { var _eq=window._pendingEquip; var _eqGo=window._pendingEquipGo; window._pendingEquip=null; window._pendingEquipGo=null; try { if(history.replaceState) history.replaceState(null,'',location.pathname); } catch(e){} setTimeout(function(){ if(_eqGo==='report' && typeof woReportForEquipment==='function'){ woReportForEquipment(parseInt(_eq,10)); } else if(typeof openEquipmentDetail==='function'){ openEquipmentDetail(parseInt(_eq,10)); } }, 800); }
         setTimeout(checkScheduleGate, 450);
         resetTimer();
     }
@@ -3302,7 +3333,7 @@
     window.addEventListener('load', function() {
         if (frOrgRoute()) return;
         if (checkQuoteAcceptRoute()) return;
-        try { window._pendingEquip = new URLSearchParams(window.location.search).get('equip'); } catch(e) {}
+        try { var _qsp=new URLSearchParams(window.location.search); window._pendingEquip = _qsp.get('equip'); window._pendingEquipGo = _qsp.get('go'); } catch(e) {}
         addQuoteRow(); addQuoteRow(); addQuoteRow();
         populateQuoteTemplates();
         let savedUser = localStorage.getItem('calichesUser');
@@ -7877,7 +7908,7 @@
     // EQUIPMENT HISTORY + QR CODES
     // ============================================================
     var EQUIP_BASE = 'https://calichesfc.github.io/index.html/index.html';
-    function equipQrUrl(id, size){ return 'https://api.qrserver.com/v1/create-qr-code/?size='+size+'x'+size+'&margin=8&data='+encodeURIComponent(EQUIP_BASE+'?equip='+id); }
+    function equipQrUrl(id, size, action){ var _u=EQUIP_BASE+'?equip='+id+(action?'&go='+action:''); return 'https://api.qrserver.com/v1/create-qr-code/?size='+size+'x'+size+'&margin=8&data='+encodeURIComponent(_u); }
     function equipStatusBadge(st){
         st=(st||'ok').toLowerCase();
         var map={ok:['#1f7a3d','#e7f6ec','Operational'], watch:['#854F0B','#fdf3e8','Watch'], down:['#c0264b','#fdeaea','Down']};
@@ -7987,10 +8018,10 @@
         h+='<div style="text-align:center;margin:16px 0;padding:14px;background:#faf8f4;border:1px dashed #d8cfc2;border-radius:12px;">'+
            '<img src="'+equipQrUrl(e.id,180)+'" alt="QR code" style="width:180px;height:180px;display:block;margin:0 auto;background:#fff;">'+
            '<div style="font-size:11.5px;color:#8a8594;margin-top:8px;">Scan to open this record</div>'+
-           '<button onclick="printEquipmentQR()" style="margin-top:10px;background:#854F0B;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;">&#128424;&#65039; Print QR label</button></div>';
+           '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px;"><button onclick="printEquipmentQR()" style="background:#854F0B;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:700;cursor:pointer;">&#128424;&#65039; Print QR label</button>'+'<button onclick="printEquipmentQR(&quot;report&quot;)" style="background:#D85A30;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:700;cursor:pointer;">&#128295; &quot;Report a problem&quot; label</button></div></div>';
         h+=row('Model',e.model)+row('Serial #',e.serial)+row('Vendor / service',e.vendor)+row('Warranty',e.warranty)+rowLink('Manuals / links',e.manuals)+rowCollapse('Troubleshooting',e.troubleshooting)+rowCollapse('Notes / repair history',e.notes);
         h+='<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">'+
-           '<button onclick="openMaintenanceForEquipment('+JSON.stringify(e.store||'')+','+JSON.stringify(e.name||'')+')" style="flex:1;min-width:140px;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#128295; Report maintenance</button>';
+           '<button onclick="woReportForEquipment('+e.id+')" style="flex:1;min-width:140px;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#128295; Report a problem</button>';
         if(admin){ h+='<button onclick="openEquipmentEdit('+e.id+')" style="flex:1;min-width:120px;background:#f3eede;color:#854F0B;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#9998; Edit</button>'+
            '<button onclick="deleteEquipment('+e.id+')" style="background:#fdeaea;color:#c0264b;border:none;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;">Remove</button>'; }
         h+='</div></div>';
@@ -8242,14 +8273,14 @@
             }).catch(function(){ box.innerHTML='<p style="color:#c0264b;text-align:center;padding:10px;">Could not load.</p>'; });
         });
     }
-    function printEquipmentQR(){
+    function printEquipmentQR(action){ var _rep=(action==='report');
         var e=window._equipCur; if(!e) return;
         var w=window.open('','_blank');
         if(!w){ alert('Please allow pop-ups to print the QR label.'); return; }
         w.document.write('<html><head><title>QR - '+escapeHtml(e.name||'')+'</title></head><body style="font-family:Arial,sans-serif;text-align:center;padding:40px;">'+
-          '<img src="'+equipQrUrl(e.id,260)+'" style="width:260px;height:260px;"><h2 style="margin:14px 0 2px;">'+escapeHtml(e.name||'')+'</h2>'+
+          '<img src="'+equipQrUrl(e.id,260,_rep?'report':null)+'" style="width:260px;height:260px;"><h2 style="margin:14px 0 2px;">'+escapeHtml(e.name||'')+'</h2>'+
           '<div style="color:#555;font-size:14px;">'+escapeHtml(e.store||'')+(e.model?' &middot; '+escapeHtml(e.model):'')+'</div>'+
-          '<div style="color:#888;font-size:12px;margin-top:6px;">Scan to open equipment record</div></body></html>');
+          '<div style="color:#888;font-size:12px;margin-top:6px;">'+(_rep?'Scan to report a problem':'Scan to open equipment record')+'</div></body></html>');
         w.document.close();
         setTimeout(function(){ try{ w.focus(); w.print(); }catch(err){} }, 600);
     }
@@ -9569,7 +9600,7 @@
     function woHeader(title,back){ return '<div style="background:linear-gradient(120deg,#D85A30,#7d1d4b);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;">'+(back?'<button onclick="'+back+'" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;">&#8249; Back</button>':'')+'<b style="flex:1;font-size:16px;">'+title+'</b><button onclick="woClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;">&times;</button></div>'; }
     function woIsMaint(){ var r=currentUser.role; return r==='Maintenance Lead'||r==='Maintenance Contributor'; }
     function woIsMgr(){ return currentUser.is_developer===true||['Admin Manager','Manager','Vice President/Co-Owner','Store Manager'].indexOf(currentUser.role)>=0; }
-    function openWorkOrders(){ var _dt=woIsMaint()?'queue':(woIsMgr()?'board':'report'); var _st=lsGet('woTab',_dt); var _ok={report:1,board:woIsMgr(),queue:(woIsMaint()||woIsMgr()),history:(woIsMgr()||woIsMaint())}; _wo.tab=_ok[_st]?_st:_dt; woLoad(function(){ woRender(); }); }
+    function openWorkOrders(){ _wo.preset=null; var _dt=woIsMaint()?'queue':(woIsMgr()?'board':'report'); var _st=lsGet('woTab',_dt); var _ok={report:1,board:woIsMgr(),queue:(woIsMaint()||woIsMgr()),history:(woIsMgr()||woIsMaint())}; _wo.tab=_ok[_st]?_st:_dt; woLoad(function(){ woRender(); }); }
     /* ===================== STORE SCORECARDS ===================== */
     var _sc={rows:[]};
     var SC_FIELDS=[['sales','Sales ($)'],['sales_ly','Sales last year ($)'],['guest_count','Guest count'],['speed_seconds','Speed of service (sec)'],['labor_pct','Labor %'],['inspection_score','Inspection score'],['training_pct','Training %'],['maintenance_open','Open maintenance'],['pick_n_take','Pick-N-Take'],['flips','Flips'],['complaints','Complaints']];
@@ -9851,7 +9882,7 @@
     }
     function woTabs(){ var t=_wo.tab; function b(id,lbl,show){ if(!show) return ''; return '<button onclick="woSetTab(&quot;'+id+'&quot;)" style="flex:1;background:'+(t===id?'#D85A30':'#eef0f3')+';color:'+(t===id?'#fff':'#5b6472')+';border:none;padding:10px;font-size:13px;font-weight:700;cursor:pointer;border-radius:9px;">'+lbl+'</button>'; }
         return '<div style="display:flex;gap:6px;max-width:680px;margin:14px auto 0;padding:0 16px;">'+b('report','Report',true)+b('board','Board',woIsMgr())+b('queue','My Queue',woIsMaint()||woIsMgr())+b('history','Completed',woIsMgr()||woIsMaint())+'</div>'; }
-    function woSetTab(t){ _wo.tab=t; try{lsSet('woTab',t);}catch(e){} if(t==='report'){ woRender(); } else { woLoad(function(){ woRender(); }); } }
+    function woSetTab(t){ _wo.preset=null; _wo.tab=t; try{lsSet('woTab',t);}catch(e){} if(t==='report'){ woRender(); } else { woLoad(function(){ woRender(); }); } }
     function woRender(){ var ov=woOverlay(); var body=_wo.tab==='report'?woReportHtml():(_wo.tab==='history'?woHistoryHtml():woBoardHtml()); ov.innerHTML=woHeader('Work Orders','')+woTabs()+'<div style="max-width:680px;margin:0 auto;padding:14px 16px 40px;">'+body+'</div>'; }
     function woPriColor(p){ return {critical:'#c0264b',high:'#b8860b',medium:'#185FA5',low:'#6b7686'}[p]||'#6b7686'; }
     function woStatusChip(s){ var m={'Reported':['#eef0f3','#5b6472'],'Assigned':['#eef3fb','#185FA5'],'In Progress':['#fff4e0','#9a5b00'],'On Hold':['#fdeee8','#a85217'],'Documented':['#f3eefb','#5b3aa6'],'Verified':['#e8f5ec','#1b7a3d'],'Closed':['#e8f5ec','#1b7a3d'],'Cancelled':['#f0f0f0','#999999']}; var c=m[s]||m['Reported']; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:2px 9px;border-radius:99px;white-space:nowrap;">'+escapeHtml(s||'')+'</span>'; }
@@ -9867,6 +9898,26 @@
     function woLoadPhotos(won){ var box=document.getElementById('woPhotoList'); if(!box) return; withPin(function(pin){ supabaseClient.rpc('app_wo_photos',{p_username:currentUser.username,p_password:pin,p_wo_number:won}).then(function(r){ if(r.error){ box.innerHTML='<span style="font-size:12.5px;color:#c0264b;">Could not load photos.</span>'; return; } var ph=r.data||[]; if(!ph.length){ box.innerHTML='<span style="font-size:12.5px;color:#9aa7b4;">No photos yet.</span>'; return; } box.innerHTML=ph.map(function(d){return '<img src="'+d+'" onclick="woPhotoView(this.src)" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #ddd;cursor:pointer;">';}).join(''); }).catch(function(){ box.innerHTML='<span style="font-size:12.5px;color:#c0264b;">Could not load photos.</span>'; }); }); }
     function woPhotoView(src){ woModal('<div style="background:#fff;border-radius:12px;padding:10px;max-width:92%;max-height:88%;overflow:auto;text-align:center;"><img src="'+src+'" style="max-width:100%;max-height:78vh;border-radius:8px;"><br><button onclick="woModalClose()" style="margin-top:10px;padding:9px 16px;border:none;background:#185FA5;color:#fff;border-radius:8px;font-weight:700;cursor:pointer;">Close</button></div>'); }
     function woDetailPhotoPick(ev){ var fs=ev.target.files; if(!fs||!fs.length) return; var won=window._woDetailWoNum; if(!won) return; var box=document.getElementById('woPhotoList'); if(box) box.innerHTML='<span style="font-size:12.5px;color:#9aa7b4;">Uploading&hellip;</span>'; var arr=Array.prototype.slice.call(fs); ev.target.value=''; withPin(function(pin){ var i=0; (function up(){ if(i>=arr.length){ woLoadPhotos(won); return; } woCompress(arr[i],function(d){ if(!d){ i++; up(); return; } supabaseClient.rpc('app_wo_add_photo',{p_username:currentUser.username,p_password:pin,p_wo_number:won,p_photo:d}).then(function(){ i++; up(); }).catch(function(){ i++; up(); }); }); })(); }); }
+    function woReportForEquipment(equipId){
+        equipId=parseInt(equipId,10)||0; if(!equipId){ if(typeof openWorkOrders==='function') openWorkOrders(); return; }
+        _wo.preset={assetId:equipId,assetLabel:'',store:''}; _wo.tab='report';
+        var ov=woOverlay(); ov.innerHTML=woHeader('Work Orders','')+'<div style="max-width:680px;margin:0 auto;padding:40px 16px;text-align:center;color:#888;">Loading&hellip;</div>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_equipment_get',{p_username:currentUser.username,p_password:pin,p_id:equipId}).then(function(r){
+                if(r&&r.data){ _wo.preset.assetLabel=r.data.name||''; _wo.preset.store=r.data.store||''; }
+                woLoad(function(){ woRender(); woApplyPreset(); });
+            }).catch(function(){ woLoad(function(){ woRender(); woApplyPreset(); }); });
+        });
+    }
+    function woApplyPreset(){
+        var p=_wo.preset; if(!p||!p.assetId) return;
+        var st=document.getElementById('woStore'); if(st && p.store){ for(var i=0;i<st.options.length;i++){ if(st.options[i].value===p.store){ st.selectedIndex=i; break; } } }
+        var sel=document.getElementById('woAssetSel');
+        if(sel){ if(sel.tagName==='SELECT'){ var found=false; for(var j=0;j<sel.options.length;j++){ if(parseInt(sel.options[j].value,10)===parseInt(p.assetId,10)){ sel.selectedIndex=j; found=true; break; } } if(!found){ var o=document.createElement('option'); o.value=p.assetId; o.text=p.assetLabel||('#'+p.assetId); try{ sel.add(o, sel.options[sel.options.length-1]); }catch(e){ sel.add(o); } o.selected=true; } if(typeof woAssetPick==='function') woAssetPick(); }
+            else { sel.value=p.assetId; var ta=document.getElementById('woAsset'); if(ta) ta.value=p.assetLabel||''; } }
+        var msg=document.getElementById('woRepMsg'); if(msg && p.assetLabel){ msg.style.color='#185FA5'; msg.textContent='\uD83D\uDCCD Reporting a problem with: '+p.assetLabel; }
+        var ti=document.getElementById('woTitle'); if(ti){ try{ ti.focus(); }catch(e){} }
+    }
     function woReportHtml(){ _wo.repPhotos=[];
         var stores=((typeof HUB_STORES!=='undefined'?HUB_STORES.slice():['Roadrunner','Valley','Lenox','Alamogordo','Roswell']).concat(['Warehouse']));
         var def=(currentUser.store||currentUser.location||'Roadrunner');
