@@ -2518,7 +2518,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.28.2258';
+    const APP_VERSION = '2026.06.28.2341';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -5704,7 +5704,7 @@
     function openPermMatrix(){
         if(!(currentUser&&(currentUser.is_developer===true||PERM_PROTECTED_ROLES.indexOf(currentUser.role)>=0))){ alert('Roles & Permissions is for Admin Managers.'); return; }
         var ov=pmxOv();
-        ov.innerHTML='<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;"><b style="flex:1;font-size:16px;">Roles &amp; Permissions</b><button onclick="pmxClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;font-size:15px;">&times;</button></div><div style="max-width:640px;margin:0 auto;padding:16px 16px 60px;"><p style="font-size:13px;color:#6b7686;margin-top:0;line-height:1.55;">Choose a role, then turn its tools on or off. Everything starts on the built-in defaults &mdash; changes take effect at that person&rsquo;s next screen refresh. Admin Managers and the VP / Co-Owner always keep full access and can&rsquo;t be locked out.</p><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;"><label style="font-size:13px;color:#33303a;font-weight:700;">Role</label><select id="pmxRole" onchange="pmxRender()" style="flex:1;min-width:160px;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:14px;"></select></div><div id="pmxList"></div><div style="margin-top:18px;border-top:1px solid #e6e9f0;padding-top:14px;"><button onclick="pmxResetAll()" style="background:#fdeaea;color:#c0264b;border:none;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;">Reset everything to defaults</button></div></div>';
+        ov.innerHTML='<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;"><b style="flex:1;font-size:16px;">Roles &amp; Permissions</b><button onclick="pmxClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;font-size:15px;">&times;</button></div><div style="max-width:640px;margin:0 auto;padding:16px 16px 60px;"><p style="font-size:13px;color:#6b7686;margin-top:0;line-height:1.55;">Choose a role, then turn its tools on or off. Everything starts on the built-in defaults &mdash; changes take effect at that person&rsquo;s next screen refresh. Admin Managers and the VP / Co-Owner always keep full access and can&rsquo;t be locked out.</p><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;"><label style="font-size:13px;color:#33303a;font-weight:700;">Role</label><select id="pmxRole" onchange="pmxRender()" style="flex:1;min-width:160px;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:14px;"></select></div><div id="pmxList"></div></div>';
         var sel=document.getElementById('pmxRole'); var opts=PERM_PROTECTED_ROLES.concat(PERM_ROLES);
         sel.innerHTML=opts.map(function(r){return '<option value="'+escapeHtml(r)+'"'+(r==='Manager'?' selected':'')+'>'+escapeHtml(r)+(PERM_PROTECTED_ROLES.indexOf(r)>=0?' (always full access)':'')+'</option>';}).join('');
         pmxRender();
@@ -5719,7 +5719,10 @@
             var tag= ovr ? (on?'<span style="font-size:10.5px;color:#185FA5;font-weight:700;margin-left:6px;">changed</span>':'<span style="font-size:10.5px;color:#c0264b;font-weight:700;margin-left:6px;">removed</span>') : '<span style="font-size:10.5px;color:#9aa7b4;margin-left:6px;">default '+(def?'on':'off')+'</span>';
             h+='<label style="display:flex;align-items:center;gap:10px;padding:11px 13px;'+(i?'border-top:1px solid #f3f4f8;':'')+'cursor:pointer;"><input type="checkbox" '+(on?'checked':'')+' onchange="pmxToggle(\''+f.id+'\',this.checked)" style="width:18px;height:18px;cursor:pointer;"><span style="flex:1;font-size:14px;color:#26242b;">'+escapeHtml(f.label)+tag+'</span></label>';
         });
-        h+='</div>'; box.innerHTML=h;
+        h+='</div>';
+        var hasOvr=PERM_OVR[role]&&Object.keys(PERM_OVR[role]).length>0;
+        if(hasOvr){ h+='<div style="margin-top:12px;text-align:right;"><button onclick="pmxResetRole()" style="background:none;border:none;color:#9aa7b4;font-size:12px;text-decoration:underline;cursor:pointer;">Reset '+escapeHtml(role)+' to defaults</button></div>'; }
+        box.innerHTML=h;
     }
     function pmxToggle(fid, checked){
         var role=document.getElementById('pmxRole').value; if(PERM_PROTECTED_ROLES.indexOf(role)>=0) return;
@@ -5734,11 +5737,14 @@
             }).catch(function(){ alert('Could not save.'); });
         });
     }
-    function pmxResetAll(){
-        if(!confirm('Reset ALL roles back to the built-in defaults? This clears every custom permission you have set.')) return;
-        var roles=Object.keys(PERM_OVR);
+    function pmxResetRole(){
+        var role=document.getElementById('pmxRole').value; if(!role||PERM_PROTECTED_ROLES.indexOf(role)>=0) return;
+        if(!confirm('Reset '+role+' back to the built-in defaults? This clears the custom tool access you set for '+role+' only \u2014 other roles are not affected.')) return;
         withPin(function(pin){
-            var i=0; (function nx(){ if(i>=roles.length){ PERM_OVR={}; if(typeof applyRoleUI==='function'){ try{ applyRoleUI(); }catch(e){} } pmxRender(); alert('All roles reset to defaults.'); return; } supabaseClient.rpc('app_settings_set',{p_username:currentUser.username,p_password:pin,p_key:roles[i],p_group:'perm_matrix',p_label:roles[i],p_value:'{}',p_sort:0}).then(function(){ i++; nx(); }).catch(function(){ i++; nx(); }); })();
+            supabaseClient.rpc('app_settings_set',{p_username:currentUser.username,p_password:pin,p_key:role,p_group:'perm_matrix',p_label:role,p_value:'{}',p_sort:0}).then(function(r){
+                if(r&&r.error){ alert('Could not reset: '+r.error.message); return; }
+                delete PERM_OVR[role]; if(role===currentUser.role && typeof applyRoleUI==='function'){ try{ applyRoleUI(); }catch(e){} } pmxRender();
+            }).catch(function(){ alert('Could not reset.'); });
         });
     }
 
