@@ -2520,7 +2520,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.29.0113';
+    const APP_VERSION = '2026.06.29.0134';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4793,15 +4793,28 @@
         });
     }
     function schedShowPublishGate(conflicts){
-        window._pubConflicts=conflicts; window._pubAck={};
-        document.getElementById('pubGateList').innerHTML=conflicts.map(function(c,i){
-            return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #f0eef4;">'+
-              '<div style="flex:1;"><b style="font-size:13.5px;color:#26242b;">'+escapeHtml(c.name)+'</b><div style="font-size:12px;color:#5b6472;">'+escapeHtml(schedDayName(c.s.shift_date))+' '+escapeHtml((c.s.start_time||'')+'–'+(c.s.end_time||''))+' · '+escapeHtml(c.why)+'</div></div>'+
-              '<button class="pubok" data-i="'+i+'" onclick="schedPubAck('+i+')" style="background:#fdf3e8;color:#854F0B;border:1px solid #f1c98a;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;">Approve / override</button></div>';
-        }).join('');
-        document.getElementById('pubGateCount').textContent=conflicts.length;
-        var gb=document.getElementById('pubGateBtn'); gb.disabled=true; gb.style.opacity=.5; gb.textContent='Clear '+conflicts.length+' to publish';
+        function isHard(why){ return /minor:|expired/i.test(why||''); }
+        var hard=conflicts.filter(function(c){return isHard(c.why);});
+        var soft=conflicts.filter(function(c){return !isHard(c.why);});
+        window._pubHard=hard; window._pubSoft=soft;
+        function row(c,col){ return '<div style="font-size:12.5px;color:'+col+';padding:3px 0;"><b>'+escapeHtml(c.name)+'</b> · '+escapeHtml(schedDayName(c.s.shift_date))+' '+escapeHtml((c.s.start_time||'')+'-'+(c.s.end_time||''))+' · '+escapeHtml(c.why)+'</div>'; }
+        var h='';
+        if(hard.length){ h+='<div style="background:#fdeaea;border:1px solid #f3c2cb;border-radius:10px;padding:10px 12px;margin-bottom:10px;"><div style="font-weight:800;color:#a01b3e;font-size:13px;margin-bottom:6px;">&#9940; Must be fixed before publishing</div>'+hard.map(function(c){return row(c,'#7a1f33');}).join('')+'<div style="font-size:11.5px;color:#a01b3e;margin-top:6px;">These are legal or food-safety limits and cannot be overridden. Fix the shifts, then publish.</div></div>'; }
+        if(soft.length){ h+='<div style="background:#fff8ec;border:1px solid #f1d9a8;border-radius:10px;padding:10px 12px;margin-bottom:10px;"><div style="font-weight:800;color:#854F0B;font-size:13px;margin-bottom:6px;">&#9888;&#65039; Warnings &mdash; you can override with a reason</div>'+soft.map(function(c){return row(c,'#6b5320');}).join('')+'<label style="display:block;font-size:12px;color:#6b5320;margin-top:8px;">Reason for overriding (required &mdash; saved for the record)</label><textarea id="pubGateReason" oninput="schedPubReasonInput()" rows="2" style="width:100%;padding:8px;border:1px solid #e0c896;border-radius:8px;box-sizing:border-box;font-size:13px;"></textarea></div>'; }
+        document.getElementById('pubGateList').innerHTML=h;
+        var cnt=document.getElementById('pubGateCount'); if(cnt) cnt.textContent=conflicts.length;
+        var gb=document.getElementById('pubGateBtn');
+        if(hard.length){ gb.disabled=true; gb.style.opacity=.5; gb.textContent='Fix '+hard.length+' to publish'; }
+        else if(soft.length){ gb.disabled=true; gb.style.opacity=.5; gb.textContent='Enter a reason to publish'; }
+        else { gb.disabled=false; gb.style.opacity=1; gb.textContent='Publish'; }
         document.getElementById('pubGateModal').style.display='flex';
+    }
+    function schedPubReasonInput(){
+        var gb=document.getElementById('pubGateBtn'); if(!gb) return;
+        if((window._pubHard||[]).length) return;
+        var r=((document.getElementById('pubGateReason')||{}).value||'').trim();
+        if(r.length>=4){ gb.disabled=false; gb.style.opacity=1; gb.textContent='Override & publish'; }
+        else { gb.disabled=true; gb.style.opacity=.5; gb.textContent='Enter a reason to publish'; }
     }
     function schedPubAck(i){
         window._pubAck=window._pubAck||{}; window._pubAck[i]=true;
@@ -4811,7 +4824,17 @@
         if(done>=total){ gb.disabled=false; gb.style.opacity=1; gb.textContent='Publish'; } else { gb.textContent='Clear '+(total-done)+' more to publish'; }
     }
     function schedClosePubGate(){ document.getElementById('pubGateModal').style.display='none'; }
-    function schedPubGatePublish(){ schedClosePubGate(); schedDoPublish(); }
+    function schedPubGatePublish(){
+        if((window._pubHard||[]).length) return;
+        var soft=window._pubSoft||[];
+        if(soft.length){
+            var reason=((document.getElementById('pubGateReason')||{}).value||'').trim(); if(reason.length<4) return;
+            var summary=soft.map(function(c){return c.name+': '+c.why;}).join(' | ');
+            withPin(function(pin){
+                supabaseClient.rpc('app_sched_log_override',{p_username:currentUser.username,p_password:pin,p_location:schedState.location,p_week_start:schedFmt(schedState.weekStart),p_reason:reason,p_summary:summary}).then(function(){ schedClosePubGate(); schedDoPublish(); }).catch(function(){ schedClosePubGate(); schedDoPublish(); });
+            });
+        } else { schedClosePubGate(); schedDoPublish(); }
+    }
     function schedCopyLastWeek() {
         const to = schedFmt(schedState.weekStart); const from = schedFmt(schedAddDays(schedState.weekStart,-7));
         if (!confirm("Copy last week's shifts into this week?")) return;
