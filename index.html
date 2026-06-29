@@ -773,6 +773,7 @@
             <button id="managerBtn" class="menu-btn" style="display:none;" onclick="openDashboard()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128200;</span><b>Manager Dashboard</b><small>Submissions &amp; activity</small></button>
             <button id="knowledgeBaseBtn" class="menu-btn" style="display:none;" onclick="openKnowledgeBase()"><span class="rchip admin">Admin</span><span class="tile-ic">&#129504;</span><b>Teach Mr. Scoopy</b><small>AI knowledge base</small></button>
             <button id="btn-admin-console" class="menu-btn" style="display:none;" onclick="openAdminConsole()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128736;</span><b>Admin Console</b><small>Manage contacts, content &amp; settings</small></button>
+            <button id="btn-permMatrix" class="menu-btn" style="display:none;" onclick="openPermMatrix()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128272;</span><b>Roles &amp; Permissions</b><small>Control what each role can see</small></button>
             <button id="rosterBtn" class="menu-btn" style="display:none;" onclick="openRoster()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128101;</span><b>Employee Roster</b><small>Staff, logins &amp; stores</small></button>
             <button id="celebrationsBtn" class="menu-btn" style="display:none;" onclick="openCelebrations()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#127881;</span><b>Celebrations</b><small>Birthdays, anniversaries &amp; awards</small></button>
             <button id="shortageTrendsBtn" class="menu-btn" style="display:none;" onclick="openShortageTrends()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128200;</span><b>Shortage Trends</b><small>What runs low, often</small></button>
@@ -2517,7 +2518,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.28.2236';
+    const APP_VERSION = '2026.06.28.2258';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3220,7 +3221,7 @@
     // ============================================================
     function enterAppView() {
         document.getElementById('splash-screen').style.display = 'none';
-        loadHubStores();
+        loadHubStores(); loadPermMatrix();
         if (currentUser.role === 'Maintenance') {
             document.getElementById('maintenanceBoardView').style.display = 'block';
             switchMaintTab('stores');
@@ -5657,6 +5658,90 @@
     // ============================================================
     // MANAGER COMMAND CENTER (live ops, managers+)
     // ============================================================
+    var PERM_OVR={};
+    var PERM_PROTECTED_ROLES=['Admin Manager','Vice President/Co-Owner'];
+    var PERM_FEATURES=[{id:'mgmt_tab',label:'Management tab'},{id:'command_center',label:'Command Center'},{id:'admin_dash',label:'Admin Dashboard'},{id:'admin_console',label:'Admin Console'},{id:'roster',label:'Employee Roster'},{id:'manager_admin',label:'Manager tools'},{id:'knowledge_base',label:'Knowledge Base (Scoopy)'},{id:'sales',label:'Sales'},{id:'prime_cost',label:'Prime Cost'},{id:'requests',label:'Requests'},{id:'assign_task',label:'Assign Task'},{id:'shortage_trends',label:'Shortage Trends'},{id:'team_dev',label:'Team Development'},{id:'fundraiser',label:'Fundraiser Hub'},{id:'forms_links',label:'Forms & Links'},{id:'announce',label:'Announcements'},{id:'discipline',label:'Disciplinary Actions'},{id:'attendance',label:'Attendance'},{id:'preshift',label:'Pre-Shift Lineup'},{id:'avail_approvals',label:'Availability Approvals'},{id:'celebrations',label:'Celebrations'},{id:'crew_trainer',label:'Crew Trainer'},{id:'popin',label:'Pop-In'},{id:'inventory',label:'Inventory'},{id:'maint_billing',label:'Maintenance Billing'},{id:'maint_dash',label:'Maintenance Dashboard'},{id:'scorecards',label:'Store Scorecards'},{id:'store_manager',label:'Manage Stores'}];
+    var PERM_ROLES=['Manager','Store Manager','Finance Approver','Maintenance Lead','Shift Lead','Crew Trainer','Maintenance','Blue Apron','Crew Member'];
+    function permAllow(fid, def){
+        try{ if(currentUser && currentUser.is_developer===true && (typeof isPreviewMode!=='function'||!isPreviewMode())) return true; }catch(e){}
+        var role=(currentUser&&currentUser.role)||'';
+        if(PERM_PROTECTED_ROLES.indexOf(role)>=0) return true;
+        var o=PERM_OVR[role];
+        if(o && Object.prototype.hasOwnProperty.call(o,fid)) return (o[fid]===1||o[fid]===true);
+        return !!def;
+    }
+    function permDefault(role, fid){
+        var isMgr=(role==='Admin Manager'||role==='Manager'||role==='Vice President/Co-Owner');
+        var isAdmin=(role==='Admin Manager'||role==='Vice President/Co-Owner');
+        var sl=(role==='Shift Lead'); var tr=/trainer/i.test(role||'');
+        var inB=function(arr){return arr.indexOf(role)>=0;};
+        switch(fid){
+            case 'mgmt_tab': case 'command_center': case 'sales': case 'prime_cost': case 'requests': case 'assign_task': case 'shortage_trends': case 'team_dev': case 'fundraiser': case 'forms_links': case 'announce': return isMgr;
+            case 'admin_dash': case 'manager_admin': case 'knowledge_base': case 'roster': case 'admin_console': return isAdmin;
+            case 'discipline': case 'attendance': case 'preshift': case 'avail_approvals': case 'celebrations': return isMgr||sl;
+            case 'crew_trainer': return isMgr||sl||tr;
+            case 'popin': case 'inventory': return isMgr||sl;
+            case 'maint_billing': case 'maint_dash': return isMgr||inB(['Vice President/Co-Owner','Store Manager','Finance Approver','Maintenance Lead']);
+            case 'store_manager': case 'scorecards': return isMgr||inB(['Vice President/Co-Owner','Store Manager']);
+            default: return false;
+        }
+    }
+    function permEffective(role, fid){
+        if(PERM_PROTECTED_ROLES.indexOf(role)>=0) return true;
+        var o=PERM_OVR[role];
+        if(o && Object.prototype.hasOwnProperty.call(o,fid)) return (o[fid]===1||o[fid]===true);
+        return !!permDefault(role,fid);
+    }
+    function loadPermMatrix(){
+        try{
+            supabaseClient.rpc('app_settings_get',{p_username:currentUser.username,p_password:sessionPin,p_group:'perm_matrix'}).then(function(r){
+                if(r&&!r.error&&r.data){ var m={}; (r.data||[]).forEach(function(row){ try{ m[row.key]=JSON.parse(row.value||'{}')||{}; }catch(e){ m[row.key]={}; } }); PERM_OVR=m; if(typeof applyRoleUI==='function'){ try{ applyRoleUI(); }catch(e){} } }
+            }).catch(function(){});
+        }catch(e){}
+    }
+    function pmxOv(){ var o=document.getElementById('permMatrixModal'); if(!o){ o=document.createElement('div'); o.id='permMatrixModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100050;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
+    function pmxClose(){ var o=document.getElementById('permMatrixModal'); if(o) o.style.display='none'; }
+    function openPermMatrix(){
+        if(!(currentUser&&(currentUser.is_developer===true||PERM_PROTECTED_ROLES.indexOf(currentUser.role)>=0))){ alert('Roles & Permissions is for Admin Managers.'); return; }
+        var ov=pmxOv();
+        ov.innerHTML='<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;"><b style="flex:1;font-size:16px;">Roles &amp; Permissions</b><button onclick="pmxClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;font-size:15px;">&times;</button></div><div style="max-width:640px;margin:0 auto;padding:16px 16px 60px;"><p style="font-size:13px;color:#6b7686;margin-top:0;line-height:1.55;">Choose a role, then turn its tools on or off. Everything starts on the built-in defaults &mdash; changes take effect at that person&rsquo;s next screen refresh. Admin Managers and the VP / Co-Owner always keep full access and can&rsquo;t be locked out.</p><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;"><label style="font-size:13px;color:#33303a;font-weight:700;">Role</label><select id="pmxRole" onchange="pmxRender()" style="flex:1;min-width:160px;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:14px;"></select></div><div id="pmxList"></div><div style="margin-top:18px;border-top:1px solid #e6e9f0;padding-top:14px;"><button onclick="pmxResetAll()" style="background:#fdeaea;color:#c0264b;border:none;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;">Reset everything to defaults</button></div></div>';
+        var sel=document.getElementById('pmxRole'); var opts=PERM_PROTECTED_ROLES.concat(PERM_ROLES);
+        sel.innerHTML=opts.map(function(r){return '<option value="'+escapeHtml(r)+'"'+(r==='Manager'?' selected':'')+'>'+escapeHtml(r)+(PERM_PROTECTED_ROLES.indexOf(r)>=0?' (always full access)':'')+'</option>';}).join('');
+        pmxRender();
+    }
+    function pmxRender(){
+        var role=document.getElementById('pmxRole').value; var box=document.getElementById('pmxList'); if(!box) return;
+        if(PERM_PROTECTED_ROLES.indexOf(role)>=0){ box.innerHTML='<div style="background:#e8f5ec;border:1px solid #bfe6cc;border-radius:10px;padding:14px;color:#1b7a3d;font-size:13.5px;">'+escapeHtml(role)+' always has full access to every tool. This protects admins from being locked out. Pick another role to adjust its access.</div>'; return; }
+        var h='<div style="background:#fff;border:1px solid #eef0f5;border-radius:12px;overflow:hidden;">';
+        PERM_FEATURES.forEach(function(f,i){
+            var on=permEffective(role,f.id); var def=!!permDefault(role,f.id);
+            var ovr=PERM_OVR[role]&&Object.prototype.hasOwnProperty.call(PERM_OVR[role],f.id);
+            var tag= ovr ? (on?'<span style="font-size:10.5px;color:#185FA5;font-weight:700;margin-left:6px;">changed</span>':'<span style="font-size:10.5px;color:#c0264b;font-weight:700;margin-left:6px;">removed</span>') : '<span style="font-size:10.5px;color:#9aa7b4;margin-left:6px;">default '+(def?'on':'off')+'</span>';
+            h+='<label style="display:flex;align-items:center;gap:10px;padding:11px 13px;'+(i?'border-top:1px solid #f3f4f8;':'')+'cursor:pointer;"><input type="checkbox" '+(on?'checked':'')+' onchange="pmxToggle(\''+f.id+'\',this.checked)" style="width:18px;height:18px;cursor:pointer;"><span style="flex:1;font-size:14px;color:#26242b;">'+escapeHtml(f.label)+tag+'</span></label>';
+        });
+        h+='</div>'; box.innerHTML=h;
+    }
+    function pmxToggle(fid, checked){
+        var role=document.getElementById('pmxRole').value; if(PERM_PROTECTED_ROLES.indexOf(role)>=0) return;
+        if(!PERM_OVR[role]) PERM_OVR[role]={};
+        var def=!!permDefault(role,fid);
+        if((!!checked)===def){ delete PERM_OVR[role][fid]; } else { PERM_OVR[role][fid]=checked?1:0; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_settings_set',{p_username:currentUser.username,p_password:pin,p_key:role,p_group:'perm_matrix',p_label:role,p_value:JSON.stringify(PERM_OVR[role]||{}),p_sort:0}).then(function(r){
+                if(r&&r.error){ alert('Could not save: '+r.error.message); }
+                if(role===currentUser.role && typeof applyRoleUI==='function'){ try{ applyRoleUI(); }catch(e){} }
+                pmxRender();
+            }).catch(function(){ alert('Could not save.'); });
+        });
+    }
+    function pmxResetAll(){
+        if(!confirm('Reset ALL roles back to the built-in defaults? This clears every custom permission you have set.')) return;
+        var roles=Object.keys(PERM_OVR);
+        withPin(function(pin){
+            var i=0; (function nx(){ if(i>=roles.length){ PERM_OVR={}; if(typeof applyRoleUI==='function'){ try{ applyRoleUI(); }catch(e){} } pmxRender(); alert('All roles reset to defaults.'); return; } supabaseClient.rpc('app_settings_set',{p_username:currentUser.username,p_password:pin,p_key:roles[i],p_group:'perm_matrix',p_label:roles[i],p_value:'{}',p_sort:0}).then(function(){ i++; nx(); }).catch(function(){ i++; nx(); }); })();
+        });
+    }
+
     function isManagerRole(){ return currentUser && (currentUser.role==='Admin Manager' || currentUser.role==='Manager' || currentUser.role==='Vice President/Co-Owner' || currentUser.is_developer===true); }
     // Broad "management" gate: Shift Lead and above, store/assistant managers, admins, or developer.
     // Used to lock management-only tools (Pop-In, Inventory, HR forms) away from line staff.
@@ -6142,57 +6227,58 @@
 
         // ── Show/hide Management tab for managers ──
         const mgmtTab = document.getElementById('tab-management');
-        if (mgmtTab) mgmtTab.style.display = (devOverride || isManager) ? 'flex' : 'none';
+        if (mgmtTab) mgmtTab.style.display = permAllow('mgmt_tab', (devOverride || isManager)) ? 'flex' : 'none';
 
         // ── Buttons within Management tab ──
         const commandCenterBtn = document.getElementById('commandCenterBtn');
-        if (commandCenterBtn) commandCenterBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
+        if (commandCenterBtn) commandCenterBtn.style.display = permAllow('command_center', (devOverride || isManager)) ? 'block' : 'none';
         const adminDashBtn = document.getElementById('adminDashBtn');
-        if (adminDashBtn) adminDashBtn.style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
-        var _adminConsoleBtn = document.getElementById('btn-admin-console'); if (_adminConsoleBtn) _adminConsoleBtn.style.display = (devOverride || role === 'Admin Manager' || role === 'Vice President/Co-Owner') ? 'block' : 'none';
+        if (adminDashBtn) adminDashBtn.style.display = permAllow('admin_dash', (devOverride || role === 'Admin Manager')) ? 'block' : 'none';
+        var _adminConsoleBtn = document.getElementById('btn-admin-console'); if (_adminConsoleBtn) _adminConsoleBtn.style.display = permAllow('admin_console', (devOverride || role === 'Admin Manager' || role === 'Vice President/Co-Owner')) ? 'block' : 'none';
+        var _permMxBtn=document.getElementById('btn-permMatrix'); if(_permMxBtn) _permMxBtn.style.display=(devOverride || role === 'Admin Manager' || role === 'Vice President/Co-Owner') ? 'block' : 'none';
         const salesBtn = document.getElementById('salesBtn');
-        if (salesBtn) salesBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
+        if (salesBtn) salesBtn.style.display = permAllow('sales', (devOverride || isManager)) ? 'block' : 'none';
         const primeCostBtn = document.getElementById('primeCostBtn');
-        if (primeCostBtn) primeCostBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
+        if (primeCostBtn) primeCostBtn.style.display = permAllow('prime_cost', (devOverride || isManager)) ? 'block' : 'none';
         const requestsBtn = document.getElementById('requestsBtn');
-        if (requestsBtn) requestsBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
+        if (requestsBtn) requestsBtn.style.display = permAllow('requests', (devOverride || isManager)) ? 'block' : 'none';
         const assignTaskBtn = document.getElementById('assignTaskBtn');
-        if (assignTaskBtn) assignTaskBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
+        if (assignTaskBtn) assignTaskBtn.style.display = permAllow('assign_task', (devOverride || isManager)) ? 'block' : 'none';
         // ── Disciplinary Actions: Shift Lead and above ──
         const disciplineBtn = document.getElementById('btn-discipline');
-        if (disciplineBtn) disciplineBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
+        if (disciplineBtn) disciplineBtn.style.display = permAllow('discipline', (devOverride || isManager || role === 'Shift Lead')) ? 'block' : 'none';
         const attendanceBtn = document.getElementById('btn-attendance');
-        if (attendanceBtn) attendanceBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
+        if (attendanceBtn) attendanceBtn.style.display = permAllow('attendance', (devOverride || isManager || role === 'Shift Lead')) ? 'block' : 'none';
         const preshiftBtn = document.getElementById('btn-preshift');
-        if (preshiftBtn) preshiftBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
+        if (preshiftBtn) preshiftBtn.style.display = permAllow('preshift', (devOverride || isManager || role === 'Shift Lead')) ? 'block' : 'none';
         const crewTrainerBtn = document.getElementById('btn-crewtrainer');
-        if (crewTrainerBtn) crewTrainerBtn.style.display = (devOverride || isManager || role === 'Shift Lead' || /trainer/i.test(currentUser.role||'')) ? 'block' : 'none';
+        if (crewTrainerBtn) crewTrainerBtn.style.display = permAllow('crew_trainer', (devOverride || isManager || role === 'Shift Lead' || /trainer/i.test(currentUser.role||''))) ? 'block' : 'none';
         const availApprBtn = document.getElementById('btn-availApprovals');
-        if (availApprBtn) availApprBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
+        if (availApprBtn) availApprBtn.style.display = permAllow('avail_approvals', (devOverride || isManager || role === 'Shift Lead')) ? 'block' : 'none';
         // ── Pop-In & Inventory: management only (Shift Lead and above / store managers) ──
         const mgmtTools = (devOverride || isManager || role === 'Shift Lead');
         const popInBtn = document.getElementById('btn-popIn');
-        if (popInBtn) popInBtn.style.display = mgmtTools ? 'block' : 'none';
+        if (popInBtn) popInBtn.style.display = permAllow('popin', mgmtTools) ? 'block' : 'none';
         const inventoryBtn = document.getElementById('btn-inventory');
-        if (inventoryBtn) inventoryBtn.style.display = mgmtTools ? 'block' : 'none';
+        if (inventoryBtn) inventoryBtn.style.display = permAllow('inventory', mgmtTools) ? 'block' : 'none';
         if (typeof refreshMyStores === 'function') refreshMyStores();
-        document.getElementById('managerBtn').style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
+        document.getElementById('managerBtn').style.display = permAllow('manager_admin', (devOverride || role === 'Admin Manager')) ? 'block' : 'none';
         const kbBtn = document.getElementById('knowledgeBaseBtn');
-        if (kbBtn) kbBtn.style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
+        if (kbBtn) kbBtn.style.display = permAllow('knowledge_base', (devOverride || role === 'Admin Manager')) ? 'block' : 'none';
         const rosterBtn = document.getElementById('rosterBtn');
-        if (rosterBtn) rosterBtn.style.display = (devOverride || role === 'Admin Manager') ? 'block' : 'none';
+        if (rosterBtn) rosterBtn.style.display = permAllow('roster', (devOverride || role === 'Admin Manager')) ? 'block' : 'none';
         const celebrationsBtn = document.getElementById('celebrationsBtn');
-        if (celebrationsBtn) celebrationsBtn.style.display = (devOverride || isManager || role === 'Shift Lead') ? 'block' : 'none';
+        if (celebrationsBtn) celebrationsBtn.style.display = permAllow('celebrations', (devOverride || isManager || role === 'Shift Lead')) ? 'block' : 'none';
         const shortageTrendsBtn = document.getElementById('shortageTrendsBtn');
-        if (shortageTrendsBtn) shortageTrendsBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
-        var _teamDevBtn=document.getElementById('teamDevBtn'); if(_teamDevBtn) _teamDevBtn.style.display=(devOverride||isManager)?'block':'none';
-        var _frBtn=document.getElementById('btn-fundraiserHub'); if(_frBtn) _frBtn.style.display=(devOverride||isManager)?'block':'none';
-        var _mbBtn=document.getElementById('btn-maintBilling'); if(_mbBtn) _mbBtn.style.display=(devOverride||isManager||['Vice President/Co-Owner','Store Manager','Finance Approver','Maintenance Lead'].indexOf(role)>=0)?'block':'none';
-        var _smBtn=document.getElementById('btn-storeManager'); if(_smBtn) _smBtn.style.display=(devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0)?'block':'none';
-        var _scBtn=document.getElementById('btn-scorecards'); if(_scBtn) _scBtn.style.display=(devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0)?'block':'none';
-        var _mdBtn=document.getElementById('btn-maintDash'); if(_mdBtn) _mdBtn.style.display=(devOverride||isManager||['Vice President/Co-Owner','Store Manager','Finance Approver','Maintenance Lead'].indexOf(role)>=0)?'block':'none';
+        if (shortageTrendsBtn) shortageTrendsBtn.style.display = permAllow('shortage_trends', (devOverride || isManager)) ? 'block' : 'none';
+        var _teamDevBtn=document.getElementById('teamDevBtn'); if(_teamDevBtn) _teamDevBtn.style.display=permAllow('team_dev', (devOverride||isManager))?'block':'none';
+        var _frBtn=document.getElementById('btn-fundraiserHub'); if(_frBtn) _frBtn.style.display=permAllow('fundraiser', (devOverride||isManager))?'block':'none';
+        var _mbBtn=document.getElementById('btn-maintBilling'); if(_mbBtn) _mbBtn.style.display=permAllow('maint_billing', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Finance Approver','Maintenance Lead'].indexOf(role)>=0))?'block':'none';
+        var _smBtn=document.getElementById('btn-storeManager'); if(_smBtn) _smBtn.style.display=permAllow('store_manager', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
+        var _scBtn=document.getElementById('btn-scorecards'); if(_scBtn) _scBtn.style.display=permAllow('scorecards', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
+        var _mdBtn=document.getElementById('btn-maintDash'); if(_mdBtn) _mdBtn.style.display=permAllow('maint_dash', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Finance Approver','Maintenance Lead'].indexOf(role)>=0))?'block':'none';
         const formsLinksBtn = document.getElementById('formsLinksBtn');
-        if (formsLinksBtn) formsLinksBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
+        if (formsLinksBtn) formsLinksBtn.style.display = permAllow('forms_links', (devOverride || isManager)) ? 'block' : 'none';
         const quotesBtn = document.getElementById('quotesBtn');
         if (quotesBtn) quotesBtn.style.display = devOverride ? 'block' : 'none';
         const salesPipelineBtn = document.getElementById('salesPipelineBtn');
@@ -6210,7 +6296,7 @@
         const aiWidget = document.getElementById('aiChatWidget');
         if (aiWidget) aiWidget.style.display = 'flex';
         const announceBtn = document.getElementById('announceBtn');
-        if (announceBtn) announceBtn.style.display = (devOverride || isManager) ? 'block' : 'none';
+        if (announceBtn) announceBtn.style.display = permAllow('announce', (devOverride || isManager)) ? 'block' : 'none';
         if (devOverride || role === 'Admin Manager') {
             setTimeout(updateScoopyGapBadge, 500);
             setTimeout(renderScoopyTrainPrompt, 700);
