@@ -1924,6 +1924,8 @@
 <div id="shiftModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;padding:20px;">
     <div style="background:#fff;border-radius:16px;padding:24px;max-width:380px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,0.3);">
         <h2 id="shiftModalTitle" style="color:var(--caliches-blue);margin-top:0;font-size:20px;">Add Shift</h2>
+        <label class="form-label">Assign to:</label>
+        <select id="shiftEmployee" onchange="schedModalEmpChanged()" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;margin-bottom:12px;"></select>
         <label class="form-label">Position:</label>
         <select id="shiftPosition" onchange="schedShiftComplianceMsg()" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;margin-bottom:12px;"></select>
         <div style="display:flex;gap:10px;">
@@ -2518,7 +2520,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.28.2341';
+    const APP_VERSION = '2026.06.29.0053';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4226,7 +4228,7 @@
             case 'roles': openRolesModal(); break;
             case 'print': schedPrint(); break;
             case 'timeoff': openTimeOff(); break;
-            case 'availability': alert('Availability settings are coming soon — for now your manager sets your shifts and you can request time off here.'); break;
+            case 'availability': if(typeof openAvailability==='function'){ openAvailability(); } else { alert('Open Availability from the main menu.'); } break;
         }
     }
 
@@ -4608,6 +4610,7 @@
         schedState.editing = { employeeId: empId, date: date, shiftId: shiftId };
         const posSel = document.getElementById('shiftPosition');
         posSel.innerHTML = '<option value="">&mdash; position &mdash;</option>' + (schedState.data.positions||[]).map(p => '<option value="'+p.id+'">'+escapeHtml(p.name)+'</option>').join('');
+        var empSel=document.getElementById('shiftEmployee'); if(empSel){ var _curE = (typeof shiftId!=='undefined' && shiftId && (schedState.data.shifts||[]).find(x=>x.id===shiftId)) ? (schedState.data.shifts||[]).find(x=>x.id===shiftId).employee_id : empId; empSel.innerHTML='<option value="">&mdash; Open shift (no one yet) &mdash;</option>'+(schedState.data.employees||[]).map(function(e){return '<option value="'+e.id+'">'+escapeHtml(e.name||('#'+e.id))+'</option>';}).join(''); empSel.value=(_curE!=null&&_curE!=='')?String(_curE):''; }
         let s = shiftId ? (schedState.data.shifts||[]).find(x => x.id === shiftId) : null;
         document.getElementById('shiftModalTitle').innerText = shiftId ? 'Edit Shift' : (empId == null ? 'Add Open Shift' : 'Add Shift');
         document.getElementById('shiftStart').value = s ? (s.start_time||'') : '';
@@ -4619,16 +4622,24 @@
         var _rs=document.getElementById('shiftRepeat'); if(_rs) _rs.value='0';
         document.getElementById('shiftModal').style.display = 'flex';
         schedValidateShift();
-        var am=document.getElementById('shiftAvailMsg');
-        if(am){ am.style.display='none';
-            if(empId!=null && (schedState.avail||{})){ var days=(schedState.avail||{})[empId]||(schedState.avail||{})[String(empId)];
-                if(days&&days.length){ var dd=days[availDowOf(date)]; if(dd){ am.style.display='block';
-                    if(dd.mode==='off'){ am.style.background='#fdeaea'; am.style.color='#c0264b'; am.innerHTML='&#9888; Marked <b>unavailable</b> this day'; }
-                    else if(dd.mode==='window'){ am.style.background='#eef3fb'; am.style.color='#185FA5'; am.innerHTML='&#128337; Available '+availFmt(dd.from)+'&ndash;'+availFmt(dd.to)+' this day'; }
-                    else { am.style.background='#e7f6ec'; am.style.color='#1f7a3d'; am.innerHTML='&#10003; Available all day'; }
-                } }
-            }
+        schedShowAvailBadge(empId, date);
+    }
+    function schedShowAvailBadge(empId, date){
+        var am=document.getElementById('shiftAvailMsg'); if(!am) return; am.style.display='none';
+        if(empId!=null && (schedState.avail||{})){ var days=(schedState.avail||{})[empId]||(schedState.avail||{})[String(empId)];
+            if(days&&days.length){ var dd=days[availDowOf(date)]; if(dd){ am.style.display='block';
+                if(dd.mode==='off'){ am.style.background='#fdeaea'; am.style.color='#c0264b'; am.innerHTML='&#9888; Marked <b>unavailable</b> this day'; }
+                else if(dd.mode==='window'){ am.style.background='#eef3fb'; am.style.color='#185FA5'; am.innerHTML='&#128337; Available '+availFmt(dd.from)+'&ndash;'+availFmt(dd.to)+' this day'; }
+                else { am.style.background='#e7f6ec'; am.style.color='#1f7a3d'; am.innerHTML='&#10003; Available all day'; }
+            } }
         }
+    }
+    function schedModalEmpChanged(){
+        var sel=document.getElementById('shiftEmployee'); if(!sel||!schedState.editing) return;
+        var v = sel.value!=='' ? parseInt(sel.value,10) : null;
+        schedState.editing.employeeId=v;
+        schedShowAvailBadge(v, schedState.editing.date);
+        if(typeof schedShiftComplianceMsg==='function') schedShiftComplianceMsg();
     }
     function schedCloseModal(){ document.getElementById('shiftModal').style.display = 'none'; }
 
@@ -4639,6 +4650,7 @@
         const en = document.getElementById('shiftEnd').value;
         const note = document.getElementById('shiftNote').value;
         if (!st || !en) { alert('Please enter start and end times.'); return; }
+        var _empSel=document.getElementById('shiftEmployee'); if(_empSel){ ed.employeeId = _empSel.value!=='' ? parseInt(_empSel.value,10) : null; }
         var repeat = (!ed.shiftId) ? (parseInt((document.getElementById('shiftRepeat')||{}).value,10)||0) : 0;
         withPin(function(pin){
             supabaseClient.rpc('app_sched_upsert_shift', { p_username: currentUser.username, p_password: pin, p_id: ed.shiftId, p_location: schedState.location, p_shift_date: ed.date, p_employee_id: ed.employeeId, p_position_id: pos ? parseInt(pos,10) : null, p_start: st, p_end: en, p_note: note })
@@ -8475,6 +8487,7 @@
         window.scrollTo(0,0);
         var sel=document.getElementById('psStore');
         if(sel && !sel.getAttribute('data-init')){
+            try{ var _locs=(typeof SCHED_LOCATIONS!=='undefined'&&SCHED_LOCATIONS&&SCHED_LOCATIONS.length)?SCHED_LOCATIONS:null; if(_locs){ sel.innerHTML=_locs.map(function(l){return '<option>'+escapeHtml(l)+'</option>';}).join(''); } }catch(e){}
             var s=(currentUser&&(currentUser.store||currentUser.location))||'';
             for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===s){ sel.selectedIndex=i; break; } }
             sel.setAttribute('data-init','1');
