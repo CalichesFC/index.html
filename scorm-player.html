@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Caliche's Training Module</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;}
+  #scoFrame{position:fixed;inset:0;border:0;width:100%;height:100%;}
+  #scoStatus{position:fixed;top:8px;left:8px;font:12px -apple-system,Segoe UI,sans-serif;color:#cfd6df;background:rgba(0,0,0,.55);padding:4px 10px;border-radius:7px;z-index:5;}
+</style>
+</head>
+<body>
+<div id="scoStatus">Loading&hellip;</div>
+<iframe id="scoFrame" allow="autoplay; fullscreen" allowfullscreen></iframe>
+<script>
+/*
+  Caliche's SCORM player wrapper.
+  Host this file in the SAME Storage bucket/origin as the unzipped SCORM package so the
+  course content (the SCO) can reach window.API / window.API_1484_11 below (browsers block
+  cross-origin window.parent access). The Caliche's Hub opens this page in an iframe with a
+  hash like:  scorm-player.html#course=10&u=<username>&k=<pin>&launch=<url-encoded launch file>
+  On a passed/completed status it records the result via the app_scorm_record RPC, which
+  re-verifies the user and clamps pass/fail to the course's own passing score.
+*/
+(function(){
+  var SUPA="https://ikgbihwkqhsfahnswfbz.supabase.co";
+  var KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI";
+  function hashParams(){ var h={}; (location.hash.replace(/^#/,'')).split('&').forEach(function(p){ var i=p.indexOf('='); if(i>0) h[decodeURIComponent(p.slice(0,i))]=decodeURIComponent(p.slice(i+1)); }); return h; }
+  var P=hashParams();
+  var cid=parseInt(P.course,10), user=P.u||'', pin=P.k||'', launch=P.launch||'';
+  var data={}, done=false, err='0';
+  function statusVal(){ return data['cmi.core.lesson_status']||data['cmi.completion_status']||data['cmi.success_status']||''; }
+  function scoreVal(){ var s=(data['cmi.core.score.raw']!=null)?data['cmi.core.score.raw']:data['cmi.score.raw']; var n=parseFloat(s); return isNaN(n)?100:Math.round(n); }
+  function setS(t){ var e=document.getElementById('scoStatus'); if(e) e.textContent=t; }
+  function record(){
+    if(done) return; var st=String(statusVal()).toLowerCase();
+    if(st!=='passed' && st!=='completed') return;
+    done=true; setS('Saving your progress…');
+    try{
+      fetch(SUPA+'/rest/v1/rpc/app_scorm_record',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_username:user,p_password:pin,p_course_id:cid,p_status:st,p_score:scoreVal()})})
+        .then(function(r){ setS(r.ok?'✓ Progress saved — you can close this':'Saved locally; could not reach the Hub'); })
+        .catch(function(){ setS('Saved locally; could not reach the Hub'); });
+    }catch(e){ setS('Could not save progress'); }
+  }
+  function I(){ err='0'; return 'true'; }
+  function fin(){ err='0'; record(); return 'true'; }
+  function gv(k){ err='0'; return data[k]!=null?data[k]:''; }
+  function sv(k,v){ data[k]=String(v); err='0'; if(k==='cmi.core.lesson_status'||k==='cmi.completion_status'||k==='cmi.success_status') record(); return 'true'; }
+  function cm(){ err='0'; record(); return 'true'; }
+  window.API={ LMSInitialize:I, LMSFinish:fin, LMSGetValue:gv, LMSSetValue:sv, LMSCommit:cm, LMSGetLastError:function(){return err;}, LMSGetErrorString:function(){return '';}, LMSGetDiagnostic:function(){return '';} };
+  window.API_1484_11={ Initialize:I, Terminate:fin, GetValue:gv, SetValue:sv, Commit:cm, GetLastError:function(){return err;}, GetErrorString:function(){return '';}, GetDiagnostic:function(){return '';} };
+  if(launch){ document.getElementById('scoFrame').src=launch; setS('Training module'); }
+  else { setS('No launch file specified for this module.'); }
+  window.addEventListener('beforeunload', record);
+})();
+</script>
+</body>
+</html>
