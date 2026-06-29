@@ -2520,7 +2520,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.29.0134';
+    const APP_VERSION = '2026.06.29.1300';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3366,6 +3366,7 @@
             document.getElementById('greetingName').innerText = 'Hello, ' + currentUser.name;
             document.getElementById('greetingRole').innerText = 'Role: ' + currentUser.role;
             applyRoleUI();
+            refreshSessionUser();
             setupNotifications();
             applyFormPermissions();
             let bioId = localStorage.getItem('calichesBiometricId');
@@ -3635,6 +3636,20 @@
         else { lf.style.display = 'none'; rf.style.display = 'block'; }
     }
 
+    function refreshSessionUser(){
+        try{
+            if(!currentUser||!currentUser.username||!sessionPin) return;
+            supabaseClient.rpc('app_login',{p_username:currentUser.username,p_password:sessionPin}).then(function(r){
+                var data=r&&r.data; if(!data||!data.length) return;
+                var u=data[0];
+                var changed=(currentUser.role!==u.role)||(currentUser.is_developer!==(u.is_developer===true));
+                currentUser.name=u.name; currentUser.role=u.role; currentUser.permissions=u.permissions||null; currentUser.maint_board_access=(u.maint_board_access!==false); currentUser.username=u.username; currentUser.email=u.email||''; currentUser.is_developer=(u.is_developer===true);
+                try{ localStorage.setItem('calichesUser', JSON.stringify(currentUser)); }catch(e){}
+                try{ var gr=document.getElementById('greetingRole'); if(gr) gr.innerText='Role: '+currentUser.role; }catch(e){}
+                if(changed){ try{ applyRoleUI(); }catch(e){} try{ if(typeof applyFormPermissions==='function') applyFormPermissions(); }catch(e){} }
+            }).catch(function(){});
+        }catch(e){}
+    }
     function attemptLogin() {
         const btn = document.getElementById('loginBtn'); const form = document.getElementById('loginForm'); const errorMsg = document.getElementById('loginError');
         if (!form.username.value || !form.password.value) { errorMsg.innerText = 'Please enter both fields.'; errorMsg.style.display = 'block'; return; }
@@ -10691,7 +10706,7 @@
     var taTargets=null, taSelfOnly=false;
     function openSelfTask(){ taSelfOnly=true; document.getElementById('taAssignTitle').innerText='Add a task for myself'; document.getElementById('taTargetRow').style.display='none'; document.getElementById('taSaveBtn').innerText='Add'; taResetFields(); var pw=document.getElementById('taPhotoReqWrap'); if(pw) pw.style.display='none'; document.getElementById('taskAssignModal').style.display='flex'; }
     function openTaskAssign(){ taSelfOnly=false; document.getElementById('taAssignTitle').innerText='Assign Task'; document.getElementById('taTargetRow').style.display='block'; document.getElementById('taSaveBtn').innerText='Assign'; taResetFields(); var pw=document.getElementById('taPhotoReqWrap'); if(pw) pw.style.display='block';
-        var globalMgr=currentUser&&(currentUser.role==='Admin Manager'||currentUser.role==='Manager'||currentUser.is_developer===true);
+        var globalMgr=currentUser&&(currentUser.role==='Admin Manager'||currentUser.role==='Manager'||currentUser.role==='Vice President/Co-Owner'||currentUser.is_developer===true);
         var tsel=document.getElementById('taTarget');
         if(globalMgr){
             tsel.innerHTML='<option value="self">Myself</option><option value="people">Specific people</option><option value="store">A whole store</option><option value="role">A role</option><option value="everyone">Everyone</option>';
@@ -10750,7 +10765,7 @@
     function renderMsgTabs(){ ['updates','dm','store'].forEach(function(t){ var el=document.getElementById('msgTab'+t.charAt(0).toUpperCase()+t.slice(1)); if(el) el.className='msg-tab'+(msgTab===t?' active':''); }); }
     function setMsgTab(t){ msgTab=t; renderMsgTabs(); loadMsgTab(); }
     function loadMsgTab(){ var c=document.getElementById('msgContent'); c.innerHTML='<p style="text-align:center;padding:30px;color:#888;">Loading...</p>'; if(msgTab==='updates') loadUpdates(); else if(msgTab==='dm') loadDmThreads(); else loadStoreFeed(); }
-    function isMgr(){ return currentUser && (currentUser.role==='Admin Manager'||currentUser.role==='Manager'||currentUser.is_developer===true); }
+    function isMgr(){ return currentUser && (currentUser.role==='Admin Manager'||currentUser.role==='Manager'||currentUser.role==='Vice President/Co-Owner'||currentUser.is_developer===true); }
 
     function loadUpdates(){
         var c=document.getElementById('msgContent');
@@ -12160,7 +12175,7 @@
     }
 
     function openFormsLinks() {
-        const isMgr = currentUser && (currentUser.role === 'Manager' || currentUser.role === 'Admin Manager' || currentUser.is_developer === true);
+        const isMgr = currentUser && (currentUser.role === 'Manager' || currentUser.role === 'Admin Manager' || currentUser.role === 'Vice President/Co-Owner' || currentUser.is_developer === true);
         document.querySelectorAll('.forms-mgr-only').forEach(el => { el.style.display = isMgr ? 'block' : 'none'; });
         triggerTransition(() => {
             document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
