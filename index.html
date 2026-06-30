@@ -2520,7 +2520,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.29.2051';
+    const APP_VERSION = '2026.06.29.2132';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -9777,7 +9777,7 @@
     function openWorkOrders(){ _wo.preset=null; var _dt=woIsMaint()?'queue':(woIsMgr()?'board':'report'); var _st=lsGet('woTab',_dt); var _ok={report:1,board:woIsMgr(),queue:(woIsMaint()||woIsMgr()),history:(woIsMgr()||woIsMaint())}; _wo.tab=_ok[_st]?_st:_dt; woLoad(function(){ woRender(); }); }
     /* ===================== STORE SCORECARDS ===================== */
     var _sc={rows:[]};
-    var SC_FIELDS=[['sales','Sales ($)'],['sales_ly','Sales last year ($)'],['guest_count','Guest count'],['speed_seconds','Speed of service (sec)'],['labor_pct','Labor %'],['inspection_score','Inspection score'],['training_pct','Training %'],['maintenance_open','Open maintenance'],['pick_n_take','Pick-N-Take'],['flips','Flips'],['complaints','Complaints']];
+    var SC_FIELDS=[['sales','Sales ($)','From Axial: Dashboard &rarr; Net Sales'],['sales_ly','Sales last year ($)','From Axial: comparison tile (Same Date Last Year)'],['guest_count','Guest count'],['speed_seconds','Speed of service (sec)'],['labor_pct','Labor %','From Axial: Hourly Labor (% of Net)'],['inspection_score','Inspection score'],['training_pct','Training %'],['maintenance_open','Open maintenance'],['pick_n_take','Pick-N-Take'],['flips','Flips'],['complaints','Complaints']];
     function scIsMgr(){ return !!(currentUser&&(currentUser.is_developer===true||(typeof woIsMgr==='function'&&woIsMgr()))); }
     function scRpc(name,args,cb){ withPin(function(pin){ supabaseClient.rpc(name,Object.assign({p_username:currentUser.username,p_password:pin},args||{})).then(function(r){ if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':r.error.message); return; } cb(r.data); }).catch(function(){ alert('Connection error.'); }); }); }
     function scOv(){ var o=document.getElementById('scModal'); if(!o){ o=document.createElement('div'); o.id='scModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100040;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
@@ -9821,9 +9821,10 @@
     function scEnter(loc){
         var m=(_sc.rows||[]).filter(function(x){return x.location===loc;})[0]||{};
         var today=new Date().toISOString().slice(0,10);
-        var fields=SC_FIELDS.map(function(f){ return '<div style="flex:1;min-width:130px;"><label style="font-size:11.5px;color:#6b7686;display:block;margin-bottom:2px;">'+f[1]+'</label><input id="scf_'+f[0]+'" type="number" step="any" value="'+(m[f[0]]!=null?escapeHtml(String(m[f[0]])):'')+'" style="width:100%;padding:8px;border:1px solid #d6deea;border-radius:8px;font-size:13px;box-sizing:border-box;"></div>'; }).join('');
+        var fields=SC_FIELDS.map(function(f){ return '<div style="flex:1;min-width:130px;"><label style="font-size:11.5px;color:#6b7686;display:block;margin-bottom:2px;">'+f[1]+'</label><input id="scf_'+f[0]+'" type="number" step="any" value="'+(m[f[0]]!=null?escapeHtml(String(m[f[0]])):'')+'" style="width:100%;padding:8px;border:1px solid #d6deea;border-radius:8px;font-size:13px;box-sizing:border-box;">'+(f[2]?'<div style="font-size:10px;color:#2563a8;margin-top:2px;line-height:1.2;">'+f[2]+'</div>':'')+'</div>'; }).join('');
         var h='<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;"><button onclick="scLoad()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;">&lsaquo; Back</button><b style="flex:1;font-size:16px;">'+escapeHtml(loc)+' — enter numbers</b></div>';
         h+='<div style="max-width:620px;margin:0 auto;padding:16px 16px 50px;">';
+        h+='<div style="background:#eef5ff;border:1px solid #cfe0f5;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:11.5px;color:#27517f;line-height:1.4;">&#128202; <b>Pulling from Axial Shift?</b> Open your Axial dashboard for this store and copy the weekly numbers: <b>Net Sales</b> &rarr; Sales, the <b>comparison tile</b> &rarr; Sales last year, and <b>Hourly Labor (% of Net)</b> &rarr; Labor %. The blue hints below show where each one lives. Tip: set the Axial comparison metric to "Same Date Last Year" so the vs-LY math matches.</div>';
         h+='<label style="font-size:11.5px;color:#6b7686;display:block;margin-bottom:2px;">Date</label><input id="scfDate" type="date" value="'+(m.metric_date||today)+'" style="padding:8px;border:1px solid #d6deea;border-radius:8px;font-size:13px;margin-bottom:10px;">';
         h+='<div style="display:flex;gap:10px;flex-wrap:wrap;">'+fields+'</div>';
         h+='<label style="font-size:11.5px;color:#6b7686;display:block;margin:10px 0 2px;">Note (optional)</label><textarea id="scfNote" rows="2" style="width:100%;padding:8px;border:1px solid #d6deea;border-radius:8px;box-sizing:border-box;font-size:13px;">'+escapeHtml(m.note||'')+'</textarea>';
