@@ -2520,7 +2520,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.29.1812';
+    const APP_VERSION = '2026.06.29.2051';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -10803,10 +10803,11 @@
                 }
                 if(!items.length){ h+='<p style="color:#888;text-align:center;padding:10px;font-size:13px;">No updates yet.</p>'; }
                 else items.forEach(function(a){
+                    var _amg=isMgr()?('<div style="display:flex;gap:8px;margin-top:8px;"><button onclick="annEditItem('+a.id+')" style="background:#f3eeff;color:#6a3fb5;border:1px solid #d9c9f5;border-radius:7px;padding:4px 11px;font-size:12px;font-weight:700;cursor:pointer;">Edit</button><button onclick="annDeleteItem('+a.id+')" style="background:#fff2f3;color:#c0264b;border:1px solid #f0b8c3;border-radius:7px;padding:4px 11px;font-size:12px;font-weight:700;cursor:pointer;">Delete</button></div>'):'';
                     h+='<div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 4px 6px rgba(0,0,0,0.05);'+(a.read?'':'border-left:4px solid #6a3fb5;')+'">' +
                         (a.title?'<div style="font-size:15px;font-weight:500;color:#333;">'+escapeHtml(a.title)+'</div>':'') +
                         '<div style="font-size:14px;color:#444;white-space:pre-wrap;">'+escapeHtml(a.body)+'</div>' +
-                        '<div style="font-size:11px;color:#aab;margin-top:6px;">'+escapeHtml(a['from']||'')+' &bull; '+socFmt(a.at)+(a.mine?' &bull; &#10003; Read by '+(a.reads||0):'')+'</div></div>';
+                        '<div style="font-size:11px;color:#aab;margin-top:6px;">'+escapeHtml(a['from']||'')+' &bull; '+socFmt(a.at)+(a.mine?' &bull; &#10003; Read by '+(a.reads||0):'')+'</div>'+_amg+'</div>';
                 });
                 c.innerHTML=h;
                 if(isMgr() && taTargets===null){ withPin(function(p2){ supabaseClient.rpc('app_task_targets',{p_username:currentUser.username,p_password:p2}).then(function(rr){ if(!rr.error){ taTargets=rr.data||{}; var sel=document.getElementById('anStore'); if(sel) sel.innerHTML=(taTargets.stores||[]).map(function(s){return '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>';}).join(''); } }); }); }
@@ -10821,9 +10822,11 @@
         var title=document.getElementById('anTitle').value.trim(), body=document.getElementById('anBody').value.trim();
         var aud=document.getElementById('anAud').value, av=aud==='store'?document.getElementById('anStore').value:null;
         if(!body){ alert('Write an update first.'); return; }
-        withPin(function(pin){ supabaseClient.rpc('app_announce_post',{p_username:currentUser.username,p_password:pin,p_title:title,p_body:body,p_audience_type:aud,p_audience_value:av}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } loadUpdates(); }); });
+        withPin(function(pin){ supabaseClient.rpc('app_announce_post',{p_username:currentUser.username,p_password:pin,p_title:title,p_body:body,p_audience_type:aud,p_audience_value:av}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } var _t=document.getElementById('anTitle'); if(_t)_t.value=''; var _b=document.getElementById('anBody'); if(_b)_b.value=''; loadUpdates(); }); });
     }
 
+    function annEditItem(id){ var nb=prompt('Edit this announcement (type the new text):'); if(nb===null) return; nb=nb.trim(); if(!nb){ alert('Announcement cannot be empty.'); return; } withPin(function(pin){ supabaseClient.rpc('app_announcement_edit',{p_username:currentUser.username,p_password:pin,p_id:id,p_body:nb}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':('Error: '+r.error.message)); return; } loadUpdates(); }).catch(function(){ alert('Connection error.'); }); }); }
+    function annDeleteItem(id){ if(!confirm('Delete this announcement? This cannot be undone.')) return; withPin(function(pin){ supabaseClient.rpc('app_announcement_delete',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':('Error: '+r.error.message)); return; } loadUpdates(); }).catch(function(){ alert('Connection error.'); }); }); }
     function loadDmThreads(){
         var c=document.getElementById('msgContent');
         withPin(function(pin){
