@@ -1,7 +1,7 @@
 // Caliche's Operations Hub - Service Worker
 // Provides basic offline caching so the app shell loads even with a flaky connection.
 
-const CACHE_NAME = 'caliches-hub-2026.06.30.1229';
+const CACHE_NAME = 'caliches-hub-2026.06.30.1354';
 const CORE_ASSETS = [
   './index.html',
   './manifest.json',
@@ -26,10 +26,32 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Network-first for everything (so live data/forms always try the network first),
-// falling back to cache when offline.
+// Navigations (including ?invoice= / ?accept= customer links) are network-first and must
+// NEVER be served a stale cached shell that predates the public-route code; on a true
+// network failure, fall back to the freshest cached index.html. Per-token URLs are never
+// cached. Static assets stay network-first with cache fallback.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
+  const url = new URL(event.request.url);
+  const isNavigation =
+    event.request.mode === 'navigate' ||
+    (event.request.headers.get('accept') || '').includes('text/html');
+
+  if (isNavigation) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (!url.search) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((c) => c.put('./index.html', copy)).catch(() => {});
+          }
+          return response;
+        })
+        .catch(() => caches.match('./index.html').then((r) => r || caches.match(event.request)))
+    );
+    return;
+  }
 
   event.respondWith(
     fetch(event.request)

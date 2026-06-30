@@ -2524,7 +2524,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.30.1229';
+    const APP_VERSION = '2026.06.30.1354';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3434,8 +3434,9 @@
         w.document.write('<!doctype html><html><head><title>Caliche&#39;s Invoice</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:22px;">'+html+'</body></html>');
         w.document.close(); w.focus(); setTimeout(function(){ try{ w.print(); }catch(e){} }, 350);
     }
+    function publicLinkBase(){ return 'https://calichesfc.github.io/index.html'; }
     function copyInvoiceLink(token, btn){
-        var url=window.location.origin+window.location.pathname+'?invoice='+token;
+        var url=publicLinkBase()+'?invoice='+token;
         navigator.clipboard.writeText(url).then(function(){ if(btn){ var o=btn.innerText; btn.innerText='✅ Copied!'; setTimeout(function(){ btn.innerText=o; },2000); } }).catch(function(){ alert('Invoice link:\n'+url); });
     }
     function openInvoicePreview(q, invNum, token){
@@ -3443,7 +3444,7 @@
         var ov=document.getElementById('invoicePreviewOv');
         if(!ov){ ov=document.createElement('div'); ov.id='invoicePreviewOv'; ov.style.cssText='position:fixed;inset:0;background:rgba(20,30,50,.55);z-index:100050;overflow:auto;padding:16px;box-sizing:border-box;'; document.body.appendChild(ov); }
         ov.style.display='block';
-        var link=token?(window.location.origin+window.location.pathname+'?invoice='+token):'';
+        var link=token?(publicLinkBase()+'?invoice='+token):'';
         ov.innerHTML='<div style="max-width:780px;margin:0 auto;background:#fff;border-radius:14px;padding:16px;">'+
           '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">'+
             '<button onclick="printInvoiceHtml(window._curInvoiceHtml)" style="background:#185FA5;color:#fff;border:none;border-radius:9px;padding:10px 16px;font-weight:800;cursor:pointer;">🖨️ Print / Save as PDF</button>'+
@@ -12077,7 +12078,7 @@
             var qfields = { p_contact_name: contactName, p_company: company || null, p_contact_phone: phone || null, p_contact_email: email || null, p_event_date: eventDate, p_event_type: eventType || null, p_notes: notes || null, p_line_items: lineItemsArr, p_subtotal: subtotal, p_tax: tax, p_total: total, p_pdf_url: pdfUrl };
             var afterSaved = function(token) {
                 if (!token) return;
-                const acceptUrl = window.location.origin + window.location.pathname + '?accept=' + token;
+                const acceptUrl = publicLinkBase() + '?accept=' + token;
                 const linkBtn = document.createElement('button');
                 linkBtn.className = 'save-btn blue-btn'; linkBtn.style.marginTop = '12px'; linkBtn.style.marginBottom = '0';
                 linkBtn.innerText = '\u{1F517} Copy Customer Acceptance Link';
@@ -12119,7 +12120,7 @@
     }
 
     function copyAcceptLink(token, btn) {
-        const url = window.location.origin + window.location.pathname + '?accept=' + token;
+        const url = publicLinkBase() + '?accept=' + token;
         navigator.clipboard.writeText(url).then(() => {
             const orig = btn.innerText;
             btn.innerText = '✅ Copied!';
