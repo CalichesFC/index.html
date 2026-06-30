@@ -1295,7 +1295,7 @@
                 <div style="flex:1;min-width:130px;"><label style="font-size:12.5px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Manager wages (week $)</label>
                     <input type="number" inputmode="decimal" id="pcMgr" placeholder="0.00" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;"></div>
                 <div style="flex:1;min-width:130px;"><label style="font-size:12.5px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Beginning inventory ($)</label>
-                    <input type="number" inputmode="decimal" id="pcBeg" placeholder="0.00" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;"></div>
+                    <input type="number" inputmode="decimal" id="pcBeg" placeholder="0.00" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;"><div id="pcBegHint" style="display:none;font-size:11px;color:#0f4d27;margin-top:3px;"></div></div>
                 <div style="flex:1;min-width:130px;"><label style="font-size:12.5px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Ending inventory ($)</label>
                     <input type="number" inputmode="decimal" id="pcEnd" placeholder="0.00" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;"></div>
             </div>
@@ -2526,7 +2526,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.30.1538';
+    const APP_VERSION = '2026.06.30.1629';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -7802,6 +7802,21 @@
         pcInvPhotos=[]; var pp=document.getElementById('pcPhotoPrev'); if(pp) pp.innerHTML='';
         pcCalc();
         loadPrimeRecent();
+        pcCarryInventory();
+        var _pw=document.getElementById('pcWeek'); if(_pw && !_pw._carryBound){ _pw._carryBound=true; _pw.addEventListener('change',pcCarryInventory); }
+    }
+    function pcCarryInventory(){
+        var loc=tempStoreLoc(); if(!loc) return;
+        var wk=document.getElementById('pcWeek').value; if(!wk) return;
+        var beg=document.getElementById('pcBeg'); if(!beg || (beg.value!==''&&beg.value!=null)) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_prime_last_end',{p_username:currentUser.username,p_password:pin,p_location:loc,p_before:wk}).then(function(r){
+                if(r.error||r.data==null) return;
+                if(beg.value===''||beg.value==null){ beg.value=Number(r.data).toFixed(2); pcCalc();
+                    var hint=document.getElementById('pcBegHint'); if(hint){ hint.textContent='↪ carried from last week&#39;s ending count'; hint.style.display='block'; }
+                }
+            }).catch(function(){});
+        });
     }
     function buildPcGrid(){
         var b=document.getElementById('pcGridBody'); var html='';
@@ -7829,26 +7844,44 @@
         var wk=document.getElementById('pcWeek').value; if(!wk){ alert('Pick the week beginning (Monday) first.'); return; }
         var dates=pcWeekDates(); if(!dates.length){ alert('Pick a valid week first.'); return; }
         var _o; if(btn){ btn.disabled=true; _o=btn.innerHTML; btn.innerHTML='Pulling…'; }
+        var taxR=(parseFloat(document.getElementById('pcTax').value)||0)/100;
         withPin(function(pin){
-            supabaseClient.rpc('app_sales_recent',{p_username:currentUser.username,p_password:pin,p_location:loc,p_days:120}).then(function(r){
+            var creds={p_username:currentUser.username,p_password:pin,p_location:loc,p_days:120};
+            Promise.all([
+                supabaseClient.rpc('app_sales_detail',creds).then(function(r){ return (r&&!r.error&&r.data)?r.data:[]; }).catch(function(){ return []; }),
+                supabaseClient.rpc('app_sales_recent',creds).then(function(r){ return r||{}; }).catch(function(){ return {error:{message:'Connection error.'}}; })
+            ]).then(function(res){
                 if(btn){ btn.disabled=false; btn.innerHTML=_o; }
-                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
-                var byDate={}; (r.data||[]).forEach(function(d){ byDate[String(d.date).slice(0,10)]=d; });
-                var taxR=(parseFloat(document.getElementById('pcTax').value)||0)/100;
-                var salesFilled=0, laborFilled=0, missing=[];
+                var rec=res[1]||{};
+                if(rec.error && !(res[0]&&res[0].length)){ if(rec.error.code==='42501') sessionPin=null; alert('Error: '+(rec.error.message||'Connection error.')); return; }
+                var det={}; (res[0]||[]).forEach(function(d){ det[String(d.date).slice(0,10)]=d; });
+                var lump={}; ((rec.data)||[]).forEach(function(d){ lump[String(d.date).slice(0,10)]=d; });
+                var salesFilled=0, laborFilled=0, splitDays=0, missing=[];
                 for(var i=0;i<7;i++){
-                    var row=byDate[dates[i]];
-                    if(row){
-                        if(row.gross!=null){ document.getElementById('pcDep'+i).value=(Number(row.gross)*(1+taxR)).toFixed(2); salesFilled++; }
-                        if(row.labor!=null){ document.getElementById('pcHr'+i).value=Number(row.labor).toFixed(2); laborFilled++; }
-                        if(row.tx!=null){ document.getElementById('pcTx'+i).value=row.tx; }
-                    } else { missing.push(PC_DAYS[i].slice(0,3)); }
+                    var dt=dates[i], d=det[dt], l=lump[dt];
+                    var net=(d&&d.net!=null)?Number(d.net):((l&&l.gross!=null)?Number(l.gross):null);
+                    if(net==null){ missing.push(PC_DAYS[i].slice(0,3)); continue; }
+                    var target=net*(1+taxR);
+                    var ap=d?(Number(d.cash||0)+Number(d.card||0)+Number(d.house||0)):0;
+                    if(ap>0){
+                        document.getElementById('pcDep'+i).value=(target*Number(d.cash||0)/ap).toFixed(2);
+                        document.getElementById('pcMc'+i).value=(target*Number(d.card||0)/ap).toFixed(2);
+                        document.getElementById('pcHos'+i).value=(target*Number(d.house||0)/ap).toFixed(2);
+                        splitDays++;
+                    } else {
+                        document.getElementById('pcDep'+i).value=target.toFixed(2);
+                    }
+                    var lab=(d&&d.labor!=null)?d.labor:((l&&l.labor!=null)?l.labor:null);
+                    if(lab!=null){ document.getElementById('pcHr'+i).value=Number(lab).toFixed(2); laborFilled++; }
+                    var tx=(d&&d.checks!=null)?d.checks:((l&&l.tx!=null)?l.tx:null);
+                    if(tx!=null){ document.getElementById('pcTx'+i).value=tx; }
+                    salesFilled++;
                 }
                 pcCalc();
                 var msg=document.getElementById('pcAutofillMsg');
                 if(msg){
-                    if(salesFilled===0){ msg.style.display='block'; msg.style.background='#fff4e0'; msg.style.borderColor='#f0d49a'; msg.innerHTML='⚠️ No sales found for the week of '+escapeHtml(wk)+' in the Daily Sales feed yet. Enter the days by hand, or add them on the Daily Sales screen — the Axial / POS sync also fills this feed.'; }
-                    else { msg.style.display='block'; msg.style.background='#e8f3ec'; msg.style.borderColor='#bcdcc6'; msg.innerHTML='✅ Auto-filled '+salesFilled+' day'+(salesFilled===1?'':'s')+' of sales from the Daily Sales feed (Axial / POS): each day&#39;s net sales were grossed-up by your '+(taxR*100).toFixed(2)+'% tax into <b>Deposits</b> (so the net-sales math matches Axial) and the check count went into <b>Trans.</b>'+(laborFilled?(' Hourly labor $ filled for '+laborFilled+' day'+(laborFilled===1?'':'s')+'.'):'')+(missing.length?(' No data yet for: '+missing.join(', ')+'.'):'')+'<br><span style="color:#5b6675;">Split Deposits into cash vs MC/Visa vs Hospital if you track it; manager wages, inventory and food invoices stay manual.</span>'; }
+                    if(salesFilled===0){ msg.style.display='block'; msg.style.background='#fff4e0'; msg.style.borderColor='#f0d49a'; msg.innerHTML='⚠️ No sales found for the week of '+escapeHtml(wk)+' in the Daily Sales feed yet. Enter the days by hand, or let the Axial / POS sync fill them.'; }
+                    else { msg.style.display='block'; msg.style.background='#e8f3ec'; msg.style.borderColor='#bcdcc6'; msg.innerHTML='✅ Auto-filled '+salesFilled+' day'+(salesFilled===1?'':'s')+' from Axial / POS: '+(splitDays?('cash went to <b>Deposits</b> and card to <b>MC/Visa</b> — the real split, scaled so net sales still match Axial'):('net sales grossed-up by your '+(taxR*100).toFixed(2)+'% tax into <b>Deposits</b>'))+', check counts into <b>Trans.</b>'+(laborFilled?(', and labor $ into <b>Hourly $</b> for '+laborFilled+' day'+(laborFilled===1?'':'s')):'')+'.'+(missing.length?(' No data yet for: '+missing.join(', ')+'.'):'')+'<br><span style="color:#5b6675;">Manager wages, ending inventory and food invoices stay manual.</span>'; }
                 }
             }).catch(function(){ if(btn){ btn.disabled=false; btn.innerHTML=_o; } alert('Connection error.'); });
         });
