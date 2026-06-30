@@ -2520,7 +2520,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.29.1754';
+    const APP_VERSION = '2026.06.29.1812';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -10098,11 +10098,12 @@
         var h='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;">';
         h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#9aa7b4;margin-bottom:8px;">Report a maintenance issue</div>';
         h+=woField('woTitle','What is wrong?','');
+        h+=woField('woItem','Item / part affected (e.g. fryer, walk-in door handle)','');
         h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Details</label><textarea id="woDesc" style="width:100%;height:64px;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;"></textarea>';
         h+=woSelect('woStore','Store / location',stores,def);
         h+=woAssetField();
         h+=woSelect('woCat','Type',['repair','damage','safety','other'],'repair');
-        h+=woSelect('woPri','Priority',['low','medium','high','critical'],'medium');
+        h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Priority</label><select id="woPri" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;"><option value="low">Low &ndash; when convenient</option><option value="medium" selected>Medium &ndash; soon</option><option value="high">High &ndash; affects service</option><option value="critical">Critical &ndash; safety or stop-work</option></select>';
         h+=woSelect('woUse','Equipment status',['','in_use','backup','out_of_service'],'');
         h+='<label style="display:flex;align-items:center;gap:8px;margin:10px 0;font-size:13px;cursor:pointer;"><input type="checkbox" id="woSafety"> This is a safety issue</label>';
         h+='<div id="woRepMsg" style="font-size:12.5px;color:#c0264b;margin:6px 0;"></div>';
@@ -10114,10 +10115,11 @@
     function woSubmitReport(){
         var t=woVal('woTitle').trim(); if(!t){ document.getElementById('woRepMsg').textContent='Describe what is wrong.'; return; }
         var safety=document.getElementById('woSafety').checked;
+        var _item=woVal('woItem').trim();
         var _sel=document.getElementById('woAssetSel'); var _aid=null, _alabel=woVal('woAsset');
         if(_sel && _sel.value && _sel.value!=='__other__'){ _aid=parseInt(_sel.value,10); _alabel=((_sel.options[_sel.selectedIndex]||{}).text||_alabel); }
         withPin(function(pin){
-            supabaseClient.rpc('app_wo_create',{p_username:currentUser.username,p_password:pin,p_title:t,p_description:woVal('woDesc'),p_asset_id:_aid,p_asset_label:_alabel,p_location:woVal('woStore'),p_category:woVal('woCat'),p_priority:woVal('woPri'),p_equipment_use_status:woVal('woUse')||null,p_safety_impact:safety}).then(function(r){
+            supabaseClient.rpc('app_wo_create',{p_username:currentUser.username,p_password:pin,p_title:t,p_description:(_item?'Item/part: '+_item+'\n':'')+woVal('woDesc'),p_asset_id:_aid,p_asset_label:_alabel,p_location:woVal('woStore'),p_category:woVal('woCat'),p_priority:woVal('woPri'),p_equipment_use_status:woVal('woUse')||null,p_safety_impact:safety}).then(function(r){
                 if(r.error){ document.getElementById('woRepMsg').textContent=r.error.message; return; }
                 var _won=(r.data&&r.data.wo_number)||''; var _ph=(_wo.repPhotos||[]); var _finish=function(){ _wo.repPhotos=[]; alert('Work order '+_won+' created'+(_ph.length?(' with '+_ph.length+' photo'+(_ph.length>1?'s':'')):'')+'.'); _wo.tab=woIsMgr()?'board':'queue'; woLoad(function(){ woRender(); }); }; if(_ph.length && _won){ var _i=0; (function _up(){ if(_i>=_ph.length){ _finish(); return; } supabaseClient.rpc('app_wo_add_photo',{p_username:currentUser.username,p_password:pin,p_wo_number:_won,p_photo:_ph[_i]}).then(function(){ _i++; _up(); }).catch(function(){ _i++; _up(); }); })(); } else { _finish(); }
             }).catch(function(){ document.getElementById('woRepMsg').textContent='Could not submit.'; });
