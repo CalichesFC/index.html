@@ -1277,6 +1277,8 @@
         <!-- Daily grid -->
         <div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
             <h3 style="margin:0 0 10px;color:#0f4d27;font-size:15px;">Daily Sales &amp; Hourly Labor</h3>
+            <button onclick="pcAutofill(this)" style="background:#0f4d27;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px;">&#9889; Auto-fill sales from Axial / POS feed</button>
+            <div id="pcAutofillMsg" style="display:none;border:1px solid #bcdcc6;border-radius:9px;padding:8px 11px;margin-bottom:10px;font-size:12px;color:#08321a;line-height:1.5;"></div>
             <div style="overflow-x:auto;">
                 <table style="border-collapse:collapse;font-size:13px;min-width:560px;">
                     <thead><tr style="color:#fff;background:#4a4a4a;">
@@ -2524,7 +2526,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.30.1354';
+    const APP_VERSION = '2026.06.30.1538';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -7815,6 +7817,42 @@
         }
         b.innerHTML=html;
     }
+    function pcWeekDates(){
+        var wk=document.getElementById('pcWeek').value; if(!wk) return [];
+        var p=wk.split('-'); if(p.length!==3) return [];
+        var out=[];
+        for(var i=0;i<7;i++){ var d=new Date(+p[0],+p[1]-1,+p[2]); d.setDate(d.getDate()+i); out.push(d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)); }
+        return out;
+    }
+    function pcAutofill(btn){
+        var loc=tempStoreLoc(); if(!loc){ alert('No store set on your account.'); return; }
+        var wk=document.getElementById('pcWeek').value; if(!wk){ alert('Pick the week beginning (Monday) first.'); return; }
+        var dates=pcWeekDates(); if(!dates.length){ alert('Pick a valid week first.'); return; }
+        var _o; if(btn){ btn.disabled=true; _o=btn.innerHTML; btn.innerHTML='Pulling…'; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_sales_recent',{p_username:currentUser.username,p_password:pin,p_location:loc,p_days:120}).then(function(r){
+                if(btn){ btn.disabled=false; btn.innerHTML=_o; }
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
+                var byDate={}; (r.data||[]).forEach(function(d){ byDate[String(d.date).slice(0,10)]=d; });
+                var taxR=(parseFloat(document.getElementById('pcTax').value)||0)/100;
+                var salesFilled=0, laborFilled=0, missing=[];
+                for(var i=0;i<7;i++){
+                    var row=byDate[dates[i]];
+                    if(row){
+                        if(row.gross!=null){ document.getElementById('pcDep'+i).value=(Number(row.gross)*(1+taxR)).toFixed(2); salesFilled++; }
+                        if(row.labor!=null){ document.getElementById('pcHr'+i).value=Number(row.labor).toFixed(2); laborFilled++; }
+                        if(row.tx!=null){ document.getElementById('pcTx'+i).value=row.tx; }
+                    } else { missing.push(PC_DAYS[i].slice(0,3)); }
+                }
+                pcCalc();
+                var msg=document.getElementById('pcAutofillMsg');
+                if(msg){
+                    if(salesFilled===0){ msg.style.display='block'; msg.style.background='#fff4e0'; msg.style.borderColor='#f0d49a'; msg.innerHTML='⚠️ No sales found for the week of '+escapeHtml(wk)+' in the Daily Sales feed yet. Enter the days by hand, or add them on the Daily Sales screen — the Axial / POS sync also fills this feed.'; }
+                    else { msg.style.display='block'; msg.style.background='#e8f3ec'; msg.style.borderColor='#bcdcc6'; msg.innerHTML='✅ Auto-filled '+salesFilled+' day'+(salesFilled===1?'':'s')+' of sales from the Daily Sales feed (Axial / POS): each day&#39;s net sales were grossed-up by your '+(taxR*100).toFixed(2)+'% tax into <b>Deposits</b> (so the net-sales math matches Axial) and the check count went into <b>Trans.</b>'+(laborFilled?(' Hourly labor $ filled for '+laborFilled+' day'+(laborFilled===1?'':'s')+'.'):'')+(missing.length?(' No data yet for: '+missing.join(', ')+'.'):'')+'<br><span style="color:#5b6675;">Split Deposits into cash vs MC/Visa vs Hospital if you track it; manager wages, inventory and food invoices stay manual.</span>'; }
+                }
+            }).catch(function(){ if(btn){ btn.disabled=false; btn.innerHTML=_o; } alert('Connection error.'); });
+        });
+    }
     function addInvoiceRow(pf){
         pf=pf||{};
         var wrap=document.getElementById('pcInvRows');
@@ -9902,7 +9940,7 @@
     function woIsMgr(){ return currentUser.is_developer===true||['Admin Manager','Manager','Vice President/Co-Owner','Store Manager'].indexOf(currentUser.role)>=0; }
     function openWorkOrders(){ _wo.preset=null; var _dt=woIsMaint()?'queue':(woIsMgr()?'board':'report'); var _st=lsGet('woTab',_dt); var _ok={report:1,board:woIsMgr(),queue:(woIsMaint()||woIsMgr()),history:(woIsMgr()||woIsMaint())}; _wo.tab=_ok[_st]?_st:_dt; woLoad(function(){ woRender(); }); }
     /* ===================== STORE SCORECARDS ===================== */
-    var _sc={rows:[]};
+    var _sc={rows:[],selDate:null};
     var SC_FIELDS=[['sales','Sales ($)','From Axial: Dashboard &rarr; Net Sales'],['sales_ly','Sales last year ($)','From Axial: comparison tile (Same Date Last Year)'],['guest_count','Guest count'],['speed_seconds','Speed of service (sec)'],['labor_pct','Labor %','From Axial: Hourly Labor (% of Net)'],['inspection_score','Inspection score'],['training_pct','Training %'],['maintenance_open','Open maintenance'],['pick_n_take','Pick-N-Take'],['flips','Flips'],['complaints','Complaints']];
     function scIsMgr(){ return !!(currentUser&&(currentUser.is_developer===true||(typeof woIsMgr==='function'&&woIsMgr()))); }
     function scRpc(name,args,cb){ withPin(function(pin){ supabaseClient.rpc(name,Object.assign({p_username:currentUser.username,p_password:pin},args||{})).then(function(r){ if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':r.error.message); return; } cb(r.data); }).catch(function(){ alert('Connection error.'); }); }); }
@@ -9910,19 +9948,30 @@
     function scClose(){ var o=document.getElementById('scModal'); if(o) o.style.display='none'; }
     function scMoney(n){ if(n==null||n==='') return '—'; var x=parseFloat(n); return '$'+(isNaN(x)?'0':x.toLocaleString()); }
     function scNum(n){ return (n==null||n==='')?'—':String(n); }
+    function scTodayIso(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+    function scPrettyDate(s){ if(!s) return ''; var p=String(s).slice(0,10).split('-'); if(p.length!==3) return String(s); var dt=new Date(+p[0],+p[1]-1,+p[2]); if(isNaN(dt.getTime())) return String(s); return dt.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'}); }
+    function scLoadingHtml(){ return '<div style="padding:12px 14px;"><button onclick="scClose()" style="background:#eef0f3;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;">&times; Close</button></div><div style="text-align:center;color:#6b7686;padding:38px;">Loading scorecards&hellip;</div>'; }
     function openScorecards(){ scLoad(); }
-    function scLoad(){ scOv().innerHTML='<div style="padding:12px 14px;"><button onclick="scClose()" style="background:#eef0f3;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;">&times; Close</button></div><div style="text-align:center;color:#6b7686;padding:38px;">Loading scorecards&hellip;</div>'; scRpc('app_metrics_latest',{},function(d){ _sc.rows=d||[]; scRender(); }); }
+    function scLoad(){ _sc.selDate=null; scOv().innerHTML=scLoadingHtml(); scRpc('app_metrics_latest',{},function(d){ _sc.rows=d||[]; scRender(); }); }
+    function scLoadFor(date){ if(!date){ scLoad(); return; } _sc.selDate=date; scOv().innerHTML=scLoadingHtml(); scRpc('app_metrics_on_date',{p_date:date},function(d){ _sc.rows=d||[]; scRender(); }); }
     function scTile(label,val,sub,color){ return '<div style="flex:1;min-width:88px;background:#fff;border:1px solid #eef0f5;border-radius:10px;padding:8px 10px;"><div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#5b6675;letter-spacing:.3px;">'+label+'</div><div style="font-size:16px;font-weight:800;color:'+(color||'#1f2a44')+';">'+val+'</div>'+(sub?'<div style="font-size:10.5px;color:#6b6275;">'+sub+'</div>':'')+'</div>'; }
     function scRender(){
         var stores=(typeof HUB_STORES!=='undefined'?HUB_STORES:['Roadrunner','Valley','Lenox','Alamogordo','Roswell']);
         var byLoc={}; (_sc.rows||[]).forEach(function(m){ byLoc[m.location]=m; });
         var h='<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;"><b style="flex:1;font-size:16px;">Store Scorecards</b><button onclick="scClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;">&times;</button></div>';
         h+='<div style="max-width:840px;margin:0 auto;padding:14px 16px 50px;">';
-        h+='<p style="font-size:12.5px;color:#6b7686;margin-top:0;">A snapshot per store. Managers can enter numbers now; once the POS (Aloha) feed is connected these auto-fill from sales/labor data.</p>';
+        h+='<p style="font-size:12.5px;color:#6b7686;margin-top:0;">A snapshot per store. Managers can enter numbers now; Axial / POS sales + labor can auto-fill these.</p>';
+        var _scShowing=_sc.selDate?('Showing the latest numbers <b>on or before '+escapeHtml(scPrettyDate(_sc.selDate))+'</b>'):'Showing the <b>latest available</b> numbers for each store';
+        h+='<div style="background:#fff;border:1px solid #e6ebf2;border-radius:12px;padding:10px 12px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">'
+         +'<div style="font-size:12.5px;color:#1f2a44;flex:1;min-width:190px;">📅 '+_scShowing+'</div>'
+         +'<label for="scDatePick" style="font-size:11.5px;color:#5b6675;font-weight:700;">View a day:</label>'
+         +'<input type="date" id="scDatePick" value="'+escapeHtml(_sc.selDate||'')+'" max="'+scTodayIso()+'" onchange="scLoadFor(this.value)" style="border:1px solid #cdd5e0;border-radius:8px;padding:6px 9px;font-size:12.5px;">'
+         +(_sc.selDate?'<button onclick="scLoad()" style="background:#eef0f3;border:none;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;">↺ Latest</button>':'')
+         +'</div>';
         stores.forEach(function(loc){
             var m=byLoc[loc]; var emoji=(typeof hubStoreEmoji==='function'?hubStoreEmoji(loc):'📍');
             h+='<div style="background:#fafbfd;border:1px solid #e6ebf2;border-radius:14px;padding:13px;margin-bottom:10px;">';
-            h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><b style="flex:1;font-size:15px;color:#1f2a44;">'+emoji+' '+escapeHtml(loc)+'</b>'+(m&&m.metric_date?'<span style="font-size:11px;color:#5b6675;">as of '+escapeHtml(String(m.metric_date))+'</span>':'')+(scIsMgr()?'<button onclick="scEnter(\''+loc.replace(/'/g,"")+'\')" style="background:#185FA5;color:#fff;border:none;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;">'+(m?'Update':'Enter')+'</button>':'')+'</div>';
+            h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><b style="flex:1;font-size:15px;color:#1f2a44;">'+emoji+' '+escapeHtml(loc)+'</b>'+(m&&m.metric_date?'<span style="font-size:11px;color:#5b6675;white-space:nowrap;">📊 as of '+escapeHtml(scPrettyDate(m.metric_date))+'</span>':'')+(scIsMgr()?'<button onclick="scEnter(\''+loc.replace(/'/g,"")+'\')" style="background:#185FA5;color:#fff;border:none;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;">'+(m?'Update':'Enter')+'</button>':'')+'</div>';
             if(!m){ h+='<div style="font-size:12.5px;color:#5b6675;">No numbers entered yet'+(scIsMgr()?' — tap Enter to add them.':'.')+'</div>'; }
             else {
                 var dly=''; if(m.sales!=null&&m.sales_ly){ var pct=Math.round(((m.sales-m.sales_ly)/m.sales_ly)*100); dly=(pct>=0?'▲ +':'▼ ')+pct+'% vs LY'; }
