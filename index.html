@@ -2524,7 +2524,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.29.2341';
+    const APP_VERSION = '2026.06.30.1229';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3423,6 +3423,7 @@
           '</div>'+
           '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px;"><thead><tr style="background:#f3f6fa;"><th style="text-align:left;padding:8px 6px;">Description</th><th style="text-align:center;padding:8px 6px;">Qty</th><th style="text-align:right;padding:8px 6px;">Amount</th></tr></thead><tbody>'+rows+'</tbody></table>'+
           '<div style="text-align:right;font-size:14px;line-height:1.7;"><div>Subtotal: $'+Number(q.subtotal||0).toFixed(2)+'</div><div>Tax: $'+Number(q.tax||0).toFixed(2)+'</div><div style="font-weight:900;font-size:20px;color:#185FA5;margin-top:4px;">Amount Due: $'+Number(q.total||0).toFixed(2)+'</div></div>'+
+          (q.square_payment_url?'<div style="text-align:center;margin-top:18px;"><a href="'+escapeHtml(q.square_payment_url)+'" target="_blank" style="display:inline-block;background:#1f7a3d;color:#fff;text-decoration:none;font-weight:900;font-size:16px;padding:13px 28px;border-radius:10px;">💳 Pay Now with Square</a><div style="font-size:11px;color:#6b7686;margin-top:6px;">Secure checkout powered by Square</div></div>':'')+
           (q.notes?'<div style="margin-top:16px;font-size:12px;color:#6b7686;border-top:1px solid #eee;padding-top:8px;"><b>Notes:</b> '+escapeHtml(q.notes)+'</div>':'')+
           '<div style="margin-top:18px;font-size:11px;color:#8a8a99;border-top:1px solid #eee;padding-top:8px;text-align:center;">Thank you for choosing Caliche&#39;s Frozen Custard! Please contact us with any questions about this invoice.</div>'+
         '</div>';
