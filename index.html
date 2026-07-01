@@ -1293,7 +1293,7 @@
             <h3 style="margin:0 0 10px;color:#0f4d27;font-size:15px;">Labor &amp; Inventory</h3>
             <div style="display:flex;gap:12px;flex-wrap:wrap;">
                 <div style="flex:1;min-width:130px;"><label style="font-size:12.5px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Manager wages (week $)</label>
-                    <input type="number" inputmode="decimal" id="pcMgr" placeholder="0.00" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;"></div>
+                    <input type="number" inputmode="decimal" id="pcMgr" placeholder="0.00" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;"><div style="font-size:11px;color:#6b6275;margin-top:3px;">Most managers clock in and are already in <b>Hourly $</b> above. Only add a <b>salaried</b> manager who doesn&#39;t clock into Axial — otherwise you&#39;ll double-count.</div></div>
                 <div style="flex:1;min-width:130px;"><label style="font-size:12.5px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Beginning inventory ($)</label>
                     <input type="number" inputmode="decimal" id="pcBeg" placeholder="0.00" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px;"><div id="pcBegHint" style="display:none;font-size:11px;color:#0f4d27;margin-top:3px;"></div></div>
                 <div style="flex:1;min-width:130px;"><label style="font-size:12.5px;font-weight:bold;color:#555;display:block;margin-bottom:4px;">Ending inventory ($)</label>
@@ -2526,7 +2526,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.30.1629';
+    const APP_VERSION = '2026.06.30.2056';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
