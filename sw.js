@@ -1,7 +1,7 @@
 // Caliche's Operations Hub - Service Worker
 // Provides basic offline caching so the app shell loads even with a flaky connection.
 
-const CACHE_NAME = 'caliches-hub-2026.07.01.1944';
+const CACHE_NAME = 'caliches-hub-2026.07.01.2140';
 const CORE_ASSETS = [
   './index.html',
   './manifest.json',

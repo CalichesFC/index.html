@@ -2537,7 +2537,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.07.01.1944';
+    const APP_VERSION = '2026.07.01.2140';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2575,7 +2575,7 @@
 
     // Form permission keys (used for manager-configurable per-user form visibility)
     const FORM_KEYS = [
-        { key:'popIn', label:'Pop-In', btnId:'btn-popIn' },
+        { key:'popIn', label:'Pop-In', btnId:'btn-popIn', roleGated:true }, /* visibility owned by applyRoleUI unless explicit per-user perms exist */
         { key:'driver', label:'Driver', btnId:'btn-driver' },
         { key:'shortage', label:'Shortage', btnId:'btn-shortage' },
         { key:'maintenance', label:'Maint.', btnId:'btn-maintenance' },
@@ -2999,14 +2999,37 @@
         var box=document.getElementById('hubSearchResults'); if(!box) return;
         q=(q||'').trim().toLowerCase();
         if(!q){ box.style.display='none'; box.innerHTML=''; return; }
-        var matches=(typeof QUICK_REG!=='undefined'?QUICK_REG:[]).filter(function(it){ if(String(it.label||'').toLowerCase().indexOf(q)<0) return false; if(it.btn){ var _b=document.getElementById(it.btn); if(_b && _b.offsetParent===null) return false; } return true; });
-        if(!matches.length){ box.style.display='block'; box.innerHTML='<div style="padding:11px 13px;color:#5b6675;font-size:13px;">No tools match that.</div>'; return; }
+        /* Search the FULL tool set — QUICK_REG plus every menu tile in the DOM — even when a tile's
+           section/tab is not the active one. Only skip tiles role-hidden via inline display:none. */
+        var out=[], seen={};
+        (typeof QUICK_REG!=='undefined'?QUICK_REG:[]).forEach(function(it){
+            if(String(it.label||'').toLowerCase().indexOf(q)<0) return;
+            if(it.btn){ var _b=document.getElementById(it.btn); if(_b && _b.style.display==='none') return; if(_b) seen[it.btn]=1; }
+            out.push({ emoji:it.emoji||'', label:it.label||'', key:it.key, run:it.fn });
+        });
+        try{
+            var tiles=document.querySelectorAll('#main-menu .menu-btn');
+            for(var i=0;i<tiles.length;i++){
+                (function(t){
+                    if(t.id && seen[t.id]) return;
+                    if(t.style.display==='none') return; /* hidden by role/permission gates — keep out of search */
+                    var lb=t.querySelector('b'); var label=lb?(lb.textContent||'').trim():''; if(!label) return;
+                    var sm=t.querySelector('small');
+                    var hay=(label+' '+(sm?sm.textContent:'')).toLowerCase();
+                    if(hay.indexOf(q)<0) return;
+                    if(t.id) seen[t.id]=1;
+                    var ic=t.querySelector('.tile-ic');
+                    out.push({ emoji:ic?(ic.textContent||''):'', label:label, key:null, run:function(){ t.click(); } });
+                })(tiles[i]);
+            }
+        }catch(e){}
+        if(!out.length){ box.style.display='block'; box.innerHTML='<div style="padding:11px 13px;color:#5b6675;font-size:13px;">No tools match that.</div>'; return; }
         box.innerHTML='';
-        matches.slice(0,8).forEach(function(it){
+        out.slice(0,8).forEach(function(it){
             var b=document.createElement('button');
             b.style.cssText='display:flex;width:100%;align-items:center;gap:9px;text-align:left;background:#fff;border:none;border-bottom:1px solid #f3f4f8;padding:11px 13px;cursor:pointer;font-size:13.5px;color:#26242b;';
             b.innerHTML='<span style="font-size:16px;">'+(it.emoji||'')+'</span><span>'+escapeHtml(it.label||'')+'</span>';
-            b.addEventListener('click',function(){ var inp=document.getElementById('hubSearchInput'); if(inp) inp.value=''; box.style.display='none'; try{ trackUse(it.key); }catch(e){} try{ it.fn(); }catch(e){} });
+            b.addEventListener('click',function(){ var inp=document.getElementById('hubSearchInput'); if(inp) inp.value=''; box.style.display='none'; if(it.key){ try{ trackUse(it.key); }catch(e){} } try{ it.run(); }catch(e){} });
             box.appendChild(b);
         });
         box.style.display='block';
@@ -3416,6 +3439,9 @@
         FORM_KEYS.forEach(f => {
             const btn = document.getElementById(f.btnId);
             if (!btn) return;
+            /* Default-deny: with no explicit per-user permissions saved, never un-hide a role-gated
+               tile — applyRoleUI() already decided its visibility (fixes employees seeing Pop-In). */
+            if (f.roleGated && !devOverride && !perms) return;
             btn.style.display = (devOverride || !perms || perms.indexOf(f.key) !== -1) ? 'block' : 'none';
         });
     }
@@ -4352,7 +4378,7 @@
     // ============================================================
     // NAVIGATION
     // ============================================================
-    function triggerTransition(callback) { const loader = document.getElementById('neon-loader'); loader.style.display = 'flex'; setTimeout(() => { loader.style.opacity = '1'; }, 10); setTimeout(() => { callback(); window.scrollTo(0,0); loader.style.opacity = '0'; setTimeout(() => { loader.style.display = 'none'; }, 300); }, 1200); }
+    function triggerTransition(callback) { const loader = document.getElementById('neon-loader'); loader.style.display = 'flex'; setTimeout(() => { loader.style.opacity = '1'; }, 10); setTimeout(() => { callback(); window.scrollTo(0,0); loader.style.opacity = '0'; setTimeout(() => { loader.style.display = 'none'; }, 300); }, 200); /* was 1200ms — artificial delay cut for snappy navigation */ }
     function openMenu() { triggerTransition(() => { document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none'); document.getElementById('main-menu').style.display = 'block'; switchMenuTab('home'); window.scrollTo(0,0); applyPendingReloadIfSafe(); }); }
 
     // ============================================================
@@ -6595,7 +6621,7 @@
     function applyRoleUI() {
         let role = currentUser.role;
         if (role === 'Vice President/Co-Owner') role = 'Admin Manager';
-        const isManager = (role === 'Admin Manager' || role === 'Manager' || role === 'Vice President/Co-Owner');
+        const isManager = (role === 'Admin Manager' || role === 'Manager' || role === 'Store Manager' || role === 'Vice President/Co-Owner');
         const maintBoardAllowed = (currentUser.maint_board_access !== false);
         const devOverride = currentUser.is_developer === true && !isPreviewMode();
 
@@ -7158,6 +7184,7 @@
             supabaseClient.rpc('app_discipline_employees',{p_username:currentUser.username,p_password:pin}).then(function(r){
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; sel.innerHTML='<option value="">Could not load</option>'; return; }
                 var list=r.data||[];
+                window._discEmps=list; /* cached so the PIP picker card can pass name/location to openPip */
                 sel.innerHTML='<option value="">— Select employee —</option>'+list.map(function(e){
                     return '<option value="'+e.id+'">'+escapeHtml(e.name)+(e.location?' ('+escapeHtml(e.location)+')':'')+(e.open>0?'  •  '+e.open+' on file':'')+'</option>';
                 }).join('');
@@ -7253,7 +7280,19 @@
             var f=DISC_FORMS[k]; var dis=(f.admin&&!admin);
             return '<button type="button" onclick="discSetForm(\''+k+'\')"'+(dis?' disabled':'')+' style="flex:1;min-width:80px;border:1px solid #cfcfcf;background:'+(k===discCurForm?'#8a1f1f':'#fff')+';color:'+(k===discCurForm?'#fff':(dis?'#bbb':'#555'))+';border-radius:8px;padding:8px 6px;font-size:12px;font-weight:bold;cursor:'+(dis?'not-allowed':'pointer')+';">'+f.label+(f.admin?' · admin':'')+'</button>';
         }).join('');
+        /* 5th card: PIP (admin only — same gate as termination). Opens the existing PIP modal for the selected employee. */
+        if(admin) picker.innerHTML+='<button type="button" onclick="discOpenPip()" style="flex-basis:100%;border:1px solid #b4264b;background:#fff;color:#b4264b;border-radius:8px;padding:8px 6px;font-size:12px;font-weight:bold;cursor:pointer;">&#128200; Performance Improvement Plan (PIP) · admin</button>';
         discRenderForm();
+    }
+    function discOpenPip(){
+        if(!(typeof isDiscAdmin==='function' && isDiscAdmin())){ alert('PIPs can only be started by Admin Managers.'); return; }
+        var sel=document.getElementById('discEmp');
+        var id=sel?parseInt(sel.value,10):0;
+        if(!id){ alert('Pick the employee first.'); return; }
+        var emp=null, list=window._discEmps||[];
+        for(var i=0;i<list.length;i++){ if(String(list[i].id)===String(id)){ emp=list[i]; break; } }
+        var nm=emp?String(emp.name||''):String((sel.options[sel.selectedIndex]||{}).text||'').replace(/\s*\(.*$/,'').trim();
+        if(typeof openPip==='function') openPip(id, nm, (emp&&emp.location)?String(emp.location):'', '');
     }
     function discSetForm(k){ if(DISC_FORMS[k].admin && !(typeof isDiscAdmin==='function' && isDiscAdmin())){ alert('Final warnings and termination can only be issued by Admin Managers.'); return; } discCurForm=k; discInitForms(); }
     function discPad(role){ return '<div style="background:#faf7f2;border-radius:9px;padding:8px;margin-bottom:7px;"><div style="font-size:12px;color:#6b7686;margin-bottom:4px;">'+escapeHtml(role)+'</div><canvas class="disc-pad" data-role="'+escapeHtml(role)+'" style="width:100%;height:70px;background:#fff;border:1px solid #cfcfcf;border-radius:7px;touch-action:none;display:block;cursor:crosshair;"></canvas><div style="text-align:right;margin-top:3px;"><button type="button" onclick="discClearPad(this)" style="background:#eee;border:none;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;">Clear</button></div></div>'; }
@@ -10217,7 +10256,7 @@
     function wobClose(){ var o=document.getElementById('wobModal'); if(o) o.style.display='none'; }
     function wobHead(title,back){ return '<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;">'+(back?'<button onclick="'+back+'" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;">&lsaquo; Back</button>':'')+'<b style="flex:1;font-size:16px;">'+title+'</b><button onclick="wobClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;">&times;</button></div>'; }
     function wobStatusPill(s){ var m={draft:['#eef0f3','#5b6472'],submitted:['#eef3fb','#185FA5'],operational_verified:['#fff4e0','#9a5b00'],finance_approved:['#e8f5ec','#1b7a3d'],paid:['#dff3e6','#1b7a3d'],void:['#fdeaea','#a01b3e']}; var c=m[s]||m.draft; var lbl={draft:'Draft',submitted:'Submitted',operational_verified:'Verified (ops)',finance_approved:'Finance approved',paid:'Paid',void:'Void'}[s]||s; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:2px 9px;border-radius:99px;">'+lbl+'</span>'; }
-    function openMaintBilling(){ if(!(currentUser&&(currentUser.is_developer===true||(typeof isManagerRole==='function'&&isManagerRole())||['Finance Approver','Maintenance Lead'].indexOf(currentUser.role)>=0))){ alert('Maintenance billing is for managers and finance.'); return; } _wob.tab='invoices'; wobLoad(); }
+    function openMaintBilling(){ if(!(currentUser&&(currentUser.is_developer===true||(typeof isManagerRole==='function'&&isManagerRole())||['Finance Approver','Maintenance Lead','Store Manager'].indexOf(currentUser.role)>=0))){ alert('Maintenance billing is for managers and finance.'); return; } _wob.tab='invoices'; wobLoad(); }
     function wobShell(body){ var t=_wob.tab; function tb(id,l){ return '<button onclick="_wob.tab=\''+id+'\';'+(id==='invoices'?'wobLoad()':'wobRates()')+'" style="flex:1;background:'+(t===id?'#185FA5':'#eef0f3')+';color:'+(t===id?'#fff':'#5b6472')+';border:none;padding:10px;font-size:13px;font-weight:700;border-radius:9px;cursor:pointer;">'+l+'</button>'; }
       wobOv().innerHTML=wobHead('Maintenance Billing','')+'<div style="display:flex;gap:6px;max-width:820px;margin:12px auto 0;padding:0 16px;">'+tb('invoices','Invoices')+tb('rates','Rate cards')+'</div><div style="max-width:820px;margin:0 auto;padding:14px 16px 50px;">'+body+'</div>'; }
     function wobLoad(){ wobOv().innerHTML=wobHead('Maintenance Billing','')+'<div style="text-align:center;color:#6b7686;padding:40px;">Loading&hellip;</div>'; wobRpc('wo_invoice_list',{p_filters:_wob.filter||{}},function(d){ _wob.list=d||[]; wobRender(); }); }
@@ -12819,7 +12858,7 @@
         }
 
         function setupNotifications() {
-            const isManager = (currentUser.role === 'Admin Manager' || currentUser.role === 'Manager' || currentUser.role === 'Vice President/Co-Owner');
+            const isManager = (currentUser.role === 'Admin Manager' || currentUser.role === 'Manager' || currentUser.role === 'Store Manager' || currentUser.role === 'Vice President/Co-Owner');
             const wrap = document.getElementById('notifBellWrap');
             if (!wrap) return;
 
@@ -12830,13 +12869,21 @@
             }
 
             wrap.style.display = "block";
-            fetchNotifications();
+            fetchNotifications(true);
 
             if (notifPollTimer) clearInterval(notifPollTimer);
-            notifPollTimer = setInterval(fetchNotifications, 60000);
+            notifPollTimer = setInterval(function(){ fetchNotifications(true); }, 60000);
         }
 
-        function fetchNotifications() {
+        function notifHasCachedPin() {
+            if (sessionPin) return true;
+            try { return localStorage.getItem('calichesKeep') !== '0' && !!sessionStorage.getItem('calichesPin'); } catch(e) { return false; }
+        }
+
+        function fetchNotifications(silentPoll) {
+            /* Background polling must never pop the native PIN prompt — skip silently
+               when no PIN is cached. Only a manual bell tap (no flag) may prompt. */
+            if (silentPoll && !notifHasCachedPin()) return;
             withPin(function(pin) {
                 supabaseClient.rpc('app_admin_notifications_list', { p_admin_username: currentUser.username, p_admin_password: pin })
                     .then(({ data, error }) => {
