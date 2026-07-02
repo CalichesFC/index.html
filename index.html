@@ -619,6 +619,7 @@
                 </div>
             </div>
             <button id="announceBtn" class="icon-circle-btn" onclick="openAnnouncementEditor()" title="Announcement" style="display:none;">&#128227;</button>
+            <button id="topSearchBtn" class="icon-circle-btn" onclick="openHubSearchOverlay()" title="Find anything">&#128269;</button>
             <button id="topMessagesBtn" class="icon-circle-btn" onclick="openMessages()" title="Messages">&#128172;</button>
             <button id="nightToggle" class="icon-circle-btn" onclick="toggleNight()" title="Day / Night view">&#127769;</button>
             <button id="settingsBtn" class="icon-circle-btn" onclick="openSettings()" title="Settings">&#9881;&#65039;</button>
@@ -2537,7 +2538,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.07.01.2140';
+    const APP_VERSION = '2026.07.01.2204';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2993,47 +2994,101 @@
         var c=document.getElementById('homeSearchCard');
         if(!c){ c=document.createElement('div'); c.id='homeSearchCard'; host.parentNode.insertBefore(c, host); }
         if(document.getElementById('hubSearchInput')) return;
-        c.innerHTML='<div style="position:relative;margin-bottom:10px;"><span style="position:absolute;left:12px;top:11px;font-size:15px;opacity:.6;">&#128269;</span><input id="hubSearchInput" oninput="hubQuickSearch(this.value)" onfocus="hubQuickSearch(this.value)" placeholder="Jump to a tool&hellip;" autocomplete="off" style="width:100%;padding:11px 13px 11px 36px;border:1px solid #e0e0ea;border-radius:11px;font-size:14px;box-sizing:border-box;background:#fff;"><div id="hubSearchResults" style="display:none;position:absolute;left:0;right:0;top:46px;background:#fff;border:1px solid #ececf2;border-radius:11px;box-shadow:0 6px 22px rgba(0,0,0,.12);z-index:50;overflow:hidden;"></div></div>';
+        c.innerHTML='<div style="position:relative;margin-bottom:10px;"><span style="position:absolute;left:12px;top:11px;font-size:15px;opacity:.6;">&#128269;</span><input id="hubSearchInput" oninput="hubQuickSearch(this.value)" onfocus="hubQuickSearch(this.value)" onkeydown="hubSearchKey(event)" placeholder="Find anything&hellip;" autocomplete="off" style="width:100%;padding:11px 13px 11px 36px;border:1px solid #e0e0ea;border-radius:11px;font-size:14px;box-sizing:border-box;background:#fff;"><div id="hubSearchResults" style="display:none;position:absolute;left:0;right:0;top:46px;background:#fff;border:1px solid #ececf2;border-radius:11px;box-shadow:0 6px 22px rgba(0,0,0,.12);z-index:50;overflow:hidden;"></div></div>';
     }
-    function hubQuickSearch(q){
-        var box=document.getElementById('hubSearchResults'); if(!box) return;
+    /* "Find Anything" search — runs on the single HUB_REGISTRY (auto DOM tiles + static
+       destinations). Ranked by usage (trackUse data) then label-match quality. Role-aware:
+       hidden tiles / failed roleChecks never appear. Same engine drives the Home dropdown
+       (#hubSearchResults) and the header 🔍 overlay (#hubSearchOvResults). */
+    function hubSearchScore(e,q){
+        var L=String(e.label||'').toLowerCase();
+        if(L===q) return 100;
+        if(L.indexOf(q)===0) return 90;
+        if((' '+L).indexOf(' '+q)>=0) return 80;
+        if(L.indexOf(q)>=0) return 70;
+        var kws=e.keywords||[],i,k;
+        for(i=0;i<kws.length;i++){ k=String(kws[i]).toLowerCase(); if(k===q) return 65; if(k.indexOf(q)===0) return 60; if(k.indexOf(q)>=0) return 50; }
+        if(String(e.sub||'').toLowerCase().indexOf(q)>=0) return 40;
+        if(String(e.section||'').toLowerCase().indexOf(q)>=0) return 20;
+        if(q.indexOf(' ')>0){ /* multi-word: every word somewhere in the haystack */
+            var hay=(L+' '+kws.join(' ')+' '+String(e.sub||'')).toLowerCase();
+            var ws=q.split(/\s+/),ok=true;
+            for(i=0;i<ws.length;i++){ if(ws[i] && hay.indexOf(ws[i])<0){ ok=false; break; } }
+            if(ok) return 30;
+        }
+        return 0;
+    }
+    function hubSearchSelect(it, boxId){
+        try{ var inp=document.getElementById('hubSearchInput'); if(inp) inp.value=''; }catch(e){}
+        try{ var box=document.getElementById(boxId); if(box){ box.style.display='none'; box.innerHTML=''; } }catch(e){}
+        if(boxId==='hubSearchOvResults'){ try{ closeHubSearchOverlay(); }catch(e){} }
+        if(it.key){ try{ trackUse(it.key); }catch(e){} }
+        try{ it.go(); }catch(e){}
+    }
+    function hubSearchRow(it, boxId, isNew){
+        var b=document.createElement('button');
+        b.style.cssText='display:flex;width:100%;align-items:center;gap:9px;text-align:left;background:#fff;border:none;border-bottom:1px solid #f3f4f8;padding:10px 13px;cursor:pointer;font-size:13.5px;color:#26242b;';
+        b.innerHTML='<span style="font-size:16px;">'+(it.emoji||'&#128204;')+'</span>'+
+            '<span style="flex:1;min-width:0;"><span style="display:block;">'+escapeHtml(it.label||'')+(isNew?' <span style="background:#ede4fb;color:#5b3aa6;font-size:9.5px;font-weight:800;padding:1px 6px;border-radius:99px;vertical-align:1px;">NEW</span>':'')+'</span>'+
+            (it.section?'<span style="display:block;font-size:10.5px;color:#9aa2b1;">'+escapeHtml(it.section)+'</span>':'')+'</span>';
+        b.addEventListener('click',function(){ hubSearchSelect(it, boxId); });
+        return b;
+    }
+    function hubQuickSearch(q, boxId){
+        boxId=boxId||'hubSearchResults';
+        var box=document.getElementById(boxId); if(!box) return;
         q=(q||'').trim().toLowerCase();
-        if(!q){ box.style.display='none'; box.innerHTML=''; return; }
-        /* Search the FULL tool set — QUICK_REG plus every menu tile in the DOM — even when a tile's
-           section/tab is not the active one. Only skip tiles role-hidden via inline display:none. */
-        var out=[], seen={};
-        (typeof QUICK_REG!=='undefined'?QUICK_REG:[]).forEach(function(it){
-            if(String(it.label||'').toLowerCase().indexOf(q)<0) return;
-            if(it.btn){ var _b=document.getElementById(it.btn); if(_b && _b.style.display==='none') return; if(_b) seen[it.btn]=1; }
-            out.push({ emoji:it.emoji||'', label:it.label||'', key:it.key, run:it.fn });
-        });
-        try{
-            var tiles=document.querySelectorAll('#main-menu .menu-btn');
-            for(var i=0;i<tiles.length;i++){
-                (function(t){
-                    if(t.id && seen[t.id]) return;
-                    if(t.style.display==='none') return; /* hidden by role/permission gates — keep out of search */
-                    var lb=t.querySelector('b'); var label=lb?(lb.textContent||'').trim():''; if(!label) return;
-                    var sm=t.querySelector('small');
-                    var hay=(label+' '+(sm?sm.textContent:'')).toLowerCase();
-                    if(hay.indexOf(q)<0) return;
-                    if(t.id) seen[t.id]=1;
-                    var ic=t.querySelector('.tile-ic');
-                    out.push({ emoji:ic?(ic.textContent||''):'', label:label, key:null, run:function(){ t.click(); } });
-                })(tiles[i]);
-            }
-        }catch(e){}
+        var reg=[]; try{ reg=hubRegistryAll(); }catch(e){ reg=[]; }
+        if(!q){
+            /* Empty query: "✨ New this month" — recent additions, role-filtered by the registry. */
+            var fresh=[]; try{ (NEW_THIS_MONTH||[]).forEach(function(id){ for(var i=0;i<reg.length;i++){ if(reg[i].id===id){ fresh.push(reg[i]); break; } } }); }catch(e){}
+            if(!fresh.length){ box.style.display='none'; box.innerHTML=''; return; }
+            box.innerHTML='';
+            var hd=document.createElement('div');
+            hd.style.cssText='padding:9px 13px 5px;font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#5b3aa6;background:#faf8ff;';
+            hd.innerHTML='&#10024; New this month';
+            box.appendChild(hd);
+            fresh.slice(0,6).forEach(function(it){ box.appendChild(hubSearchRow(it, boxId, true)); });
+            box.style.display='block';
+            return;
+        }
+        var u={}; try{ u=getUsage(); }catch(e){}
+        var out=[];
+        reg.forEach(function(e){ var s=hubSearchScore(e,q); if(s>0){ e._score=s; e._use=u[e.key]||0; out.push(e); } });
         if(!out.length){ box.style.display='block'; box.innerHTML='<div style="padding:11px 13px;color:#5b6675;font-size:13px;">No tools match that.</div>'; return; }
+        out.sort(function(a,b){ return (b._use-a._use) || (b._score-a._score) || String(a.label).localeCompare(String(b.label)); });
         box.innerHTML='';
-        out.slice(0,8).forEach(function(it){
-            var b=document.createElement('button');
-            b.style.cssText='display:flex;width:100%;align-items:center;gap:9px;text-align:left;background:#fff;border:none;border-bottom:1px solid #f3f4f8;padding:11px 13px;cursor:pointer;font-size:13.5px;color:#26242b;';
-            b.innerHTML='<span style="font-size:16px;">'+(it.emoji||'')+'</span><span>'+escapeHtml(it.label||'')+'</span>';
-            b.addEventListener('click',function(){ var inp=document.getElementById('hubSearchInput'); if(inp) inp.value=''; box.style.display='none'; if(it.key){ try{ trackUse(it.key); }catch(e){} } try{ it.run(); }catch(e){} });
-            box.appendChild(b);
-        });
+        out.slice(0,8).forEach(function(it){ box.appendChild(hubSearchRow(it, boxId, false)); });
         box.style.display='block';
     }
+    function hubSearchKey(ev, boxId){
+        boxId=boxId||'hubSearchResults';
+        try{
+            if(ev.key==='Enter'){ ev.preventDefault(); var box=document.getElementById(boxId); if(box){ var first=box.querySelector('button'); if(first) first.click(); } }
+            else if(ev.key==='Escape'){ if(boxId==='hubSearchOvResults'){ closeHubSearchOverlay(); } else { var b2=document.getElementById(boxId); if(b2){ b2.style.display='none'; } } }
+        }catch(e){}
+    }
+    /* Header 🔍 — the same search from every main screen, as a small overlay sheet. */
+    function openHubSearchOverlay(){
+        var o=document.getElementById('hubSearchOverlay');
+        if(!o){
+            o=document.createElement('div'); o.id='hubSearchOverlay';
+            o.style.cssText='position:fixed;inset:0;background:rgba(20,24,40,.45);z-index:100060;display:none;';
+            o.innerHTML='<div style="max-width:560px;margin:14px auto 0;padding:0 12px;">'+
+                '<div style="background:#fff;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.25);overflow:hidden;">'+
+                '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #f0f1f6;">'+
+                '<span style="font-size:15px;opacity:.6;">&#128269;</span>'+
+                '<input id="hubSearchOvInput" oninput="hubQuickSearch(this.value,\'hubSearchOvResults\')" onkeydown="hubSearchKey(event,\'hubSearchOvResults\')" placeholder="Find anything&hellip;" autocomplete="off" style="flex:1;border:none;outline:none;font-size:15px;background:transparent;color:#26242b;">'+
+                '<button onclick="closeHubSearchOverlay()" style="background:#eef0f3;border:none;border-radius:8px;padding:6px 10px;font-weight:800;cursor:pointer;color:#5b6675;">&times;</button></div>'+
+                '<div id="hubSearchOvResults" style="max-height:62vh;overflow:auto;"></div></div></div>';
+            o.addEventListener('click',function(ev){ if(ev.target===o) closeHubSearchOverlay(); });
+            document.body.appendChild(o);
+        }
+        o.style.display='block';
+        var inp=document.getElementById('hubSearchOvInput');
+        if(inp){ inp.value=''; try{ hubQuickSearch('', 'hubSearchOvResults'); }catch(e){} setTimeout(function(){ try{ inp.focus(); }catch(e){} }, 60); }
+    }
+    function closeHubSearchOverlay(){ var o=document.getElementById('hubSearchOverlay'); if(o) o.style.display='none'; }
     /* =================== END HOME QUICK-JUMP SEARCH =================== */
     /* ===================== DATA RETENTION ===================== */
     var HUB_RETENTION_YEARS='7';
@@ -3408,14 +3463,36 @@
         if (!grid) return;
         wireUsageTracking();
         var u = getUsage();
-        var avail = QUICK_REG.filter(function(it){ var b = document.getElementById(it.btn); return b && b.style.display !== 'none'; });
-        avail.sort(function(a,b){ return (u[b.key] || 0) - (u[a.key] || 0); });
-        var top = avail.slice(0, 4);
+        var top = [];
+        /* Prefer real usage from the FULL registry (so non-tile destinations like PIP or
+           Recently-completed earn a spot once used). Falls back to the classic QUICK_REG list. */
+        try{
+            var used = hubRegistryAll().filter(function(e){ return (u[e.key]||0) > 0; });
+            used.sort(function(a,b){ return (u[b.key]||0) - (u[a.key]||0); });
+            top = used.slice(0, 4);
+        }catch(e){ top = []; }
+        if (top.length < 4){
+            var avail = QUICK_REG.filter(function(it){ var b = document.getElementById(it.btn); return b && b.style.display !== 'none'; });
+            avail.sort(function(a,b){ return (u[b.key] || 0) - (u[a.key] || 0); });
+            for (var i=0; i<avail.length && top.length<4; i++){
+                (function(q){
+                    for (var j=0;j<top.length;j++){ if (top[j].key === q.key) return; }
+                    top.push({ label:q.label, emoji:q.emoji, key:q.key, go:q.fn });
+                })(avail[i]);
+            }
+        }
         if (!top.length){ grid.innerHTML = '<p style="flex-basis:100%;text-align:center;color:#aab;font-size:12px;margin:0;">Your most-used tools will show up here.</p>'; return; }
-        grid.innerHTML = top.map(function(it){
+        window._jumpToItems = top;
+        grid.innerHTML = top.map(function(it, idx){
             var n = u[it.key] || 0;
-            return '<div class="qcard" onclick="quickLaunch(\'' + it.key + '\')"><div class="ic">' + it.emoji + '</div><b>' + it.label + '</b><small>' + (n ? ('Used ' + n + '&times;') : 'Tap to open') + '</small></div>';
+            return '<div class="qcard" onclick="jumpToGo(' + idx + ')"><div class="ic">' + (it.emoji||'&#128204;') + '</div><b>' + escapeHtml(it.label||'') + '</b><small>' + (n ? ('Used ' + n + '&times;') : 'Tap to open') + '</small></div>';
         }).join('');
+    }
+    function jumpToGo(i){
+        var it = (window._jumpToItems||[])[i];
+        if (!it) return;
+        try{ trackUse(it.key); }catch(e){}
+        try{ it.go(); }catch(e){}
     }
     function quickLaunch(key){
         var it = null;
@@ -3424,6 +3501,146 @@
         trackUse(key);
         if (typeof it.fn === 'function') it.fn();
     }
+
+    /* ===================== FIND ANYTHING — HUB REGISTRY (Phase 1) ===================== */
+    /* ONE registry of ~every destination in the Hub, merged at runtime from two sources:
+       (a) AUTO — every .menu-btn tile in #main-menu (its visibility = role truth, its own onclick = the action);
+       (b) STATIC — destinations that are NOT tiles (PIP, admin-console cards, schedule tools, etc.).
+       Entries: {id,label,emoji,keywords,roleCheck,go,key(usage)}. All go() calls are wrapped so a
+       missing anchor degrades silently. Static entries with a `btn` enrich that tile with keywords
+       (and inherit its label/emoji/visibility) instead of duplicating it. */
+    var NEW_THIS_MONTH = ['myday','recentdone','nudge','pip','teamtasks'];
+    function _hubRole(fn){ return function(){ try{ return (typeof window[fn]==='function') && !!window[fn](); }catch(e){ return false; } }; }
+    function _hubScrollTo(id){ setTimeout(function(){ try{ var el=document.getElementById(id); if(el && el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){} }, 350); }
+    var HUB_STATIC_REG = [
+        /* --- destinations that are NOT tiles --- */
+        { id:'myday', label:'My Day (Home)', emoji:'&#127968;', section:'Home', keywords:['my day','today','overview','home','next shift','snapshot'], roleCheck:null, go:function(){ hubNav('home'); } },
+        { id:'mytasks', label:'My Tasks', emoji:'&#9989;', section:'Tasks', keywords:['task','to do','todo','assigned to me'], roleCheck:null, go:function(){ openTasks(); } },
+        { id:'teamtasks', label:'Team Task Board (quick-add)', emoji:'&#128203;', section:'Tasks', keywords:['team','board','quick add','assign','store tasks'], roleCheck:_hubRole('schedIsMgr'), go:function(){ openTasks(); taskSeg('team'); } },
+        { id:'recentdone', label:'Recently Completed Tasks', emoji:'&#9989;', section:'Tasks', keywords:['recent','completed','done','finished','last 7 days','task history'], roleCheck:_hubRole('schedIsMgr'), go:function(){ openTasks(); taskSeg('team'); try{ if(!teamShowDone) toggleTeamDone(); }catch(e){} } },
+        { id:'nudge', label:'Nudge a Task (remind assignee)', emoji:'&#128276;', section:'Tasks', keywords:['nudge','remind','reminder','poke','follow up'], roleCheck:_hubRole('schedIsMgr'), go:function(){ openTasks(); taskSeg('team'); } },
+        { id:'pip', label:'Performance Improvement Plan (PIP)', emoji:'&#128200;', section:'Discipline', keywords:['pip','performance','improvement','plan','write up','corrective','probation'], roleCheck:_hubRole('isDiscAdmin'), go:function(){ openDiscipline(); } },
+        { id:'keycontacts', label:'Key Contacts Editor (Emergency screen)', emoji:'&#128222;', section:'Admin Console', keywords:['key contacts','emergency numbers','after hours','police','utility'], roleCheck:_hubRole('isAdminManager'), go:function(){ openAdminConsole(); _hubScrollTo('admContactsList'); } },
+        { id:'hublists', label:'Manage Lists (positions, checklists, inventory, temps)', emoji:'&#128221;', section:'Admin Console', keywords:['lists','positions','checklist items','inventory items','temp points','configure'], roleCheck:_hubRole('isAdminManager'), go:function(){ openAdminConsole(); _hubScrollTo('admListBox'); } },
+        { id:'notifmatrix', label:'Notifications by Role', emoji:'&#128276;', section:'Admin Console', keywords:['notification','push','alerts','matrix','mute','role'], roleCheck:_hubRole('isAdminManager'), go:function(){ openAdminConsole(); _hubScrollTo('admNotifBox'); } },
+        { id:'contactsadmin', label:'Contacts Directory Manager', emoji:'&#128222;', section:'Admin Console', keywords:['contacts directory','vendor list','manage contacts','escalation'], roleCheck:_hubRole('isAdminManager'), go:function(){ openAdminConsole(); _hubScrollTo('admContactsDirBox'); } },
+        { id:'retention', key:'retention', label:'Data Retention', emoji:'&#128451;', section:'Admin Console', keywords:['retention','archive','keep records','years','history'], roleCheck:_hubRole('isAdminManager'), go:function(){ openRetention(); } },
+        { id:'dupscan', key:'dupscan', label:'Duplicate Employees Scan', emoji:'&#128101;', section:'Admin Console', keywords:['duplicate','merge','same name','doubles','roster cleanup'], roleCheck:_hubRole('isAdminManager'), go:function(){ openDupScan(); } },
+        { id:'mynotes', key:'mynotes', label:'My Coaching Notes', emoji:'&#128172;', section:'Home', keywords:['coaching','notes','feedback for me','support'], roleCheck:null, go:function(){ openMyNotes(); } },
+        { id:'schedtemplates', label:'Schedule Templates', emoji:'&#129513;', section:'Schedule tools', keywords:['template','week template','copy schedule','reuse'], roleCheck:_hubRole('schedIsMgr'), go:function(){ openScheduling(); setTimeout(function(){ try{ openSchedTemplates(); }catch(e){} }, 600); } },
+        { id:'schedconfirms', label:'Schedule Confirmations', emoji:'&#9989;', section:'Schedule tools', keywords:['confirm','confirmation','who has seen','acknowledged','week confirm'], roleCheck:_hubRole('schedIsMgr'), go:function(){ openScheduling(); setTimeout(function(){ try{ openWeekConfirms(); }catch(e){} }, 600); } },
+        { id:'yvmine', label:'Your Voice — My Submissions', emoji:'&#128203;', section:'Your Voice', keywords:['my submissions','reference code','access code','check status','case','follow up'], roleCheck:null, go:function(){ openYourVoice(); setTimeout(function(){ try{ yv2Mine(); }catch(e){} }, 500); } },
+        { id:'whatsnew', label:"What's New", emoji:'&#127881;', section:'Help', keywords:['whats new','new features','update','release','how to use'], roleCheck:null, go:function(){ openHowTo(); } },
+        { id:'learningpaths', label:'My Training — Learning Paths', emoji:'&#127891;', section:'Training', keywords:['learning path','lms','course','lesson','quiz','certification','apron','scorm'], roleCheck:null, go:function(){ openLmsPreview(); } },
+        { id:'messages', key:'messages', label:'Messages', emoji:'&#128172;', section:'Messages', keywords:['message','chat','dm','direct','announcement','broadcast','inbox','updates'], roleCheck:null, go:function(){ openMessages(); } },
+        /* --- tile enrichments: inherit the tile's label/emoji/visibility, add search keywords --- */
+        { id:'scheduling', key:'scheduling', btn:'btn-scheduling', keywords:['schedule builder','build','publish','weekly shifts','rota'] },
+        { id:'preshift', btn:'btn-preshift', keywords:['pre shift','lineup','positions','huddle','goals'] },
+        { id:'crewtrainer', btn:'btn-crewtrainer', keywords:['crew trainer','trainee','coach','training delivered'] },
+        { id:'availability', btn:'btn-availApprovals', keywords:['availability requests','approve availability','deny'] },
+        { id:'requests', btn:'requestsBtn', keywords:['time off approvals','swap','approve','deny','requests'] },
+        { id:'assigntask', btn:'assignTaskBtn', keywords:['assign task','delegate','send task','crew task'] },
+        { id:'timesheets', btn:'schedTimesheetsBtn', keywords:['timesheet','hours','overtime','payroll'] },
+        { id:'roster', btn:'schedRosterBtn', keywords:['roster','staff list','logins','phone numbers','employees'] },
+        { id:'roster2', btn:'rosterBtn', keywords:['roster','staff list','logins','phone numbers','employees'] },
+        { id:'popin', key:'popin', btn:'btn-popIn', keywords:['pop in','inspection','walk through','store visit','audit'] },
+        { id:'templogs', key:'temp', btn:'btn-tempLogs', keywords:['temperature','temp log','food safety','fridge','freezer','cooler'] },
+        { id:'checklists', key:'checklists', btn:'btn-checklists', keywords:['checklist','opening','closing','cleaning','shift duties'] },
+        { id:'inventory', key:'inventory', btn:'btn-inventory', keywords:['inventory','count','par','reorder','supplies','stock'] },
+        { id:'supply', key:'shortage', btn:'btn-shortage', keywords:['supply','shortage','order','transfer','warehouse','restock','out of'] },
+        { id:'discipline', btn:'btn-discipline', keywords:['discipline','write up','warning','verbal','written','final','termination'] },
+        { id:'attendance', btn:'btn-attendance', keywords:['attendance','call out','callout','no show','absent','late','record','points'] },
+        { id:'maintreport', key:'maintenance', btn:'btn-maintenance', keywords:['maintenance','repair','flag','broken','fix'] },
+        { id:'equipment', btn:'btn-equipment', keywords:['equipment','machine','qr code','pm','preventive','history'] },
+        { id:'workorders', btn:'btn-workorders', keywords:['work order','wo','repair ticket','assign repair','track'] },
+        { id:'contactsdir', btn:'btn-contacts', keywords:['contacts','phone','vendor','utility','directory','call','numbers'] },
+        { id:'damage', key:'damage', btn:'btn-damage', keywords:['damage','accident','crash','vehicle','trailer','photos'] },
+        { id:'maintboard', btn:'maintBoardBtn', keywords:['maintenance board','prioritize','repairs'] },
+        { id:'mysubmissions', btn:'mySubmissionsBtn', keywords:['my submissions','past reports','history','sent'] },
+        { id:'driver', key:'driver', btn:'btn-driver', keywords:['driver','vehicle','trailer','checkout','check out','pre roll','fleet','safety'] },
+        { id:'quotes', key:'quotes', btn:'quotesBtn', keywords:['quote','catering','event','pricing','estimate'] },
+        { id:'salespipeline', btn:'salesPipelineBtn', keywords:['pipeline','leads','catering sales'] },
+        { id:'livedash', btn:'adminDashBtn', keywords:['live dashboard','ncr','square','pulse','revenue','sales now'] },
+        { id:'commandcenter', btn:'commandCenterBtn', keywords:['command center','ops','at a glance','live ops'] },
+        { id:'dailysales', btn:'salesBtn', keywords:['daily sales','labor','sales entry','deposit'] },
+        { id:'primecost', btn:'primeCostBtn', keywords:['prime cost','food cost','labor cost','weekly','xlsx'] },
+        { id:'managerdash', btn:'managerBtn', keywords:['manager dashboard','submissions','activity'] },
+        { id:'teachscoopy', btn:'knowledgeBaseBtn', keywords:['teach','scoopy','ai','knowledge base','chatbot','train'] },
+        { id:'adminconsole', key:'admincon', btn:'btn-admin-console', keywords:['admin console','settings','configure','manage the hub'] },
+        { id:'permmatrix', btn:'btn-permMatrix', keywords:['permissions','roles','access','who sees what'] },
+        { id:'celebrations', btn:'celebrationsBtn', keywords:['birthday','anniversary','milestone','award','celebrate','recognition'] },
+        { id:'shortagetrends', btn:'shortageTrendsBtn', keywords:['shortage trends','runs low','often','analytics'] },
+        { id:'teamdev', btn:'teamDevBtn', keywords:['team development','growth','promotion','progression','training status'] },
+        { id:'fundraiser', key:'fundraiser2', btn:'btn-fundraiserHub', keywords:['fundraiser','cards','organizer','reconciliation','inquiries'] },
+        { id:'maintbilling', key:'maintbill', btn:'btn-maintBilling', keywords:['invoice','billing','vendor rates','approve','pay','finance'] },
+        { id:'maintdash', key:'maintdash', btn:'btn-maintDash', keywords:['maintenance dashboard','costs by store','vendor spend','leadership'] },
+        { id:'storemanager', key:'stores2', btn:'btn-storeManager', keywords:['stores','locations','add store','rename store'] },
+        { id:'scorecards', key:'scorecards2', btn:'btn-scorecards', keywords:['scorecard','metrics','kpi','sales vs ly','labor','speed','inspection'] },
+        { id:'emergency', btn:'btn-emergency', keywords:['emergency','fire','robbery','power outage','911','procedures','food safety'] },
+        { id:'myhome', btn:'btn-empHome', keywords:['my home','my shifts','my updates','employee home'] },
+        { id:'forms', btn:'btn-formsDocs', keywords:['forms','documents','payroll','hr','w2','w4','hiring','pdf'] },
+        { id:'training', btn:'btn-training', keywords:['training','recipes','how to','guides','resources','portal'] },
+        { id:'yourvoice', btn:'btn-report', keywords:['your voice','concern','anonymous','confidential','idea','feedback','help','survey','speak up','report'] },
+        { id:'apptour', btn:'btn-howto', keywords:['tour','walkthrough','how to use the hub','guide'] }
+    ];
+    function hubTileSection(el){
+        try{
+            if(!el || !el.closest) return '';
+            var p=el.closest('.menu-tab-content'); if(!p) return '';
+            return ({ 'tab-content-home':'Home', 'tab-content-scheduling':'Scheduling', 'tab-content-operations':'Store Operations', 'tab-content-fleet':'Vending & Catering', 'tab-content-management':'Admin Dashboard', 'tab-content-sections':'All Sections' })[p.id] || '';
+        }catch(e){ return ''; }
+    }
+    function _hubTileHidden(t){
+        if (t.style.display==='none') return true; /* hidden by role/permission gates */
+        try{
+            if (t.closest && t.closest('#futureIntegrations')) return true; /* placeholder integrations stub */
+            /* role-gated segment panes: the pane's seg button is the role truth for its tiles */
+            var pane=t.closest ? t.closest('.sched-pane') : null;
+            if(pane){ var seg={ schedPaneBuild:'schedSegBuild', maintPaneBoard:'maintSegBoard' }[pane.id];
+                if(seg){ var sb=document.getElementById(seg); if(sb && sb.style.display==='none') return true; } }
+        }catch(e){}
+        return false;
+    }
+    function hubRegistryAll(){
+        var out=[], seenLabels={}, claimed={}, btnKey={};
+        try{ (typeof QUICK_REG!=='undefined'?QUICK_REG:[]).forEach(function(q){ if(q.btn && !btnKey[q.btn]) btnKey[q.btn]=q.key; }); }catch(e){}
+        /* 1. static entries (richer keywords win the label over the plain tile sweep) */
+        (HUB_STATIC_REG||[]).forEach(function(s){
+            try{
+                var el = s.btn ? document.getElementById(s.btn) : null;
+                if (s.btn){ claimed[s.btn]=1; if(!el || _hubTileHidden(el)) return; }
+                if (s.roleCheck && !s.roleCheck()) return;
+                var label=s.label||'', emoji=s.emoji||'', sub=s.sub||'', section=s.section||'';
+                if (el){
+                    var lb=el.querySelector('b'); if(lb && lb.textContent) label=lb.textContent.trim();
+                    var ic=el.querySelector('.tile-ic'); if(ic && ic.textContent) emoji=ic.textContent;
+                    var sm=el.querySelector('small'); if(sm) sub=(sm.textContent||'');
+                    if(!section) section=hubTileSection(el);
+                }
+                if (!label) return;
+                var go = s.go || (el ? (function(e2){ return function(){ e2.click(); }; })(el) : null);
+                if (!go) return;
+                var lk=label.toLowerCase(); if(seenLabels[lk]) return; seenLabels[lk]=1;
+                out.push({ id:s.id, label:label, emoji:emoji, sub:sub, section:section, keywords:s.keywords||[], go:go, key:(s.key || (s.btn && btnKey[s.btn]) || ('find:'+s.id)) });
+            }catch(e){}
+        });
+        /* 2. auto sweep: every remaining visible menu tile (role truth from the DOM) */
+        try{
+            var tiles=document.querySelectorAll('#main-menu .menu-btn');
+            for(var i=0;i<tiles.length;i++){
+                (function(t){
+                    if(t.id && claimed[t.id]) return;
+                    if(_hubTileHidden(t)) return;
+                    var lb=t.querySelector('b'); var label=lb?(lb.textContent||'').trim():''; if(!label) return;
+                    var lk=label.toLowerCase(); if(seenLabels[lk]) return; seenLabels[lk]=1;
+                    var ic=t.querySelector('.tile-ic'); var sm=t.querySelector('small');
+                    out.push({ id:'tile:'+(t.id||lk), label:label, emoji:ic?(ic.textContent||''):'', sub:sm?(sm.textContent||''):'', section:hubTileSection(t), keywords:[], go:function(){ t.click(); }, key:((t.id && btnKey[t.id]) || ('tile:'+(t.id||lk))) });
+                })(tiles[i]);
+            }
+        }catch(e){}
+        return out;
+    }
+    /* =================== END FIND ANYTHING — HUB REGISTRY =================== */
 
     function updatePreviewToggleBtn() {
         const btn = document.getElementById('previewToggleBtn');
@@ -11309,7 +11526,7 @@
 
     // ---- Messaging ----
     var msgTab='updates';
-    function openMessages(){ document.getElementById('main-menu').style.display='none'; document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';}); document.getElementById('messagesView').style.display='block'; window.scrollTo(0,0); msgTab='updates'; renderMsgTabs(); loadMsgTab(); }
+    function openMessages(){ document.getElementById('main-menu').style.display='none'; document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';}); document.getElementById('messagesView').style.display='block'; window.scrollTo(0,0); msgTab='updates'; renderMsgTabs(); loadMsgTab(); try{ msgBadgeClear(); }catch(e){} }
     function renderMsgTabs(){ ['updates','dm','store'].forEach(function(t){ var el=document.getElementById('msgTab'+t.charAt(0).toUpperCase()+t.slice(1)); if(el) el.className='msg-tab'+(msgTab===t?' active':''); }); }
     function setMsgTab(t){ msgTab=t; renderMsgTabs(); loadMsgTab(); }
     function loadMsgTab(){ var c=document.getElementById('msgContent'); c.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading...</p>'; if(msgTab==='updates') loadUpdates(); else if(msgTab==='dm') loadDmThreads(); else loadStoreFeed(); }
@@ -12857,6 +13074,60 @@
                 .replace(/'/g, "&#39;");
         }
 
+        /* ---- Messages unread badge (red dot on the 💬 button + More tab) ----
+           Derived from RPCs that already exist: app_dm_threads (per-thread unread) +
+           app_announce_feed (per-item read flag). No new RPC. Never prompts for PIN —
+           it rides the same 60s notifications tick and skips when no PIN is cached. */
+        function msgBadgeEnsure() {
+            try {
+                var b = document.getElementById('topMessagesBtn');
+                if (b && !document.getElementById('msgUnreadDot')) {
+                    b.style.position = 'relative';
+                    var s = document.createElement('span'); s.id = 'msgUnreadDot';
+                    s.style.cssText = 'position:absolute;top:-4px;right:-4px;background:#e0245e;color:#fff;border-radius:99px;min-width:16px;height:16px;font-size:10px;line-height:16px;font-weight:800;display:none;text-align:center;padding:0 3px;box-sizing:border-box;pointer-events:none;';
+                    b.appendChild(s);
+                }
+                var m = document.getElementById('hbn-more');
+                if (m && !document.getElementById('msgUnreadDotMore')) {
+                    m.style.position = 'relative';
+                    var s2 = document.createElement('span'); s2.id = 'msgUnreadDotMore';
+                    s2.style.cssText = 'position:absolute;top:4px;right:26%;background:#e0245e;border-radius:99px;width:9px;height:9px;display:none;pointer-events:none;';
+                    m.appendChild(s2);
+                }
+            } catch(e) {}
+        }
+        function msgBadgeRender(n) {
+            try {
+                msgBadgeEnsure();
+                var d = document.getElementById('msgUnreadDot');
+                if (d) { d.style.display = n > 0 ? 'block' : 'none'; d.textContent = n > 9 ? '9+' : String(n || ''); }
+                var m = document.getElementById('msgUnreadDotMore');
+                if (m) m.style.display = n > 0 ? 'block' : 'none';
+            } catch(e) {}
+        }
+        function msgBadgeTick() {
+            try {
+                if (!currentUser || !currentUser.username) return;
+                if (!notifHasCachedPin()) return; /* silent: never pop the PIN prompt from a poll */
+                withPin(function(pin) {
+                    var u = { p_username: currentUser.username, p_password: pin };
+                    Promise.all([
+                        supabaseClient.rpc('app_dm_threads', u).then(function(r){ return r.error ? null : r.data; }).catch(function(){ return null; }),
+                        supabaseClient.rpc('app_announce_feed', u).then(function(r){ return r.error ? null : r.data; }).catch(function(){ return null; })
+                    ]).then(function(res) {
+                        var n = 0;
+                        ((res[0] && res[0].threads) || []).forEach(function(t){ n += (parseInt(t.unread, 10) || 0); });
+                        ((res[1] && res[1].items) || []).forEach(function(a){ if (!a.read) n++; });
+                        msgBadgeRender(n);
+                    }).catch(function(){});
+                }, function(){});
+            } catch(e) {}
+        }
+        function msgBadgeClear() {
+            try { lsSet('calichesMsgsSeenAt', String(Date.now())); } catch(e) {}
+            msgBadgeRender(0);
+        }
+
         function setupNotifications() {
             const isManager = (currentUser.role === 'Admin Manager' || currentUser.role === 'Manager' || currentUser.role === 'Store Manager' || currentUser.role === 'Vice President/Co-Owner');
             const wrap = document.getElementById('notifBellWrap');
@@ -12864,15 +13135,20 @@
 
             if (!isManager) {
                 wrap.style.display = "none";
-                if (notifPollTimer) { clearInterval(notifPollTimer); notifPollTimer = null; }
+                /* Non-managers keep the same single 60s tick, but it only refreshes the
+                   Messages unread badge (guarded on cached PIN — never prompts). */
+                try { msgBadgeTick(); } catch(e) {}
+                if (notifPollTimer) clearInterval(notifPollTimer);
+                notifPollTimer = setInterval(function(){ try { msgBadgeTick(); } catch(e) {} }, 60000);
                 return;
             }
 
             wrap.style.display = "block";
             fetchNotifications(true);
+            try { msgBadgeTick(); } catch(e) {}
 
             if (notifPollTimer) clearInterval(notifPollTimer);
-            notifPollTimer = setInterval(function(){ fetchNotifications(true); }, 60000);
+            notifPollTimer = setInterval(function(){ fetchNotifications(true); try { msgBadgeTick(); } catch(e) {} }, 60000);
         }
 
         function notifHasCachedPin() {
