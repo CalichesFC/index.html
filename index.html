@@ -388,6 +388,20 @@
     body.newlook.night [style*="color:#6b7686"], body.newlook.night [style*="color:#5b6675"],
     body.newlook.night [style*="color:#8794a3"]{ color:var(--txt2) !important; }
     body.newlook.night [style*="color:#6b6275"]{ color:var(--txt2) !important; }
+    /* Phase-3 dark triage: newer modules (Needs-You card, yv2, supply, billing, admin modals)
+       hardcode light-mode inline colors — lift them onto the theme vars in Dark Scoop. */
+    body.newlook.night [style*="color:#3b2f6b"]{ color:var(--txt) !important; }
+    body.newlook.night [style*="color:#26242b"], body.newlook.night [style*="color:#1f2a44"],
+    body.newlook.night [style*="color:#33303a"], body.newlook.night [style*="color:#26262e"]{ color:var(--txt) !important; }
+    body.newlook.night [style*="color:#5b6472"], body.newlook.night [style*="color:#9aa7b4"]{ color:var(--txt2) !important; }
+    body.newlook.night [style*="linear-gradient(135deg,#ffffff"], body.newlook.night [style*="background:#f3faf5"],
+    body.newlook.night [style*="background:#f6f4ff"], body.newlook.night [style*="background:#f7f8fb"],
+    body.newlook.night [style*="background:#fafbfd"], body.newlook.night [style*="background:#eef0f3"],
+    body.newlook.night [style*="background:#eef3fb"], body.newlook.night [style*="background:#e7f6ec"]{ background:var(--surface) !important; }
+    body.newlook.night [style*="background:#f4f5f8"]{ background:var(--pg) !important; }
+    body.newlook.night [style*="border:1px solid #ececf2"], body.newlook.night [style*="border:1px solid #eef0f5"],
+    body.newlook.night [style*="border:1px solid #eee"], body.newlook.night [style*="border:1px solid #ddd"],
+    body.newlook.night [style*="border:1px solid #d6deea"]{ border-color:var(--bd) !important; }
     body.newlook.night .sec-title .tag, body.newlook.night .hub-hero p, body.newlook.night .menu-btn small, body.newlook.night .home-card-label, body.newlook.night .notif-meta, body.newlook.night .notif-empty, body.newlook.night .notif-loading, body.newlook.night .notif-dismiss, body.newlook.night .maint-card-meta, body.newlook.night .qcard small, body.newlook.night #kbView .kb-updated, body.newlook.night .ai-msg-thinking{ color:var(--txt2) !important; }
     /* All dropdowns / inputs across the app follow the theme (fixes the store switcher in dark) */
     body.newlook select, body.newlook input[type="text"], body.newlook input[type="number"], body.newlook input[type="date"],
@@ -642,10 +656,10 @@
         <!-- ── TAB BAR ── -->
         <div class="menu-tab-bar">
             <button class="menu-tab active" id="tab-home" onclick="switchMenuTab('home')">🏠 Home</button>
-            <button class="menu-tab" id="tab-scheduling" onclick="switchMenuTab('scheduling')">📅 Scheduling</button>
-            <button class="menu-tab" id="tab-operations" onclick="switchMenuTab('operations')">&#127846; Store Operations</button>
-            <button class="menu-tab" id="tab-fleet" onclick="switchMenuTab('fleet')">🚚 Mobile Vending &amp; Catering</button>
-            <button class="menu-tab" id="tab-management" style="display:none;" onclick="switchMenuTab('management')">⚡ Admin Dashboard</button>
+            <button class="menu-tab" id="tab-scheduling" onclick="switchMenuTab('scheduling')">📅 Schedule</button>
+            <button class="menu-tab" id="tab-operations" onclick="switchMenuTab('operations')">&#127846; Work</button>
+            <button class="menu-tab" id="tab-teamhr" onclick="switchMenuTab('teamhr')">&#129309; Team</button>
+            <button class="menu-tab" id="tab-management" style="display:none;" onclick="switchMenuTab('management')">⚡ Admin</button>
         </div>
 
         <!-- ── HOME (personal) ── -->
@@ -677,10 +691,7 @@
             <div class="quick" id="jumpToGrid"><p style="flex-basis:100%;text-align:center;color:#aab;font-size:12px;margin:0;">Loading your shortcuts&hellip;</p></div>
             <div class="sec-title"><h2>My Shortcuts</h2><span class="tag">Personal</span></div>
             <button id="btn-emergency" class="menu-btn" style="background:#fff1f1;border:1.5px solid #f3b4b4;" onclick="openEmergency()"><span class="rchip" style="background:#c0264b;color:#fff;">Emergency</span><span class="tile-ic">&#128680;</span><b style="color:#a01b3c;">Emergency Procedures</b><small>Power, fire, robbery, food-safety &amp; more</small></button>
-            <button id="btn-empHome" class="menu-btn" onclick="openEmployeeHome()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127968;</span><b>My Home</b><small>Your shifts, tasks &amp; updates</small></button>
-            <button id="btn-formsDocs" class="menu-btn" onclick="openFormsLinks()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128196;</span><b>Forms &amp; Documents</b><small>Payroll, HR &amp; hiring forms</small></button>
-            <button id="btn-training" class="menu-btn" onclick="openTrainingPortal()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128218;</span><b>Training &amp; Resources</b><small>Recipes, how-tos &amp; guides</small></button>
-            <button id="btn-report" class="menu-btn" onclick="openYourVoice()"><span class="rchip staff" style="background:#ede4fb;color:#5b3aa6;">SAFE &amp; PRIVATE</span><span class="tile-ic">&#128172;</span><b>Your Voice</b><small>Ideas, feedback, support &amp; confidential concerns</small></button>
+            <button id="btn-empHome" class="menu-btn" onclick="hubNav('home')"><span class="rchip staff">Staff</span><span class="tile-ic">&#127968;</span><b>My Home</b><small>Your day at a glance &mdash; shifts, tasks &amp; updates</small></button>
             <button id="btn-howto" class="menu-btn" style="display:none;" onclick="openAppTour()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128218;</span><b>How to Use the Hub</b><small>Quick guided walkthrough</small></button>
         </div>
 
@@ -688,21 +699,20 @@
         <div id="tab-content-sections" class="menu-tab-content">
             <div class="sec-title"><h2>All Sections</h2><span class="tag">Everything in one place</span></div>
             <div class="quick">
-                <div class="qcard" onclick="switchMenuTab('scheduling')"><div class="ic">&#128197;</div><b>Scheduling</b><small>Shifts, clock &amp; time-off</small></div>
-                <div class="qcard" onclick="switchMenuTab('operations')"><div class="ic">&#127846;</div><b>Store Operations</b><small>Daily tasks &amp; logs</small></div>
-                <div class="qcard" onclick="switchMenuTab('fleet')"><div class="ic">&#128666;</div><b>Driver &amp; Catering</b><small>Checks, quotes &amp; events</small></div>
+                <div class="qcard" onclick="hubNav('home')"><div class="ic">&#127968;</div><b>Home</b><small>Your day, tasks &amp; shortcuts</small></div>
+                <div class="qcard" onclick="switchMenuTab('scheduling')"><div class="ic">&#128197;</div><b>Schedule</b><small>Shifts, clock &amp; time-off</small></div>
+                <div class="qcard" onclick="switchMenuTab('operations')"><div class="ic">&#127846;</div><b>Work</b><small>Daily tasks, repairs &amp; vending</small></div>
+                <div class="qcard" onclick="switchMenuTab('teamhr')"><div class="ic">&#129309;</div><b>Team</b><small>People, training &amp; your voice</small></div>
+                <div class="qcard" id="sectionsAdminCard" style="display:none;" onclick="switchMenuTab('management')"><div class="ic">&#9889;</div><b>Admin</b><small>Dashboards &amp; tools</small></div>
                 <div class="qcard" onclick="openMessages()"><div class="ic">&#128172;</div><b>Messages</b><small>Team chat &amp; broadcasts</small></div>
-                <div class="qcard" onclick="openFormsLinks()"><div class="ic">&#128196;</div><b>Forms &amp; Documents</b><small>Payroll, HR &amp; hiring</small></div>
-                <div class="qcard" onclick="openTrainingPortal()"><div class="ic">&#128218;</div><b>Training &amp; Resources</b><small>Recipes, how-tos &amp; guides</small></div>
                 <div class="qcard" onclick="openHowTo()"><div class="ic">&#127881;</div><b>What&rsquo;s New</b><small>How to use the new features</small></div>
-                <div class="qcard" id="sectionsAdminCard" style="display:none;" onclick="switchMenuTab('management')"><div class="ic">&#9889;</div><b>Admin Dashboard</b><small>Metrics &amp; tools</small></div>
             </div>
         </div>
 
         <!-- ── SCHEDULING ── -->
         <div id="tab-content-scheduling" class="menu-tab-content">
             <button class="sec-back" onclick="hubNav('more')">&#8249; All Sections</button>
-            <div class="sec-title"><h2>📅 Scheduling</h2><span class="tag">Shifts, tours &amp; checklists</span></div>
+            <div class="sec-title"><h2>📅 Schedule</h2><span class="tag">Shifts, tours &amp; checklists</span></div>
             <div class="seg" id="schedSegBar">
                 <button class="sgb on" id="schedSegMine" onclick="schedSeg('mine')">My Shifts</button>
                 <button class="sgb" id="schedSegBuild" style="display:none;" onclick="schedSeg('build')">Build</button>
@@ -711,7 +721,6 @@
                 <div id="schedMyShifts"><p style="text-align:center;color:#6b7686;font-size:13px;padding:14px;">Loading your shifts&hellip;</p></div>
                 <button class="menu-btn" onclick="openTimeOff()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127796;</span><b>Request Time Off</b><small>Submit a time-off request</small></button>
                 <button id="btn-preshift" class="menu-btn" style="display:none;" onclick="openPreshift()"><span class="rchip mgr">Shift Lead</span><span class="tile-ic">&#128221;</span><b>Pre-Shift Lineup</b><small>Set positions &amp; goals &middot; track progress</small></button>
-                <button id="btn-crewtrainer" class="menu-btn" style="display:none;" onclick="openCrewTrainer()"><span class="rchip mgr">Trainer</span><span class="tile-ic">&#129309;</span><b>Crew Trainer</b><small>Coach trainees &middot; record training delivered</small></button>
                 <button class="menu-btn" onclick="openAvailability()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128197;</span><b>My Availability</b><small>Set the days/hours you can work</small></button>
                 <button id="btn-availApprovals" class="menu-btn" style="display:none;" onclick="openAvailApprovals()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#9989;</span><b>Availability Requests</b><small>Approve or deny submitted availability</small></button>
             </div>
@@ -726,67 +735,83 @@
             <button id="schedRosterBtn" class="menu-btn" style="display:none;" onclick="openRoster()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128101;</span><b>Employee Roster</b><small>Staff, logins &amp; stores</small></button>
         </div>
 
-        <!-- ── STORE OPERATIONS ── -->
+        <!-- ── STORE WORK (daily ops + maintenance + vending & catering) ── -->
         <div id="tab-content-operations" class="menu-tab-content">
             <button class="sec-back" onclick="hubNav('more')">&#8249; All Sections</button>
-            <div class="sec-title"><h2>&#127846; Store Operations</h2><span class="tag">Daily tasks &amp; logs</span></div>
+            <div class="sec-title"><h2>&#127846; Work</h2><span class="tag">Daily tasks, logs &amp; repairs</span></div>
             <button id="btn-popIn" class="menu-btn" style="display:none;" onclick="openPopIn()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128203;</span><b>Store Pop-In Inspection</b><small>Store walk-through</small></button>
             <button id="btn-tempLogs" class="menu-btn" onclick="openTempLogs()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127777;</span><b>Temperature Logs</b><small>Food-safety temp checks</small></button>
             <button id="btn-checklists" class="menu-btn" onclick="openChecklists()"><span class="rchip staff">Staff</span><span class="tile-ic">&#9989;</span><b>Shift Checklists</b><small>Open / close / clean</small></button>
-            <button id="btn-inventory" class="menu-btn" style="display:none;" onclick="openInventory()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128230;</span><b>Inventory &amp; Supplies</b><small>Counts, par &amp; reorders</small></button>
-            <button id="btn-shortage" class="menu-btn" onclick="openSupplyRequest()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128666;</span><b>Supply Request</b><small>Emergency supplies, transfers, warehouse</small></button>
-            <button id="btn-discipline" class="menu-btn" style="display:none;" onclick="openDiscipline()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#9888;</span><b>Disciplinary Actions</b><small>Verbal &rarr; written &rarr; final</small></button>
-            <button id="btn-attendance" class="menu-btn" style="display:none;" onclick="openAttendance()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128197;</span><b>Attendance &amp; Call-outs</b><small>Mark called out &middot; view records</small></button>
+            <button id="btn-inventory" class="menu-btn" style="display:none;" onclick="openInventory()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128230;</span><b>Inventory Count</b><small>Count stock &middot; par levels &amp; reorders</small></button>
+            <button id="btn-shortage" class="menu-btn" onclick="openSupplyRequest()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128666;</span><b>Supply Request</b><small>Ask for supplies, transfers &amp; warehouse runs</small></button>
             <div class="sec-title" style="margin-top:8px;"><h2 style="font-size:15px;">Maintenance &amp; Damage</h2></div>
             <div class="seg" id="maintSegBar">
                 <button class="sgb on" id="maintSegReport" onclick="maintSeg('report')">Report</button>
                 <button class="sgb" id="maintSegBoard" style="display:none;" onclick="maintSeg('board')">Board</button>
             </div>
             <div id="maintPaneReport" class="sched-pane">
-                <button id="btn-maintenance" class="menu-btn" style="display:none;" onclick="openForm('maintenanceView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128295;</span><b>Required Maintenance</b><small>Flag a repair</small></button>
+                <button id="btn-maintenance" class="menu-btn" style="display:none;" onclick="openForm('maintenanceView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128295;</span><b>Report a Repair</b><small>Flag broken equipment for repair</small></button>
                 <button id="btn-equipment" class="menu-btn" onclick="openEquipment()"><span class="rchip staff">Staff</span><span class="tile-ic">&#9881;</span><b>Equipment History</b><small>Records, QR codes &amp; repairs</small></button>
                 <button id="btn-workorders" class="menu-btn" style="display:none;" onclick="openWorkOrders()"><span class="rchip mgr">Maint</span><span class="tile-ic">&#128736;</span><b>Work Orders</b><small>Report, assign &amp; track repairs</small></button>
+                <button id="btn-vehicles" class="menu-btn" style="display:none;" onclick="openVehiclesService()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128666;</span><b>Vehicles &amp; Service</b><small>Mileage-based service tracker for trucks &amp; trailers</small></button>
                 <button id="btn-contacts" class="menu-btn" onclick="openContactsDir()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128222;</span><b>Important Contacts</b><small>Vendors, repairs, utilities &amp; escalation</small></button>
                 <button id="btn-damage" class="menu-btn" onclick="openForm('damageView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#9888;</span><b>Vehicle / Trailer Damage</b><small>Report damage with photos</small></button>
             </div>
             <div id="maintPaneBoard" class="sched-pane" style="display:none;">
                 <button id="maintBoardBtn" class="menu-btn" style="display:none;" onclick="openMaintenanceBoard()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128295;</span><b>Maintenance Board</b><small>Track &amp; prioritize repairs</small></button>
             </div>
+            <div class="sec-title" style="margin-top:8px;"><h2 style="font-size:15px;">🚚 Vending &amp; Catering</h2></div>
+            <button id="btn-driver" class="menu-btn" onclick="openForm('driverView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128666;</span><b>Vehicle &amp; Trailer Check-Out</b><small>Pre-roll safety checklist</small></button>
+            <button id="quotesBtn" class="menu-btn" style="display:none;" onclick="if(typeof clearQuoteEdit==='function')clearQuoteEdit();openForm('quotesView')"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128221;</span><b>Create Catering Quote</b><small>Build &amp; send event quotes</small></button>
+            <button id="salesPipelineBtn" class="menu-btn" style="display:none;" onclick="openSalesPipeline()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128202;</span><b>Sales Pipeline</b><small>Catering leads &amp; quotes</small></button>
+            <p style="flex-basis:100%;font-size:12.5px;color:#6b7686;text-align:center;margin:8px 4px 0;">Vending revenue by town &amp; catering metrics live in <b>&#9889; Admin &rarr; &#128202; Dashboards</b>.</p>
             <div class="sec-title" style="margin-top:8px;"><h2 style="font-size:15px;">More</h2></div>
             <button id="mySubmissionsBtn" class="menu-btn" onclick="openMySubmissions()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128203;</span><b>My Submissions</b><small>Your past reports</small></button>
         </div>
 
-        <!-- ── MOBILE VENDING &amp; CATERING ── -->
-        <div id="tab-content-fleet" class="menu-tab-content">
+        <!-- ── TEAM & HR (people, growth, voice & HR tools) ── -->
+        <div id="tab-content-teamhr" class="menu-tab-content">
             <button class="sec-back" onclick="hubNav('more')">&#8249; All Sections</button>
-            <div class="sec-title"><h2>🚚 Mobile Vending &amp; Catering</h2><span class="tag">Fleet routes &amp; events</span></div>
-            <button id="btn-driver" class="menu-btn" onclick="openForm('driverView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128666;</span><b>Vehicle &amp; Trailer Check-Out</b><small>Pre-roll safety checklist</small></button>
-            <button id="quotesBtn" class="menu-btn" style="display:none;" onclick="if(typeof clearQuoteEdit==='function')clearQuoteEdit();openForm('quotesView')"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128221;</span><b>Create Catering Quote</b><small>Build &amp; send event quotes</small></button>
-            <button id="salesPipelineBtn" class="menu-btn" style="display:none;" onclick="openSalesPipeline()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128202;</span><b>Sales Pipeline</b><small>Catering leads &amp; quotes</small></button>
-            <p style="flex-basis:100%;font-size:12.5px;color:#6b7686;text-align:center;margin:8px 4px 0;">Vending revenue by town &amp; catering metrics live in <b>Admin Dashboard &rarr; Live Dashboard</b>.</p>
+            <div class="sec-title"><h2>&#129309; Team</h2><span class="tag">People, growth &amp; voice</span></div>
+            <button id="btn-report" class="menu-btn" onclick="openYourVoice()"><span class="rchip staff" style="background:#ede4fb;color:#5b3aa6;">SAFE &amp; PRIVATE</span><span class="tile-ic">&#128172;</span><b>Your Voice</b><small>Ideas, feedback, support &amp; confidential concerns</small></button>
+            <button id="btn-training" class="menu-btn" onclick="openTrainingPortal()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128218;</span><b>Training &amp; Resources</b><small>Recipes, how-tos &amp; guides</small></button>
+            <button id="btn-formsDocs" class="menu-btn" onclick="openFormsLinks()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128196;</span><b>Forms &amp; Documents</b><small>Payroll, HR &amp; hiring forms</small></button>
+            <button id="btn-sickLeave" class="menu-btn" onclick="openSickLeave()"><span class="rchip staff">Staff</span><span class="tile-ic">&#129298;</span><b>Sick Leave</b><small>Request paid sick time &middot; track your requests</small></button>
+            <div class="sec-title" style="margin-top:8px;"><h2 style="font-size:15px;">Recognition &amp; growth</h2></div>
+            <button id="celebrationsBtn" class="menu-btn" style="display:none;" onclick="openCelebrations()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#127881;</span><b>Celebrations</b><small>Birthdays, anniversaries &amp; awards</small></button>
+            <button id="btn-crewtrainer" class="menu-btn" style="display:none;" onclick="openCrewTrainer()"><span class="rchip mgr">Trainer</span><span class="tile-ic">&#129309;</span><b>Crew Trainer</b><small>Coach trainees &middot; record training delivered</small></button>
+            <button id="teamDevBtn" class="menu-btn" style="display:none;" onclick="openTeamDev()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128218;</span><b>Team Development</b><small>Everyone&rsquo;s training, growth &amp; promotions</small></button>
+            <div class="sec-title" style="margin-top:8px;"><h2 style="font-size:15px;">Manager HR tools</h2></div>
+            <button id="btn-discipline" class="menu-btn" style="display:none;" onclick="openDiscipline()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#9888;</span><b>Disciplinary Actions</b><small>Verbal &rarr; written &rarr; final &middot; includes PIPs</small></button>
+            <button id="btn-attendance" class="menu-btn" style="display:none;" onclick="openAttendance()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128197;</span><b>Attendance &amp; Call-outs</b><small>Mark called out &middot; view records</small></button>
+            <button id="btn-logbook" class="menu-btn" style="display:none;" onclick="openLogbook()"><span class="rchip mgr">Leads+</span><span class="tile-ic">&#128211;</span><b>Manager Logbook</b><small>Shift diary &middot; pass notes between shifts</small></button>
+            <button id="rosterBtn" class="menu-btn" style="display:none;" onclick="openRoster()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128101;</span><b>Employee Roster</b><small>Staff, logins &amp; stores</small></button>
         </div>
 
         <!-- ── ADMIN (Manager+ only) ── -->
         <div id="tab-content-management" class="menu-tab-content">
             <button class="sec-back" onclick="hubNav('more')">&#8249; All Sections</button>
-            <div class="sec-title"><h2>⚡ Admin Dashboard</h2><span class="tag">Metrics &amp; management tools</span></div>
-            <button id="adminDashBtn" class="menu-btn" style="display:none;" onclick="openAdminDash()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128225;</span><b>Live Dashboard</b><small>NCR Pulse &amp; Square</small></button>
-            <button id="commandCenterBtn" class="menu-btn" style="display:none;" onclick="openCommandCenter()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Command Center</b><small>Live ops at a glance</small></button>
-            <button id="salesBtn" class="menu-btn" style="display:none;" onclick="openSales()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128176;</span><b>Daily Sales &amp; Labor</b><small>Feeds NCR Pulse</small></button>
-            <button id="primeCostBtn" class="menu-btn" style="display:none;" onclick="openPrimeCost()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Weekly Prime Cost</b><small>Auto-builds your master xlsx</small></button>
-            <button id="managerBtn" class="menu-btn" style="display:none;" onclick="openDashboard()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128200;</span><b>Manager Dashboard</b><small>Submissions &amp; activity</small></button>
-            <button id="knowledgeBaseBtn" class="menu-btn" style="display:none;" onclick="openKnowledgeBase()"><span class="rchip admin">Admin</span><span class="tile-ic">&#129504;</span><b>Teach Mr. Scoopy</b><small>AI knowledge base</small></button>
-            <button id="btn-admin-console" class="menu-btn" style="display:none;" onclick="openAdminConsole()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128736;</span><b>Admin Console</b><small>Manage contacts, content &amp; settings</small></button>
+            <div class="sec-title"><h2>⚡ Admin</h2><span class="tag">Dashboards &amp; management tools</span></div>
+            <button id="btn-dashboards" class="menu-btn" style="display:none;" onclick="openDashboards()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Dashboards</b><small>Live sales, command center, scorecards &amp; more</small></button>
+            <!-- Legacy dashboard tiles: kept (hidden) so role gates, per-user permissions & search
+                 keep working — they are the role truth for the Dashboards tabs. Entry point is the
+                 single Dashboards tile above. -->
+            <div id="legacyDashTiles" style="display:none;" aria-hidden="true">
+                <button id="adminDashBtn" class="menu-btn" style="display:none;" onclick="openAdminDash()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128225;</span><b>Live Dashboard</b><small>NCR Pulse &amp; Square</small></button>
+                <button id="commandCenterBtn" class="menu-btn" style="display:none;" onclick="openCommandCenter()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Command Center</b><small>Live ops at a glance</small></button>
+                <button id="managerBtn" class="menu-btn" style="display:none;" onclick="openDashboard()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128200;</span><b>Manager Dashboard</b><small>Submissions &amp; activity</small></button>
+                <button id="btn-scorecards" class="menu-btn" style="display:none;" onclick="openScorecards()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Store Scorecards</b><small>Sales vs LY, labor, speed, inspection &amp; more</small></button>
+                <button id="btn-maintDash" class="menu-btn" style="display:none;" onclick="openMaintDashboard()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128295;</span><b>Maintenance Leadership Dashboard</b><small>Open work, costs by store, vendor spend</small></button>
+            </div>
+            <button id="salesBtn" class="menu-btn" style="display:none;" onclick="openSales()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128176;</span><b>Daily Sales &amp; Labor</b><small>Enter each day&rsquo;s sales &amp; labor numbers</small></button>
+            <button id="primeCostBtn" class="menu-btn" style="display:none;" onclick="openPrimeCost()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Weekly Prime Cost</b><small>Weekly food &amp; labor cost workbook</small></button>
+            <button id="knowledgeBaseBtn" class="menu-btn" style="display:none;" onclick="openKnowledgeBase()"><span class="rchip admin">Admin</span><span class="tile-ic">&#129504;</span><b>Teach Mr. Scoopy</b><small>Add answers to the AI helper</small></button>
+            <button id="btn-admin-console" class="menu-btn" style="display:none;" onclick="openAdminConsole()"><span class="rchip admin">Admin</span><span class="tile-ic">&#9881;&#65039;</span><b>Settings &amp; Console</b><small>Contacts, lists, notifications &amp; app settings</small></button>
             <button id="btn-permMatrix" class="menu-btn" style="display:none;" onclick="openPermMatrix()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128272;</span><b>Roles &amp; Permissions</b><small>Control what each role can see</small></button>
-            <button id="rosterBtn" class="menu-btn" style="display:none;" onclick="openRoster()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128101;</span><b>Employee Roster</b><small>Staff, logins &amp; stores</small></button>
-            <button id="celebrationsBtn" class="menu-btn" style="display:none;" onclick="openCelebrations()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#127881;</span><b>Celebrations</b><small>Birthdays, anniversaries &amp; awards</small></button>
             <button id="shortageTrendsBtn" class="menu-btn" style="display:none;" onclick="openShortageTrends()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128200;</span><b>Shortage Trends</b><small>What runs low, often</small></button>
-            <button id="teamDevBtn" class="menu-btn" style="display:none;" onclick="openTeamDev()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128218;</span><b>Team Development</b><small>Everyone&rsquo;s training, growth &amp; promotions</small></button>
             <button id="btn-fundraiserHub" class="menu-btn" style="display:none;" onclick="openFundraiserHub()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128203;</span><b>Fundraiser Hub</b><small>Inquiries, cards, returns, reconciliation &amp; reports</small></button>
             <button id="btn-maintBilling" class="menu-btn" style="display:none;" onclick="openMaintBilling()"><span class="rchip mgr">Finance</span><span class="tile-ic">&#129534;</span><b>Maintenance Billing</b><small>Invoices, approvals &amp; vendor rates</small></button>
-            <button id="btn-maintDash" class="menu-btn" style="display:none;" onclick="openMaintDashboard()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128295;</span><b>Maintenance Leadership Dashboard</b><small>Open work, costs by store, vendor spend</small></button>
             <button id="btn-storeManager" class="menu-btn" style="display:none;" onclick="openStoreManager()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#127978;</span><b>Manage Stores</b><small>Add, rename or remove store locations</small></button>
-            <button id="btn-scorecards" class="menu-btn" style="display:none;" onclick="openScorecards()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Store Scorecards</b><small>Sales vs LY, labor, speed, inspection &amp; more</small></button>
             <button id="developerBtn" class="menu-btn" style="display:none;" onclick="openTrainingPortal()"><span class="rchip admin">Dev</span><span class="tile-ic">&#128187;</span><b>Training Portal</b><small>Developer tools</small></button>
             <button id="previewToggleBtn" class="menu-btn" style="display:none;" onclick="togglePreviewMode()"><span class="rchip admin">Dev</span><span class="tile-ic">&#128065;</span><b>Preview as Staff</b><small>Hide dev tabs</small></button>
             <button id="installBtn" class="menu-btn" style="display:none;" onclick="installApp()"><span class="tile-ic">&#128242;</span><b>Install App on Phone</b><small>Add to home screen</small></button>
@@ -846,6 +871,19 @@
     @media(max-width:400px){ #aiChatToggle{padding:11px 16px;font-size:14px;} }
 </style>
 
+<!-- DASHBOARDS (merged screen: Live / Command Center / Manager / Scorecards / Maintenance) -->
+<div id="dashboardsView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
+    <div class="header" style="background:linear-gradient(120deg,#185FA5,#5b3aa6);">
+        <h1 style="font-size:40px;margin:10px 0;">&#128202;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Dashboards</p>
+    </div>
+    <div class="container" style="max-width:700px;">
+        <div class="seg" id="dashTabsBar" style="flex-wrap:wrap;"></div>
+        <div id="dashBody"></div>
+    </div>
+</div>
+
 <!-- EMPLOYEE HOME -->
 <div id="employeeHomeView" class="app-view">
     <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
@@ -854,6 +892,7 @@
         <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">My Home</p>
     </div>
     <div class="container" style="max-width:760px;">
+        <div class="home-card" style="margin-bottom:12px;text-align:left;"><span class="home-card-label">HEADS UP</span><p style="margin:4px 0 0;font-size:13.5px;color:#444;">Your day now lives on the main <b>&#127968; Home</b> tab. <a href="#" onclick="hubNav('home');return false;" style="color:var(--caliches-blue);font-weight:800;">Take me there &rsaquo;</a></p></div>
         <div id="empHomeContent"><p style="text-align:center;padding:30px;color:#6b7686;">Loading your info...</p></div>
     </div>
 </div>
@@ -1405,19 +1444,6 @@
   .sched-cell:hover { background:#f7f5ff; }
   .sched-chip { color:#fff; border-radius:6px; padding:3px 5px; font-size:10.5px; line-height:1.25; margin-bottom:3px; cursor:pointer; }
 </style>
-
-<!-- SCHEDULING: COMING SOON (non-admins) -->
-<div id="scheduleComingSoonView" class="app-view">
-    <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
-    <div style="background:linear-gradient(135deg,#5b3fb8 0%,var(--caliches-pink) 100%);padding:32px 20px;text-align:center;">
-        <img src="scoopy-wave.png" alt="Mr. Scoopy" style="width:120px;height:120px;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.25));" onerror="this.src='scoopy-hero.png'">
-        <h1 style="color:#fff;font-size:25px;margin:14px 0 4px;font-weight:900;">&#128197; Scheduling is Coming Soon!</h1>
-    </div>
-    <div class="container" style="max-width:600px;text-align:center;">
-        <p style="font-size:16px;color:#444;line-height:1.65;margin-top:26px;">Mr. Scoopy is still putting the schedule together! &#127846;<br><br>Soon you'll see your shifts right here in the Hub. Check back in a little while!</p>
-        <button class="save-btn blue-btn" style="max-width:280px;margin:26px auto 0;" onclick="openMenu()">&#128281; Back to Menu</button>
-    </div>
-</div>
 
 <!-- SCHEDULE BUILDER (Admin Manager only) -->
 <style>
@@ -2108,7 +2134,7 @@
       <ol><li>Tap <b>&ldquo;Give a Shout-Out.&rdquo;</b></li><li>Pick a person (or a team/whole store), choose the type (shout-out, customer compliment, great work&hellip;), and write your message.</li><li>Submit. A manager approves it, then it appears on everyone&rsquo;s Home feed and the person gets a notification.</li><li><b>Managers:</b> tap the approvals button to approve or decline pending ones.</li></ol></div>
 
     <div class="howto-sec"><h3>&#9989; Corrective Actions on Inspections</h3>
-      <p><b>Where:</b> Store Operations &rarr; Store Pop-In Inspection.</p>
+      <p><b>Where:</b> Work &rarr; Store Pop-In Inspection.</p>
       <ol><li>Do the Pop-In as usual and submit.</li><li>Any item you scored <b>1 or 2</b> is collected into a Corrective Actions popup.</li><li>For each one, pick <b>who</b> fixes it, a <b>due date</b>, and whether a <b>photo</b> is required. Uncheck any item to skip it.</li><li>Save &mdash; each becomes a task automatically assigned to that person.</li></ol></div>
 
     <div class="howto-sec"><h3>&#128680; Emergency Mode</h3>
@@ -2120,15 +2146,15 @@
       <ol><li>Everyone can open it and read modules grouped by category (Recipes, How-To, etc.).</li><li><b>Admins:</b> tap <b>&ldquo;+ Add module,&rdquo;</b> or Edit/Remove on any module, to keep recipe books and lessons up to date.</li><li>Shortcut buttons jump to Mr. Scoopy (Q&amp;A) and the Forms library.</li></ol></div>
 
     <div class="howto-sec"><h3>&#9881;&#65039; Equipment History + QR Codes</h3>
-      <p><b>Where:</b> Store Operations &rarr; Maintenance &amp; Damage &rarr; <b>Equipment History.</b></p>
+      <p><b>Where:</b> Work &rarr; Maintenance &amp; Damage &rarr; <b>Equipment History.</b></p>
       <ol><li>Pick the store and search for a machine, then tap it to see the full record &mdash; model, serial, vendor, warranty, manuals, troubleshooting, repair history and current status.</li><li>Tap <b>&ldquo;Print QR label&rdquo;</b> for one machine, or <b>&ldquo;Print all QR codes&rdquo;</b> for the whole store, and stick them on the machines. <b>Scanning a code opens that machine&rsquo;s record.</b></li><li><b>Admins:</b> <b>&ldquo;+ Add equipment&rdquo;</b> creates a new record and its QR automatically; Edit/Remove are on each record.</li></ol></div>
 
     <div class="howto-sec"><h3>&#128295; Maintenance &rarr; Equipment Link</h3>
-      <p><b>Where:</b> Store Operations &rarr; Required Maintenance.</p>
+      <p><b>Where:</b> Work &rarr; Report a Repair.</p>
       <ol><li>The form now has an <b>Equipment dropdown</b> &mdash; pick the machine from the registry instead of typing it (or choose &ldquo;Other&rdquo;).</li><li>From any equipment record, the <b>&ldquo;Report maintenance&rdquo;</b> button opens the form with that machine already selected.</li></ol></div>
 
     <div class="howto-sec"><h3>&#128221; Pre-Shift Lineup &mdash; now position-first</h3>
-      <p><b>Where:</b> Scheduling &rarr; <b>Pre-Shift Lineup</b> (shift leads &amp; managers).</p>
+      <p><b>Where:</b> Schedule &rarr; <b>Pre-Shift Lineup</b> (shift leads &amp; managers).</p>
       <ol><li>Pick the store, date, and <b>AM or PM</b> (each is its own saved lineup), and type your <b>2 shift goals.</b></li><li>The lineup now lists the <b>positions</b> &mdash; Shift Leader, Machine, two Registers, Item Maker. In each, <b>type a name or pick it from the list</b> (it suggests your crew as you type; you can even type a name that isn&rsquo;t in the system yet).</li><li>Bigger shift? Tap <b>&#10133; Add slot</b> for more spots, or the <b>&times;</b> to remove one. Then Save.</li><li>Tap the <b>&#128200; icon</b> on a slot to see that person&rsquo;s <b>training progression.</b> A reminder still goes out twice a day to set the lineup.</li></ol></div>
 
     <div class="howto-sec"><h3>&#128722; Pick n&rsquo; Take Orders (via Cherry)</h3>
@@ -2136,7 +2162,7 @@
       <ol><li>Forward or paste a Pick n&rsquo; Take order email into Ask Cherry.</li><li>Review what she&rsquo;ll do and approve.</li><li>She creates <b>two tasks</b> on that store&rsquo;s board &mdash; a <b>&#127846; PREP</b> task and a <b>&#128722; PICKUP</b> task, both dated to the pickup.</li></ol></div>
 
     <div class="howto-sec"><h3>&#128295; Preventive Maintenance</h3>
-      <p><b>Where:</b> Store Operations &rarr; Equipment History &rarr; open any machine.</p>
+      <p><b>Where:</b> Work &rarr; Equipment History &rarr; open any machine.</p>
       <ol><li>Scroll to <b>&#128295; Preventive maintenance</b> on the machine&rsquo;s record. Managers tap <b>&#10133; Add</b> to set a recurring service (e.g. &ldquo;Sanitize &amp; clean every 7 days&rdquo;).</li><li>When it&rsquo;s done, anyone on shift taps <b>&#9989; Mark serviced</b> &mdash; it logs who &amp; when and rolls the next-due date forward.</li><li>Overdue or due-soon items show a red/amber badge, and the <b>&#128295; Maintenance due</b> button at the top of Equipment History lists everything due for that store.</li><li>Managers also get a <b>daily push</b> each morning when machines are due.</li></ol></div>
 
     <div class="howto-sec"><h3>&#128222; Call a Coworker from the Roster</h3>
@@ -2144,11 +2170,11 @@
       <ol><li>Open the roster and find the person &mdash; if they have a phone number on file, a green <b>&#128222; Call</b> button shows on their row.</li><li>Tap it to phone them straight from the app &mdash; handy when someone hasn&rsquo;t shown up for their shift.</li><li>To add or change a number, tap <b>Edit</b> on their card and fill in the new <b>Phone</b> field.</li></ol></div>
 
     <div class="howto-sec"><h3>&#9881;&#65039; Equipment: Warehouse + Maintenance History</h3>
-      <p><b>Where:</b> Store Operations &rarr; Equipment History.</p>
+      <p><b>Where:</b> Work &rarr; Equipment History.</p>
       <ol><li>The store dropdown now includes <b>Warehouse</b> &mdash; it lists warehouse equipment split into <b>&#9989; In use</b> and <b>&#128230; Unused backups.</b> Managers tap <b>In use / Backup</b> on a unit to move it between the two.</li><li>Open any machine to see its new <b>Maintenance reports</b> history &mdash; every request filed for it, with status.</li><li>Managers can tap <b>&#9989; Mark resolved</b> on a report and type how it was fixed; the <b>resolution</b> then shows in that machine&rsquo;s history.</li><li>All your real equipment (walk-in coolers, freezers, washers, dryers, water heaters &amp; softeners, Lenox&rsquo;s two custard machines) is now loaded per store.</li></ol></div>
 
     <div class="howto-sec"><h3>&#9989; Confirm Your Schedule</h3>
-      <p><b>Where:</b> Scheduling &rarr; <b>My Shifts.</b></p>
+      <p><b>Where:</b> Schedule &rarr; <b>My Shifts.</b></p>
       <ol><li>Once you have checked your shifts for the week, tap <b>&#9989; Confirm my schedule</b> at the bottom.</li><li>It lets your manager know you have seen the week.</li><li><b>Managers:</b> in the schedule&rsquo;s left tools, open <b>&#9989; Confirmations</b> to see who has (and has not) confirmed each week.</li></ol></div>
 
     <button onclick="closeHowTo()" class="save-btn" style="margin-top:16px;background:var(--caliches-blue);">Got it &mdash; let&rsquo;s go</button>
@@ -2538,7 +2564,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.07.01.2204';
+    const APP_VERSION = '2026.07.01.2304';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2905,7 +2931,7 @@
 
     // ── App bottom nav ──
     function syncBottomNav(tab) {
-        var map = { home:'home', scheduling:'schedule', operations:'more', fleet:'more', management:'more', sections:'more' };
+        var map = { home:'home', scheduling:'schedule', operations:'more', teamhr:'more', management:'more', sections:'more' };
         var dest = map[tab] || '';
         document.querySelectorAll('.hbn-item').forEach(function(b){ b.classList.remove('active'); });
         var el = document.getElementById('hbn-' + dest);
@@ -2923,6 +2949,8 @@
         else if (dest === 'more') { ensureMenuVisible(); switchMenuTab('sections'); window.scrollTo(0,0); }
     }
 
+    /* Phase-3: small inline "couldn't load" card with a retry button (replaces silent catches) */
+    function _hubRetryHtml(label, call){ return '<div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:11px;padding:10px 12px;margin:6px 0;font-size:12.5px;color:var(--txt2,#6b7686);display:flex;align-items:center;gap:8px;"><span>&#9888;&#65039;</span><span style="flex:1;">'+label+'</span><button onclick="'+call+'" style="background:#185FA5;color:#fff;border:none;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;">Tap to retry</button></div>'; }
     // ── Personal Home: next shift + tasks ──
     function loadHomeDay() {
         var el = document.getElementById('homeDayCard');
@@ -2951,7 +2979,8 @@
         var card=aiCard(); if(!card) return;
         withPin(function(pin){
             var u={p_username:currentUser.username,p_password:pin};
-            function rc(fn,extra){ return supabaseClient.rpc(fn,Object.assign({},u,extra||{})).then(function(r){ return r.error?null:r.data; }).catch(function(){ return null; }); }
+            var _aiErr=false;
+            function rc(fn,extra){ return supabaseClient.rpc(fn,Object.assign({},u,extra||{})).then(function(r){ if(r.error){ _aiErr=true; return null; } return r.data; }).catch(function(){ _aiErr=true; return null; }); }
             var jobs=[ rc('app_pending_schedule_confirm'), rc('app_supply_list',{p_scope:'incoming'}), rc('app_wo_list',{p_scope:'queue'}), rc('app_lp_my'), rc('app_my_support_notes'), (_aiIsFinance()?rc('wo_invoice_list'):Promise.resolve(null)) ];
             Promise.all(jobs).then(function(res){
                 var sched=res[0], supply=res[1]||[], wo=res[2]||[], lp=res[3]||{}, notes=res[4], inv=res[5];
@@ -2966,7 +2995,7 @@
                 if(tCount>0){ items.push(aiRow('&#127891;','Training to finish',tCount,'#1f7a3d','openTrainingPortal()')); }
                 var nCount=(notes&&notes.notes)?notes.notes.length:0;
                 if(nCount>0){ items.push(aiRow('&#128172;','New coaching notes for you',nCount,'#5b3aa6','openMyNotes()')); }
-                if(!items.length){ card.innerHTML='<div class="home-card" style="background:#f3faf5;border:1px solid #d8eede;"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">&#9989;</span><div style="font-size:13.5px;color:#1b7a3d;font-weight:700;">You&rsquo;re all caught up today</div></div></div>'; return; }
+                if(!items.length){ if(_aiErr){ card.innerHTML=_hubRetryHtml('Couldn&rsquo;t load your action items','loadActionItems()'); return; } card.innerHTML='<div class="home-card" style="background:#f3faf5;border:1px solid #d8eede;"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">&#9989;</span><div style="font-size:13.5px;color:#1b7a3d;font-weight:700;">You&rsquo;re all caught up today</div></div></div>'; return; }
                 card.innerHTML='<div class="home-card" style="background:linear-gradient(135deg,#ffffff,#f6f4ff);border:1px solid #e6e2f3;">'+
                     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;"><span style="font-size:18px;">&#9889;</span><div class="home-card-label" style="color:#5b3aa6;">NEEDS YOU TODAY</div><span style="flex:1;"></span><span style="font-size:11px;color:#5b6675;">'+items.length+' item'+(items.length===1?'':'s')+'</span></div>'+
                     items.join('')+'</div>';
@@ -3441,8 +3470,8 @@
         { key:'messages',    btn:'topMessagesBtn',  label:'Messages',        emoji:'&#128172;', fn:function(){ openMessages(); } },
         { key:'quotes',      btn:'quotesBtn',       label:'Catering Quote',  emoji:'&#128221;', fn:function(){ if(typeof clearQuoteEdit==='function')clearQuoteEdit(); openForm('quotesView'); } },
         { key:'mynotes',    btn:'',                 label:'My Coaching Notes',         emoji:'&#128172;', fn:function(){ if(typeof openMyNotes==='function') openMyNotes(); } },
-        { key:'maintdash',  btn:'btn-maintDash',    label:'Maintenance Dashboard',     emoji:'&#128295;', fn:function(){ if(typeof openMaintDashboard==='function') openMaintDashboard(); } },
-        { key:'scorecards2',btn:'btn-scorecards',   label:'Store Scorecards',          emoji:'&#128202;', fn:function(){ if(typeof openScorecards==='function') openScorecards(); } },
+        { key:'maintdash',  btn:'btn-maintDash',    label:'Maintenance Dashboard',     emoji:'&#128295;', fn:function(){ if(typeof openDashboards==='function') openDashboards('maint'); else openMaintDashboard(); } },
+        { key:'scorecards2',btn:'btn-scorecards',   label:'Store Scorecards',          emoji:'&#128202;', fn:function(){ if(typeof openDashboards==='function') openDashboards('scorecards'); else openScorecards(); } },
         { key:'maintbill',  btn:'btn-maintBilling', label:'Maintenance Billing',       emoji:'&#129534;', fn:function(){ if(typeof openMaintBilling==='function') openMaintBilling(); } },
         { key:'fundraiser2',btn:'btn-fundraiserHub',label:'Fundraiser Hub',            emoji:'&#128203;', fn:function(){ if(typeof openFundraiserHub==='function') openFundraiserHub(); } },
         { key:'stores2',    btn:'btn-storeManager', label:'Manage Stores',             emoji:'&#127978;', fn:function(){ if(typeof openStoreManager==='function') openStoreManager(); } },
@@ -3509,7 +3538,7 @@
        Entries: {id,label,emoji,keywords,roleCheck,go,key(usage)}. All go() calls are wrapped so a
        missing anchor degrades silently. Static entries with a `btn` enrich that tile with keywords
        (and inherit its label/emoji/visibility) instead of duplicating it. */
-    var NEW_THIS_MONTH = ['myday','recentdone','nudge','pip','teamtasks'];
+    var NEW_THIS_MONTH = ['dashboards','vehicles','myday','recentdone','nudge','pip','teamtasks'];
     function _hubRole(fn){ return function(){ try{ return (typeof window[fn]==='function') && !!window[fn](); }catch(e){ return false; } }; }
     function _hubScrollTo(id){ setTimeout(function(){ try{ var el=document.getElementById(id); if(el && el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){} }, 350); }
     var HUB_STATIC_REG = [
@@ -3546,11 +3575,11 @@
         { id:'popin', key:'popin', btn:'btn-popIn', keywords:['pop in','inspection','walk through','store visit','audit'] },
         { id:'templogs', key:'temp', btn:'btn-tempLogs', keywords:['temperature','temp log','food safety','fridge','freezer','cooler'] },
         { id:'checklists', key:'checklists', btn:'btn-checklists', keywords:['checklist','opening','closing','cleaning','shift duties'] },
-        { id:'inventory', key:'inventory', btn:'btn-inventory', keywords:['inventory','count','par','reorder','supplies','stock'] },
-        { id:'supply', key:'shortage', btn:'btn-shortage', keywords:['supply','shortage','order','transfer','warehouse','restock','out of'] },
+        { id:'inventory', key:'inventory', btn:'btn-inventory', keywords:['inventory','inventory count','inventory and supplies','count','par','reorder','supplies','stock'] },
+        { id:'supply', key:'shortage', btn:'btn-shortage', keywords:['supply','shortage','report shortages','order','transfer','warehouse','restock','out of'] },
         { id:'discipline', btn:'btn-discipline', keywords:['discipline','write up','warning','verbal','written','final','termination'] },
         { id:'attendance', btn:'btn-attendance', keywords:['attendance','call out','callout','no show','absent','late','record','points'] },
-        { id:'maintreport', key:'maintenance', btn:'btn-maintenance', keywords:['maintenance','repair','flag','broken','fix'] },
+        { id:'maintreport', key:'maintenance', btn:'btn-maintenance', keywords:['maintenance','required maintenance','report a repair','repair','flag','broken','fix'] },
         { id:'equipment', btn:'btn-equipment', keywords:['equipment','machine','qr code','pm','preventive','history'] },
         { id:'workorders', btn:'btn-workorders', keywords:['work order','wo','repair ticket','assign repair','track'] },
         { id:'contactsdir', btn:'btn-contacts', keywords:['contacts','phone','vendor','utility','directory','call','numbers'] },
@@ -3560,11 +3589,12 @@
         { id:'driver', key:'driver', btn:'btn-driver', keywords:['driver','vehicle','trailer','checkout','check out','pre roll','fleet','safety'] },
         { id:'quotes', key:'quotes', btn:'quotesBtn', keywords:['quote','catering','event','pricing','estimate'] },
         { id:'salespipeline', btn:'salesPipelineBtn', keywords:['pipeline','leads','catering sales'] },
-        { id:'livedash', btn:'adminDashBtn', keywords:['live dashboard','ncr','square','pulse','revenue','sales now'] },
-        { id:'commandcenter', btn:'commandCenterBtn', keywords:['command center','ops','at a glance','live ops'] },
+        { id:'dashboards', btn:'btn-dashboards', keywords:['dashboard','dashboards','metrics','kpi','numbers','reports'] },
+        { id:'livedash', btn:'adminDashBtn', keywords:['live dashboard','dashboards','ncr','square','pulse','revenue','sales now'], go:function(){ openDashboards('live'); } },
+        { id:'commandcenter', btn:'commandCenterBtn', keywords:['command center','dashboards','ops','at a glance','live ops'], go:function(){ openDashboards('command'); } },
         { id:'dailysales', btn:'salesBtn', keywords:['daily sales','labor','sales entry','deposit'] },
         { id:'primecost', btn:'primeCostBtn', keywords:['prime cost','food cost','labor cost','weekly','xlsx'] },
-        { id:'managerdash', btn:'managerBtn', keywords:['manager dashboard','submissions','activity'] },
+        { id:'managerdash', btn:'managerBtn', keywords:['manager dashboard','dashboards','submissions','activity'], go:function(){ openDashboards('manager'); } },
         { id:'teachscoopy', btn:'knowledgeBaseBtn', keywords:['teach','scoopy','ai','knowledge base','chatbot','train'] },
         { id:'adminconsole', key:'admincon', btn:'btn-admin-console', keywords:['admin console','settings','configure','manage the hub'] },
         { id:'permmatrix', btn:'btn-permMatrix', keywords:['permissions','roles','access','who sees what'] },
@@ -3573,9 +3603,10 @@
         { id:'teamdev', btn:'teamDevBtn', keywords:['team development','growth','promotion','progression','training status'] },
         { id:'fundraiser', key:'fundraiser2', btn:'btn-fundraiserHub', keywords:['fundraiser','cards','organizer','reconciliation','inquiries'] },
         { id:'maintbilling', key:'maintbill', btn:'btn-maintBilling', keywords:['invoice','billing','vendor rates','approve','pay','finance'] },
-        { id:'maintdash', key:'maintdash', btn:'btn-maintDash', keywords:['maintenance dashboard','costs by store','vendor spend','leadership'] },
+        { id:'maintdash', key:'maintdash', btn:'btn-maintDash', keywords:['maintenance dashboard','dashboards','costs by store','vendor spend','leadership'], go:function(){ openDashboards('maint'); } },
         { id:'storemanager', key:'stores2', btn:'btn-storeManager', keywords:['stores','locations','add store','rename store'] },
-        { id:'scorecards', key:'scorecards2', btn:'btn-scorecards', keywords:['scorecard','metrics','kpi','sales vs ly','labor','speed','inspection'] },
+        { id:'scorecards', key:'scorecards2', btn:'btn-scorecards', keywords:['scorecard','dashboards','metrics','kpi','sales vs ly','labor','speed','inspection'], go:function(){ openDashboards('scorecards'); } },
+        { id:'vehicles', btn:'btn-vehicles', keywords:['vehicle service','vehicles','oil change','mileage','fleet service','truck','trailer service','service tracker'] },
         { id:'emergency', btn:'btn-emergency', keywords:['emergency','fire','robbery','power outage','911','procedures','food safety'] },
         { id:'myhome', btn:'btn-empHome', keywords:['my home','my shifts','my updates','employee home'] },
         { id:'forms', btn:'btn-formsDocs', keywords:['forms','documents','payroll','hr','w2','w4','hiring','pdf'] },
@@ -3587,7 +3618,7 @@
         try{
             if(!el || !el.closest) return '';
             var p=el.closest('.menu-tab-content'); if(!p) return '';
-            return ({ 'tab-content-home':'Home', 'tab-content-scheduling':'Scheduling', 'tab-content-operations':'Store Operations', 'tab-content-fleet':'Vending & Catering', 'tab-content-management':'Admin Dashboard', 'tab-content-sections':'All Sections' })[p.id] || '';
+            return ({ 'tab-content-home':'Home', 'tab-content-scheduling':'Schedule', 'tab-content-operations':'Work', 'tab-content-teamhr':'Team', 'tab-content-management':'Admin', 'tab-content-sections':'All Sections' })[p.id] || '';
         }catch(e){ return ''; }
     }
     function _hubTileHidden(t){
@@ -4626,7 +4657,13 @@
         'view:availabilityView': function(){ if(typeof loadAvailability==='function') loadAvailability(); },
         'view:mySubmissionsView': function(){ if(typeof fetchMySubmissions==='function') fetchMySubmissions(); },
         'view:shortageTrendsView': function(){ if(typeof fetchShortageTrends==='function') fetchShortageTrends(); },
-        'view:messagesView': function(){ if(typeof loadMsgTab==='function') loadMsgTab(); }
+        'view:messagesView': function(){ if(typeof loadMsgTab==='function') loadMsgTab(); },
+        /* Phase-3: also refresh these when the user comes BACK to them, so they never show stale data */
+        'view:tasksView': function(){ try{ if(typeof loadMyTasks==='function') loadMyTasks('tasksMineCard'); }catch(e){} try{ if(typeof renderTeamTasks==='function') renderTeamTasks(); }catch(e){} },
+        'view:supplyRequestView': function(){ try{ if(typeof supplyLoadList==='function'){ supplyLoadList('mine'); supplyLoadList('incoming'); } }catch(e){} },
+        'view:equipmentView': function(){ try{ if(typeof openEquipment==='function') openEquipment(); }catch(e){} },
+        'view:maintDashView': function(){ try{ if(typeof woLoad==='function'&&typeof woRender==='function') woLoad(function(){ woRender(); }); }catch(e){} },
+        'view:notificationsView': function(){ try{ if(typeof loadNotifications==='function') loadNotifications(); }catch(e){} }
     };
     function _navApply(screen){
         if (screen.indexOf('view:')===0){
@@ -4858,15 +4895,6 @@
             supabaseClient.rpc('app_sched_layout_set', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_sort_mode: schedState.sortMode||'first', p_emp_order: schedState.empOrder||[] }).then(function(){});
         });
     }
-    function schedMoveEmp(id, dir){
-        const emps = schedSortedEmps(schedState.data.employees||[]);
-        let order = emps.map(e=>e.id);
-        const i = order.indexOf(id); const j = i + dir;
-        if (i<0 || j<0 || j>=order.length) return;
-        const t = order[i]; order[i]=order[j]; order[j]=t;
-        schedState.empOrder = order; schedState.sortMode = 'custom';
-        schedSaveLayout(); renderScheduleGrid();
-    }
     // ---- Reusable drag-to-reorder (mouse + touch), used by schedule/roster/training/equipment ----
     function initDragReorder(container, opts){
         if(!container || container.getAttribute('data-dragreorder')) return;
@@ -4925,10 +4953,6 @@
     function schedShiftHours(s){ if(!s.start_time||!s.end_time) return 0; const a=s.start_time.split(':').map(Number); const b=s.end_time.split(':').map(Number); let h=(b[0]*60+b[1]-(a[0]*60+a[1]))/60; if(h<0) h+=24; return h; }
     // pick black or white text for legibility on a colored chip (WCAG-ish luminance)
     function hbTextOn(hex){ if(!hex||hex[0]!=='#'||hex.length<7) return '#fff'; const r=parseInt(hex.substr(1,2),16),g=parseInt(hex.substr(3,2),16),b=parseInt(hex.substr(5,2),16); return ((0.299*r+0.587*g+0.114*b)/255) > 0.5 ? '#1f2a44' : '#fff'; }
-    function toggleSchedTools(e){ if(e) e.stopPropagation(); const m=document.getElementById('schedToolsMenu'); const b=document.getElementById('schedToolsBtn'); const open=(m.style.display==='block'); m.style.display=open?'none':'block'; if(b) b.setAttribute('aria-expanded', open?'false':'true'); }
-    function schedToolsAction(a){ const m=document.getElementById('schedToolsMenu'); const b=document.getElementById('schedToolsBtn'); if(m) m.style.display='none'; if(b) b.setAttribute('aria-expanded','false'); if(a==='copy') schedCopyLastWeek(); else if(a==='print') schedPrint(); else if(a==='addemp') schedAddEmployee(); else if(a==='clock') openTimeClock(); else if(a==='live') openLiveBoard(); else if(a==='timesheets') openTimesheets(); else if(a==='roster') openRoster(); }
-    document.addEventListener('click', function(ev){ const m=document.getElementById('schedToolsMenu'); const b=document.getElementById('schedToolsBtn'); if(m && m.style.display==='block' && !m.contains(ev.target) && b!==ev.target && (!b||!b.contains(ev.target))){ m.style.display='none'; b.setAttribute('aria-expanded','false'); } });
-
     function renderScheduleGrid() {
         const ws = schedState.weekStart;
         const days = []; for (let i=0;i<7;i++) days.push(schedAddDays(ws,i));
@@ -5366,13 +5390,6 @@
         var r=((document.getElementById('pubGateReason')||{}).value||'').trim();
         if(r.length>=4){ gb.disabled=false; gb.style.opacity=1; gb.textContent='Override & publish'; }
         else { gb.disabled=true; gb.style.opacity=.5; gb.textContent='Enter a reason to publish'; }
-    }
-    function schedPubAck(i){
-        window._pubAck=window._pubAck||{}; window._pubAck[i]=true;
-        var btn=document.querySelector('.pubok[data-i="'+i+'"]'); if(btn){ btn.textContent='✓ Overridden'; btn.style.background='#e7f6ec'; btn.style.color='#1f7a3d'; btn.style.borderColor='#bfe6cb'; btn.disabled=true; btn.style.cursor='default'; }
-        var total=(window._pubConflicts||[]).length, done=Object.keys(window._pubAck).length;
-        var gb=document.getElementById('pubGateBtn');
-        if(done>=total){ gb.disabled=false; gb.style.opacity=1; gb.textContent='Publish'; } else { gb.textContent='Clear '+(total-done)+' more to publish'; }
     }
     function schedClosePubGate(){ document.getElementById('pubGateModal').style.display='none'; }
     function schedPubGatePublish(){
@@ -6823,6 +6840,50 @@
         });
     }
 
+    /* ===== MERGED DASHBOARDS SCREEN (Phase 2) =====
+       One tile → five tabs. Light wrapper only: each tab calls the EXISTING dashboard
+       open function into its existing container/overlay (nothing rewritten). A tab shows
+       only if its legacy tile (hidden in #legacyDashTiles) is allowed by applyRoleUI /
+       per-user permissions — the legacy tiles stay the single source of role truth.
+       Deep-linkable: openDashboards('live'|'command'|'manager'|'scorecards'|'maint'). */
+    var DASH_TABS=[
+        { k:'live',       emoji:'&#128225;', short:'Live',       title:'Live Dashboard',      btn:'adminDashBtn',     desc:'NCR Pulse net sales, labor &amp; transactions per store, plus vending routes &amp; catering.', go:function(){ openAdminDash(); } },
+        { k:'command',    emoji:'&#128202;', short:'Command',    title:'Command Center',      btn:'commandCenterBtn', desc:'Who is on the clock right now, hours today &amp; this week, and open tasks.', go:function(){ openCommandCenter(); } },
+        { k:'manager',    emoji:'&#128200;', short:'Manager',    title:'Manager Dashboard',   btn:'managerBtn',       desc:'Submitted forms &amp; activity: pop-ins, checklists, temp logs &amp; more.', go:function(){ openDashboard(); } },
+        { k:'scorecards', emoji:'&#127978;', short:'Scorecards', title:'Store Scorecards',    btn:'btn-scorecards',   desc:'Per-store scorecard: sales vs last year, labor, speed, inspection &amp; training.', go:function(){ openScorecards(); } },
+        { k:'maint',      emoji:'&#128295;', short:'Maintenance', title:'Maintenance Leadership', btn:'btn-maintDash', desc:'Open work orders, costs by store &amp; vendor spend for leadership.', go:function(){ openMaintDashboard(); } }
+    ];
+    function dashTabAllowed(t){ var b=document.getElementById(t.btn); return !!(b && b.style.display!=='none'); }
+    function dashAnyAllowed(){ for(var i=0;i<DASH_TABS.length;i++){ if(dashTabAllowed(DASH_TABS[i])) return true; } return false; }
+    function renderDashTabs(active){
+        var bar=document.getElementById('dashTabsBar'), body=document.getElementById('dashBody');
+        if(!bar || !body) return;
+        var tabs=DASH_TABS.filter(dashTabAllowed);
+        if(!tabs.length){ bar.innerHTML=''; body.innerHTML='<p style="text-align:center;color:#6b7686;padding:24px;">No dashboards are available for your role.</p>'; return; }
+        bar.innerHTML=tabs.map(function(t){ return '<button class="sgb'+(t.k===active?' on':'')+'" style="flex:1 1 30%;min-width:104px;" onclick="dashGo(\''+t.k+'\')">'+t.emoji+' '+t.short+'</button>'; }).join('');
+        body.innerHTML='<p style="font-size:12.5px;color:#6b7686;margin:2px 2px 12px;">All your dashboards in one place &mdash; pick one. It opens full-screen; tap Back to return here.</p>'+
+            tabs.map(function(t){
+                return '<button onclick="dashGo(\''+t.k+'\')" style="display:flex;width:100%;align-items:center;gap:12px;text-align:left;background:#fff;border:1px solid #ececf2;border-radius:12px;padding:13px 15px;margin-bottom:8px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.04);">'+
+                    '<span style="font-size:22px;">'+t.emoji+'</span>'+
+                    '<span style="flex:1;"><b style="font-size:14.5px;color:#26242b;display:block;">'+t.title+'</b><small style="color:#6b6275;font-size:12px;">'+t.desc+'</small></span>'+
+                    '<span style="color:#aab;font-size:20px;">&rsaquo;</span></button>';
+            }).join('');
+    }
+    function dashGo(k){
+        var t=null; for(var i=0;i<DASH_TABS.length;i++){ if(DASH_TABS[i].k===k){ t=DASH_TABS[i]; break; } }
+        if(!t || !dashTabAllowed(t)) return;
+        renderDashTabs(k);
+        try{ t.go(); }catch(e){}
+    }
+    function openDashboards(tab){
+        document.getElementById('main-menu').style.display='none';
+        document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
+        var v=document.getElementById('dashboardsView'); if(v) v.style.display='block';
+        window.scrollTo(0,0);
+        renderDashTabs(tab||null);
+        if(tab) dashGo(tab);
+    }
+
     function openTrainingPortal() {
         document.getElementById('main-menu').style.display = 'none';
         document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
@@ -6894,6 +6955,8 @@
         var _smBtn=document.getElementById('btn-storeManager'); if(_smBtn) _smBtn.style.display=permAllow('store_manager', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
         var _scBtn=document.getElementById('btn-scorecards'); if(_scBtn) _scBtn.style.display=permAllow('scorecards', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
         var _mdBtn=document.getElementById('btn-maintDash'); if(_mdBtn) _mdBtn.style.display=permAllow('maint_dash', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Finance Approver','Maintenance Lead'].indexOf(role)>=0))?'block':'none';
+        /* Merged Dashboards tile: visible when ANY of the five legacy dashboard tiles is allowed (they stay the role truth). */
+        var _dashBtn=document.getElementById('btn-dashboards'); if(_dashBtn) _dashBtn.style.display=(typeof dashAnyAllowed==='function'&&dashAnyAllowed())?'block':'none';
         const formsLinksBtn = document.getElementById('formsLinksBtn');
         if (formsLinksBtn) formsLinksBtn.style.display = permAllow('forms_links', (devOverride || isManager)) ? 'block' : 'none';
         const quotesBtn = document.getElementById('quotesBtn');
@@ -6906,6 +6969,7 @@
 
         // ── Buttons within Maintenance tab ──
         document.getElementById('maintBoardBtn').style.display = 'none'; /* retired: Work Orders replaces the Maintenance Board (kept in code, hidden) */
+        var _vehBtn=document.getElementById('btn-vehicles'); if(_vehBtn) _vehBtn.style.display=((devOverride||isManager)&&maintBoardAllowed)?'block':'none'; /* Vehicles & Service: managers only, honors the old board's per-user access switch */
         var _woBtn=document.getElementById('btn-workorders'); if(_woBtn){ _woBtn.style.display='block'; /* Work Orders is now the single repair flow for all staff */ }
         document.getElementById('mySubmissionsBtn').style.display = (!devOverride && role === 'Maintenance') ? 'none' : 'block';
 
@@ -6939,6 +7003,19 @@
             switchMaintTab('stores');
             fetchMaintenanceBoard();
             fetchVehicleMaintTracker();
+        });
+    }
+
+    /* Vehicles & Service (Phase 2): opens the retired Maintenance Board DIRECTLY on its
+       Vehicles pane — the vehicle service tracker was stranded when the board was retired.
+       The stores pane stays loaded-but-hidden; nothing about the board is un-retired. */
+    function openVehiclesService() {
+        triggerTransition(() => {
+            document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
+            document.getElementById('maintenanceBoardView').style.display = 'block';
+            switchMaintTab('vehicles');
+            fetchVehicleMaintTracker();
+            fetchMaintenanceBoard(); /* keep the stores pane truthful if a Maintenance-role user lands here */
         });
     }
 
@@ -7455,29 +7532,6 @@
                 }).join('');
             }).catch(function(){ c.innerHTML='<p style="color:red;font-size:13px;">Connection error.</p>'; });
         }, function(){ c.innerHTML='<p style="color:#6b7686;font-size:13px;">PIN required.</p>'; });
-    }
-    function saveDisciplineAction(){
-        var id=document.getElementById('discEmp').value;
-        var level=document.getElementById('discLevel').value;
-        var cat=document.getElementById('discCategory').value;
-        var date=document.getElementById('discDate').value||null;
-        var details=document.getElementById('discDetails').value.trim();
-        if(!id){ alert('Please select an employee.'); return; }
-        if(!level){ alert('Please choose an action level.'); return; }
-        var m=discLevelMeta(level);
-        if(!confirm('Log a '+m.label+' for this employee? Management will be notified.')) return;
-        withPin(function(pin){
-            supabaseClient.rpc('app_discipline_create',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_level:level,p_category:cat,p_details:details,p_action_date:date}).then(function(r){
-                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
-                // Best-effort email alert to admins via Apps Script.
-                try{ fetch(G_URL+'?action=discipline_notify&level='+encodeURIComponent(level)+'&category='+encodeURIComponent(cat)+'&by='+encodeURIComponent(currentUser.name||currentUser.username),{mode:'no-cors'}); }catch(e){}
-                document.getElementById('discDetails').value='';
-                alert(m.label+' logged.');
-                discEmpChange();
-                discLoadFeed();
-                discLoadEmployees();
-            }).catch(function(){ alert('Connection error.'); });
-        });
     }
     // ===== Multi-form disciplinary builder (verbal / write-up / final / termination) =====
     var discCurForm='written';
@@ -8097,13 +8151,6 @@
     // ============================================================
     // ADMIN LIVE DASHBOARD — NCR Pulse + Square (placeholder data)
     // ============================================================
-    var AD_STORES=[
-        {name:'Roadrunner',pin:'🛣️',sales:9120,labor:19.4,tx:612},
-        {name:'Valley',pin:'🌄',sales:7340,labor:21.8,tx:498},
-        {name:'Lenox',pin:'🏙️',sales:6180,labor:24.6,tx:441},
-        {name:'Alamogordo',pin:'🌵',sales:5560,labor:17.2,tx:402},
-        {name:'Roswell',pin:'🛸',sales:4980,labor:22.3,tx:369}
-    ];
     var AD_ROUTES=[
         {town:'Deming',ic:'🎡',cups:1840,rev:5260},
         {town:'Hatch',ic:'🌶️',cups:1320,rev:3910},
@@ -8117,7 +8164,6 @@
     ];
     var adTimer=null;
     function adMoney(n){ return '$'+Math.round(n).toLocaleString(); }
-    function adLaborCol(p){ return p>23?'#c0264b':(p<18?'#b06a00':'#1f7a3d'); }
     function openAdminDash(){
         if(!isAdminManager()){ alert('The Live Dashboard is for Admin Managers only.'); return; }
         document.getElementById('main-menu').style.display='none';
@@ -8169,19 +8215,6 @@
         }).join('');
         if(gotErr && !any){ html='<p style="color:#c0264b;font-size:13px;">Could not load sales for these stores — check access.</p>'; }
         document.getElementById('adNcr').innerHTML=html;
-    }
-    function adRenderNcr(){
-        var t=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
-        var st='font-size:10px;letter-spacing:1px;color:#5b6675;font-weight:800;text-transform:uppercase;';
-        document.getElementById('adNcr').innerHTML=AD_STORES.map(function(s){
-            return '<div style="background:linear-gradient(100deg,#fbfdff,#f3f8fd);border:1px solid #e7eef5;border-left:5px solid #106ab3;border-radius:12px;padding:13px 15px;margin-bottom:9px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;">'+
-              '<span style="font-weight:900;font-size:15px;min-width:130px;">'+s.pin+' '+s.name+'</span>'+
-              '<span style="display:flex;flex-direction:column;"><small style="'+st+'">Net Sales</small><b style="font-size:17px;color:#0f4d7e;">'+adMoney(s.sales)+'</b></span>'+
-              '<span style="display:flex;flex-direction:column;"><small style="'+st+'">Labor</small><b style="font-size:16px;color:'+adLaborCol(s.labor)+';">'+s.labor.toFixed(1)+'%</b></span>'+
-              '<span style="display:flex;flex-direction:column;"><small style="'+st+'">Transactions</small><b style="font-size:17px;">'+s.tx+'</b></span>'+
-              '<span style="margin-left:auto;font-size:11px;color:#5b6675;font-weight:700;">&#9679; '+t+'</span>'+
-            '</div>';
-        }).join('');
     }
     function adRender(){
         adLoadNcr();
@@ -8538,7 +8571,7 @@
     function loadRecognition(){
         var box=document.getElementById('homeRecognition'); if(!box || !currentUser || !sessionPin) return;
         supabaseClient.rpc('app_recognition_feed',{p_username:currentUser.username,p_password:sessionPin}).then(function(r){
-            if(r.error){ if(r.error.code==='42501') sessionPin=null; box.innerHTML=''; return; }
+            if(r.error){ if(r.error.code==='42501') sessionPin=null; box.innerHTML=_hubRetryHtml('Couldn&rsquo;t load shout-outs','loadRecognition()'); return; }
             var items=r.data||[]; var mgr=(typeof isManagerRole==='function' && isManagerRole());
             var h='<div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">'+
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'+
@@ -8555,7 +8588,7 @@
             });
             h+='</div>'; box.innerHTML=h;
             if(mgr) loadRecogPending();
-        }).catch(function(){});
+        }).catch(function(){ box.innerHTML=_hubRetryHtml('Couldn&rsquo;t load shout-outs','loadRecognition()'); });
     }
     function loadRecogPending(){
         if(!sessionPin) return;
@@ -8563,7 +8596,7 @@
             if(r.error||!r.data||!r.data.length) return;
             var bar=document.getElementById('recogPendingBar'); if(!bar) return; bar.style.display='block';
             bar.innerHTML='<div style="background:#fff7ed;border:1px solid #fde4c8;border-radius:8px;padding:8px 11px;font-size:12.5px;color:#9a5a00;display:flex;justify-content:space-between;align-items:center;gap:8px;"><span>'+r.data.length+' shout-out'+(r.data.length>1?'s':'')+' awaiting approval</span><button onclick="openRecogApprovals()" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;">Review</button></div>';
-        }).catch(function(){});
+        }).catch(function(){ var bar=document.getElementById('recogPendingBar'); if(bar){ bar.style.display='block'; bar.innerHTML=_hubRetryHtml('Couldn&rsquo;t check pending shout-outs','loadRecogPending()'); } });
     }
     function openShoutout(){
         var sel=document.getElementById('shoutoutEmp');
@@ -9582,7 +9615,7 @@
       {icon:'🍦', title:'Custard / shake machine failure', steps:[
         'Stop using the machine; note the time and what happened.',
         'Move product to a working freezer if needed to protect it.',
-        'File a Maintenance Request (Store Operations → Required Maintenance).',
+        'File a repair report (Work → Report a Repair).',
         'Call the manager on call: [____]; machine vendor: [____].'
       ]},
       {icon:'🚰', title:'Water interruption', steps:[
@@ -9646,9 +9679,6 @@
     }
     var CONTACT_CATS=['Emergency & Safety','Repairs & Maintenance','Store Services & Vendors',"Caliche's Internal Contacts"];
     var CONTACT_LOCS=['Companywide','Roadrunner','Valley','Lenox','Alamogordo','Roswell','Warehouse'];
-    function VOICE_LABEL(t){ return ({talk:'Talk to Someone',idea:'Idea',feedback:'Feedback',help:'Help request',concern:'Concern'})[t]||t; }
-    function voiceStatusBadge(st){ var s=(st||'Received'); var c=(s==='Resolved'||s==='Closed')?['#e8f5ec','#1b7a3d']:(s==='Received'?['#eef0f3','#6b7686']:['#eef3fb','#185FA5']); return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:99px;white-space:nowrap;">'+escapeHtml(s)+'</span>'; }
-    function voiceUrg(u){ if(!u||u==='general') return ''; var m={urgent:['#fdeaea','#a01b3e','Urgent'],immediate:['#fdeaea','#a01b3e','Emergency']}; var c=m[u]; return c?'<span style="background:'+c[0]+';color:'+c[1]+';font-size:10px;font-weight:800;padding:2px 6px;border-radius:99px;">'+c[2]+'</span>':''; }
     function openYourVoice(){
         document.getElementById('main-menu').style.display='none';
         document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';});
@@ -9725,7 +9755,26 @@
       var h='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center;"><select onchange="window._yvFilter=Object.assign(window._yvFilter||{},{status:this.value});yv2Dash()" style="padding:7px;border:1px solid #ddd;border-radius:8px;font-size:12.5px;">'+sts.map(function(x){return '<option value="'+x+'"'+(f.status===x?' selected':'')+'>'+(x||'All statuses')+'</option>';}).join('')+'</select><select onchange="window._yvFilter=Object.assign(window._yvFilter||{},{pathway:this.value});yv2Dash()" style="padding:7px;border:1px solid #ddd;border-radius:8px;font-size:12.5px;">'+pws.map(function(x){return '<option value="'+x+'"'+(f.pathway===x?' selected':'')+'>'+(x?(YV2_TITLES[x]||x):'All types')+'</option>';}).join('')+'</select>'+(yv2CanManage()?'<button onclick="yv2WinAdd()" style="margin-left:auto;background:#1b7a3d;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-weight:700;font-size:12.5px;cursor:pointer;">+ Win</button>':'')+'</div>';
       if(!all.length) h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:28px;text-align:center;color:#6b6275;">No submissions match.</div>';
       all.forEach(function(c){ var crit=(c.urgency==='Critical'); h+='<div onclick="yv2Case('+c.id+')" style="background:#fff;border:1px solid '+(crit?'#f3b4b4':'#ececf2')+';border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:14px;color:#26242b;">'+escapeHtml(c.subject||YV2_TITLES[c.pathway]||'Submission')+'</b><span style="background:#ede4fb;color:#5b3aa6;font-size:11px;font-weight:800;padding:2px 8px;border-radius:99px;">'+escapeHtml(c.status||'New')+'</span></div><div style="font-size:11.5px;color:#6b6275;margin-top:3px;">'+escapeHtml(c.ref||'')+' &middot; '+escapeHtml(YV2_TITLES[c.pathway]||c.pathway||'')+(c.anonymous?' &middot; <span style="color:#5b3aa6;font-weight:700;">Anonymous</span>':'')+(c.urgency&&c.urgency!=='Normal'?(' &middot; <span style="color:'+(crit?'#c0264b':'#9a5b00')+';font-weight:700;">'+escapeHtml(c.urgency)+'</span>'):'')+(c.assigned_to?(' &middot; '+escapeHtml(c.assigned_to)):'')+'</div></div>'; });
+      if(typeof isDiscAdmin==='function'&&isDiscAdmin()){ h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:12px 14px;margin-top:14px;"><div onclick="yvLegacyToggle()" style="display:flex;align-items:center;gap:8px;cursor:pointer;"><b style="flex:1;font-size:13.5px;color:#26242b;">&#128451;&#65039; Legacy concern reports</b><span style="font-size:11px;color:#6b7686;">Admin only</span><span id="yvLegacyChev" style="color:#6b7686;">&#9662;</span></div><div id="yvLegacyBody" style="display:none;margin-top:10px;"></div></div>'; }
       yv2Wrap(h); }
+    /* Phase-3: the old Report-a-Concern admin list (renderVoiceCards) was removed, but the reports
+       table + app_harassment_list/update RPCs remain. Surface them here, Disc-Admin only. */
+    function yvLegacyToggle(){ var b=document.getElementById('yvLegacyBody'); var ch=document.getElementById('yvLegacyChev'); if(!b) return; if(b.style.display==='none'){ b.style.display='block'; if(ch) ch.innerHTML='&#9652;'; yvLegacyLoad(); } else { b.style.display='none'; if(ch) ch.innerHTML='&#9662;'; } }
+    function yvLegacyLoad(){ var b=document.getElementById('yvLegacyBody'); if(!b) return; b.innerHTML='<div style="color:#6b7686;font-size:12.5px;">Loading&hellip;</div>';
+      withPin(function(pin){ supabaseClient.rpc('app_harassment_list',{p_admin_username:currentUser.username,p_admin_password:pin}).then(function(r){
+        if(r.error){ if(r.error.code==='42501') sessionPin=null; b.innerHTML='<div style="color:#a01b3e;font-size:12.5px;">Could not load. <button onclick="yvLegacyLoad()" style="background:#eef0f3;border:none;border-radius:6px;padding:3px 8px;cursor:pointer;">Retry</button></div>'; return; }
+        var list=r.data||[];
+        if(!list.length){ b.innerHTML='<div style="color:#6b7686;font-size:12.5px;">No legacy reports on file.</div>'; return; }
+        b.innerHTML=list.map(function(a){ var st=(a.status||'new');
+          return '<div style="border:1px solid #eef0f5;border-radius:9px;padding:9px 11px;margin-bottom:7px;font-size:12.5px;">'+
+            '<div style="display:flex;justify-content:space-between;gap:8px;"><b style="color:#26242b;">#'+a.id+(a.about_who?(' &middot; '+escapeHtml(a.about_who)):'')+'</b><span style="font-size:11px;background:'+(st==='resolved'?'#1f7a3d':'#b06a00')+';color:#fff;border-radius:10px;padding:2px 9px;">'+escapeHtml(st)+'</span></div>'+
+            '<div style="color:#6b7686;margin-top:2px;">'+escapeHtml(a.incident_date||String(a.created_at||'').slice(0,10))+(a.location?(' &middot; '+escapeHtml(a.location)):'')+(a.reporter?(' &middot; from '+escapeHtml(a.reporter)):'')+(a.assigned_to?(' &middot; assigned: '+escapeHtml(a.assigned_to)):'')+'</div>'+
+            (a.details?('<div style="color:#33303a;margin-top:4px;white-space:pre-wrap;">'+escapeHtml(a.details)+'</div>'):'')+
+            (a.notes?('<div style="color:#5b6675;margin-top:3px;"><b>Notes:</b> '+escapeHtml(a.notes)+'</div>'):'')+
+            '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;"><button onclick="yvLegacyUpdate('+a.id+',&quot;in progress&quot;)" style="background:#eef3fb;color:#185FA5;border:none;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">In progress</button><button onclick="yvLegacyUpdate('+a.id+',&quot;resolved&quot;)" style="background:#e7f6ec;color:#1f7a3d;border:none;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Resolve</button></div></div>'; }).join('');
+      }).catch(function(){ b.innerHTML='<div style="color:#a01b3e;font-size:12.5px;">Connection error. <button onclick="yvLegacyLoad()" style="background:#eef0f3;border:none;border-radius:6px;padding:3px 8px;cursor:pointer;">Retry</button></div>'; }); }, function(){ b.innerHTML='<div style="color:#6b7686;font-size:12.5px;">PIN required.</div>'; }); }
+    function yvLegacyUpdate(id,status){ var note=''; if(status==='resolved'){ var n=prompt('Resolution note (optional):'); if(n===null) return; note=n; }
+      withPin(function(pin){ supabaseClient.rpc('app_harassment_update',{p_admin_username:currentUser.username,p_admin_password:pin,p_id:id,p_status:status,p_assigned_to:'',p_notes:note}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } yvLegacyLoad(); }).catch(function(){ alert('Connection error.'); }); }); }
     function yv2Case(id){ yv2Wrap('<div style="text-align:center;color:#6b7686;padding:30px;">Loading&hellip;</div>'); yvRpc('yv_get',{p_id:id},function(c){ yv2CaseRender(c); },function(e){ yv2Wrap('<div style="background:#fff;border-radius:12px;padding:20px;text-align:center;color:#a01b3e;">'+escapeHtml(e.message||'Could not open.')+'</div><div style="text-align:center;margin-top:10px;"><button onclick="yv2Dash()" style="background:#eef0f3;border:none;border-radius:9px;padding:10px 16px;cursor:pointer;">Back to dashboard</button></div>'); }); }
     function yv2CaseRender(c){ var ev=(c.events||[]); var h='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="font-size:12px;color:#6b6275;">'+escapeHtml(c.ref_code||'')+' &middot; '+escapeHtml(YV2_TITLES[c.pathway]||c.pathway||'')+'</div><div style="font-size:18px;font-weight:800;color:#1f2a44;">'+escapeHtml(c.subject||'(no subject)')+'</div><div style="font-size:12.5px;color:#5b6472;margin-top:3px;">From: <b>'+escapeHtml(c.submitter||'Anonymous')+'</b>'+(c.category?(' &middot; '+escapeHtml(c.category)):'')+(c.store?(' &middot; '+escapeHtml(c.store)):'')+(c.urgency?(' &middot; '+escapeHtml(c.urgency)):'')+'</div>'+(c.body?'<div style="font-size:13.5px;color:#26242b;margin-top:8px;background:#f7f8fb;border-radius:8px;padding:9px 11px;white-space:pre-wrap;">'+escapeHtml(c.body)+'</div>':'')+'<div style="margin-top:10px;"><span style="background:#ede4fb;color:#5b3aa6;font-size:12px;font-weight:800;padding:3px 10px;border-radius:99px;">'+escapeHtml(c.status||'New')+'</span>'+(c.assigned_to?'<span style="margin-left:6px;font-size:12px;color:#6b7686;">Reviewer: '+escapeHtml(c.assigned_to)+'</span>':'')+'</div></div>';
       h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:14px;margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:8px;">Manage</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"><select id="yvcStatus" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:12.5px;">'+['New','Reviewing','In progress','Resolved','Closed'].map(function(s){return '<option'+(c.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select><button onclick="yv2Advance('+c.id+')" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;">Update</button></div><div style="display:flex;gap:6px;margin-bottom:8px;"><select id="yvcAssign" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:12.5px;"><option value="">Assign reviewer&hellip;</option></select><button onclick="yv2AssignGo('+c.id+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;">Assign</button></div><textarea id="yvcMsg" rows="2" placeholder="Message or internal note" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;margin-bottom:6px;"></textarea><div style="display:flex;gap:6px;"><button onclick="yv2Note('+c.id+',true)" style="flex:1;background:#f4f5f8;color:#5b6472;border:none;border-radius:8px;padding:9px;font-weight:700;font-size:12.5px;cursor:pointer;">Add internal note</button><button onclick="yv2Note('+c.id+',false)" style="flex:1;background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:9px;font-weight:700;font-size:12.5px;cursor:pointer;">Send to submitter</button></div></div>';
@@ -9749,94 +9798,7 @@
     function yv2Note(id,internal){ var b=yv2val('yvcMsg'); if(!b){ alert('Type a note or message first.'); return; } yvRpc('yv_note',{p_id:id,p_body:b,p_internal:internal},function(){ yv2Case(id); }); }
     function yv2WinAdd(){ var t=prompt('Win title (what changed because someone spoke up):'); if(!t) return; var b=prompt('A sentence of detail (optional):')||''; yvRpc('yv_win_save',{p_title:t,p_body:b},function(){ alert('Posted to You Spoke, We Listened.'); yv2Dash(); }); }
     /* =================== END YOUR VOICE 2.0 =================== */
-    function voiceCard(icon,title,sub,onclick,color){
-        return '<button onclick="'+onclick+'" style="width:100%;text-align:left;background:#fff;border:1px solid #ececf2;border-radius:12px;padding:13px 15px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px;box-shadow:0 2px 6px rgba(0,0,0,.04);"><span style="font-size:23px;">'+icon+'</span><span style="flex:1;"><b style="font-size:14.5px;color:#26242b;display:block;">'+title+'</b><small style="color:#6b6275;font-size:12px;">'+sub+'</small></span><span style="color:'+(color||'#aab')+';font-size:20px;">&rsaquo;</span></button>';
-    }
-    function renderVoiceCards(){
-        var box=document.getElementById('voiceCards'); if(!box) return;
-        var h='';
-        h+=voiceCard('&#128483;&#65039;','Talk to Someone','Request a private conversation','openVoiceForm(\'talk\')');
-        h+=voiceCard('&#128161;','Share an Idea','Help us improve Caliche\'s','openVoiceForm(\'idea\')');
-        h+=voiceCard('&#128172;','Give Feedback','What\'s working and what could be better','openVoiceForm(\'feedback\')');
-        h+=voiceCard('&#129309;','Ask for Help','Scheduling, payroll, conflict, policy &amp; more','openVoiceForm(\'help\')');
-        h+=voiceCard('&#128274;','Report a Concern','Confidential or anonymous','openHarassReport()');
-        h+=voiceCard('&#128203;','My Submissions','Check the status of what you sent','openVoiceMine()');
-        if(typeof isAdminManager==='function' && isAdminManager()){ h+=voiceCard('&#128202;','Team Voice Dashboard','Reviewers: manage submissions','openVoiceDash()','#5b3aa6'); }
-        box.innerHTML=h;
-    }
-    var VOICE_CATS={ idea:['Customer Experience','Menu or Product','Store Operations','Equipment or Maintenance','Training','Employee Experience','Safety','Technology or Hub App','Community','Other'],
-        help:['Scheduling or Hours','Pay or Payroll','Conflict with a Team Member','Concern Involving a Leader','Policy Question','Training Support','Personal Workplace Support','Other / Not Sure'],
-        talk:['Shift Leader','Store Manager','Operations Leadership','Aaron','Adriana','Help Me Choose'],
-        feedback:['Training','Leadership','Communication','Scheduling','Tools','Workload','Workplace Environment','Hub App','Other'] };
-    function openVoiceForm(type){
-        window._voiceType=type;
-        var titles={talk:'Talk to Someone',idea:'Share an Idea',feedback:'Give Feedback',help:'Ask for Help'};
-        var catLabel={talk:'Who would you like to speak with?',idea:'Category',help:'What do you need help with?',feedback:'Feedback about'};
-        var catList=VOICE_CATS[type]||[]; var stores=[''].concat((typeof HUB_STORES!=='undefined'?HUB_STORES:['Roadrunner','Valley','Lenox','Alamogordo','Roswell'])).concat(['Multiple / Companywide']);
-        var ov=certOverlay('voiceFormModal');
-        ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:480px;width:100%;margin-top:22px;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.3);max-height:90vh;overflow:auto;">'+
-          '<div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:16px;color:#1f2a44;">'+titles[type]+'</b><button data-x style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7686;">&times;</button></div>'+
-          (catList.length?'<label class="rm-lbl" style="margin-top:8px;">'+catLabel[type]+'</label><select id="vCat" class="rm-inp">'+catList.map(function(c){return '<option>'+escapeHtml(c)+'</option>';}).join('')+'</select>':'')+
-          '<label class="rm-lbl" style="margin-top:8px;">Store</label><select id="vStore" class="rm-inp">'+stores.map(function(s){return '<option value="'+escapeHtml(s)+'">'+(s?escapeHtml(s):'(choose)')+'</option>';}).join('')+'</select>'+
-          '<label class="rm-lbl" style="margin-top:8px;">'+(type==='talk'?'Anything you want to add? (optional)':'Tell us more')+'</label><textarea id="vMsg" class="rm-inp" rows="4" placeholder="Share as much or as little as you like."></textarea>'+
-          (type==='talk'?'<label class="rm-lbl" style="margin-top:8px;">Best way to reach you</label><select id="vContact" class="rm-inp"><option>In-app message</option><option>Phone call</option><option>Text</option><option>Email</option><option>In person</option></select>':'')+
-          '<div id="vMsgErr" style="font-size:12px;margin-top:8px;"></div>'+
-          '<div style="display:flex;gap:8px;margin-top:12px;"><button data-x style="flex:1;background:#eef0f3;color:#444;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="submitVoice()" style="flex:2;background:var(--pass-green,#1f7a3d);color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;">Send</button></div>'+
-          '<p style="font-size:11px;color:#5b6675;margin:10px 0 0;text-align:center;">For confidential harassment or misconduct, use Report a Concern instead.</p></div>';
-        ov.querySelectorAll('[data-x]').forEach(function(b){ b.onclick=function(){ ov.style.display='none'; }; });
-    }
-    function submitVoice(){
-        var msg=(document.getElementById('vMsg').value||'').trim(); var err=document.getElementById('vMsgErr');
-        if(!msg && window._voiceType!=='talk'){ err.style.color='#c0264b'; err.textContent='Please add a few words.'; return; }
-        err.style.color='#6b7686'; err.textContent='Sending...';
-        var cat=document.getElementById('vCat')?document.getElementById('vCat').value:'';
-        var contact=document.getElementById('vContact')?document.getElementById('vContact').value:'';
-        withPin(function(pin){
-            supabaseClient.rpc('app_voice_submit',{p_username:currentUser.username,p_password:pin,p_type:window._voiceType,p_category:cat,p_subject:cat,p_message:msg,p_store:document.getElementById('vStore').value,p_urgency:'general',p_contact_pref:contact,p_anonymous:false}).then(function(r){
-                if(r.error){ err.style.color='#c0264b'; err.textContent='Error: '+r.error.message; return; }
-                var ref=(r.data&&r.data.ref)||''; var ov=document.getElementById('voiceFormModal');
-                if(ov){ ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;margin-top:60px;padding:24px;text-align:center;box-shadow:0 16px 50px rgba(0,0,0,.3);"><div style="font-size:40px;">&#9989;</div><h3 style="color:#1b7a3d;margin:8px 0 4px;">Thank you for speaking up</h3><p style="color:#5b6472;font-size:13.5px;margin:0;">Your submission was received. Reference number:</p><p style="font-weight:800;font-size:18px;color:#1f2a44;letter-spacing:1px;">'+escapeHtml(ref)+'</p><p style="color:#6b6275;font-size:12px;">If you included your name, an authorized team member may reach out.</p><button data-x style="margin-top:12px;background:var(--caliches-blue,#185FA5);color:#fff;border:none;border-radius:10px;padding:11px 22px;font-weight:700;cursor:pointer;">Done</button></div>';
-                    ov.querySelectorAll('[data-x]').forEach(function(b){ b.onclick=function(){ ov.style.display='none'; }; }); }
-            }).catch(function(){ err.style.color='#c0264b'; err.textContent='Could not send.'; });
-        });
-    }
-    function openVoiceMine(){
-        var ov=certOverlay('voiceMineModal');
-        ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:480px;width:100%;margin-top:24px;padding:18px;max-height:88vh;overflow:auto;box-shadow:0 16px 50px rgba(0,0,0,.3);"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:16px;color:#1f2a44;">My submissions</b><button data-x style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7686;">&times;</button></div><div style="font-size:12px;color:#6b6275;margin:4px 0 8px;">Confidential and anonymous reports are tracked separately.</div><div id="voiceMineBody"><p style="text-align:center;color:#6b7686;padding:18px;">Loading&hellip;</p></div></div>';
-        ov.querySelectorAll('[data-x]').forEach(function(b){ b.onclick=function(){ ov.style.display='none'; }; });
-        withPin(function(pin){
-            supabaseClient.rpc('app_voice_my',{p_username:currentUser.username,p_password:pin}).then(function(r){
-                var body=document.getElementById('voiceMineBody'); if(!body) return;
-                if(r.error){ body.innerHTML='<p style="color:#c0264b;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
-                var list=r.data||[]; if(!list.length){ body.innerHTML='<p style="color:#6b7686;text-align:center;padding:14px;font-size:13px;">Nothing yet.</p>'; return; }
-                var h=''; list.forEach(function(s){ h+='<div style="border:1px solid #ececf2;border-radius:10px;padding:10px 12px;margin-bottom:7px;"><div style="display:flex;gap:8px;"><b style="flex:1;font-size:13.5px;color:#26242b;">'+escapeHtml(VOICE_LABEL(s.type))+(s.category?' &middot; '+escapeHtml(s.category):'')+'</b>'+voiceStatusBadge(s.status)+'</div><div style="font-size:11.5px;color:#5b6675;margin-top:2px;">'+escapeHtml(s.ref||'')+' &middot; '+escapeHtml(String(s.created||'').slice(0,10))+'</div></div>'; });
-                body.innerHTML=h;
-            }).catch(function(){ var body=document.getElementById('voiceMineBody'); if(body) body.innerHTML='<p style="color:#c0264b;text-align:center;">Could not load.</p>'; });
-        });
-    }
-    function openVoiceDash(){
-        var ov=certOverlay('voiceDashModal');
-        ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:560px;width:100%;margin-top:18px;padding:18px;max-height:90vh;overflow:auto;box-shadow:0 16px 50px rgba(0,0,0,.3);"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:16px;color:#1f2a44;">Team Voice Dashboard</b><button data-x style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7686;">&times;</button></div><div id="voiceDashBody"><p style="text-align:center;color:#6b7686;padding:18px;">Loading&hellip;</p></div></div>';
-        ov.querySelectorAll('[data-x]').forEach(function(b){ b.onclick=function(){ ov.style.display='none'; }; });
-        loadVoiceDash();
-    }
-    function loadVoiceDash(){
-        withPin(function(pin){
-            supabaseClient.rpc('app_voice_admin_list',{p_username:currentUser.username,p_password:pin}).then(function(r){
-                var body=document.getElementById('voiceDashBody'); if(!body) return;
-                if(r.error){ body.innerHTML='<p style="color:#c0264b;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
-                var list=r.data||[]; if(!list.length){ body.innerHTML='<p style="color:#6b7686;text-align:center;padding:14px;">No submissions yet.</p>'; return; }
-                var STAT=['Received','Under Review','Follow-Up Requested','Action Planned','Resolved','Closed']; var h='';
-                list.forEach(function(s){ h+='<div style="border:1px solid #ececf2;border-radius:10px;padding:11px 12px;margin-bottom:8px;"><div style="display:flex;gap:8px;align-items:flex-start;"><b style="flex:1;font-size:13.5px;color:#26242b;">'+escapeHtml(VOICE_LABEL(s.type))+(s.category?' &middot; '+escapeHtml(s.category):'')+'</b>'+voiceUrg(s.urgency)+'</div><div style="font-size:11.5px;color:#5b6675;margin-top:2px;">'+escapeHtml(s.ref||'')+' &middot; '+(s.anon?'<b style="color:#5b3aa6;">Anonymous</b>':escapeHtml(s.who||'\u2014'))+(s.store?' &middot; '+escapeHtml(s.store):'')+'</div>'+(s.message?'<div style="font-size:12.5px;color:#33303a;margin-top:5px;white-space:pre-wrap;">'+escapeHtml(s.message)+'</div>':'')+'<div style="margin-top:8px;display:flex;align-items:center;gap:6px;"><span style="font-size:11px;color:#6b7686;">Status:</span><select onchange="setVoiceStatus('+s.id+',this.value)" style="padding:5px 7px;border:1px solid #ddd;border-radius:7px;font-size:12px;">'+STAT.map(function(x){return '<option'+(s.status===x?' selected':'')+'>'+x+'</option>';}).join('')+'</select></div></div>'; });
-                body.innerHTML=h;
-            }).catch(function(){ var body=document.getElementById('voiceDashBody'); if(body) body.innerHTML='<p style="color:#c0264b;text-align:center;">Could not load.</p>'; });
-        });
-    }
-    function setVoiceStatus(id,status){
-        withPin(function(pin){
-            supabaseClient.rpc('app_voice_set_status',{p_username:currentUser.username,p_password:pin,p_id:id,p_status:status,p_reviewer:(currentUser&&currentUser.name)||currentUser.username}).then(function(r){ if(r.error){ alert('Error: '+r.error.message); } }).catch(function(){});
-        });
-    }
+    /* (The retired Voice v1 module was removed in the Phase 2 cleanup. Your Voice 2.0 above is the live system.) */
     function lmsOverlay(){ var ov=document.getElementById('lmsModal'); if(!ov){ ov=document.createElement('div'); ov.id='lmsModal'; ov.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100000;overflow:auto;'; document.body.appendChild(ov); } ov.style.display='block'; return ov; }
     function lmsClose(){ var ov=document.getElementById('lmsModal'); if(ov) ov.style.display='none'; }
     function lmsHeader(title,back,badge){ return '<div style="background:linear-gradient(120deg,#185FA5,#7d1d4b);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:2;">'+(back?'<button onclick="'+back+'" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;">&#8249; Back</button>':'')+'<b style="flex:1;font-size:16px;">'+title+'</b>'+(badge?'<span style="background:#ffd84d;color:#5b3a00;font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px;">'+badge+'</span>':'')+'<button onclick="lmsClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;">&times;</button></div>'; }
@@ -9912,7 +9874,7 @@
             }).catch(function(){ alert('Could not change status.'); });
         });
     }
-    function lmsManageCourses(){ lmsClose(); _td.tab='paths'; if(typeof tdLoad==='function'){ tdLoad(function(){ tdRender(); }); } else { alert('Open Admin Dashboard then Team Development then Paths to manage courses.'); } }
+    function lmsManageCourses(){ lmsClose(); _td.tab='paths'; if(typeof tdLoad==='function'){ tdLoad(function(){ tdRender(); }); } else { alert('Open Team then Team Development then Paths to manage courses.'); } }
     function lmsOpenCourse(courseId){
         var ov=lmsOverlay(); ov.innerHTML=lmsHeader('Lesson','lmsHome()')+'<div style="max-width:640px;margin:0 auto;padding:40px 16px;text-align:center;color:#6b7686;">Loading&hellip;</div>';
         withPin(function(pin){
@@ -12068,18 +12030,30 @@
         let loopIdx=1; questions.forEach(group => { pdfHtml += '<tr style="background:#f9f9f9;"><td colspan="3"><strong>'+group.cat+'</strong></td></tr>'; group.q.forEach(text => { let sel = document.querySelector('input[name="q'+loopIdx+'"]:checked'); let note = document.getElementById('note'+loopIdx).value; let score = sel?sel.value:'N/A'; if(score==='0') score='N/A'; pdfHtml += '<tr><td>'+text+'</td><td style="text-align:center;font-weight:bold;">'+score+'</td><td>'+note+'</td></tr>'; loopIdx++; }); });
         pdfHtml += '</table></div>';
         document.getElementById('popInReportHtml').value = pdfHtml;
-        fetch(G_URL, { method:'POST', body:new FormData(form) })
-        .then(res => res.json())
-        .then(googleData => {
-            console.log('[Pop-In] GAS:', googleData);
-            saveToSupabase('pop_ins', form, googleData.pdfUrl, () => {
-                localStorage.removeItem('calichesDraft_popIn');
+        btn.innerText = 'Saving…';
+        /* DB-FIRST (Phase 3): save the inspection to Supabase before attempting the Apps-Script PDF,
+           so a PDF-server hiccup can never lose the inspection data. */
+        saveToSupabase('pop_ins', form, null, () => {
+            localStorage.removeItem('calichesDraft_popIn');
+            var _popInPrint = function(e) { if (e && e.preventDefault) e.preventDefault(); document.body.innerHTML = pdfHtml; setTimeout(() => { window.print(); location.reload(); }, 500); };
+            var _popInCorrective = function() { if(window._popInFailed && window._popInFailed.length && typeof openCorrectiveActions==='function'){ setTimeout(function(){ openCorrectiveActions(window._popInFailed, window._popInStore, window._popInDate); }, 500); } };
+            btn.innerText = 'Saved ✓ — generating PDF…';
+            fetch(G_URL, { method:'POST', body:new FormData(form) })
+            .then(res => res.json())
+            .then(googleData => {
+                console.log('[Pop-In] GAS:', googleData);
                 btn.disabled = false; btn.style.backgroundColor = 'var(--pass-green)'; btn.innerText = 'SENT! (TAP TO PRINT)';
-                btn.onclick = function(e) { e.preventDefault(); document.body.innerHTML = pdfHtml; setTimeout(() => { window.print(); location.reload(); }, 500); };
-                if(window._popInFailed && window._popInFailed.length && typeof openCorrectiveActions==='function'){ setTimeout(function(){ openCorrectiveActions(window._popInFailed, window._popInStore, window._popInDate); }, 500); }
+                btn.onclick = _popInPrint;
+                _popInCorrective();
+            })
+            .catch(err => {
+                console.error('[Pop-In] GAS error:', err);
+                alert('Saved ✓ — PDF generation failed, you can reprint later.');
+                btn.disabled = false; btn.style.backgroundColor = 'var(--pass-green)'; btn.innerText = 'SAVED ✓ (TAP TO PRINT)';
+                btn.onclick = _popInPrint;
+                _popInCorrective();
             });
-        })
-        .catch(err => { console.error('[Pop-In] GAS error:', err); alert('Could not reach PDF server: '+err.message); btn.disabled=false; btn.innerText='SUBMIT POP-IN TO OFFICE'; });
+        });
     }
 
     function submitDriverForm() {
@@ -13387,40 +13361,40 @@
                 { img:'scoopy-wave.png', title:'Welcome to the Hub, ' + name + '! \uD83C\uDF66',
                   body:"This is Caliche's Operations Hub \u2014 your one place for shifts, clocking in, daily tasks, checklists, messages, and reports. This quick tour shows you where everything lives. Tap Next to begin!" },
                 { img:'scoopy-point.png', title:'Getting around',
-                  body:"Use the tabs at the top: \uD83C\uDFE0 Home, \uD83D\uDCC5 Scheduling, \uD83C\uDF66 Store Operations, and \uD83D\uDE9A Mobile Vending & Catering. The Home tab also has quick-tap cards for the things you use most." },
+                  body:"Use the sections in the More menu: \uD83C\uDFE0 Home, \uD83D\uDCC5 Schedule, \uD83C\uDF66 Work, \uD83E\uDD1D Team, and (for managers) \u26A1 Admin. The Home tab also has quick-tap cards for the things you use most." },
                 { img:'scoopy-hero.png', title:'Your Home base',
                   body:"Tap \uD83C\uDFE0 My Home to see your upcoming shifts, any tasks assigned to you, and team updates. Check it at the start of every shift so nothing slips by." },
                 { img:'scoopy-thumbsup.png', title:'Clocking in & out',
-                  body:"Go to Scheduling \u2192 \u23F1\uFE0F Time Clock to clock in and out. Your ID is the last 4 digits of your SSN. Clock in within 5 minutes of your shift start (or when a manager tells you to)." },
+                  body:"Go to Schedule \u2192 \u23F1\uFE0F Time Clock to clock in and out. Your ID is the last 4 digits of your SSN. Clock in within 5 minutes of your shift start (or when a manager tells you to)." },
                 { img:'scoopy-point.png', title:'Requesting time off',
-                  body:"Scheduling \u2192 \uD83C\uDF34 Request Time Off. Submit at least 14 days ahead and always include a reason. You'll see your requests update once a manager reviews them." },
+                  body:"Schedule \u2192 \uD83C\uDF34 Request Time Off. Submit at least 14 days ahead and always include a reason. You'll see your requests update once a manager reviews them." },
                 { img:'scoopy-cheer.png', title:'Daily store tasks',
-                  body:"In Store Operations you'll find \u2705 Shift Checklists (open/close/clean), \uD83C\uDF21\uFE0F Temperature Logs, \uD83D\uDCE6 Inventory & Supplies, the Store Pop-In, and \uD83D\uDED2 Report Shortages. 'My Submissions' keeps a record of everything you've turned in." },
+                  body:"In Work you'll find \u2705 Shift Checklists (open/close/clean), \uD83C\uDF21\uFE0F Temperature Logs, \uD83D\uDCE6 Inventory Count, the Store Pop-In, and \uD83D\uDE9A Supply Request. 'My Submissions' keeps a record of everything you've turned in." },
                 { img:'scoopy-hero.png', title:'Trucks, trailers & catering',
-                  body:"In Mobile Vending & Catering, do the \uD83D\uDE9A Vehicle & Trailer Check-Out before you drive. See something broken? File \uD83D\uDD27 Required Maintenance, or report \u26A0\uFE0F Vehicle / Trailer Damage with photos." },
+                  body:"In Work's \uD83D\uDE9A Vending & Catering section, do the Vehicle & Trailer Check-Out before you drive. See something broken? File \uD83D\uDD27 Report a Repair, or report \u26A0\uFE0F Vehicle / Trailer Damage with photos." },
                 { img:'scoopy-wave2.png', title:'Messages',
                   body:"Tap the \uD83D\uDCAC Messages card on Home for team chat and broadcasts from the office. It's the fastest way to reach your team and stay in the loop." },
                 { img:'scoopy-point.png', title:'Forms & Documents',
-                  body:"Need a payroll, HR, or hiring form? Tap \uD83D\uDCC4 Forms & Documents on Home for direct links to everything \u2014 W-4/I-9, direct deposit, applications and more." },
+                  body:"Need a payroll, HR, or hiring form? Tap \uD83D\uDCC4 Forms & Documents in Team for direct links to everything \u2014 W-4/I-9, direct deposit, applications and more." },
                 { img:'cherry-peace.png', title:'Report a Concern \uD83D\uDD12',
-                  body:"Something not right? Tap \uD83D\uDD12 Report a Concern on Home to confidentially report harassment or misconduct. It goes straight to the Admin Managers \u2014 not your store manager \u2014 and you can even submit it anonymously." },
+                  body:"Something not right? Open \uD83D\uDCAC Your Voice (Team) and choose Report a Concern to confidentially report harassment or misconduct. It goes straight to the Admin Managers \u2014 not your store manager \u2014 and you can even submit it anonymously." },
                 { img:'scoopy-thumbsup.png', title:'Ask Mr. Scoopy anytime \uD83C\uDF66',
                   body:"See the floating \uD83C\uDF66 Ask Mr. Scoopy button in the corner of every screen? Tap it to ask about store policies, recipes, or how to use the Hub. I'm always here to help!" }
             ];
             if (typeof isManagerRole === 'function' && isManagerRole()) {
                 steps.push(
                     { img:'scoopy-cheer.png', title:'Manager: Build the schedule',
-                      body:"Scheduling \u2192 \uD83E\uDD4F Open Schedule Builder to build and publish the weekly shifts. Schedules post one week in advance." },
+                      body:"Schedule \u2192 \uD83E\uDD4F Open Schedule Builder to build and publish the weekly shifts. Schedules post one week in advance." },
                     { img:'scoopy-point.png', title:'Manager: Approvals & tasks',
-                      body:"Review \uD83D\uDCC5 Time-Off & Swap Approvals, send work with \uD83D\uDCCB Assign Task, and check \uD83D\uDCCA Timesheets for hours and overtime \u2014 all in the Scheduling tab." },
+                      body:"Review \uD83D\uDCC5 Time-Off & Swap Approvals, send work with \uD83D\uDCCB Assign Task, and check \uD83D\uDCCA Timesheets for hours and overtime \u2014 all in the Schedule tab." },
                     { img:'scoopy-hero.png', title:'Manager: Oversight tools',
-                      body:"Store Operations has \u26A0\uFE0F Disciplinary Actions and the \uD83D\uDD27 Maintenance Board. In Catering you can \uD83D\uDCDD Create a Catering Quote and track leads in the Sales Pipeline." },
-                    { img:'scoopy-thumbsup.png', title:'Manager: Admin Dashboard',
-                      body:"The \u26A1 Admin Dashboard tab brings together the Live Dashboard, Command Center, Daily Sales & Labor, Weekly Prime Cost, Manager Dashboard, and Employee Roster." },
+                      body:"Team has \u26A0\uFE0F Disciplinary Actions and \uD83D\uDCC5 Attendance & Call-outs; Work has \uD83D\uDEE0 Work Orders. In Work's vending section you can \uD83D\uDCDD Create a Catering Quote and track leads in the Sales Pipeline." },
+                    { img:'scoopy-thumbsup.png', title:'Manager: Admin',
+                      body:"The \u26A1 Admin tab brings together \uD83D\uDCCA Dashboards (Live, Command Center, Manager, Scorecards & Maintenance in one place), Daily Sales & Labor, and Weekly Prime Cost. The Employee Roster now lives in Team." },
                     { img:'scoopy-wave.png', title:'Admin: Teach Mr. Scoopy',
-                      body:"Admins can open \uD83E\uDDE0 Teach Mr. Scoopy (Admin Dashboard) to add answers to the Knowledge Base. The more you teach me, the better I help the whole team." },
+                      body:"Admins can open \uD83E\uDDE0 Teach Mr. Scoopy (\u26A1 Admin) to add answers to the Knowledge Base. The more you teach me, the better I help the whole team." },
                     { img:'scoopy-point.png', title:'Manager: Attendance & call-outs',
-                      body:"Store Operations \u2192 \uD83D\uDCC5 Attendance & Call-outs. Tap 'Mark called out' to log a call-in, tardy, or early-out \u2014 it builds each employee's attendance record and flags patterns like repeat same-day absences." },
+                      body:"Team \u2192 \uD83D\uDCC5 Attendance & Call-outs. Tap 'Mark called out' to log a call-in, tardy, or early-out \u2014 it builds each employee's attendance record and flags patterns like repeat same-day absences." },
                     { img:'scoopy-cheer.png', title:'Manager: Disciplinary, step by step',
                       body:"\u26A0\uFE0F Disciplinary Actions follows the progressive path \u2014 Verbal \u2192 Written \u2192 Write-up. Pick the form, capture statements and signatures, and submitting notifies that employee's store managers and opens a follow-up task. Termination is a separate, Admin-only assessment." },
                     { img:'cherry-thumbsup.png', title:'Celebrations \uD83C\uDF89',
@@ -13655,6 +13629,437 @@
             }
         });
 
+    /* ===== P4 FEATURE BUNDLE ===== (P4_FEATURE_BUNDLE_SENTINEL)
+       Sick leave · auto-late scan · manager logbook · announcement read receipts ·
+       OT watch + open punches · my attendance · under-15 curfew · checklist due-windows.
+       Append-only module: wraps existing functions by reassignment, never edits them. */
+    function p4Esc(s){ try{ return escapeHtml(s==null?'':String(s)); }catch(e){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return '&#'+c.charCodeAt(0)+';';}); } }
+    function p4Mgr(){ try{ return (typeof isManagerRole==='function'&&isManagerRole())||(typeof schedIsMgr==='function'&&schedIsMgr()); }catch(e){ return false; } }
+    var P4_DB_MSG='This feature needs the database update — it will light up after the next deploy.';
+    function p4Rpc(name,args,cb,errcb){
+        try{
+            withPin(function(pin){
+                var full={p_username:currentUser.username,p_password:pin};
+                for(var k in (args||{})){ full[k]=args[k]; }
+                supabaseClient.rpc(name,full).then(function(r){
+                    if(r.error){ if(r.error.code==='42501') sessionPin=null;
+                        var m=String(r.error.message||'');
+                        if(/could not find|does not exist|schema cache/i.test(m)) m=P4_DB_MSG;
+                        if(errcb) errcb(m); else alert(m); return; }
+                    cb(r.data);
+                }).then(null,function(){ if(errcb) errcb('Connection error.'); });
+            },function(){ if(errcb) errcb('PIN required.'); });
+        }catch(e){ if(errcb) errcb(P4_DB_MSG); }
+    }
+    function p4View(id,html){
+        var v=document.getElementById(id);
+        if(!v){ v=document.createElement('div'); v.id=id; v.className='app-view'; v.style.display='none'; document.body.appendChild(v); }
+        v.innerHTML=html; return v;
+    }
+    function p4Open(id){
+        try{ document.getElementById('main-menu').style.display='none'; }catch(e){}
+        document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
+        var v=document.getElementById(id); if(v) v.style.display='block';
+        window.scrollTo(0,0);
+    }
+    function p4CardO(t,sub){ return '<div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);margin-top:14px;"><b style="font-size:15px;color:var(--txt,#26242b);">'+t+'</b>'+(sub?'<div style="font-size:12.5px;color:var(--txt2,#8a8594);margin:4px 0 8px;">'+sub+'</div>':'')+''; }
+    function p4StatusChip(st){
+        var m={pending:['#fff3cd','#854F0B','Pending'],approved:['#e7f6ec','#1f7a3d','Approved'],denied:['#fdecea','#c0392b','Denied']};
+        var c=m[String(st||'').toLowerCase()]||['#eef1f6','#5b6472',st||''];
+        return '<span style="background:'+c[0]+';color:'+c[1]+';padding:2px 10px;border-radius:99px;font-size:11.5px;font-weight:800;">'+p4Esc(c[2])+'</span>';
+    }
+
+    /* ---------- 1. SICK LEAVE ---------- */
+    var p4SickTabCur='req';
+    function openSickLeave(){
+        var mgrTab=p4Mgr()?'<button id="p4skTabQ" onclick="p4SickTab(\'q\')" class="msg-tab">Approvals</button>':'';
+        p4View('p4SickView',
+            '<button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>'+
+            '<div class="hb-head" style="background:linear-gradient(120deg,#0d6eaf,#31a06a);"><div class="hb-ico">&#129298;</div><div><h2>Sick Leave</h2><div class="hb-sub">Request paid sick time &middot; New Mexico HWA</div></div></div>'+
+            '<div class="container" style="max-width:680px;">'+
+            '<div style="display:flex;gap:6px;margin-bottom:10px;"><button id="p4skTabReq" onclick="p4SickTab(\'req\')" class="msg-tab active">Request</button><button id="p4skTabMine" onclick="p4SickTab(\'mine\')" class="msg-tab">My requests</button>'+mgrTab+'</div>'+
+            '<div id="p4skPaneReq">'+p4CardO('&#129298; Request sick leave','Pick your dates and hours. If the request can&rsquo;t be granted, we&rsquo;ll tell you exactly why.')+
+                '<label class="rm-lbl">First day</label><input id="p4skStart" type="date" class="rm-inp">'+
+                '<label class="rm-lbl" style="margin-top:8px;">Last day</label><input id="p4skEnd" type="date" class="rm-inp">'+
+                '<label class="rm-lbl" style="margin-top:8px;">Total hours requested</label><input id="p4skHours" type="number" min="0.5" step="0.5" class="rm-inp" placeholder="e.g. 8">'+
+                '<label class="rm-lbl" style="margin-top:8px;">Note (optional)</label><textarea id="p4skNote" rows="2" class="rm-inp" placeholder="Anything your manager should know"></textarea>'+
+                '<div id="p4skWhy" style="display:none;background:#fdecea;border:1px solid #f3c2cb;color:#a01b3e;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:13.5px;font-weight:600;"></div>'+
+                '<button onclick="p4SickSubmit()" class="sched-btn publish" style="width:100%;margin-top:12px;">Submit request</button>'+
+                '<p style="font-size:11.5px;color:var(--txt2,#8a8594);margin:10px 0 0;">Your manager is notified and will approve or deny it. Sick time follows the NM Healthy Workplaces Act.</p></div>'+
+            '</div>'+
+            '<div id="p4skPaneMine" style="display:none;">'+p4CardO('&#128203; My sick-leave requests','Last 12 months')+'<div id="p4skMineList"><p style="color:#6b7686;font-size:13px;">Loading&hellip;</p></div></div></div>'+
+            '<div id="p4skPaneQ" style="display:none;">'+p4CardO('&#9989; Team requests — approve or deny','Pending first. Denials always include the reason.')+'<div id="p4skQList"><p style="color:#6b7686;font-size:13px;">Loading&hellip;</p></div></div></div>'+
+            '</div>');
+        p4Open('p4SickView'); p4SickTab('req');
+    }
+    function p4SickTab(t){
+        p4SickTabCur=t;
+        var m={req:'p4skPaneReq',mine:'p4skPaneMine',q:'p4skPaneQ'};
+        Object.keys(m).forEach(function(k){ var el=document.getElementById(m[k]); if(el) el.style.display=(k===t)?'block':'none'; });
+        [['p4skTabReq','req'],['p4skTabMine','mine'],['p4skTabQ','q']].forEach(function(p){ var el=document.getElementById(p[0]); if(el) el.className='msg-tab'+(p4SickTabCur===p[1]?' active':''); });
+        if(t==='mine') p4SickLoadMine();
+        if(t==='q') p4SickLoadQueue();
+    }
+    function p4SickSubmit(){
+        var s=document.getElementById('p4skStart').value, e=document.getElementById('p4skEnd').value||s;
+        var h=parseFloat(document.getElementById('p4skHours').value);
+        var note=document.getElementById('p4skNote').value.trim();
+        var why=document.getElementById('p4skWhy');
+        why.style.display='none';
+        if(!s){ alert('Pick the first day.'); return; }
+        if(!h||h<=0){ alert('Enter the hours you need.'); return; }
+        p4Rpc('app_sick_request',{p_start_date:s,p_end_date:e,p_hours:h,p_note:note||null},function(d){
+            d=d||{};
+            if(d.ok===false){ why.innerHTML='&#9888;&#65039; '+p4Esc(d.reason||'This request can&rsquo;t be granted right now.'); why.style.display='block'; try{ why.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e2){} return; }
+            document.getElementById('p4skStart').value=''; document.getElementById('p4skEnd').value=''; document.getElementById('p4skHours').value=''; document.getElementById('p4skNote').value='';
+            alert('Request sent! Your manager has been notified.');
+            p4SickTab('mine');
+        },function(m){ why.innerHTML='&#9888;&#65039; '+p4Esc(m); why.style.display='block'; });
+    }
+    function p4SickRow(r,mgr){
+        var when=p4Esc(r.start_date||'')+(r.end_date&&r.end_date!==r.start_date?' &rarr; '+p4Esc(r.end_date):'');
+        var h='<div style="padding:10px 0;border-bottom:1px solid var(--bd,#eee);">'+
+            '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><b style="font-size:13.5px;color:var(--txt,#333);">'+(mgr?p4Esc(r.name||'')+' &middot; ':'')+when+'</b>'+p4StatusChip(r.status)+'</div>'+
+            '<div style="font-size:12.5px;color:var(--txt2,#6b7686);margin-top:2px;">'+p4Esc(String(r.hours||0))+' hr'+(r.location?' &middot; '+p4Esc(r.location):'')+(r.note?' &middot; &ldquo;'+p4Esc(r.note)+'&rdquo;':'')+(r.decided_by?' &middot; decided by '+p4Esc(r.decided_by):'')+'</div>';
+        if(mgr && String(r.status||'').toLowerCase()==='pending'){
+            h+='<div style="display:flex;gap:8px;margin-top:8px;"><button onclick="p4SickDecide('+r.id+',true)" style="flex:1;background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:8px;font-weight:800;cursor:pointer;">Approve</button><button onclick="p4SickDecide('+r.id+',false)" style="flex:1;background:#fff2f3;color:#c0264b;border:1px solid #f0b8c3;border-radius:8px;padding:8px;font-weight:800;cursor:pointer;">Deny</button></div>';
+        }
+        return h+'</div>';
+    }
+    function p4SickLoadMine(){
+        var el=document.getElementById('p4skMineList'); if(!el) return;
+        el.innerHTML='<p style="color:#6b7686;font-size:13px;">Loading&hellip;</p>';
+        p4Rpc('app_sick_list',{p_scope:'self'},function(d){
+            var rows=d||[];
+            el.innerHTML=rows.length?rows.map(function(r){ return p4SickRow(r,false); }).join(''):'<p style="color:#6b7686;font-size:13px;">No sick-leave requests yet.</p>';
+        },function(m){ el.innerHTML='<p style="color:#c0392b;font-size:13px;">'+p4Esc(m)+'</p>'; });
+    }
+    function p4SickLoadQueue(){
+        var el=document.getElementById('p4skQList'); if(!el) return;
+        if(!p4Mgr()){ el.innerHTML='<p style="color:#6b7686;font-size:13px;">Approvals are for managers.</p>'; return; }
+        el.innerHTML='<p style="color:#6b7686;font-size:13px;">Loading&hellip;</p>';
+        p4Rpc('app_sick_list',{p_scope:'all'},function(d){
+            var rows=d||[];
+            el.innerHTML=rows.length?rows.map(function(r){ return p4SickRow(r,true); }).join(''):'<p style="color:#6b7686;font-size:13px;">No requests from the team yet.</p>';
+        },function(m){ el.innerHTML='<p style="color:#c0392b;font-size:13px;">'+p4Esc(m)+'</p>'; });
+    }
+    function p4SickDecide(id,approve){
+        if(!approve && !confirm('Deny this sick-leave request? The employee will see the reason.')) return;
+        p4Rpc('app_sick_decide',{p_id:id,p_approve:approve},function(d){
+            d=d||{};
+            if(d.ok===false){ alert(d.reason||'Could not record the decision.'); p4SickLoadQueue(); return; }
+            p4SickLoadQueue();
+        });
+    }
+
+    /* ---------- 2. AUTO-LATE SCAN (Attendance screen, mgr) ---------- */
+    openAttendance=(function(orig){ return function(){ orig.apply(this,arguments); try{ p4AttInject(); }catch(e){} }; })(openAttendance);
+    function p4AttInject(){
+        var v=document.getElementById('attendanceView'); if(!v||v.style.display==='none') return;
+        if(!document.getElementById('p4attScanCard')){
+            var d=document.createElement('div'); d.id='p4attScanCard';
+            var host=v.querySelector('.container')||v;
+            host.insertBefore(d, host.firstChild&&host.firstChild.nextSibling?host.firstChild.nextSibling:null);
+        }
+        document.getElementById('p4attScanCard').innerHTML=p4CardO('&#9889; Unreported late clock-ins','Compares today&rsquo;s published shifts with actual clock-ins. Tardies found are logged automatically and appear in the record below.')+
+            '<button onclick="p4AttScan()" class="sched-btn publish" style="width:100%;">Scan today</button><div id="p4attScanOut" style="margin-top:10px;"></div></div>';
+    }
+    function p4AttScan(){
+        var out=document.getElementById('p4attScanOut'); if(!out) return;
+        out.innerHTML='<p style="color:#6b7686;font-size:13px;">Scanning today&rsquo;s shifts&hellip;</p>';
+        p4Rpc('app_attendance_autoscan',{},function(d){
+            d=d||{};
+            if(d.ok===false){ out.innerHTML='<p style="color:#c0392b;font-size:13px;">'+p4Esc(d.reason||'Scan failed.')+'</p>'; return; }
+            var t=d.tardies_logged||[], n=d.no_shows||[], h='';
+            h+='<div style="font-size:12px;color:#6b7686;margin-bottom:6px;">Scanned '+p4Esc(String(d.scanned||0))+' shift(s) for '+p4Esc(d.date||'today')+' &middot; late = '+p4Esc(String(d.threshold_min||7))+'+ min</div>';
+            if(!t.length&&!n.length){ h+='<div style="background:#e7f6ec;color:#1f7a3d;border-radius:8px;padding:9px 11px;font-size:13px;font-weight:700;">&#9989; Nothing unreported — everyone clocked in on time.</div>'; }
+            if(t.length){ h+='<div style="font-weight:800;font-size:13px;color:#854F0B;margin:6px 0 3px;">&#9200; Tardies logged automatically ('+t.length+')</div>'+t.map(function(x){ return '<div style="font-size:13px;padding:3px 0;">'+p4Esc(x.name||'')+' &middot; '+p4Esc(String(x.minutes_late||0))+' min late'+(x.location?' &middot; '+p4Esc(x.location):'')+'</div>'; }).join(''); }
+            if(n.length){ h+='<div style="font-weight:800;font-size:13px;color:#a01b3e;margin:8px 0 3px;">&#10067; No punch yet — possible no-shows (not auto-logged)</div>'+n.map(function(x){ return '<div style="font-size:13px;padding:3px 0;">'+p4Esc(x.name||'')+' &middot; shift started '+p4Esc(x.shift_start||'')+(x.location?' &middot; '+p4Esc(x.location):'')+'</div>'; }).join('')+'<div style="font-size:11.5px;color:#6b7686;margin-top:4px;">Confirm with the store before logging a no-show.</div>'; }
+            out.innerHTML=h;
+        },function(m){ out.innerHTML='<p style="color:#c0392b;font-size:13px;">'+p4Esc(m)+'</p>'; });
+    }
+
+    /* ---------- 3. MANAGER LOGBOOK ---------- */
+    function openLogbook(){
+        if(!p4Mgr()){ alert('The Manager Logbook is for shift leads and managers.'); return; }
+        var stores=(typeof HUB_STORES!=='undefined'&&HUB_STORES.length)?HUB_STORES:['Roadrunner','Valley','Lenox','Alamogordo','Roswell'];
+        var opts=stores.map(function(s){ return '<option'+(currentUser&&currentUser.store===s?' selected':'')+'>'+p4Esc(s)+'</option>'; }).join('');
+        p4View('p4LogView',
+            '<button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>'+
+            '<div class="hb-head" style="background:linear-gradient(120deg,#3b2f6b,#7a4bd3);"><div class="hb-ico">&#128211;</div><div><h2>Manager Logbook</h2><div class="hb-sub">Shift diary &mdash; pass the torch between shifts</div></div></div>'+
+            '<div class="container" style="max-width:680px;">'+
+            p4CardO('&#9999;&#65039; Add a note','What should the next shift know? Staffing, equipment, incidents, wins&hellip;')+
+                '<div style="display:flex;gap:8px;"><select id="p4lbStore" class="rm-inp" style="flex:2;">'+opts+'</select><select id="p4lbShift" class="rm-inp" style="flex:1;"><option>AM</option><option>PM</option></select></div>'+
+                '<textarea id="p4lbNote" rows="3" class="rm-inp" style="margin-top:8px;" placeholder="e.g. Freezer 2 running warm — PM watch it. Maria crushed the rush."></textarea>'+
+                '<button onclick="p4LogAdd()" class="sched-btn publish" style="width:100%;margin-top:10px;">Save to logbook</button></div>'+
+            p4CardO('&#128214; Today','Newest first')+'<div id="p4lbToday"><p style="color:#6b7686;font-size:13px;">Loading&hellip;</p></div></div>'+
+            '<div style="margin-top:14px;"><button onclick="p4LogToggleHist()" style="width:100%;background:none;border:1px dashed var(--bd,#ccc);border-radius:12px;padding:10px;color:var(--txt2,#6b7686);font-weight:700;cursor:pointer;" id="p4lbHistBtn">&#9662; Show last 7 days</button><div id="p4lbHist" style="display:none;margin-top:8px;"></div></div>'+
+            '</div>');
+        p4Open('p4LogView'); p4LogLoad();
+    }
+    function p4LogAdd(){
+        var loc=document.getElementById('p4lbStore').value, sh=document.getElementById('p4lbShift').value, note=document.getElementById('p4lbNote').value.trim();
+        if(!note){ alert('Write the note first.'); return; }
+        p4Rpc('app_logbook_add',{p_location:loc,p_shift:sh,p_note:note},function(d){
+            if(d&&d.ok===false){ alert(d.reason||'Could not save.'); return; }
+            document.getElementById('p4lbNote').value='';
+            p4LogLoad();
+        });
+    }
+    function p4LogRowHtml(r){
+        return '<div style="padding:9px 0;border-bottom:1px solid var(--bd,#eee);"><div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--txt2,#8a8594);"><span><b style="color:var(--txt,#444);">'+p4Esc(r.author_name||'')+'</b> &middot; '+p4Esc(r.location||'')+' &middot; '+p4Esc(r.shift||'')+'</span><span>'+p4Esc(r.entry_date||'')+'</span></div><div style="font-size:13.5px;color:var(--txt,#333);white-space:pre-wrap;margin-top:3px;">'+p4Esc(r.note||'')+'</div></div>';
+    }
+    function p4LogLoad(){
+        var elT=document.getElementById('p4lbToday'), elH=document.getElementById('p4lbHist');
+        if(!elT) return;
+        p4Rpc('app_logbook_list',{p_location:'All',p_days:7},function(d){
+            var rows=d||[]; var today=new Date(); var tzoff=today.getTimezoneOffset()*60000;
+            var todayStr=new Date(today-tzoff).toISOString().slice(0,10);
+            var t=rows.filter(function(r){ return r.entry_date===todayStr; });
+            var old=rows.filter(function(r){ return r.entry_date!==todayStr; });
+            elT.innerHTML=t.length?t.map(p4LogRowHtml).join(''):'<p style="color:#6b7686;font-size:13px;">No notes yet today. Be the first!</p>';
+            if(elH) elH.innerHTML=old.length?old.map(p4LogRowHtml).join(''):'<p style="color:#6b7686;font-size:13px;">Nothing in the last 7 days.</p>';
+        },function(m){ elT.innerHTML='<p style="color:#c0392b;font-size:13px;">'+p4Esc(m)+'</p>'; });
+    }
+    function p4LogToggleHist(){
+        var h=document.getElementById('p4lbHist'), b=document.getElementById('p4lbHistBtn');
+        if(!h) return; var open=h.style.display!=='none';
+        h.style.display=open?'none':'block';
+        if(b) b.innerHTML=open?'&#9662; Show last 7 days':'&#9652; Hide history';
+    }
+
+    /* ---------- 4. ANNOUNCEMENT READ RECEIPTS ---------- */
+    loadUpdates=(function(){ return function(){
+        var c=document.getElementById('msgContent');
+        withPin(function(pin){
+            supabaseClient.rpc('app_announce_feed',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+p4Esc(r.error.message)+'</p>'; return; }
+                if(r.data && r.data.linked===false){ c.innerHTML='<p style="text-align:center;padding:20px;color:#6b7686;">Your login isn\'t linked yet — ask a manager to link your account.</p>'; return; }
+                var items=(r.data&&r.data.items)||[]; var h='';
+                if(isMgr()){
+                    h+='<div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
+                        '<div style="font-size:14px;font-weight:500;color:#6a3fb5;margin-bottom:8px;">Post an update</div>' +
+                        '<input id="anTitle" placeholder="Title (optional)" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;">' +
+                        '<textarea id="anBody" rows="2" placeholder="What&#39;s the update? (new item, policy change…)" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;"></textarea>' +
+                        '<div style="display:flex;gap:8px;"><select id="anAud" onchange="anAudChange()" style="flex:1;padding:9px;border:1px solid #ccc;border-radius:8px;"><option value="everyone">Everyone</option><option value="store">A store</option></select>' +
+                        '<select id="anStore" style="flex:1;padding:9px;border:1px solid #ccc;border-radius:8px;display:none;"></select>' +
+                        '<button onclick="postAnnounce()" style="background:#6a3fb5;color:#fff;border:none;border-radius:8px;padding:9px 14px;font-weight:bold;cursor:pointer;">Post</button></div></div>';
+                }
+                if(!items.length){ h+='<p style="color:#6b7686;text-align:center;padding:10px;font-size:13px;">No updates yet.</p>'; }
+                else items.forEach(function(a){
+                    var _amg=isMgr()?('<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"><button onclick="annEditItem('+a.id+')" style="background:#f3eeff;color:#6a3fb5;border:1px solid #d9c9f5;border-radius:7px;padding:4px 11px;font-size:12px;font-weight:700;cursor:pointer;">Edit</button><button onclick="annDeleteItem('+a.id+')" style="background:#fff2f3;color:#c0264b;border:1px solid #f0b8c3;border-radius:7px;padding:4px 11px;font-size:12px;font-weight:700;cursor:pointer;">Delete</button><button onclick="p4AnnWho('+a.id+')" style="background:#eef6fd;color:#0d6eaf;border:1px solid #bcdcf2;border-radius:7px;padding:4px 11px;font-size:12px;font-weight:700;cursor:pointer;">&#128065; Who&rsquo;s read</button></div><div id="p4annwho-'+a.id+'" style="display:none;font-size:12px;margin-top:6px;background:var(--surface2,#f7f8fb);border-radius:8px;padding:8px 10px;color:#445;"></div>'):'';
+                    h+='<div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 4px 6px rgba(0,0,0,0.05);'+(a.read?'':'border-left:4px solid #6a3fb5;')+'">' +
+                        (a.title?'<div style="font-size:15px;font-weight:500;color:#333;">'+p4Esc(a.title)+'</div>':'') +
+                        '<div style="font-size:14px;color:#444;white-space:pre-wrap;">'+p4Esc(a.body)+'</div>' +
+                        '<div style="font-size:11px;color:#aab;margin-top:6px;">'+p4Esc(a['from']||'')+' &bull; '+socFmt(a.at)+(a.mine?' &bull; &#10003; Read by '+(a.reads||0):'')+'</div>'+_amg+'</div>';
+                });
+                c.innerHTML=h;
+                if(isMgr() && taTargets===null){ withPin(function(p2){ supabaseClient.rpc('app_task_targets',{p_username:currentUser.username,p_password:p2}).then(function(rr){ if(!rr.error){ taTargets=rr.data||{}; var sel=document.getElementById('anStore'); if(sel) sel.innerHTML=(taTargets.stores||[]).map(function(s){return '<option value="'+p4Esc(s)+'">'+p4Esc(s)+'</option>';}).join(''); } }); }); }
+                else if(isMgr()){ var sel=document.getElementById('anStore'); if(sel&&taTargets) sel.innerHTML=(taTargets.stores||[]).map(function(s){return '<option value="'+p4Esc(s)+'">'+p4Esc(s)+'</option>';}).join(''); }
+                // mark unread read (legacy badge counter)
+                (items||[]).forEach(function(a){ if(!a.read){ withPin(function(p3){ supabaseClient.rpc('app_announce_read',{p_username:currentUser.username,p_password:p3,p_id:a.id}); }); } });
+                // P4: fire-and-forget read receipts for every rendered announcement (idempotent)
+                try{
+                    withPin(function(p4){
+                        (items||[]).slice(0,30).forEach(function(a){
+                            try{ supabaseClient.rpc('app_announce_mark_read',{p_username:currentUser.username,p_password:p4,p_key:String(a.id)}).then(function(){},function(){}); }catch(e){}
+                        });
+                    });
+                }catch(e){}
+            });
+        });
+    }; })();
+    function p4AnnWho(id){
+        var box=document.getElementById('p4annwho-'+id); if(!box) return;
+        if(box.style.display!=='none'){ box.style.display='none'; return; }
+        box.style.display='block'; box.innerHTML='Checking&hellip;';
+        p4Rpc('app_announce_read_status',{p_key:String(id)},function(d){
+            d=d||{};
+            if(d.ok===false){ box.innerHTML=p4Esc(d.reason||'Managers only.'); return; }
+            var rd=(d.read||[]).map(p4Esc).join(', ')||'&mdash;', un=(d.unread||[]).map(p4Esc).join(', ')||'&mdash;';
+            box.innerHTML='<b style="color:#1f7a3d;">Read ('+(d.read_count||0)+'):</b> '+rd+'<br><b style="color:#a01b3e;">Unread ('+(d.unread_count||0)+'):</b> '+un;
+        },function(m){ box.innerHTML=p4Esc(m); });
+    }
+
+    /* ---------- 5. OT WATCH + OPEN PUNCHES (Timesheets, mgr) ---------- */
+    openTimesheets=(function(orig){ return function(){ orig.apply(this,arguments); try{ p4TsInject(); }catch(e){} }; })(openTimesheets);
+    function p4TsInject(){
+        var sum=document.getElementById('timesheetSummary'); if(!sum) return;
+        if(!document.getElementById('p4tsCards')){
+            var d=document.createElement('div'); d.id='p4tsCards';
+            sum.parentNode.insertBefore(d,sum);
+        }
+        document.getElementById('p4tsCards').innerHTML=
+            p4CardO('&#9201; Overtime watch — over 38 hrs this week','Catch overtime before it happens. Open punches count as time-so-far.')+'<div id="p4tsOt" style="margin-top:4px;"><p style="color:#6b7686;font-size:13px;">Loading&hellip;</p></div></div>'+
+            p4CardO('&#128564; Possible forgotten clock-outs','Punches still open 14+ hours after clock-in (last 30 days). Fix them in Punches.')+'<div id="p4tsOpen" style="margin-top:4px;"><p style="color:#6b7686;font-size:13px;">Loading&hellip;</p></div></div>'+
+            '<div style="height:14px;"></div>';
+        p4Rpc('app_ot_watch',{},function(d){
+            var rows=d||[]; var el=document.getElementById('p4tsOt'); if(!el) return;
+            el.innerHTML=rows.length?rows.map(function(r){ return '<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:4px 0;border-bottom:1px solid var(--bd,#f0f0f0);"><span>'+p4Esc(r.name||'')+'</span><b style="color:'+(Number(r.hours)>=40?'#c0392b':'#854F0B')+';">'+Number(r.hours||0).toFixed(1)+' h</b></div>'; }).join(''):'<p style="color:#1f7a3d;font-size:13px;font-weight:700;">&#9989; No one is over 38 hours this week.</p>';
+        },function(m){ var el=document.getElementById('p4tsOt'); if(el) el.innerHTML='<p style="color:#c0392b;font-size:12.5px;">'+p4Esc(m)+'</p>'; });
+        p4Rpc('app_open_punches',{},function(d){
+            var rows=d||[]; var el=document.getElementById('p4tsOpen'); if(!el) return;
+            el.innerHTML=rows.length?rows.map(function(r){ return '<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:4px 0;border-bottom:1px solid var(--bd,#f0f0f0);"><span>'+p4Esc(r.name||'')+' <span style="color:#6b7686;font-size:12px;">in '+p4Esc(String(r.clock_in||'').replace('T',' ').slice(0,16))+'</span></span><b style="color:#c0392b;">'+Number(r.hours_open||0).toFixed(0)+' h open</b></div>'; }).join(''):'<p style="color:#1f7a3d;font-size:13px;font-weight:700;">&#9989; No forgotten clock-outs found.</p>';
+        },function(m){ var el=document.getElementById('p4tsOpen'); if(el) el.innerHTML='<p style="color:#c0392b;font-size:12.5px;">'+p4Esc(m)+'</p>'; });
+    }
+
+    /* ---------- 6. MY ATTENDANCE (staff, My Home) ---------- */
+    function p4MyAttMount(){
+        try{
+            var home=document.getElementById('tab-content-home');
+            if(!home||document.getElementById('p4myatt')) return;
+            var d=document.createElement('div'); d.id='p4myatt';
+            d.innerHTML='<button onclick="p4MyAttToggle()" id="p4myattBtn" style="width:100%;background:none;border:1px dashed var(--bd,#ccc);border-radius:12px;padding:10px;color:var(--txt2,#6b7686);font-weight:700;cursor:pointer;margin-top:10px;">&#128197; My attendance (90 days) &#9662;</button><div id="p4myattBody" style="display:none;background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:12px;padding:12px 14px;margin-top:8px;"></div>';
+            home.appendChild(d);
+        }catch(e){}
+    }
+    function p4MyAttToggle(){
+        var b=document.getElementById('p4myattBody'); if(!b) return;
+        if(b.style.display!=='none'){ b.style.display='none'; return; }
+        b.style.display='block';
+        if(!b._loaded){ p4MyAttLoad(); }
+    }
+    function p4MyAttLoad(){
+        var b=document.getElementById('p4myattBody'); if(!b) return;
+        b.innerHTML='<p style="color:#6b7686;font-size:13px;">Loading&hellip;</p>';
+        p4Rpc('app_my_attendance',{},function(d){
+            b._loaded=true;
+            var rows=d||[]; var tn={callin:'Call-in',tardy:'Tardy',early:'Left early'};
+            if(!rows.length){ b.innerHTML='<p style="color:#1f7a3d;font-size:13px;font-weight:700;margin:0;">&#127775; Clean record — nothing in the last 90 days!</p>'; return; }
+            b.innerHTML=rows.map(function(e){ return '<div style="padding:7px 0;border-bottom:1px solid var(--bd,#eee);font-size:13px;"><b>'+p4Esc(tn[e.event_type]||e.event_type||'')+'</b> <span style="color:#6b7686;">'+p4Esc(e.event_date||'')+(e.location?' &middot; '+p4Esc(e.location):'')+'</span>'+((e.reason||e.comments)?'<div style="color:#6b7686;font-size:12px;">'+p4Esc(e.reason||'')+(e.comments?' — '+p4Esc(e.comments):'')+'</div>':'')+'</div>'; }).join('')+
+                '<p style="font-size:11.5px;color:var(--txt2,#8a8594);margin:8px 0 0;">Think something here is wrong? Talk to your manager or use Your Voice.</p>';
+        },function(m){ b.innerHTML='<p style="color:#c0392b;font-size:13px;">'+p4Esc(m)+'</p>'; });
+    }
+
+    /* ---------- 7. UNDER-15 CURFEW GUARDRAIL (publish gate) ---------- */
+    var p4CurfewCutoff=null;
+    function p4CurfewLoad(done){
+        if(p4CurfewCutoff){ done(); return; }
+        try{
+            withPin(function(pin){
+                supabaseClient.rpc('app_settings_get',{p_username:currentUser.username,p_password:pin,p_group:'curfew_under15'}).then(function(r){
+                    try{
+                        var rows=(r&&r.data)||[]; var v=null;
+                        rows.forEach(function(x){ var raw=x&&(x.value||x.val); if(!raw) return; try{ var j=JSON.parse(raw); if(j&&j.cutoff) v=j.cutoff; }catch(e){ if(/^\d{1,2}:\d{2}$/.test(String(raw).trim())) v=String(raw).trim(); } });
+                        p4CurfewCutoff=v||'21:00';
+                    }catch(e){ p4CurfewCutoff='21:00'; }
+                    done();
+                }).then(null,function(){ p4CurfewCutoff='21:00'; done(); });
+            },function(){ p4CurfewCutoff='21:00'; done(); });
+        }catch(e){ p4CurfewCutoff='21:00'; done(); }
+    }
+    function p4CurfewWarn(s){
+        try{
+            if(!s||s.employee_id==null||!s.end_time) return null;
+            var emp=((schedState&&schedState.data&&schedState.data.employees)||[]).find(function(x){ return x.id===s.employee_id; });
+            if(!emp||!emp.birthday) return null; /* skip silently when birthday absent */
+            var bd=new Date(emp.birthday+'T00:00:00'), sd=new Date((s.shift_date||'')+'T00:00:00');
+            if(isNaN(bd)||isNaN(sd)) return null;
+            var age=sd.getFullYear()-bd.getFullYear(); var m=sd.getMonth()-bd.getMonth();
+            if(m<0||(m===0&&sd.getDate()<bd.getDate())) age--;
+            if(age>=15||age<10) return null; /* <10 = almost certainly bad data */
+            var cut=p4CurfewCutoff||'21:00';
+            var end=String(s.end_time).slice(0,5), start=String(s.start_time||'00:00').slice(0,5);
+            var late=(end>cut)||(end<start); /* past cutoff, or wraps past midnight */
+            if(!late) return null;
+            return 'Under-15 curfew: shift ends '+end+', after the '+cut+' cutoff for employees under 15';
+        }catch(e){ return null; }
+    }
+    shiftWarnings=(function(orig){ return function(s){
+        var w=[]; try{ w=orig.apply(this,arguments)||[]; }catch(e){ w=[]; }
+        try{ var cw=p4CurfewWarn(s); if(cw) w.push(cw); }catch(e){}
+        return w;
+    }; })(shiftWarnings);
+    schedPublish=(function(orig){ return function(){
+        var args=arguments, self=this;
+        try{ p4CurfewLoad(function(){ orig.apply(self,args); }); }
+        catch(e){ orig.apply(self,args); }
+    }; })(schedPublish);
+
+    /* ---------- 8. CHECKLIST DUE-WINDOWS ---------- */
+    var p4CkwCache=null, p4CkwAt=0;
+    function p4CkwFetch(cb){
+        var now=Date.now();
+        if(p4CkwCache&&(now-p4CkwAt)<300000){ cb(p4CkwCache); return; }
+        p4Rpc('app_checklist_windows',{},function(d){ p4CkwCache=d||[]; p4CkwAt=Date.now(); cb(p4CkwCache); },function(){ cb(p4CkwCache||[]); });
+    }
+    function p4ClChip(){
+        var prog=document.getElementById('clProgress'); if(!prog) return;
+        var chip=document.getElementById('p4clChip');
+        if(!chip){ chip=document.createElement('div'); chip.id='p4clChip'; chip.style.cssText='margin:6px 0 10px;'; prog.parentNode.insertBefore(chip,prog.nextSibling); }
+        chip.innerHTML='';
+        var loc=null; try{ loc=tempStoreLoc(); }catch(e){}
+        if(!loc) return;
+        var shift=(typeof clShift!=='undefined')?clShift:'open';
+        p4CkwFetch(function(rows){
+            var w=(rows||[]).find(function(x){ return x&&x.active!==false&&x.location===loc&&String(x.shift_type||'').toLowerCase()===String(shift).toLowerCase(); });
+            var el=document.getElementById('p4clChip'); if(!el) return;
+            if(!w||!w.due_time){ el.innerHTML=''; return; }
+            var due=String(w.due_time).slice(0,5);
+            var n=new Date(); var nowM=n.getHours()*60+n.getMinutes();
+            var dp=due.split(':'); var dueM=parseInt(dp[0],10)*60+parseInt(dp[1],10);
+            var esc=parseInt(w.escalate_after_min||30,10);
+            var html;
+            if(nowM<=dueM){ html='<span style="background:#eef6fd;color:#0d6eaf;padding:4px 12px;border-radius:99px;font-size:12px;font-weight:800;">&#9200; Due by '+p4Esc(due)+'</span>'; }
+            else{
+                var lateBy=nowM-dueM;
+                if(lateBy<=esc) html='<span style="background:#fff3cd;color:#854F0B;padding:4px 12px;border-radius:99px;font-size:12px;font-weight:800;">&#9200; Due by '+p4Esc(due)+' &middot; '+lateBy+' min late</span>';
+                else html='<span style="background:#fdecea;color:#c0392b;padding:4px 12px;border-radius:99px;font-size:12px;font-weight:800;">&#9888;&#65039; '+lateBy+' min past the '+p4Esc(due)+' due time</span>';
+            }
+            el.innerHTML=html;
+        });
+    }
+    setChecklistTab=(function(orig){ return function(shift){ orig.apply(this,arguments); try{ p4ClChip(); }catch(e){} }; })(setChecklistTab);
+    /* Admin editor card (in Admin Console) */
+    function p4CkwAdminLoad(){
+        var box=document.getElementById('p4ckwBox'); if(!box) return;
+        var stores=(typeof HUB_STORES!=='undefined'&&HUB_STORES.length)?HUB_STORES:['Roadrunner','Valley','Lenox','Alamogordo','Roswell'];
+        var sel=document.getElementById('p4ckwLoc');
+        if(sel) sel.innerHTML=stores.map(function(s){ return '<option>'+p4Esc(s)+'</option>'; }).join('');
+        box.innerHTML='<p style="color:var(--txt2,#8a8594);font-size:13px;">Loading&hellip;</p>';
+        p4CkwCache=null;
+        p4CkwFetch(function(rows){
+            rows=rows||[];
+            box.innerHTML=rows.length?rows.map(function(w){
+                return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd,#eee);font-size:13px;"><span>'+p4Esc(w.location||'')+' &middot; <b>'+p4Esc(w.shift_type||'')+'</b> &middot; due '+p4Esc(String(w.due_time||'').slice(0,5))+' &middot; escalate +'+p4Esc(String(w.escalate_after_min||30))+'m'+(w.active===false?' &middot; <i>off</i>':'')+'</span>'+(w.active!==false?'<button onclick="p4CkwOff('+w.id+',\''+p4Esc(w.location||'').replace(/'/g,"\\'")+'\',\''+p4Esc(w.shift_type||'')+'\',\''+p4Esc(String(w.due_time||'').slice(0,5))+'\','+(w.escalate_after_min||30)+')" style="background:#fff2f3;color:#c0264b;border:1px solid #f0b8c3;border-radius:7px;padding:3px 9px;font-size:11.5px;font-weight:700;cursor:pointer;">Turn off</button>':'')+'</div>';
+            }).join(''):'<p style="color:var(--txt2,#8a8594);font-size:13px;">No due times set yet — add the first one above.</p>';
+        });
+    }
+    function p4CkwSave(){
+        var loc=document.getElementById('p4ckwLoc').value, sh=document.getElementById('p4ckwShift').value, t=document.getElementById('p4ckwTime').value, esc=parseInt(document.getElementById('p4ckwEsc').value,10)||30;
+        if(!t){ alert('Pick a due time.'); return; }
+        p4Rpc('app_checklist_window_set',{p_location:loc,p_shift_type:sh,p_due_time:t,p_escalate_min:esc,p_active:true},function(d){
+            if(d&&d.ok===false){ alert(d.reason||'Could not save.'); return; }
+            p4CkwCache=null; p4CkwAdminLoad();
+        });
+    }
+    function p4CkwOff(id,loc,sh,t,esc){
+        p4Rpc('app_checklist_window_set',{p_location:loc,p_shift_type:sh,p_due_time:t||'10:00',p_escalate_min:esc||30,p_active:false},function(){ p4CkwCache=null; p4CkwAdminLoad(); });
+    }
+    openAdminConsole=(function(orig){ return function(){ orig.apply(this,arguments); try{ p4CkwAdminLoad(); }catch(e){} }; })(openAdminConsole);
+
+    /* ---------- TILE VISIBILITY + REGISTRY ---------- */
+    function p4ApplyVis(){
+        try{
+            var lb=document.getElementById('btn-logbook'); if(lb) lb.style.display=p4Mgr()?'block':'none';
+            p4MyAttMount();
+        }catch(e){}
+    }
+    if(typeof switchMenuTab==='function'){
+        switchMenuTab=(function(orig){ return function(){ var r=orig.apply(this,arguments); try{ p4ApplyVis(); }catch(e){} return r; }; })(switchMenuTab);
+    }
+    try{ p4ApplyVis(); }catch(e){}
+    try{
+        HUB_STATIC_REG.push(
+            { id:'sickleave', key:'sickleave', btn:'btn-sickLeave', keywords:['sick','sick leave','sick time','pto','paid leave','hwa','healthy workplaces','call in sick'] },
+            { id:'logbook', key:'logbook', btn:'btn-logbook', keywords:['logbook','log book','shift notes','diary','handoff','pass down','manager notes'] },
+            { id:'myattendance', label:'My Attendance (90 days)', emoji:'&#128197;', section:'Home', keywords:['my attendance','my record','tardies','call ins','points','late'], roleCheck:null, go:function(){ hubNav('home'); setTimeout(function(){ try{ var b=document.getElementById('p4myattBody'); if(b&&b.style.display==='none') p4MyAttToggle(); var t=document.getElementById('p4myattBtn'); if(t&&t.scrollIntoView) t.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} },400); } },
+            { id:'checklistwindows', label:'Checklist due times', emoji:'&#9200;', section:'Admin Console', keywords:['checklist due','due time','opening deadline','late checklist','escalate'], roleCheck:_hubRole('isAdminManager'), go:function(){ openAdminConsole(); _hubScrollTo('p4ckwCard'); } }
+        );
+        NEW_THIS_MONTH.push('sickleave','logbook','myattendance');
+    }catch(e){}
+    /* ===== END P4 FEATURE BUNDLE ===== */
+
     </script>
 
 <!-- AI KNOWLEDGE BASE VIEW -->
@@ -13699,9 +14104,21 @@
       <div style="font-size:12.5px;color:var(--txt2,#8a8594);margin-bottom:8px;">Choose which roles get which push alerts. Unchecked means that role won&rsquo;t be notified for that type.</div>
       <div id="admNotifBox"><p style="color:var(--txt2,#8a8594);font-size:13px;">Loading&hellip;</p></div>
     </div>
+    <div id="p4ckwCard" style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);margin-top:14px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:18px;">&#9200;</span><b style="flex:1;font-size:15px;color:var(--txt,#26242b);">Checklist due times</b></div>
+      <div style="font-size:12.5px;color:var(--txt2,#8a8594);margin-bottom:8px;">Set when each store&rsquo;s opening / closing / cleaning checklist should be done. Staff see a &ldquo;due by&rdquo; chip and how late it is &mdash; no automatic penalties.</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+        <select id="p4ckwLoc" style="flex:2;min-width:110px;padding:8px;border:1px solid var(--bd,#ddd);border-radius:8px;background:var(--surface,#fff);color:var(--txt,#26242b);"></select>
+        <select id="p4ckwShift" style="flex:1;min-width:90px;padding:8px;border:1px solid var(--bd,#ddd);border-radius:8px;background:var(--surface,#fff);color:var(--txt,#26242b);"><option value="open">Opening</option><option value="close">Closing</option><option value="clean">Cleaning</option></select>
+        <input id="p4ckwTime" type="time" style="flex:1;min-width:90px;padding:7px;border:1px solid var(--bd,#ddd);border-radius:8px;background:var(--surface,#fff);color:var(--txt,#26242b);">
+        <input id="p4ckwEsc" type="number" value="30" min="5" title="Escalate after (minutes)" style="width:64px;padding:8px;border:1px solid var(--bd,#ddd);border-radius:8px;background:var(--surface,#fff);color:var(--txt,#26242b);">
+        <button onclick="p4CkwSave()" style="background:var(--caliches-pink);color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;">Save</button>
+      </div>
+      <div id="p4ckwBox"><p style="color:var(--txt2,#8a8594);font-size:13px;">Loading&hellip;</p></div>
+    </div>
     <div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);margin-top:14px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:18px;">&#128222;</span><b style="flex:1;font-size:15px;color:var(--txt,#26242b);">Important Contacts directory</b><button onclick="openContactEdit(null)" style="background:var(--caliches-pink);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;">&#10133; Add</button></div>
-      <div style="font-size:12.5px;color:var(--txt2,#8a8594);margin-bottom:8px;">The vendor, repair, utility, and escalation directory staff see under Store Operations &rarr; Important Contacts. Add and manage them here.</div>
+      <div style="font-size:12.5px;color:var(--txt2,#8a8594);margin-bottom:8px;">The vendor, repair, utility, and escalation directory staff see under Work &rarr; Important Contacts. Add and manage them here.</div>
       <div id="admContactsDirBox"><p style="color:var(--txt2,#8a8594);font-size:13px;">Loading&hellip;</p></div>
     </div>
     <div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);margin-top:14px;">
