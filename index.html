@@ -872,8 +872,19 @@
         </div>
         <div id="taskPaneMine"><div id="tasksMineCard"></div></div>
         <div id="taskPaneTeam" style="display:none;">
-            <div id="teamTasksHint" style="font-size:12px;color:#6b7686;margin:0 2px 10px;"></div>
+            <div id="teamQuickAddRow" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:#fff;border:1px solid #ececf2;border-radius:12px;padding:10px;margin-bottom:10px;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                <input id="tqaTitle" type="text" placeholder="Quick task for a store&hellip;" style="flex:1 1 150px;min-width:130px;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:13px;">
+                <select id="tqaStore" style="flex:0 1 128px;padding:9px;border:1px solid #ccc;border-radius:8px;font-size:13px;"></select>
+                <input id="tqaDue" type="date" style="flex:0 1 128px;padding:8px;border:1px solid #ccc;border-radius:8px;font-size:13px;">
+                <button onclick="teamQuickAdd()" style="background:var(--caliches-pink);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:bold;cursor:pointer;">Add</button>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 2px 8px;">
+                <div id="teamTasksHint" style="font-size:12px;color:#6b7686;"></div>
+                <button id="teamDoneToggleBtn" onclick="toggleTeamDone()" style="font-size:11.5px;border:1px solid #cfe7da;background:#fff;color:#1d7a56;border-radius:99px;padding:5px 12px;font-weight:700;cursor:pointer;white-space:nowrap;">&#9989; Recently completed (7 days)</button>
+            </div>
+            <div id="teamTaskChips" style="display:flex;flex-wrap:wrap;gap:6px;margin:0 2px 10px;"></div>
             <div id="teamTasksList"></div>
+            <div id="teamDoneList"></div>
         </div>
         <div id="taskPaneAssign" style="display:none;">
             <button class="menu-btn" onclick="openTaskAssign()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128203;</span><b>Assign a Task</b><small>Send to people, a store, a role, or everyone</small></button>
@@ -2526,7 +2537,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.06.30.2056';
+    const APP_VERSION = '2026.07.01.1944';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -2653,12 +2664,22 @@
         });
         if (which === 'team') loadTeamTasks();
     }
+    var teamTaskStoreFilter = null, teamShowDone = false, _teamTasksCache = [];
     function loadTeamTasks() {
         var c = document.getElementById('teamTasksList'); if (!c) return;
         var admin = currentUser && (currentUser.isAdminStores === true);
         var loc = admin ? null : (typeof activeStoreLoc === 'function' ? activeStoreLoc() : '');
         var hint = document.getElementById('teamTasksHint');
         if (hint) hint.innerText = admin ? 'Showing tasks for every store.' : ('Showing tasks for ' + (loc || 'your store') + '. Switch stores from the menu.');
+        // Quick-add controls (store list from HUB_STORES, due defaults to today)
+        var qs = document.getElementById('tqaStore');
+        if (qs && !qs.getAttribute('data-init')) {
+            qs.innerHTML = (HUB_STORES || []).map(function(s) { return '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'; }).join('');
+            var _as = (typeof activeStoreLoc === 'function' ? activeStoreLoc() : '') || '';
+            for (var qi = 0; qi < qs.options.length; qi++) { if (qs.options[qi].value === _as) { qs.selectedIndex = qi; break; } }
+            qs.setAttribute('data-init', '1');
+        }
+        var qd = document.getElementById('tqaDue'); if (qd && !qd.value) qd.value = _teamTodayStr();
         c.innerHTML = '<p style="text-align:center;color:#6b7686;font-size:13px;padding:14px;">Loading team tasks&hellip;</p>';
         withPin(function(pin) {
             supabaseClient.rpc('app_tasks_overview', { p_username: currentUser.username, p_password: pin, p_location: (loc || null) }).then(function(r) {
@@ -2666,34 +2687,169 @@
                 var tasks = r.data || [];
                 // Auto-clear: once everyone assigned has finished a task, drop it off the active board (record stays in the database).
                 tasks = tasks.filter(function(t) { return !(t.total > 0 && t.done >= t.total); });
-                if (!tasks.length) { c.innerHTML = '<p style="text-align:center;color:#6b7686;font-size:13px;padding:14px;">No open team tasks. &#127881;</p>'; return; }
-                var h = '';
-                tasks.forEach(function(t) {
-                    var doneAll = (t.total > 0 && t.done >= t.total);
-                    h += '<div style="background:#fff;border-radius:12px;padding:13px 15px;margin-bottom:10px;box-shadow:0 2px 4px rgba(0,0,0,0.05);">';
-                    h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><div style="font-size:14px;font-weight:700;color:#333;">' + escapeHtml(t.title) + (t.requires_photo ? ' <span style="font-size:10px;color:#185FA5;white-space:nowrap;">&#128247; photo</span>' : '') + '</div>' +
-                         '<span style="font-size:11px;font-weight:700;white-space:nowrap;color:' + (doneAll ? '#1d9e75' : (t.total ? '#185FA5' : '#c0264b')) + ';">' + (t.total ? (t.done + '/' + t.total + ' done') : 'no one assigned') + '</span></div>';
-                    if (t.details) h += '<div style="font-size:12px;color:#6b7686;margin-top:2px;">' + escapeHtml(t.details) + '</div>';
-                    h += '<div style="font-size:11px;color:#aab;margin-top:4px;">' + escapeHtml(t.target || '') + (t.due_date ? (' &middot; due ' + escapeHtml(t.due_date)) : '') + ' &middot; from ' + escapeHtml(t['from'] || '') + '</div>';
-                    var asg = t.assignees || [];
-                    if (asg.length) {
-                        h += '<div style="margin-top:7px;display:flex;flex-wrap:wrap;gap:4px;">';
-                        asg.forEach(function(a) {
-                            var d = (a.status === 'done');
-                            if (d && a.has_photo) {
-                                h += '<button onclick="showTaskPhoto(' + a.assignee_id + ')" style="font-size:10px;border:none;border-radius:8px;padding:2px 8px;background:#e7f7ef;color:#1d7a56;cursor:pointer;">&#128247; ' + escapeHtml(a.name) + '</button>';
-                            } else {
-                                h += '<span style="font-size:10px;border-radius:8px;padding:2px 8px;background:' + (d ? '#e7f7ef' : '#f1f1f1') + ';color:' + (d ? '#1d7a56' : '#777') + ';">' + (d ? '&#10003; ' : '') + escapeHtml(a.name) + '</span>';
-                            }
-                        });
-                        h += '</div>';
-                    }
-                    h += '<div style="text-align:right;margin-top:8px;"><button onclick="clearTeamTask(' + t.id + ')" style="font-size:11px;border:1px solid #f0c0cc;background:#fff5f8;color:#c0264b;border-radius:8px;padding:4px 10px;font-weight:700;cursor:pointer;">&#128465; Clear</button></div>';
-                    h += '</div>';
-                });
-                c.innerHTML = h;
+                _teamTasksCache = tasks;
+                renderTeamTasks();
+                if (teamShowDone) loadTeamDone(); else { var dl = document.getElementById('teamDoneList'); if (dl) dl.innerHTML = ''; }
             }).catch(function() { c.innerHTML = '<p style="color:#c0264b;text-align:center;font-size:13px;">Connection error.</p>'; });
         });
+    }
+    function _teamTodayStr(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    function teamTaskStoreOf(t){
+        if (t.location) return t.location;
+        if (t.store) return t.store;
+        var tg = String(t.target || ''), stores = HUB_STORES || [];
+        for (var i = 0; i < stores.length; i++) { if (stores[i] && tg.indexOf(stores[i]) >= 0) return stores[i]; }
+        return null;
+    }
+    function renderTeamTasks(){
+        var c = document.getElementById('teamTasksList'); if (!c) return;
+        var todayStr = _teamTodayStr();
+        var all = _teamTasksCache || [];
+        // Per-store OPEN / OVERDUE chips
+        var chipDiv = document.getElementById('teamTaskChips');
+        var byStore = {}, order = [];
+        all.forEach(function(t) {
+            var s = teamTaskStoreOf(t); if (!s) return;
+            if (!byStore[s]) { byStore[s] = { open: 0, late: 0 }; order.push(s); }
+            byStore[s].open++;
+            if (t.due_date && String(t.due_date) < todayStr) byStore[s].late++;
+        });
+        window._teamChipStores = order;
+        if (teamTaskStoreFilter && order.indexOf(teamTaskStoreFilter) < 0) teamTaskStoreFilter = null;
+        if (chipDiv) {
+            chipDiv.innerHTML = order.map(function(s, i) {
+                var b = byStore[s], on = (teamTaskStoreFilter === s);
+                return '<button onclick="teamChipFilter(' + i + ')" style="font-size:11.5px;border:1px solid ' + (on ? '#185FA5' : '#dfe4ea') + ';background:' + (on ? '#185FA5' : '#fff') + ';color:' + (on ? '#fff' : '#33404e') + ';border-radius:99px;padding:5px 11px;font-weight:700;cursor:pointer;">' + escapeHtml(s) + ' &middot; ' + b.open + ' open' + (b.late ? (' &middot; <span style="color:' + (on ? '#ffd9df' : '#c0264b') + ';font-weight:800;">' + b.late + ' late</span>') : '') + '</button>';
+            }).join('');
+        }
+        var tasks = teamTaskStoreFilter ? all.filter(function(t) { return teamTaskStoreOf(t) === teamTaskStoreFilter; }) : all.slice();
+        if (!tasks.length) { c.innerHTML = '<p style="text-align:center;color:#6b7686;font-size:13px;padding:14px;">' + (teamTaskStoreFilter ? ('No open tasks for ' + escapeHtml(teamTaskStoreFilter) + '.') : 'No open team tasks. &#127881;') + '</p>'; return; }
+        // Sort: overdue first, then by due date (no due date last)
+        tasks.sort(function(a, b) {
+            var ao = (a.due_date && String(a.due_date) < todayStr) ? 0 : 1;
+            var bo = (b.due_date && String(b.due_date) < todayStr) ? 0 : 1;
+            if (ao !== bo) return ao - bo;
+            var ad = a.due_date ? String(a.due_date) : '9999-12-31', bd = b.due_date ? String(b.due_date) : '9999-12-31';
+            return ad < bd ? -1 : (ad > bd ? 1 : 0);
+        });
+        var h = '';
+        tasks.forEach(function(t) {
+            var doneAll = (t.total > 0 && t.done >= t.total);
+            var dueChip = '', overdue = false;
+            if (t.due_date) {
+                var dl = Math.round((Date.parse(String(t.due_date)) - Date.parse(todayStr)) / 86400000);
+                if (!isNaN(dl)) {
+                    var _col, _badge;
+                    if (dl < 0) { _col = '#c0392b'; _badge = Math.abs(dl) + 'd overdue'; overdue = true; }
+                    else if (dl <= 7) { _col = '#e67e22'; _badge = (dl === 0 ? 'due today' : 'in ' + dl + 'd'); }
+                    else { _col = '#16a34a'; _badge = 'in ' + dl + 'd'; }
+                    dueChip = ' <span style="background:' + _col + ';color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px;white-space:nowrap;">' + _badge + '</span>';
+                }
+            }
+            h += '<div style="background:#fff;border-radius:12px;padding:13px 15px;margin-bottom:10px;box-shadow:0 2px 4px rgba(0,0,0,0.05);' + (overdue ? 'border-left:5px solid #c0392b;' : '') + '">';
+            h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><div style="font-size:14px;font-weight:700;color:#333;">' + escapeHtml(t.title) + (t.requires_photo ? ' <span style="font-size:10px;color:#185FA5;white-space:nowrap;">&#128247; photo</span>' : '') + '</div>' +
+                 '<span style="font-size:11px;font-weight:700;white-space:nowrap;color:' + (doneAll ? '#1d9e75' : (t.total ? '#185FA5' : '#c0264b')) + ';">' + (t.total ? (t.done + '/' + t.total + ' done') : 'no one assigned') + '</span></div>';
+            if (t.details) h += '<div style="font-size:12px;color:#6b7686;margin-top:2px;">' + escapeHtml(t.details) + '</div>';
+            h += '<div style="font-size:11px;color:#aab;margin-top:4px;">' + escapeHtml(t.target || '') + (t.due_date ? (' &middot; due ' + escapeHtml(t.due_date)) : '') + dueChip + ' &middot; from ' + escapeHtml(t['from'] || '') + '</div>';
+            var asg = t.assignees || [];
+            if (asg.length) {
+                h += '<div style="margin-top:7px;display:flex;flex-wrap:wrap;gap:4px;">';
+                asg.forEach(function(a) {
+                    var d = (a.status === 'done');
+                    if (d && a.has_photo) {
+                        h += '<button onclick="showTaskPhoto(' + a.assignee_id + ')" style="font-size:10px;border:none;border-radius:8px;padding:2px 8px;background:#e7f7ef;color:#1d7a56;cursor:pointer;">&#128247; ' + escapeHtml(a.name) + '</button>';
+                    } else {
+                        h += '<span style="font-size:10px;border-radius:8px;padding:2px 8px;background:' + (d ? '#e7f7ef' : '#f1f1f1') + ';color:' + (d ? '#1d7a56' : '#777') + ';">' + (d ? '&#10003; ' : '') + escapeHtml(a.name) + '</span>';
+                    }
+                });
+                h += '</div>';
+            }
+            h += '<div style="text-align:right;margin-top:8px;"><button onclick="taskNudge(' + t.id + ',this)" style="font-size:11px;border:1px solid #b9d4f1;background:#eef5fd;color:#185FA5;border-radius:8px;padding:4px 10px;font-weight:700;cursor:pointer;margin-right:6px;">&#128073; Nudge</button><button onclick="clearTeamTask(' + t.id + ',this)" style="font-size:11px;border:1px solid #f0c0cc;background:#fff5f8;color:#c0264b;border-radius:8px;padding:4px 10px;font-weight:700;cursor:pointer;">&#128465; Clear</button></div>';
+            h += '</div>';
+        });
+        c.innerHTML = h;
+    }
+    function teamChipFilter(i){
+        var s = (window._teamChipStores || [])[i]; if (!s) return;
+        teamTaskStoreFilter = (teamTaskStoreFilter === s) ? null : s;
+        renderTeamTasks();
+    }
+    function teamQuickAdd(){
+        var ti = document.getElementById('tqaTitle'), st = document.getElementById('tqaStore'), du = document.getElementById('tqaDue');
+        var title = ((ti && ti.value) || '').trim(), store = st && st.value, due = (du && du.value) || null;
+        var say = function(m){ if (typeof showUndo === 'function') showUndo(m); else alert(m); };
+        if (!title) { say('Type a task title first.'); return; }
+        if (!store) { say('Pick a store.'); return; }
+        if (!due) { say('Pick a due date — every task is time-sensitive.'); return; }
+        withPin(function(pin) {
+            supabaseClient.rpc('app_task_create', { p_username: currentUser.username, p_password: pin, p_title: title, p_details: '', p_due: due, p_target_type: 'store', p_target_value: store, p_employee_ids: null, p_completion_mode: 'store' }).then(function(r) {
+                if (r.error) { if (r.error.code === '42501') sessionPin = null; say('Error: ' + r.error.message); return; }
+                if (ti) ti.value = '';
+                say('Task added for ' + store + '.');
+                loadTeamTasks();
+            }).catch(function() { say('Connection error.'); });
+        });
+    }
+    function taskNudge(taskId, btn){
+        if (btn) btn.disabled = true;
+        withPin(function(pin) {
+            supabaseClient.rpc('app_task_nudge', { p_username: currentUser.username, p_password: pin, p_task_id: taskId }).then(function(r) {
+                if (btn) btn.disabled = false;
+                if (r.error || !r.data || r.data.ok !== true) {
+                    if (r.error && r.error.code === '42501') sessionPin = null;
+                    if (btn) btn.style.display = 'none';
+                    if (typeof showUndo === 'function') showUndo('Nudge isn\'t available yet.');
+                    return;
+                }
+                var n = r.data.nudged || 0;
+                if (typeof showUndo === 'function') showUndo('Reminder sent to ' + n + ' ' + (n === 1 ? 'person' : 'people') + '.'); else alert('Reminder sent to ' + n + '.');
+            }).catch(function() { if (btn) { btn.disabled = false; btn.style.display = 'none'; } if (typeof showUndo === 'function') showUndo('Nudge isn\'t available yet.'); });
+        }, function() { if (btn) btn.disabled = false; });
+    }
+    function toggleTeamDone(){
+        teamShowDone = !teamShowDone;
+        var b = document.getElementById('teamDoneToggleBtn');
+        if (b) { b.style.background = teamShowDone ? '#1d9e75' : '#fff'; b.style.color = teamShowDone ? '#fff' : '#1d7a56'; b.style.borderColor = teamShowDone ? '#1d9e75' : '#cfe7da'; }
+        var dl = document.getElementById('teamDoneList');
+        if (!teamShowDone) { if (dl) dl.innerHTML = ''; return; }
+        loadTeamDone();
+    }
+    function loadTeamDone(){
+        var dl = document.getElementById('teamDoneList'); if (!dl) return;
+        dl.innerHTML = '<p style="text-align:center;color:#6b7686;font-size:12.5px;padding:8px;">Loading completed tasks&hellip;</p>';
+        var needsDb = '<p style="text-align:center;color:#9a7400;background:#fff8e6;border:1px solid #ffe39a;border-radius:9px;padding:9px;font-size:12.5px;">Completed-task history needs the new database update.</p>';
+        withPin(function(pin) {
+            supabaseClient.rpc('app_tasks_done_recent', { p_username: currentUser.username, p_password: pin, p_days: 7 }).then(function(r) {
+                if (r.error || !Array.isArray(r.data)) { if (r.error && r.error.code === '42501') sessionPin = null; dl.innerHTML = needsDb; return; }
+                var rows = r.data;
+                window._teamDoneRows = rows;
+                if (!rows.length) { dl.innerHTML = '<p style="text-align:center;color:#6b7686;font-size:12.5px;padding:8px;">Nothing completed in the last 7 days.</p>'; return; }
+                var h = '<div style="margin-top:14px;"><div style="font-size:12px;font-weight:800;color:#1d7a56;margin:0 2px 8px;">&#9989; RECENTLY COMPLETED (7 DAYS)</div>';
+                rows.forEach(function(d, i) {
+                    h += '<div style="background:#f7f9f8;border:1px solid #e2ece6;border-radius:12px;padding:11px 13px;margin-bottom:8px;opacity:.92;">' +
+                         '<div style="font-size:13.5px;font-weight:700;color:#4a5560;text-decoration:line-through;">' + escapeHtml(d.title || '') + '</div>' +
+                         (d.details ? '<div style="font-size:12px;color:#8a94a0;">' + escapeHtml(d.details) + '</div>' : '') +
+                         '<div style="font-size:11px;color:#6b7686;margin-top:4px;">&#10003; ' + escapeHtml(d.completed_by || '') + (d.completed_at ? (' &middot; ' + socFmt(d.completed_at)) : '') + (d.location ? (' &middot; ' + escapeHtml(d.location)) : '') + (d.target_desc ? (' &middot; ' + escapeHtml(d.target_desc)) : '') + '</div>';
+                    if (d.proof_photo) {
+                        h += '<div style="margin-top:6px;"><button onclick="teamDoneShowPhoto(' + i + ')" style="font-size:10px;border:none;border-radius:8px;padding:2px 8px;background:#e7f7ef;color:#1d7a56;cursor:pointer;">&#128247; ' + escapeHtml(d.completed_by || 'View photo') + '</button></div>';
+                    }
+                    h += '</div>';
+                });
+                h += '</div>';
+                dl.innerHTML = h;
+            }).catch(function() { dl.innerHTML = needsDb; });
+        });
+    }
+    function teamDoneShowPhoto(i){
+        var d = (window._teamDoneRows || [])[i]; if (!d || !d.proof_photo) return;
+        var src = String(d.proof_photo);
+        if (/^\d+$/.test(src)) { showTaskPhoto(Number(src)); return; }
+        var body = document.getElementById('taskPhotoBody');
+        var m = document.getElementById('taskPhotoModal'); if (m) m.style.display = 'flex';
+        if (body) {
+            if (src.indexOf('data:image') === 0 || src.indexOf('http') === 0) { body.innerHTML = '<img src="' + src.replace(/"/g, '&quot;') + '" style="max-width:100%;max-height:70vh;border-radius:8px;">'; }
+            else { body.innerHTML = '<span style="color:#c0264b;">No photo available.</span>'; }
+        }
     }
 
     // ── Merged Schedule screen (My Shifts / Build) ──
@@ -3284,6 +3440,7 @@
             setTimeout(maybeShowHowTo, 1300);
         }
         if (window._pendingEquip) { var _eq=window._pendingEquip; var _eqGo=window._pendingEquipGo; window._pendingEquip=null; window._pendingEquipGo=null; try { if(history.replaceState) history.replaceState(null,'',location.pathname); } catch(e){} setTimeout(function(){ if(_eqGo==='report' && typeof woReportForEquipment==='function'){ woReportForEquipment(parseInt(_eq,10)); } else if(typeof openEquipmentDetail==='function'){ openEquipmentDetail(parseInt(_eq,10)); } }, 800); }
+        if (window._pendingGo === 'tasks') { window._pendingGo=null; try { if(history.replaceState) history.replaceState(null,'',location.pathname); } catch(e){} setTimeout(function(){ try { if(typeof hubNav==='function') hubNav('tasks'); } catch(e){} }, 700); }
         setTimeout(checkScheduleGate, 450);
         resetTimer();
     }
@@ -3492,7 +3649,7 @@
         if (frOrgRoute()) return;
         if (checkQuoteAcceptRoute()) return;
         if (checkInvoiceRoute()) return;
-        try { var _qsp=new URLSearchParams(window.location.search); window._pendingEquip = _qsp.get('equip'); window._pendingEquipGo = _qsp.get('go'); } catch(e) {}
+        try { var _qsp=new URLSearchParams(window.location.search); window._pendingEquip = _qsp.get('equip'); window._pendingEquipGo = _qsp.get('go'); window._pendingGo = (!_qsp.get('equip') && _qsp.get('go')==='tasks') ? 'tasks' : null; } catch(e) {}
         addQuoteRow(); addQuoteRow(); addQuoteRow();
         populateQuoteTemplates();
         let savedUser = localStorage.getItem('calichesUser');
@@ -7514,6 +7671,11 @@
             supabaseClient.rpc('app_checklist_items',{p_username:currentUser.username,p_password:pin,p_shift:clShift,p_location:loc}).then(function(r){
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;padding:20px;">'+escapeHtml(r.error.message)+'</p>'; return; }
                 var list=r.data||[]; var done=list.filter(function(i){return i.done;}).length;
+                if(!list.length){
+                    document.getElementById('clProgress').textContent='';
+                    c.innerHTML='<div style="background:#fff;border-radius:12px;padding:20px;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.05);"><div style="font-size:26px;">&#129534;</div><p style="color:#556070;font-size:13.5px;margin:8px 0 0;">No checklist items configured for this shift yet &mdash; managers can add them in Admin.</p></div>';
+                    return;
+                }
                 document.getElementById('clProgress').innerHTML='<b>'+done+' / '+list.length+'</b> done today';
                 c.innerHTML=list.map(function(i){
                     return '<div onclick="toggleChecklistItem('+i.id+','+(i.done?'false':'true')+')" style="background:#fff;border-radius:10px;padding:13px 14px;margin-bottom:9px;box-shadow:0 2px 4px rgba(0,0,0,0.05);cursor:pointer;display:flex;align-items:center;gap:12px;'+(i.done?'opacity:0.7;':'')+'">'+
@@ -10838,12 +11000,22 @@
         });
     }
 
+    function _myTasksErrHtml(){
+        return '<div onclick="loadMyTasks()" style="background:#fff8e6;border:1px solid #ffe39a;border-radius:12px;padding:14px;margin-bottom:14px;text-align:center;color:#9a7400;font-size:13px;font-weight:700;cursor:pointer;">&#9888; Couldn&rsquo;t load your tasks &mdash; tap to retry</div>';
+    }
     function loadMyTasks(cardId){
         if(cardId) myTasksCardId=cardId;
         var c=document.getElementById(myTasksCardId); if(!c) return;
+        // "My Home" duplicate card: one live task surface — point people to My Day on the Home tab.
+        if(myTasksCardId==='empTasksCard'){
+            c.innerHTML='<div onclick="hubNav(\'home\')" style="background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);cursor:pointer;display:flex;align-items:center;gap:10px;">'+
+                '<span style="font-size:18px;">&#128203;</span><span style="flex:1;font-size:13.5px;color:#33404e;font-weight:600;">See <b>My Day</b> on your Home tab for your tasks, checklist &amp; today&rsquo;s lineup</span><span style="color:#c2c7d0;font-size:16px;">&rsaquo;</span></div>';
+            return;
+        }
+        var isHome=(myTasksCardId==='homeTasksCard');
         withPin(function(pin){
             supabaseClient.rpc('app_my_tasks',{p_username:currentUser.username,p_password:pin}).then(function(r){
-                if(r.error){ if(r.error.code==='42501') sessionPin=null; return; }
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML=_myTasksErrHtml(); return; }
                 var tasks=(r.data&&r.data.tasks)||[];
                 // Auto-clear: hide tasks completed more than 24h ago (kept in the database).
                 var _nowMs=Date.now();
@@ -10853,29 +11025,95 @@
                     var ct=new Date(t.completed_at).getTime();
                     return isNaN(ct) ? true : (_nowMs - ct) < 86400000;
                 });
+                // Sort: overdue first, then due today, then the rest by due date; completed last.
+                var _td=new Date();
+                var todayStr=_td.getFullYear()+'-'+String(_td.getMonth()+1).padStart(2,'0')+'-'+String(_td.getDate()).padStart(2,'0');
+                var rank=function(t){
+                    if(t.status==='done') return 3;
+                    if(t.due_date && String(t.due_date)<todayStr) return 0;
+                    if(t.due_date && String(t.due_date)===todayStr) return 1;
+                    return 2;
+                };
+                tasks.sort(function(a,b){
+                    var ra=rank(a), rb=rank(b);
+                    if(ra!==rb) return ra-rb;
+                    var ad=a.due_date?String(a.due_date):'9999-12-31', bd=b.due_date?String(b.due_date):'9999-12-31';
+                    return ad<bd?-1:(ad>bd?1:0);
+                });
                 var h='<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
-                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-size:15px;font-weight:500;color:#185FA5;">&#9989; My Tasks</span>' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-size:15px;font-weight:500;color:#185FA5;">'+(isHome?'&#128203; My Day':'&#9989; My Tasks')+'</span>' +
                     '<button onclick="openSelfTask()" style="background:var(--caliches-pink);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:bold;cursor:pointer;">+ Add</button></div>';
                 if(!tasks.length){ h+='<p style="color:#6b7686;font-size:13px;margin:0;">No tasks. &#127881;</p>'; }
                 else tasks.forEach(function(t){
                     var done=t.status==='done';
+                    var chip='';
+                    if(!done && t.due_date){
+                        if(String(t.due_date)<todayStr) chip=' <span style="background:#c0392b;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px;white-space:nowrap;">Overdue</span>';
+                        else if(String(t.due_date)===todayStr) chip=' <span style="background:#e67e22;color:#fff;font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px;white-space:nowrap;">Today</span>';
+                    }
                     h+='<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid #f0f0f0;">' +
                         '<input type="checkbox" '+(done?'checked':'')+' onchange="onTaskCheck('+t.assignee_id+',this.checked,'+(t.requires_photo?'true':'false')+','+(t.has_photo?'true':'false')+',this)" style="margin-top:3px;transform:scale(1.3);">' +
-                        '<div style="flex:1;"><div style="font-size:14px;'+(done?'text-decoration:line-through;color:#6b7686;':'color:#333;')+'">'+escapeHtml(t.title)+(t.requires_photo?' <span style="font-size:10px;color:#185FA5;white-space:nowrap;">&#128247; photo</span>':'')+'</div>' +
+                        '<div style="flex:1;"><div style="font-size:14px;'+(done?'text-decoration:line-through;color:#6b7686;':'color:#333;')+'">'+escapeHtml(t.title)+(t.requires_photo?' <span style="font-size:10px;color:#185FA5;white-space:nowrap;">&#128247; photo</span>':'')+chip+'</div>' +
                         (t.details?'<div style="font-size:12px;color:#6b7686;">'+escapeHtml(t.details)+'</div>':'') +
                         '<div style="font-size:11px;color:#aab;">'+(t.due_date?('Due '+t.due_date+' &bull; '):'')+'from '+escapeHtml(t['from']||'')+'</div>'+
                         ((done&&t.completed_at)?'<div style="font-size:11px;color:#1f7a3d;">&#10003; Completed '+socFmt(t.completed_at)+'</div>':'')+'</div></div>';
                 });
+                if(isHome){ h+='<div id="myDayChecklistStrip"></div><div id="myDayPreshiftStrip"></div>'; }
                 h+='</div>'; c.innerHTML=h;
+                if(isHome && typeof loadMyDayStrips==='function'){ loadMyDayStrips(); }
                 if(!_celChecked && sessionPin){ _celChecked=true; setTimeout(checkCelebrations, 600); }
                 if(typeof maybePromptPush==='function'){ setTimeout(maybePromptPush, 1800); }
-            });
+            }).catch(function(){ c.innerHTML=_myTasksErrHtml(); });
+        }, function(){ c.innerHTML=_myTasksErrHtml(); });
+    }
+    // ── My Day strips: today's checklist status + my pre-shift lineup spot ──
+    function loadMyDayStrips(){
+        var cw=document.getElementById('myDayChecklistStrip'), pw=document.getElementById('myDayPreshiftStrip');
+        if(!cw && !pw) return;
+        var loc=(typeof tempStoreLoc==='function')?tempStoreLoc():'';
+        withPin(function(pin){
+            if(pw){
+                supabaseClient.rpc('app_preshift_mine',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                    if(r.error || !r.data || r.data.ok!==true || r.data.none===true || !r.data.position) return;
+                    var d=r.data;
+                    var line='&#128095; Today: <b>'+escapeHtml(d.position)+'</b>'+(d.location?(' at '+escapeHtml(d.location)):'')+(d.shift?(' <span style="color:#8a94a0;">('+escapeHtml(d.shift)+')</span>'):'');
+                    var extra='';
+                    if(d.goals) extra+='<div style="font-size:12px;color:#5b6675;margin-top:2px;">&#127919; '+escapeHtml(d.goals)+'</div>';
+                    if(d.note) extra+='<div style="font-size:12px;color:#5b6675;margin-top:2px;">&#128221; '+escapeHtml(d.note)+'</div>';
+                    pw.innerHTML='<div style="background:#f4f8ff;border:1px solid #d7e6fa;border-radius:10px;padding:9px 12px;margin-top:8px;font-size:13px;color:#26425e;">'+line+extra+'</div>';
+                }).catch(function(){});
+            }
+            if(cw && loc){
+                var shifts=[{k:'open',label:'Opening'},{k:'close',label:'Closing'},{k:'clean',label:'Cleaning'}];
+                Promise.all(shifts.map(function(s){
+                    return supabaseClient.rpc('app_checklist_items',{p_username:currentUser.username,p_password:pin,p_shift:s.k,p_location:loc})
+                        .then(function(r){ return (r.error || !Array.isArray(r.data)) ? null : r.data; })
+                        .catch(function(){ return null; });
+                })).then(function(res){
+                    var h='';
+                    shifts.forEach(function(s,i){
+                        var list=res[i]; if(!list || !list.length) return;
+                        var done=list.filter(function(x){ return x.done; }).length;
+                        var allDone=(done>=list.length);
+                        h+='<button onclick="myDayOpenChecklist(\''+s.k+'\')" style="display:flex;width:100%;align-items:center;gap:8px;text-align:left;background:'+(allDone?'#f3faf5':'#fff')+';border:1px solid '+(allDone?'#d8eede':'#ececf2')+';border-radius:10px;padding:9px 12px;margin-top:8px;cursor:pointer;font-size:13px;color:#33404e;">'+
+                            '<span style="font-size:15px;">&#129534;</span><span style="flex:1;">'+s.label+' checklist: <b style="color:'+(allDone?'#1b7a3d':'#185FA5')+';">'+done+'/'+list.length+'</b> done</span><span style="color:#c2c7d0;font-size:15px;">&rarr;</span></button>';
+                    });
+                    cw.innerHTML=h;
+                }).catch(function(){});
+            }
         });
+    }
+    function myDayOpenChecklist(shift){
+        if(typeof openChecklists!=='function') return;
+        openChecklists();
+        if(shift && shift!=='open' && typeof setChecklistTab==='function') setChecklistTab(shift);
     }
     function toggleTask(aid, done){
         withPin(function(pin){
             supabaseClient.rpc('app_task_complete',{p_username:currentUser.username,p_password:pin,p_assignee_id:aid,p_done:done}).then(function(r){
-                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); } loadMyTasks();
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); }
+                else if(done && typeof showUndo==='function'){ showUndo('Task completed', function(){ toggleTask(aid,false); }); }
+                loadMyTasks();
             });
         });
     }
@@ -10919,13 +11157,32 @@
         });
     }
     function closeTaskPhoto(){ var m=document.getElementById('taskPhotoModal'); if(m) m.style.display='none'; }
-    function clearTeamTask(taskId){
-        if(!confirm('Delete this task for everyone? This cannot be undone.')) return;
+    function clearTeamTask(taskId, btn){
+        // Two-tap confirm: first tap arms the button, second tap (within 3s) deletes.
+        if(btn){
+            if(btn.getAttribute('data-armed')!=='1'){
+                btn.setAttribute('data-armed','1');
+                btn.setAttribute('data-orig', btn.innerHTML);
+                btn.innerHTML='Tap again to remove for everyone';
+                btn.style.background='#c0264b'; btn.style.color='#fff'; btn.style.borderColor='#c0264b';
+                if(btn._armTimer) clearTimeout(btn._armTimer);
+                btn._armTimer=setTimeout(function(){
+                    btn.setAttribute('data-armed','0');
+                    btn.innerHTML=btn.getAttribute('data-orig')||'&#128465; Clear';
+                    btn.style.background='#fff5f8'; btn.style.color='#c0264b'; btn.style.borderColor='#f0c0cc';
+                }, 3000);
+                return;
+            }
+            if(btn._armTimer) clearTimeout(btn._armTimer);
+            btn.disabled=true; btn.innerHTML='Removing&hellip;';
+        } else {
+            if(!confirm('Delete this task for everyone? This cannot be undone.')) return;
+        }
         withPin(function(pin){
             supabaseClient.rpc('app_task_delete',{p_username:currentUser.username,p_password:pin,p_task_id:taskId}).then(function(r){
-                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); if(btn) btn.disabled=false; loadTeamTasks(); return; }
                 loadTeamTasks();
-            }).catch(function(){ alert('Could not delete the task.'); });
+            }).catch(function(){ alert('Could not delete the task.'); if(btn) btn.disabled=false; });
         });
     }
 
@@ -10940,10 +11197,18 @@
             tsel.value='people';
             withPin(function(pin){ supabaseClient.rpc('app_task_targets',{p_username:currentUser.username,p_password:pin}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; return; } taTargets=r.data||{}; populateTaTargets(); }); });
         } else {
-            tsel.innerHTML='<option value="self">Myself</option><option value="store">A whole store</option>';
+            tsel.innerHTML='<option value="self">Myself</option><option value="people">Specific people</option><option value="store">A whole store</option>';
             tsel.value='store';
             var managed=myStores.filter(function(s){return s.role==='store_manager'||s.role==='assistant_manager';}).map(function(s){return s.location;});
             document.getElementById('taStore').innerHTML=managed.map(function(s){return '<option value="'+s.replace(/"/g,'')+'">'+escapeHtml(s)+'</option>';}).join('');
+            // Store managers can target individuals too — people list filtered to their store's roster.
+            withPin(function(pin){ supabaseClient.rpc('app_task_targets',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error||!r.data){ if(r.error&&r.error.code==='42501') sessionPin=null; var op=tsel.querySelector('option[value="people"]'); if(op) op.parentNode.removeChild(op); taTargetChange(); return; }
+                var all=r.data||{};
+                var ppl=(all.people||[]).filter(function(p){ return p.store && managed.indexOf(p.store)>=0; });
+                taTargets={ stores:managed, roles:(all.roles||[]), people:ppl };
+                populateTaTargets();
+            }).catch(function(){ var op=tsel.querySelector('option[value="people"]'); if(op) op.parentNode.removeChild(op); taTargetChange(); }); });
         }
         taTargetChange();
         document.getElementById('taskAssignModal').style.display='flex'; }
@@ -10955,7 +11220,24 @@
         var rl=document.getElementById('taRole'); rl.innerHTML=(taTargets.roles||[]).map(function(r){return '<option value="'+r.id+'">'+escapeHtml(r.name)+'</option>';}).join('');
         var pp=document.getElementById('taPeople');
         var pw=document.getElementById('taPeopleWrap');
-        pw.innerHTML=(taTargets.people||[]).map(function(p){return '<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;"><input type="checkbox" class="ta-person" value="'+p.id+'">'+escapeHtml(p.name)+(p.store?' <span style="color:#aab;font-size:11px;">'+escapeHtml(p.store)+'</span>':'')+'</label>';}).join('');
+        var people=taTargets.people||[];
+        var rowsH=people.map(function(p){return '<label class="ta-person-row" data-name="'+escapeHtml(String(p.name||'').toLowerCase())+'" style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;"><input type="checkbox" class="ta-person" value="'+p.id+'">'+escapeHtml(p.name)+(p.store?' <span style="color:#aab;font-size:11px;">'+escapeHtml(p.store)+'</span>':'')+'</label>';}).join('');
+        pw.innerHTML='<input id="taPeopleSearch" type="text" placeholder="&#128269; Type a name to filter&hellip;" oninput="taPeopleFilter()" autocomplete="off" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;margin-bottom:6px;">'+
+            '<div id="taPeopleCount" style="font-size:11px;color:#8a94a0;margin:0 0 4px;">'+people.length+' of '+people.length+' shown</div>'+
+            '<div id="taPeopleRows">'+rowsH+'</div>';
+    }
+    function taPeopleFilter(){
+        var inp=document.getElementById('taPeopleSearch');
+        var q=((inp&&inp.value)||'').trim().toLowerCase();
+        var rows=document.querySelectorAll('#taPeopleRows .ta-person-row');
+        var shown=0;
+        rows.forEach(function(r){
+            var ok=!q || (r.getAttribute('data-name')||'').indexOf(q)>=0;
+            r.style.display=ok?'flex':'none';
+            if(ok) shown++;
+        });
+        var cnt=document.getElementById('taPeopleCount');
+        if(cnt) cnt.textContent=shown+' of '+rows.length+' shown';
     }
     function taTargetChange(){ var v=document.getElementById('taTarget').value; document.getElementById('taStoreWrap').style.display=(v==='store')?'block':'none'; document.getElementById('taRoleWrap').style.display=(v==='role')?'block':'none'; document.getElementById('taPeopleWrap').style.display=(v==='people')?'block':'none'; document.getElementById('taStoreSharedWrap').style.display=(v==='store')?'block':'none'; }
     function saveTask(){

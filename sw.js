@@ -1,7 +1,7 @@
 // Caliche's Operations Hub - Service Worker
 // Provides basic offline caching so the app shell loads even with a flaky connection.
 
-const CACHE_NAME = 'caliches-hub-2026.06.30.2056';
+const CACHE_NAME = 'caliches-hub-2026.07.01.1944';
 const CORE_ASSETS = [
   './index.html',
   './manifest.json',
@@ -85,10 +85,21 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const target = (event.notification.data && event.notification.data.url) || './index.html';
+  // Only force navigation when the notification carries a real destination
+  // (e.g. './index.html?go=tasks'); plain notifications just focus the app.
+  const wantsNav = !!(event.notification.data && event.notification.data.url && target !== './index.html');
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if ('focus' in client) { client.focus(); return; }
+        if ('focus' in client) {
+          const focused = client.focus();
+          if (wantsNav && typeof client.navigate === 'function') {
+            return Promise.resolve(focused)
+              .then(() => client.navigate(target))
+              .catch(() => { if (self.clients.openWindow) return self.clients.openWindow(target); });
+          }
+          return focused;
+        }
       }
       if (self.clients.openWindow) return self.clients.openWindow(target);
     })
