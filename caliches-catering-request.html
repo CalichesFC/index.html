@@ -111,12 +111,6 @@
                 </div>
             </div>
 
-            <label for="f_scoops">Scoops preference</label>
-            <select id="f_scoops">
-                <option value="single">Single scoop ($2 per guest)</option>
-                <option value="double">Double scoop ($3 per guest)</option>
-            </select>
-
             <label for="f_notes">Anything else we should know?</label>
             <textarea id="f_notes" rows="3" placeholder="Themes, timing, power access, favorite flavors&hellip;"></textarea>
 
@@ -156,7 +150,7 @@
             p_location: val('f_location'),
             p_guest_count: guestsV===''?null:guestsV,
             p_occasion: val('f_occasion'),
-            p_scoops: val('f_scoops')||'single',
+            p_scoops: 'single',
             p_notes: val('f_notes'),
             p_website: val('hp_website')
         };
