@@ -812,6 +812,7 @@
             <button id="btn-fundraiserHub" class="menu-btn" style="display:none;" onclick="openFundraiserHub()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128203;</span><b>Fundraiser Hub</b><small>Inquiries, cards, returns, reconciliation &amp; reports</small></button>
             <button id="btn-maintBilling" class="menu-btn" style="display:none;" onclick="openMaintBilling()"><span class="rchip mgr">Finance</span><span class="tile-ic">&#129534;</span><b>Maintenance Billing</b><small>Invoices, approvals &amp; vendor rates</small></button>
             <button id="btn-storeManager" class="menu-btn" style="display:none;" onclick="openStoreManager()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#127978;</span><b>Manage Stores</b><small>Add, rename or remove store locations</small></button>
+            <button id="btn-catering" class="menu-btn" style="display:none;" onclick="openCatering()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#127846;</span><b>Catering Pipeline</b><small>Inquiries, quotes, bookings &amp; run sheets</small></button>
             <button id="developerBtn" class="menu-btn" style="display:none;" onclick="openTrainingPortal()"><span class="rchip admin">Dev</span><span class="tile-ic">&#128187;</span><b>Training Portal</b><small>Developer tools</small></button>
             <button id="previewToggleBtn" class="menu-btn" style="display:none;" onclick="togglePreviewMode()"><span class="rchip admin">Dev</span><span class="tile-ic">&#128065;</span><b>Preview as Staff</b><small>Hide dev tabs</small></button>
             <button id="installBtn" class="menu-btn" style="display:none;" onclick="installApp()"><span class="tile-ic">&#128242;</span><b>Install App on Phone</b><small>Add to home screen</small></button>
@@ -1007,6 +1008,16 @@
 </div>
 
 <!-- MESSAGES VIEW -->
+<!-- CATERING PIPELINE VIEW -->
+<div id="cateringView" class="app-view">
+    <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
+    <div class="header" style="background:linear-gradient(135deg,#b3202c 0%,#7a1620 100%);">
+        <h1 style="font-size:40px;margin:10px 0;">&#127846;</h1>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Catering Pipeline</p>
+    </div>
+    <div class="container" style="max-width:860px;" id="catBody"><p style="text-align:center;padding:30px;color:#6b7686;">Loading...</p></div>
+</div>
+
 <div id="messagesView" class="app-view">
     <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
     <div class="header" style="background:#6a3fb5;">
@@ -2564,7 +2575,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.07.01.2304';
+    const APP_VERSION = '2026.07.02.2119';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -3475,6 +3486,7 @@
         { key:'maintbill',  btn:'btn-maintBilling', label:'Maintenance Billing',       emoji:'&#129534;', fn:function(){ if(typeof openMaintBilling==='function') openMaintBilling(); } },
         { key:'fundraiser2',btn:'btn-fundraiserHub',label:'Fundraiser Hub',            emoji:'&#128203;', fn:function(){ if(typeof openFundraiserHub==='function') openFundraiserHub(); } },
         { key:'stores2',    btn:'btn-storeManager', label:'Manage Stores',             emoji:'&#127978;', fn:function(){ if(typeof openStoreManager==='function') openStoreManager(); } },
+        { key:'catering',   btn:'btn-catering',     label:'Catering Pipeline',         emoji:'&#127846;', fn:function(){ if(typeof openCatering==='function') openCatering(); } },
         { key:'admincon',   btn:'btn-admin-console',label:'Admin Console',             emoji:'&#128736;', fn:function(){ if(typeof openAdminConsole==='function') openAdminConsole(); } },
         { key:'retention',  btn:'btn-admin-console',label:'Data Retention',            emoji:'&#128451;', fn:function(){ if(typeof openRetention==='function') openRetention(); } },
         { key:'dupscan',    btn:'btn-admin-console',label:'Duplicate Employees',       emoji:'&#128101;', fn:function(){ if(typeof openDupScan==='function') openDupScan(); } }
@@ -3605,6 +3617,7 @@
         { id:'maintbilling', key:'maintbill', btn:'btn-maintBilling', keywords:['invoice','billing','vendor rates','approve','pay','finance'] },
         { id:'maintdash', key:'maintdash', btn:'btn-maintDash', keywords:['maintenance dashboard','dashboards','costs by store','vendor spend','leadership'], go:function(){ openDashboards('maint'); } },
         { id:'storemanager', key:'stores2', btn:'btn-storeManager', keywords:['stores','locations','add store','rename store'] },
+        { id:'catering', key:'catering', btn:'btn-catering', keywords:['catering','quote','event','inquiry','booking','beo','sundae cart','treat trailer'] },
         { id:'scorecards', key:'scorecards2', btn:'btn-scorecards', keywords:['scorecard','dashboards','metrics','kpi','sales vs ly','labor','speed','inspection'], go:function(){ openDashboards('scorecards'); } },
         { id:'vehicles', btn:'btn-vehicles', keywords:['vehicle service','vehicles','oil change','mileage','fleet service','truck','trailer service','service tracker'] },
         { id:'emergency', btn:'btn-emergency', keywords:['emergency','fire','robbery','power outage','911','procedures','food safety'] },
@@ -6954,6 +6967,7 @@
         var _mbBtn=document.getElementById('btn-maintBilling'); if(_mbBtn) _mbBtn.style.display=permAllow('maint_billing', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Finance Approver','Maintenance Lead'].indexOf(role)>=0))?'block':'none';
         var _smBtn=document.getElementById('btn-storeManager'); if(_smBtn) _smBtn.style.display=permAllow('store_manager', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
         var _scBtn=document.getElementById('btn-scorecards'); if(_scBtn) _scBtn.style.display=permAllow('scorecards', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
+        var _catBtn=document.getElementById('btn-catering'); if(_catBtn) _catBtn.style.display=permAllow('catering', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
         var _mdBtn=document.getElementById('btn-maintDash'); if(_mdBtn) _mdBtn.style.display=permAllow('maint_dash', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Finance Approver','Maintenance Lead'].indexOf(role)>=0))?'block':'none';
         /* Merged Dashboards tile: visible when ANY of the five legacy dashboard tiles is allowed (they stay the role truth). */
         var _dashBtn=document.getElementById('btn-dashboards'); if(_dashBtn) _dashBtn.style.display=(typeof dashAnyAllowed==='function'&&dashAnyAllowed())?'block':'none';
@@ -13975,6 +13989,352 @@
         try{ p4CurfewLoad(function(){ orig.apply(self,args); }); }
         catch(e){ orig.apply(self,args); }
     }; })(schedPublish);
+
+    /* ============================================================
+       CATERING PIPELINE — inquiries → quotes → bookings → run sheets
+       ============================================================ */
+    var CAT_PRICING = { CART_THRESHOLD:500, CART_BASE_FEE:200.00, CART_INCLUDED_HOURS:1, TRAILER_BASE_FEE:500.00, TRAILER_INCLUDED_HOURS:2, TRAILER_FOOTPRINT_NOTE:'requires a 28-foot footprint for parking, spacing, and setup clearance', ADDITIONAL_HOUR_RATE:50.00, SCOOP_PRICE:{single:2.00,double:3.00}, INCLUDED_TOPPINGS:4, EXTRA_TOPPING_RATE:25.00, TRAVEL_FEE:75.00 };
+    function catQuoteCalc(inp){ var P=CAT_PRICING; var r2=function(x){return Math.round(x*100)/100;}; var scoopType=String(inp.scoopType==null?'':inp.scoopType).toLowerCase(); if(!Object.prototype.hasOwnProperty.call(P.SCOOP_PRICE,scoopType)){ throw new Error("scoopType must be 'single' or 'double'"); } var headcount=inp.headcount; var hours=inp.hours; var toppingsRequested=(inp.toppingsRequested===undefined)?null:inp.toppingsRequested; var travelFee=!!inp.travelFee; if(!(headcount>0)) throw new Error('headcount must be positive'); if(!(hours>0)) throw new Error('hours must be positive'); if(toppingsRequested!==null&&toppingsRequested<0) throw new Error('toppings cannot be negative'); var equipment,baseFee,includedHours,footprintNote; if(headcount<P.CART_THRESHOLD){ equipment='Sundae Cart'; baseFee=P.CART_BASE_FEE; includedHours=P.CART_INCLUDED_HOURS; footprintNote=null; } else { equipment='Treat Trailer'; baseFee=P.TRAILER_BASE_FEE; includedHours=P.TRAILER_INCLUDED_HOURS; footprintNote=P.TRAILER_FOOTPRINT_NOTE; } var billableHours=Math.ceil(hours); var extraHours=Math.max(0,billableHours-includedHours); var extraHoursCost=extraHours*P.ADDITIONAL_HOUR_RATE; var scoopPrice=P.SCOOP_PRICE[scoopType]; var servingCost=headcount*scoopPrice; var extraToppings=0; var extraToppingsCost=0.0; if(toppingsRequested!==null&&toppingsRequested>P.INCLUDED_TOPPINGS){ extraToppings=toppingsRequested-P.INCLUDED_TOPPINGS; extraToppingsCost=extraToppings*P.EXTRA_TOPPING_RATE; } var travelFeeCost=travelFee?P.TRAVEL_FEE:0.0; var subtotal=baseFee+extraHoursCost+servingCost+extraToppingsCost+travelFeeCost; var lineItems=[{label:equipment+' base setup ('+includedHours+' hr'+(includedHours>1?'s':'')+' included)',amount:r2(baseFee)}]; if(extraHours>0){ lineItems.push({label:'Additional hours ('+extraHours+' hr @ $'+P.ADDITIONAL_HOUR_RATE.toFixed(2)+'/hr)',amount:r2(extraHoursCost)}); } lineItems.push({label:'Custard servings ('+headcount+' '+scoopType+' scoops @ $'+scoopPrice.toFixed(2)+'/ea)',amount:r2(servingCost)}); if(extraToppings>0){ lineItems.push({label:'Extra toppings ('+extraToppings+' over the '+P.INCLUDED_TOPPINGS+' included @ $'+P.EXTRA_TOPPING_RATE.toFixed(2)+'/ea)',amount:r2(extraToppingsCost)}); } if(travelFeeCost>0){ lineItems.push({label:'Travel fee (outside immediate Las Cruces)',amount:r2(travelFeeCost)}); } return { equipment:equipment, footprintNote:footprintNote, lineItems:lineItems, subtotal:r2(subtotal), travelFee:r2(travelFeeCost), total:r2(subtotal), includedHours:includedHours, billableHours:billableHours, extraHours:extraHours }; }
+
+    var catList=[],catCur=null,catFilter='active';
+    var CAT_STAGES=['inquiry','quoted','approved','booked','completed','paid'];
+    var CAT_NEXT={inquiry:['quoted','lost'],quoted:['approved','lost'],approved:['booked','lost'],booked:['completed','lost'],completed:['paid'],lost:['inquiry']};
+    var CAT_COLORS={inquiry:'#f59e0b',quoted:'#3b82f6',approved:'#8b5cf6',booked:'#10b981',completed:'#6b7280',paid:'#065f46',lost:'#9ca3af'};
+    var CAT_LABELS={inquiry:'Inquiry',quoted:'Quoted',approved:'Approved',booked:'Booked',completed:'Completed',paid:'Paid',lost:'Lost'};
+    var CAT_MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    function catMoney(x){ return '$'+Number(x==null?0:x).toFixed(2); }
+    function catDateFmt(d){ if(!d) return 'No date'; var p=String(d).slice(0,10).split('-'); if(p.length<3) return String(d); var mi=parseInt(p[1],10)-1; if(isNaN(mi)||mi<0||mi>11) return String(d); return CAT_MONTHS[mi]+' '+parseInt(p[2],10); }
+    function catTimeFmt(t){ if(!t) return ''; var p=String(t).slice(0,5).split(':'); var h=parseInt(p[0],10); if(isNaN(h)) return String(t); var m=p[1]||'00'; var ap=h>=12?'PM':'AM'; h=h%12; if(h===0) h=12; return h+':'+m+' '+ap; }
+    function catEquipShort(eq){ if(!eq) return ''; if(String(eq).indexOf('Trailer')>=0) return 'Trailer'; if(String(eq).indexOf('Cart')>=0) return 'Cart'; return String(eq); }
+    function catPill(st){ return '<span style="display:inline-block;background:'+(CAT_COLORS[st]||'#9ca3af')+';color:#fff;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;">'+escapeHtml(CAT_LABELS[st]||st||'')+'</span>'; }
+    function catRpc(name,args,cb,errCb){
+        withPin(function(pin){
+            supabaseClient.rpc(name,Object.assign({p_username:currentUser.username,p_password:pin},args)).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; if(errCb){ errCb(r.error); } else { alert(r.error.message||'Something went wrong.'); } return; }
+                cb(r.data);
+            }).catch(function(){ if(errCb){ errCb({message:'Connection error. Please try again.'}); } else { alert('Connection error. Please try again.'); } });
+        });
+    }
+    function openCatering(){
+        document.getElementById('main-menu').style.display='none';
+        document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
+        document.getElementById('cateringView').style.display='block';
+        window.scrollTo(0,0);
+        catLoad();
+    }
+    function catSetFilter(f){ catFilter=f; catLoad(); }
+    function catLoad(){
+        var box=document.getElementById('catBody'); if(!box) return;
+        box.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading catering pipeline&hellip;</p>';
+        catRpc('app_catering_list',{p_filter:catFilter},function(d){ catList=d||[]; catRenderBoard(); },
+            function(err){ box.innerHTML='<p style="text-align:center;padding:30px;color:#c0264b;">'+escapeHtml(err.message||'Could not load.')+'</p>'; });
+    }
+    function catChipsHtml(){
+        var counts={}; for(var i=0;i<catList.length;i++){ var s=catList[i].status; counts[s]=(counts[s]||0)+1; }
+        function chip(val,label,count){ var on=(catFilter===val); return '<button onclick="catSetFilter(\''+val+'\')" style="border:none;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;'+(on?'background:#26242b;color:#fff;':'background:#eef0f3;color:#3a4353;')+'">'+label+(count?' ('+count+')':'')+'</button>'; }
+        var html='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">';
+        html+=chip('active','All active',(catFilter==='active'||catFilter==='all')?catList.length:0);
+        html+=chip('all','All',0);
+        var order=CAT_STAGES.concat(['lost']);
+        for(var j=0;j<order.length;j++){ html+=chip(order[j],CAT_LABELS[order[j]],counts[order[j]]||0); }
+        html+='</div>'; return html;
+    }
+    function catCardHtml(r){
+        var right='<div style="font-weight:800;color:#26242b;">'+escapeHtml(catDateFmt(r.event_date))+(r.start_time?(' &middot; '+escapeHtml(catTimeFmt(r.start_time))):'')+'</div>';
+        var bits=[];
+        if(r.guest_count!=null&&r.guest_count!=='') bits.push(escapeHtml(String(r.guest_count))+' guests');
+        var eq=catEquipShort(r.equipment); if(eq) bits.push(escapeHtml(eq));
+        if(r.quote_subtotal!=null&&r.quote_subtotal!=='') bits.push(catMoney(r.quote_subtotal));
+        if(bits.length) right+='<div style="color:#6b7686;margin-top:2px;">'+bits.join(' &middot; ')+'</div>';
+        if(r.conflict) right+='<div style="color:#c0264b;font-weight:800;margin-top:2px;">&#9888; date clash</div>';
+        var srcChip=(String(r.source||'').toLowerCase()==='website')?' <span style="background:#c0264b;color:#fff;border-radius:6px;font-size:9.5px;font-weight:800;padding:2px 6px;vertical-align:middle;">WEBSITE</span>':'';
+        var sub=[]; if(r.occasion) sub.push(r.occasion); if(r.location) sub.push(r.location);
+        return '<div onclick="catOpenDetail(\''+r.id+'\')" style="display:flex;justify-content:space-between;gap:10px;background:#fff;border:1px solid #eef0f5;border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.04);">'
+            +'<div style="flex:1;min-width:0;"><div style="font-weight:800;color:#26242b;">'+escapeHtml(r.customer_name||'(no name)')+srcChip+'</div>'
+            +(sub.length?('<div style="font-size:12px;color:#6b7686;margin-top:2px;">'+escapeHtml(sub.join(' — '))+'</div>'):'')
+            +'</div><div style="text-align:right;font-size:12px;flex-shrink:0;">'+right+'</div></div>';
+    }
+    function catRenderBoard(){
+        var box=document.getElementById('catBody'); if(!box) return;
+        var html=catChipsHtml();
+        html+='<button onclick="catNewForm()" style="width:100%;background:var(--caliches-pink,#c0264b);color:#fff;border:none;border-radius:11px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:14px;">+ New event (phone/walk-in)</button>';
+        if(!catList.length){ html+='<p style="text-align:center;color:#8a8594;padding:26px 10px;font-size:13.5px;">Nothing here yet. Website inquiries land in this pipeline automatically, or add a phone/walk-in event above.</p>'; box.innerHTML=html; return; }
+        var order=CAT_STAGES.concat(['lost']);
+        for(var s=0;s<order.length;s++){
+            var st=order[s], rows=[];
+            for(var i=0;i<catList.length;i++){ if(catList[i].status===st) rows.push(catList[i]); }
+            if(!rows.length) continue;
+            html+='<div style="display:flex;align-items:center;gap:8px;margin:16px 0 8px;">'+catPill(st)+'<span style="font-size:12px;color:#8a8594;font-weight:700;">'+rows.length+'</span></div>';
+            for(var k=0;k<rows.length;k++){ html+=catCardHtml(rows[k]); }
+        }
+        box.innerHTML=html;
+    }
+    function catOpenDetail(id){
+        var box=document.getElementById('catBody');
+        if(box) box.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading event&hellip;</p>';
+        catRpc('app_catering_get',{p_id:id},function(d){ catCur=d; catRenderDetail(); },
+            function(err){ if(box) box.innerHTML='<p style="text-align:center;padding:30px;color:#c0264b;">'+escapeHtml(err.message||'Could not load this event.')+'</p><p style="text-align:center;"><button onclick="catLoad()" style="background:#eef0f3;border:none;border-radius:9px;padding:9px 16px;font-weight:700;cursor:pointer;">&larr; Back to pipeline</button></p>'; });
+    }
+    function catSec(title,inner){ return '<div style="background:#fff;border:1px solid #eef0f5;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 2px 6px rgba(0,0,0,.04);"><div style="font-size:11px;font-weight:800;letter-spacing:.08em;color:#8a8594;text-transform:uppercase;margin-bottom:8px;">'+title+'</div>'+inner+'</div>'; }
+    function catKV(k,v){ return '<div style="display:flex;gap:10px;font-size:13.5px;padding:3px 0;"><div style="min-width:110px;color:#6b7686;">'+k+'</div><div style="flex:1;font-weight:600;color:#26242b;">'+v+'</div></div>'; }
+    function catProgressHtml(st){
+        if(st==='lost') return '<div style="margin:6px 0 2px;">'+catPill('lost')+'</div>';
+        var idx=CAT_STAGES.indexOf(st), html='<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:6px 0 2px;">';
+        for(var i=0;i<CAT_STAGES.length;i++){
+            var style=(i===idx)?('background:'+CAT_COLORS[CAT_STAGES[i]]+';color:#fff;'):((i<idx)?'background:#e6e9ef;color:#3a4353;':'background:#f3f4f7;color:#a7adba;');
+            html+='<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;'+style+'">'+escapeHtml(CAT_LABELS[CAT_STAGES[i]])+'</span>';
+            if(i<CAT_STAGES.length-1) html+='<span style="color:#c3c8d4;font-size:10px;">&rsaquo;</span>';
+        }
+        return html+'</div>';
+    }
+    function catQuoteLinesTable(items,subtotal){
+        var html='<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+        for(var i=0;i<items.length;i++){ html+='<tr><td style="padding:3px 0;color:#3a4353;">'+escapeHtml(items[i].label)+'</td><td style="padding:3px 0;text-align:right;font-weight:600;white-space:nowrap;">'+catMoney(items[i].amount)+'</td></tr>'; }
+        html+='<tr><td style="padding:6px 0 0;border-top:1px solid #eef0f5;font-weight:800;">Subtotal (before tax)</td><td style="padding:6px 0 0;border-top:1px solid #eef0f5;text-align:right;font-weight:800;white-space:nowrap;">'+catMoney(subtotal)+'</td></tr></table>';
+        return html;
+    }
+    function catQuoteSectionHtml(d){
+        var html='';
+        if(d.quote&&d.quote.lineItems&&d.quote.lineItems.length){
+            html+='<div style="font-size:12px;font-weight:800;color:#10b981;margin-bottom:4px;">Saved quote</div>'+catQuoteLinesTable(d.quote.lineItems,(d.quote_subtotal!=null?d.quote_subtotal:d.quote.subtotal))+'<div style="height:12px;"></div>';
+        }
+        function num(id,label,val,step){ return '<label style="flex:1;min-width:110px;font-size:11.5px;font-weight:700;color:#3a4353;">'+label+'<input id="'+id+'" type="number"'+(step?(' step="'+step+'"'):'')+' min="0" value="'+escapeHtml(val==null?'':String(val))+'" oninput="catQuoteRecalc()" style="width:100%;box-sizing:border-box;margin-top:3px;padding:8px;border:1px solid #dfe3ea;border-radius:8px;font-size:13.5px;"></label>'; }
+        var sc=(String(d.scoop_type||'single').toLowerCase()==='double')?'double':'single';
+        html+='<div style="font-size:12px;font-weight:800;color:#3a4353;margin-bottom:6px;">'+(d.quote?'Re-price / update quote':'Build a quote')+'</div>';
+        html+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">'
+            +num('catQGuests','Guests',d.guest_count)
+            +num('catQHours','Hours',d.hours,'0.5')
+            +'<label style="flex:1;min-width:110px;font-size:11.5px;font-weight:700;color:#3a4353;">Scoops<select id="catQScoop" onchange="catQuoteRecalc()" style="width:100%;box-sizing:border-box;margin-top:3px;padding:8px;border:1px solid #dfe3ea;border-radius:8px;font-size:13.5px;background:#fff;"><option value="single"'+(sc==='single'?' selected':'')+'>Single ($2.00)</option><option value="double"'+(sc==='double'?' selected':'')+'>Double ($3.00)</option></select></label>'
+            +num('catQTops','Toppings (blank = unset)',d.toppings_requested)
+            +'</div>'
+            +'<label style="display:block;font-size:12.5px;font-weight:700;color:#3a4353;margin-bottom:8px;"><input type="checkbox" id="catQTravel"'+(d.travel?' checked':'')+' onchange="catQuoteRecalc()"> Travel fee (outside immediate Las Cruces, +$75.00)</label>'
+            +'<div id="catQuoteOut" style="margin-bottom:10px;"></div>'
+            +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">'
+            +'<label style="flex:1;min-width:130px;font-size:11.5px;font-weight:700;color:#3a4353;">Deposit (optional)<input id="catQDeposit" type="number" step="0.01" min="0" value="'+escapeHtml(d.deposit_amount==null?'':String(d.deposit_amount))+'" style="width:100%;box-sizing:border-box;margin-top:3px;padding:8px;border:1px solid #dfe3ea;border-radius:8px;font-size:13.5px;"></label>'
+            +'<button onclick="catQuoteSaveGo()" style="background:#3b82f6;color:#fff;border:none;border-radius:9px;padding:10px 16px;font-size:13px;font-weight:800;cursor:pointer;">Save quote to event</button>'
+            +'</div>';
+        return html;
+    }
+    function catQuoteRecalc(){
+        var out=document.getElementById('catQuoteOut'); if(!out) return;
+        var g=parseFloat((document.getElementById('catQGuests')||{}).value);
+        var h=parseFloat((document.getElementById('catQHours')||{}).value);
+        var sc=(document.getElementById('catQScoop')||{}).value||'single';
+        var tRaw=String((document.getElementById('catQTops')||{}).value||'').trim();
+        var tv=!!((document.getElementById('catQTravel')||{}).checked);
+        var tops=(tRaw==='')?null:parseInt(tRaw,10);
+        try{
+            var q=catQuoteCalc({headcount:g,hours:h,scoopType:sc,toppingsRequested:tops,travelFee:tv});
+            q.inputs={headcount:g,hours:h,scoopType:sc,toppingsRequested:tops,travelFee:tv};
+            window._catQuoteDraft=q;
+            out.innerHTML='<div style="font-size:13px;font-weight:700;color:#26242b;margin-bottom:4px;">'+escapeHtml(q.equipment)+(q.footprintNote?(' <span style="font-weight:400;color:#8a8594;">('+escapeHtml(q.footprintNote)+')</span>'):'')+'</div>'+catQuoteLinesTable(q.lineItems,q.subtotal);
+        }catch(e){
+            window._catQuoteDraft=null;
+            out.innerHTML='<p style="font-size:12.5px;color:#8a8594;margin:0;">'+escapeHtml(e&&e.message?e.message:'Enter guests and hours to price this event.')+'</p>';
+        }
+    }
+    function catQuoteSaveGo(){
+        if(!catCur) return;
+        catQuoteRecalc();
+        var q=window._catQuoteDraft;
+        if(!q){ alert('Fix the quote inputs first — guests and hours are required.'); return; }
+        var depRaw=String((document.getElementById('catQDeposit')||{}).value||'').trim();
+        var dep=(depRaw==='')?null:parseFloat(depRaw);
+        if(dep!==null&&(isNaN(dep)||dep<0)){ alert('Deposit must be a number, or leave it blank.'); return; }
+        var id=catCur.id;
+        catRpc('app_catering_quote_save',{p_id:id,p_quote:q,p_subtotal:q.subtotal,p_travel_fee:q.travelFee,p_deposit:dep},function(){ catOpenDetail(id); });
+    }
+    function catActionsHtml(st){
+        var next=CAT_NEXT[st]||[];
+        if(!next.length) return '<p style="font-size:12.5px;color:#8a8594;margin:0;">This event is fully closed out.</p>';
+        var lbl={quoted:'Mark Quoted',approved:'Mark Approved (customer accepted)',booked:'Mark Booked (deposit)',completed:'Mark Completed (event done)',paid:'Mark Paid (final balance)',lost:'Mark Lost',inquiry:'Reopen as Inquiry'};
+        var html='<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+        for(var i=0;i<next.length;i++){
+            var to=next[i], color=(to==='lost')?'#8a8594':(CAT_COLORS[to]||'#26242b');
+            html+='<button onclick="catAdvance(\''+to+'\')" style="background:'+color+';color:#fff;border:none;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:800;cursor:pointer;">'+(lbl[to]||to)+'</button>';
+        }
+        return html+'</div>';
+    }
+    function catAdvance(to){
+        if(!catCur) return;
+        var extra=null, note=null;
+        if(to==='approved'){
+            var nm=prompt('Who accepted? (typed name)'); if(nm===null) return; nm=nm.trim();
+            if(!nm){ alert('A typed name is required to mark approved.'); return; }
+            extra={signed_name:nm};
+        } else if(to==='booked'){
+            var amt=prompt('Deposit amount (numbers only):'); if(amt===null) return;
+            var amtN=parseFloat(amt); if(isNaN(amtN)||amtN<0){ alert('Enter a valid deposit amount (0 is okay).'); return; }
+            var meth=prompt('Deposit method (e.g. card/cash/check):'); if(meth===null) return;
+            var ref=prompt('Payment reference (optional):'); if(ref===null) ref='';
+            extra={deposit_amount:amtN,deposit_method:String(meth||'').trim(),deposit_ref:String(ref||'').trim()};
+        } else if(to==='paid'){
+            if(!confirm('Mark final balance received?')) return;
+        } else if(to==='lost'){
+            var rsn=prompt('Why was this lost? (reason)'); if(rsn===null) return; rsn=rsn.trim();
+            if(!rsn){ alert('A reason is required to mark lost.'); return; }
+            extra={lost_reason:rsn}; note=rsn;
+        } else if(to==='inquiry'){
+            if(!confirm('Reopen this as a new inquiry?')) return;
+        }
+        var id=catCur.id;
+        catRpc('app_catering_advance',{p_id:id,p_to:to,p_note:note,p_extra:extra},function(d){
+            if(d&&d.warning) alert(d.warning);
+            catOpenDetail(id);
+        });
+    }
+    function catAddNote(){
+        if(!catCur) return;
+        var n=prompt('Add a note to this event:'); if(n===null) return; n=n.trim(); if(!n) return;
+        var id=catCur.id;
+        catRpc('app_catering_note',{p_id:id,p_note:n},function(){ catOpenDetail(id); });
+    }
+    function catHistoryHtml(){
+        var h=(catCur&&catCur.status_history)||[];
+        if(!h.length) return '<p style="font-size:12.5px;color:#8a8594;margin:6px 0 0;">No history yet.</p>';
+        var html='';
+        for(var i=h.length-1;i>=0;i--){
+            var e=h[i]||{}; var when=e.at?String(e.at).replace('T',' ').slice(0,16):'';
+            if(e.type==='note'){
+                html+='<div style="padding:7px 0;border-bottom:1px solid #f3f4f7;font-size:13px;">&#128172; <b>'+escapeHtml(e.by||'')+'</b> <span style="color:#8a8594;font-size:11.5px;">'+escapeHtml(when)+'</span><br>'+escapeHtml(e.note||'')+'</div>';
+            } else {
+                html+='<div style="padding:7px 0;border-bottom:1px solid #f3f4f7;font-size:13px;">'+escapeHtml(e.from||'—')+' &rarr; <b>'+escapeHtml(e.to||'')+'</b> <span style="color:#8a8594;font-size:11.5px;">by '+escapeHtml(e.by||'')+' '+escapeHtml(when)+'</span>'+(e.note?('<br><span style="color:#3a4353;">'+escapeHtml(e.note)+'</span>'):'')+'</div>';
+            }
+        }
+        return html;
+    }
+    function catRenderDetail(){
+        var box=document.getElementById('catBody'); if(!box||!catCur) return;
+        var d=catCur;
+        var html='<button onclick="catLoad()" style="background:none;border:none;color:#0d6eaf;font-size:13px;font-weight:700;cursor:pointer;padding:0;margin-bottom:10px;">&larr; Back to pipeline</button>';
+        html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:12px;">';
+        html+='<div style="min-width:0;"><div style="font-size:20px;font-weight:800;color:#26242b;">'+escapeHtml(d.customer_name||'(no name)')+'</div>'+catProgressHtml(d.status)+'</div>';
+        html+='<div style="display:flex;gap:6px;flex-shrink:0;">'
+            +'<button onclick="catEditForm()" style="background:#eef0f3;border:none;border-radius:9px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;">&#9998; Edit</button>'
+            +'<button onclick="catBEO()" style="background:#eef0f3;border:none;border-radius:9px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;">&#128424; Print BEO</button>'
+            +'</div></div>';
+        var sd=[], all=d.same_day||[];
+        for(var i=0;i<all.length;i++){ var s=all[i]; if(s&&s.id!==d.id&&s.status!=='lost') sd.push(s); }
+        if(sd.length){
+            var names=[];
+            for(var j=0;j<sd.length;j++){ names.push(escapeHtml(sd[j].customer_name||'?')+' ('+escapeHtml(catEquipShort(sd[j].equipment)||'?')+(sd[j].start_time?(' at '+escapeHtml(catTimeFmt(sd[j].start_time))):'')+', '+escapeHtml(sd[j].status||'')+')'); }
+            html+='<div style="background:#fff3f3;border:1px solid #f0caca;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:#7a2222;"><b>&#9888; Same-day events:</b> '+names.join(' &middot; ')+' &mdash; check equipment overlap.</div>';
+        }
+        if(d.status==='lost'&&d.lost_reason){ html+='<div style="background:#f3f4f7;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:#3a4353;"><b>Lost:</b> '+escapeHtml(d.lost_reason)+'</div>'; }
+        var cust='';
+        cust+=catKV('Name',escapeHtml(d.customer_name||'—'));
+        cust+=catKV('Phone',d.customer_phone?('<a href="tel:'+escapeHtml(d.customer_phone)+'" style="color:#0d6eaf;">'+escapeHtml(d.customer_phone)+'</a>'):'—');
+        cust+=catKV('Email',d.customer_email?('<a href="mailto:'+escapeHtml(d.customer_email)+'" style="color:#0d6eaf;">'+escapeHtml(d.customer_email)+'</a>'):'—');
+        cust+=catKV('Prefers',escapeHtml(d.contact_pref||'—'));
+        html+=catSec('Customer',cust);
+        var ev='';
+        ev+=catKV('Date',escapeHtml(catDateFmt(d.event_date))+(d.start_time?(' &middot; '+escapeHtml(catTimeFmt(d.start_time))):''));
+        ev+=catKV('Hours',(d.hours!=null&&d.hours!=='')?(escapeHtml(String(d.hours))+' hr'):'—');
+        ev+=catKV('Location',escapeHtml(d.location||'—'));
+        ev+=catKV('Guests',(d.guest_count!=null&&d.guest_count!=='')?escapeHtml(String(d.guest_count)):'—');
+        ev+=catKV('Occasion',escapeHtml(d.occasion||'—'));
+        var eqTxt=escapeHtml(d.equipment||'—');
+        if(String(d.equipment||'').indexOf('Trailer')>=0) eqTxt+=' <span style="font-weight:400;color:#8a8594;">('+escapeHtml(CAT_PRICING.TRAILER_FOOTPRINT_NOTE)+')</span>';
+        ev+=catKV('Equipment',eqTxt);
+        ev+=catKV('Travel fee',d.travel?'Yes (outside immediate Las Cruces)':'No');
+        ev+=catKV('Notes',d.notes?escapeHtml(d.notes):'—');
+        html+=catSec('Event',ev);
+        html+=catSec('Quote',catQuoteSectionHtml(d));
+        var mo='';
+        mo+=catKV('Deposit',((d.deposit_amount!=null)?catMoney(d.deposit_amount):'—')+(d.deposit_method?(' &middot; '+escapeHtml(d.deposit_method)):'')+(d.deposit_ref?(' &middot; ref '+escapeHtml(d.deposit_ref)):'')+' &middot; '+(d.deposit_paid?'<span style="color:#10b981;font-weight:800;">received</span>':'<span style="color:#8a8594;">not received</span>'));
+        mo+=catKV('Final balance',d.balance_paid?'<span style="color:#10b981;font-weight:800;">paid</span>':'<span style="color:#8a8594;">not paid</span>');
+        mo+=catKV('Accepted by',d.signed_name?(escapeHtml(d.signed_name)+(d.signed_at?(' <span style="color:#8a8594;font-weight:400;">'+escapeHtml(String(d.signed_at).replace('T',' ').slice(0,16))+'</span>'):'')):'—');
+        if(d.assigned_manager) mo+=catKV('Manager',escapeHtml(d.assigned_manager));
+        html+=catSec('Money',mo);
+        html+=catSec('Actions',catActionsHtml(d.status));
+        html+=catSec('Notes &amp; history','<button onclick="catAddNote()" style="background:#eef0f3;border:none;border-radius:9px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:6px;">&#128172; Add note</button>'+catHistoryHtml());
+        box.innerHTML=html;
+        catQuoteRecalc();
+        window.scrollTo(0,0);
+    }
+    function catNewForm(){ catRenderForm(null); }
+    function catEditForm(){ if(catCur) catRenderForm(catCur); }
+    function catRenderForm(d){
+        var box=document.getElementById('catBody'); if(!box) return;
+        var isEdit=!!(d&&d.id);
+        function fi(id,label,type,val,extra){ return '<div style="margin-bottom:10px;"><label style="display:block;font-size:12px;font-weight:700;color:#3a4353;margin-bottom:4px;">'+label+'</label><input id="'+id+'" type="'+type+'" value="'+escapeHtml(val==null?'':String(val))+'"'+(extra||'')+' style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #dfe3ea;border-radius:9px;font-size:14px;background:#fff;"></div>'; }
+        var html='<button onclick="'+(isEdit?'catRenderDetail()':'catLoad()')+'" style="background:none;border:none;color:#0d6eaf;font-size:13px;font-weight:700;cursor:pointer;padding:0;margin-bottom:10px;">&larr; Cancel</button>';
+        html+='<div style="background:#fff;border:1px solid #eef0f5;border-radius:12px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,.04);">';
+        html+='<h3 style="margin:0 0 12px;font-size:16px;color:#26242b;">'+(isEdit?'Edit event':'New event (phone / walk-in)')+'</h3>';
+        html+=fi('catFName','Customer name *','text',d?d.customer_name:'');
+        html+=fi('catFPhone','Phone','tel',d?d.customer_phone:'');
+        html+=fi('catFEmail','Email','email',d?d.customer_email:'');
+        html+=fi('catFDate','Event date','date',(d&&d.event_date)?String(d.event_date).slice(0,10):'');
+        html+=fi('catFTime','Start time','time',(d&&d.start_time)?String(d.start_time).slice(0,5):'');
+        html+=fi('catFHours','Hours','number',d?d.hours:'',' step="0.5" min="0"');
+        html+=fi('catFLoc','Event location / address','text',d?d.location:'');
+        html+=fi('catFGuests','Estimated guests','number',d?d.guest_count:'',' min="1"');
+        html+=fi('catFOcc','Occasion','text',d?d.occasion:'');
+        var sc=(d&&String(d.scoop_type||'').toLowerCase()==='double')?'double':'single';
+        html+='<div style="margin-bottom:10px;"><label style="display:block;font-size:12px;font-weight:700;color:#3a4353;margin-bottom:4px;">Scoops</label><select id="catFScoop" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #dfe3ea;border-radius:9px;font-size:14px;background:#fff;"><option value="single"'+(sc==='single'?' selected':'')+'>Single scoop ($2.00/guest)</option><option value="double"'+(sc==='double'?' selected':'')+'>Double scoop ($3.00/guest)</option></select></div>';
+        html+='<div style="margin-bottom:10px;"><label style="display:block;font-size:12px;font-weight:700;color:#3a4353;margin-bottom:4px;">Notes</label><textarea id="catFNotes" rows="3" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #dfe3ea;border-radius:9px;font-size:14px;background:#fff;">'+escapeHtml((d&&d.notes)||'')+'</textarea></div>';
+        if(isEdit) html+=fi('catFMgr','Assigned manager','text',d.assigned_manager||'');
+        html+='<button onclick="catFormSave('+(isEdit?('\''+d.id+'\''):'null')+')" style="width:100%;background:var(--caliches-pink,#c0264b);color:#fff;border:none;border-radius:11px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;">'+(isEdit?'Save changes':'Create event')+'</button>';
+        html+='</div>';
+        box.innerHTML=html;
+        window.scrollTo(0,0);
+    }
+    function catFormSave(id){
+        var nm=String((document.getElementById('catFName')||{}).value||'').trim();
+        if(!nm){ alert('Customer name is required.'); return; }
+        function v(fid){ var el=document.getElementById(fid); return el?String(el.value||'').trim():''; }
+        var p={ customer_name:nm, customer_phone:v('catFPhone'), customer_email:v('catFEmail'), location:v('catFLoc'), occasion:v('catFOcc'), scoop_type:v('catFScoop')||'single', notes:v('catFNotes') };
+        var dv=v('catFDate'); if(dv) p.event_date=dv;
+        var tv=v('catFTime'); if(tv) p.start_time=tv;
+        var hv=v('catFHours'); if(hv) p.hours=hv;
+        var gv=v('catFGuests'); if(gv) p.guest_count=gv;
+        if(document.getElementById('catFMgr')) p.assigned_manager=v('catFMgr');
+        catRpc('app_catering_save',{p_id:id||null,p:p},function(newId){ catOpenDetail(newId||id); });
+    }
+    function catBEO(){
+        if(!catCur) return;
+        var d=catCur;
+        var w=window.open('','_blank');
+        if(!w){ alert('Pop-up blocked. Allow pop-ups to print the run sheet.'); return; }
+        var q=(d.quote&&d.quote.lineItems&&d.quote.lineItems.length)?d.quote:null;
+        var eqNote=(String(d.equipment||'').indexOf('Trailer')>=0)?(' <span style="color:#555;font-weight:normal;">('+escapeHtml(CAT_PRICING.TRAILER_FOOTPRINT_NOTE)+')</span>'):'';
+        var html='<!DOCTYPE html><html><head><title>Catering Run Sheet</title><style>'
+            +'body{font-family:Arial,Helvetica,sans-serif;color:#222;margin:28px;}'
+            +'h1{font-size:20px;margin:0 0 2px;} .sub{font-size:12px;color:#666;margin-bottom:4px;}'
+            +'h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#888;margin:18px 0 6px;border-bottom:1px solid #ddd;padding-bottom:3px;}'
+            +'table{width:100%;border-collapse:collapse;font-size:13px;} td{padding:3px 0;vertical-align:top;}'
+            +'.kv td:first-child{color:#666;width:170px;} .r{text-align:right;white-space:nowrap;} .tot td{border-top:1px solid #999;font-weight:bold;padding-top:6px;}'
+            +'</style></head><body>';
+        html+='<h1>Caliche&#39;s Frozen Custard &mdash; Catering Run Sheet</h1>';
+        html+='<div class="sub">Status: '+escapeHtml(CAT_LABELS[d.status]||d.status||'')+' &middot; Printed '+escapeHtml(new Date().toLocaleDateString())+'</div>';
+        html+='<h2>Event</h2><table class="kv">'
+            +'<tr><td>Customer</td><td>'+escapeHtml(d.customer_name||'—')+'</td></tr>'
+            +'<tr><td>Phone / Email</td><td>'+escapeHtml(d.customer_phone||'—')+' &middot; '+escapeHtml(d.customer_email||'—')+'</td></tr>'
+            +'<tr><td>Date &amp; time</td><td>'+escapeHtml(catDateFmt(d.event_date))+(d.start_time?(' &middot; '+escapeHtml(catTimeFmt(d.start_time))):'')+((d.hours!=null&&d.hours!=='')?(' &middot; '+escapeHtml(String(d.hours))+' hr'):'')+'</td></tr>'
+            +'<tr><td>Location</td><td>'+escapeHtml(d.location||'—')+'</td></tr>'
+            +'<tr><td>Occasion</td><td>'+escapeHtml(d.occasion||'—')+'</td></tr>'
+            +'<tr><td>Equipment</td><td><b>'+escapeHtml(d.equipment||'—')+'</b>'+eqNote+'</td></tr>'
+            +'<tr><td>Servings</td><td>'+escapeHtml((d.guest_count!=null&&d.guest_count!=='')?String(d.guest_count):'?')+' guests &times; '+escapeHtml(d.scoop_type||'single')+' scoops</td></tr>'
+            +'<tr><td>Toppings requested</td><td>'+escapeHtml(d.toppings_requested==null?('Unspecified ('+CAT_PRICING.INCLUDED_TOPPINGS+' included)'):String(d.toppings_requested))+'</td></tr>'
+            +'<tr><td>Assigned manager</td><td>'+escapeHtml(d.assigned_manager||'—')+'</td></tr>'
+            +'</table>';
+        if(q){
+            html+='<h2>Quote (as saved)</h2><table>';
+            for(var i=0;i<q.lineItems.length;i++){ html+='<tr><td>'+escapeHtml(q.lineItems[i].label)+'</td><td class="r">'+catMoney(q.lineItems[i].amount)+'</td></tr>'; }
+            html+='<tr class="tot"><td>Subtotal (before tax)</td><td class="r">'+catMoney(d.quote_subtotal!=null?d.quote_subtotal:q.subtotal)+'</td></tr></table>';
+        } else {
+            html+='<h2>Quote</h2><p style="font-size:13px;color:#666;">No quote saved yet.</p>';
+        }
+        html+='<h2>Money</h2><table class="kv">'
+            +'<tr><td>Deposit</td><td>'+((d.deposit_amount!=null)?catMoney(d.deposit_amount):'—')+(d.deposit_method?(' &middot; '+escapeHtml(d.deposit_method)):'')+(d.deposit_ref?(' &middot; ref '+escapeHtml(d.deposit_ref)):'')+' &middot; '+(d.deposit_paid?'<b>RECEIVED</b>':'not received')+'</td></tr>'
+            +'<tr><td>Final balance</td><td>'+(d.balance_paid?'<b>PAID</b>':'due')+'</td></tr>'
+            +'</table>';
+        if(d.notes){ html+='<h2>Notes</h2><p style="font-size:13px;">'+escapeHtml(d.notes)+'</p>'; }
+        html+='</body></html>';
+        w.document.write(html); w.document.close(); w.focus();
+        setTimeout(function(){ try{ w.print(); }catch(e){} },350);
+    }
+    /* ===== END CATERING PIPELINE ===== */
 
     /* ---------- 8. CHECKLIST DUE-WINDOWS ---------- */
     var p4CkwCache=null, p4CkwAt=0;
