@@ -3809,7 +3809,11 @@
             '<div style="text-align:right;font-size:14px;color:#444;line-height:1.6;"><div>Subtotal: $' + Number(quote.subtotal).toFixed(2) + '</div><div>Tax: $' + Number(quote.tax).toFixed(2) + '</div><div style="font-weight:900;font-size:20px;color:var(--caliches-blue);margin-top:5px;">Total: $' + Number(quote.total).toFixed(2) + '</div></div>';
 
         if (quote.status === 'Accepted') {
+            var _sqNote = (quote.invoice_status === 'Paid')
+                ? '&#9989; Paid — thank you!'
+                : (quote.square_payment_url ? '<a href="' + quote.square_payment_url + '" target="_blank" style="color:#1f7a3d;font-weight:bold;">Pay online now &#8594;</a>' : '');
             c.innerHTML = header + '<div style="margin-top:20px;padding:15px;background:#eafaf0;border-radius:8px;text-align:center;color:var(--pass-green);font-weight:bold;">&#10003; Quote Accepted' + (quote.accepted_at ? ' on ' + new Date(quote.accepted_at).toLocaleDateString() : '') + '!<br><span style="font-weight:normal;font-size:13px;color:#555;">We\'ll be in touch to finalize the details.</span></div>' +
+                '<div id="sqInvNote" style="margin-top:12px;text-align:center;font-size:13px;color:#1f7a3d;font-weight:bold;">' + _sqNote + '</div>' +
                 (quote.pdf_url ? '<a href="' + quote.pdf_url + '" target="_blank" style="display:block;text-align:center;margin-top:15px;color:var(--caliches-blue);font-weight:bold;text-decoration:underline;">View Full PDF</a>' : '');
         } else {
             c.innerHTML = header +
@@ -3840,7 +3844,24 @@
                 c.style.opacity = '1';
                 if (error) { console.error('[QuoteAccept] update error:', error.message); alert('Something went wrong accepting this quote. Please contact us directly.'); return; }
                 renderQuoteAccept(data);
+                autoSendSquareInvoice(token);
             }).catch(err => { c.style.opacity = '1'; console.error('[QuoteAccept] unexpected update error:', err); alert('Something went wrong accepting this quote. Please contact us directly.'); });
+    }
+
+    // On acceptance, automatically create + email the customer a REAL Square invoice
+    // (Hub-native via the square-invoice Edge Function). Idempotent + non-blocking:
+    // acceptance already succeeded regardless of this result.
+    function autoSendSquareInvoice(token){
+        try {
+            supabaseClient.functions.invoke('square-invoice', { body: { token: token } })
+              .then(function(r){
+                  var d = (r && r.data) || {};
+                  if (r && r.error) { console.error('[square-invoice] invoke error:', r.error.message || r.error); return; }
+                  if (!d.ok) { console.error('[square-invoice] failed:', d.error || 'unknown'); return; }
+                  var note = document.getElementById('sqInvNote');
+                  if (note && d.public_url) note.innerHTML = '<a href="' + d.public_url + '" target="_blank" style="color:#1f7a3d;font-weight:bold;">Pay online now &#8594;</a>';
+              }, function(e){ console.error('[square-invoice] invoke exception:', e); });
+        } catch(e){ console.error('[square-invoice] exception:', e); }
     }
 
     // ============================================================
@@ -3869,7 +3890,9 @@
           '</div>'+
           '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px;"><thead><tr style="background:#f3f6fa;"><th style="text-align:left;padding:8px 6px;">Description</th><th style="text-align:center;padding:8px 6px;">Qty</th><th style="text-align:right;padding:8px 6px;">Amount</th></tr></thead><tbody>'+rows+'</tbody></table>'+
           '<div style="text-align:right;font-size:14px;line-height:1.7;"><div>Subtotal: $'+Number(q.subtotal||0).toFixed(2)+'</div><div>Tax: $'+Number(q.tax||0).toFixed(2)+'</div><div style="font-weight:900;font-size:20px;color:#185FA5;margin-top:4px;">Amount Due: $'+Number(q.total||0).toFixed(2)+'</div></div>'+
-          (q.square_payment_url?'<div style="text-align:center;margin-top:18px;"><a href="'+escapeHtml(q.square_payment_url)+'" target="_blank" style="display:inline-block;background:#1f7a3d;color:#fff;text-decoration:none;font-weight:900;font-size:16px;padding:13px 28px;border-radius:10px;">💳 Pay Now with Square</a><div style="font-size:11px;color:#6b7686;margin-top:6px;">Secure checkout powered by Square</div></div>':'')+
+          (q.invoice_status==='Paid'
+             ? '<div style="text-align:center;margin-top:18px;"><span style="display:inline-block;background:#eafaf0;color:#1b7a3d;font-weight:900;font-size:16px;padding:12px 26px;border-radius:10px;">&#9989; Paid'+(q.paid_at?(' on '+new Date(q.paid_at).toLocaleDateString()):'')+' — Thank you!</span></div>'
+             : (q.square_payment_url?'<div style="text-align:center;margin-top:18px;"><a href="'+escapeHtml(q.square_payment_url)+'" target="_blank" style="display:inline-block;background:#1f7a3d;color:#fff;text-decoration:none;font-weight:900;font-size:16px;padding:13px 28px;border-radius:10px;">💳 Pay Now with Square</a><div style="font-size:11px;color:#6b7686;margin-top:6px;">Secure checkout powered by Square</div></div>':''))+
           (q.notes?'<div style="margin-top:16px;font-size:12px;color:#6b7686;border-top:1px solid #eee;padding-top:8px;"><b>Notes:</b> '+escapeHtml(q.notes)+'</div>':'')+
           '<div style="margin-top:18px;font-size:11px;color:#8a8a99;border-top:1px solid #eee;padding-top:8px;text-align:center;">Thank you for choosing Caliche&#39;s Frozen Custard! Please contact us with any questions about this invoice.</div>'+
         '</div>';
@@ -3916,9 +3939,31 @@
             }, function(){ if(btn){ btn.disabled=false; btn.innerHTML=_o; } alert('Connection error.'); });
         });
     }
+    // Admin: create + email a REAL Square invoice for an accepted quote (Hub-native).
+    function sendSquareInvoice(id, btn){
+        var list=window._pipelineQuotes||[]; var q=null; for(var i=0;i<list.length;i++){ if(list[i].id===id){ q=list[i]; break; } }
+        if(!q){ alert('Quote not found. Refresh the pipeline and try again.'); return; }
+        if(!q.accept_token){ alert('This quote needs an accept link first. Open it, Save/Resend, then try again.'); return; }
+        var _o=''; if(btn){ btn.disabled=true; _o=btn.innerHTML; btn.innerHTML='Sending…'; }
+        supabaseClient.functions.invoke('square-invoice', { body: { token: q.accept_token } })
+          .then(function(r){
+              if(btn){ btn.disabled=false; btn.innerHTML=_o; }
+              var d=(r&&r.data)||{};
+              if((r&&r.error) || !d.ok){ alert('Square error: '+((d&&d.error) || (r&&r.error&&r.error.message) || 'unknown')); return; }
+              q.square_payment_url=d.public_url; if(q.invoice_status!=='Paid') q.invoice_status='Sent'; if(d.invoice_number) q.invoice_number=d.invoice_number; if(!q.invoiced_at) q.invoiced_at=new Date().toISOString();
+              if(typeof toast==='function') toast(d.already?'Pay link already created.':'Pay link created.');
+              if(typeof fetchSalesPipeline==='function') fetchSalesPipeline();
+          }, function(){ if(btn){ btn.disabled=false; btn.innerHTML=_o; } alert('Connection error contacting Square.'); });
+    }
+    function copyPayLink(id, btn){
+        var list=window._pipelineQuotes||[]; var q=null; for(var i=0;i<list.length;i++){ if(list[i].id===id){ q=list[i]; break; } }
+        if(!q||!q.square_payment_url){ alert('No Square pay link yet. Send the Square invoice first.'); return; }
+        navigator.clipboard.writeText(q.square_payment_url).then(function(){ if(btn){ var o=btn.innerHTML; btn.innerHTML='✅ Copied!'; setTimeout(function(){ btn.innerHTML=o; },1500);} }).catch(function(){ alert('Pay link:\n'+q.square_payment_url); });
+    }
     function renderInvoice(quote){
         var c=document.getElementById('quoteAcceptContent');
         if(!quote){ c.innerHTML='<h2 style="color:var(--fail-red);margin-top:0;">Invoice Not Found</h2><p style="color:#666;">This link is invalid or the invoice is not ready yet. Please contact Caliche&#39;s Frozen Custard directly for help.</p>'; return; }
+        window._curInvoiceQuote=quote;
         var html=buildInvoiceHtml(quote, quote.invoice_number); window._curInvoiceHtml=html;
         c.innerHTML='<button class="save-btn blue-btn" style="margin-bottom:14px;" onclick="printInvoiceHtml(window._curInvoiceHtml)">🖨️ Print / Save as PDF</button>'+html;
     }
@@ -3928,9 +3973,32 @@
         document.getElementById('splash-screen').style.display='none';
         document.getElementById('quoteAcceptView').style.display='flex';
         supabaseClient.rpc('app_quote_invoice_get_by_token', { p_token: token }).maybeSingle()
-            .then(function(r){ if(r.error){ console.error('[Invoice] fetch error:', r.error.message); renderInvoice(null); return; } renderInvoice(r.data); })
+            .then(function(r){
+                if(r.error){ console.error('[Invoice] fetch error:', r.error.message); renderInvoice(null); return; }
+                var quote=r.data; if(!quote){ renderInvoice(null); return; }
+                // Merge live payment fields so the Pay button / Paid badge show even if the
+                // invoice RPC predates the Square columns.
+                supabaseClient.rpc('app_quote_payment_status', { p_token: token }).maybeSingle()
+                  .then(function(p){ var d=p&&p.data; if(d){ if(d.square_payment_url&&!quote.square_payment_url) quote.square_payment_url=d.square_payment_url; if(d.invoice_status) quote.invoice_status=d.invoice_status; if(d.paid_at) quote.paid_at=d.paid_at; if(d.invoice_number&&!quote.invoice_number) quote.invoice_number=d.invoice_number; } finishInvoice(quote, token); },
+                          function(){ finishInvoice(quote, token); });
+            })
             .catch(function(err){ console.error('[Invoice] unexpected error:', err); renderInvoice(null); });
         return true;
+    }
+    function finishInvoice(quote, token){ renderInvoice(quote); if(quote && quote.invoice_status!=='Paid') startInvoicePoll(token); }
+    // Live-flip the public invoice page to "Paid" once Square's webhook marks it paid.
+    function startInvoicePoll(token){
+        if(window._invPoll) clearInterval(window._invPoll);
+        window._invPoll=setInterval(function(){
+            supabaseClient.rpc('app_quote_payment_status', { p_token: token }).maybeSingle()
+              .then(function(r){ var d=r&&r.data; if(!d) return;
+                  if(d.invoice_status==='Paid' && window._curInvoiceQuote){
+                      clearInterval(window._invPoll); window._invPoll=null;
+                      window._curInvoiceQuote.invoice_status='Paid'; window._curInvoiceQuote.paid_at=d.paid_at;
+                      renderInvoice(window._curInvoiceQuote);
+                  }
+              }, function(){});
+        }, 20000);
     }
     window.addEventListener('load', function() {
         if (frOrgRoute()) return;
@@ -12899,12 +12967,21 @@
                 html += '<div style="font-size:20px;font-weight:900;color:var(--caliches-blue);margin:8px 0;">$' + (Number(q.total) || 0).toFixed(2) + '</div>';
                 if (q.accepted_at) html += '<div class="maint-card-meta" style="color:var(--pass-green);font-weight:bold;">&#10003; Accepted on ' + new Date(q.accepted_at).toLocaleDateString() + '</div>';
                 if (q.invoice_number) html += '<div class="maint-card-meta" style="color:#1f7a3d;font-weight:bold;">🧾 Invoice ' + escapeHtml(q.invoice_number) + '</div>';
+                if (q.invoice_status === 'Paid') html += '<div class="maint-card-meta" style="color:#1b7a3d;font-weight:bold;">💳 Paid' + (q.paid_at ? ' on ' + new Date(q.paid_at).toLocaleDateString() : '') + '</div>';
+                else if (q.square_payment_url) html += '<div class="maint-card-meta" style="color:#185FA5;font-weight:bold;">💳 Pay link ready — awaiting payment</div>';
                 if (q.reminder_sent) html += '<div class="maint-card-meta" style="color:var(--maint-orange);font-weight:bold;">&#128276; Follow-up reminder sent</div>';
                 html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">';
                 if (q.pdf_url) html += '<a href="' + q.pdf_url + '" target="_blank" style="background:#7b2d8b;color:white;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;text-decoration:none;">&#128196; View PDF</a>';
                 if (q.accept_token) html += '<button onclick="copyAcceptLink(\'' + q.accept_token + '\', this)" style="background:var(--caliches-blue);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">&#128279; Copy Accept Link</button>';
                 html += '<button onclick="editQuote(' + q.id + ')" style="background:#7b2d8b;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">&#9999;&#65039; Edit &amp; Resend</button>';
-                if (st === 'Accepted') { html += '<button onclick="quoteInvoice(' + q.id + ', this)" style="background:#1f7a3d;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">🧾 Invoice &amp; Print</button>'; }
+                if (st === 'Accepted') {
+                    if (q.invoice_status !== 'Paid') {
+                        var _sqLabel = q.square_payment_url ? '💳 Refresh Pay Link' : '💳 Create Pay Link';
+                        html += '<button onclick="sendSquareInvoice(' + q.id + ', this)" style="background:#0f7a3d;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">' + _sqLabel + '</button>';
+                    }
+                    if (q.square_payment_url) html += '<button onclick="copyPayLink(' + q.id + ', this)" style="background:#185FA5;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">🔗 Copy Pay Link</button>';
+                    html += '<button onclick="quoteInvoice(' + q.id + ', this)" style="background:#1f7a3d;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">🧾 Print Invoice</button>';
+                }
                 if (st === 'Pending') {
                     html += '<button onclick="updateQuoteStatus(' + q.id + ', \'Accepted\')" style="background:var(--pass-green);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">Mark Accepted</button>';
                     html += '<button onclick="updateQuoteStatus(' + q.id + ', \'Declined\')" style="background:var(--fail-red);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">Mark Declined</button>';
