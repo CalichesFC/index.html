@@ -2575,7 +2575,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.07.02.2121';
+    const APP_VERSION = '2026.07.09.1623';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -4013,18 +4013,13 @@
             try { localStorage.removeItem('calichesPin'); if (localStorage.getItem('calichesKeep')!=='0') { var _kp=sessionStorage.getItem('calichesPin'); if(_kp) sessionPin=_kp; } } catch(e){}
             document.getElementById('greetingName').innerText = 'Hello, ' + currentUser.name;
             document.getElementById('greetingRole').innerText = 'Role: ' + currentUser.role;
-            applyRoleUI();
-            refreshSessionUser();
-            setupNotifications();
-            applyFormPermissions();
-            let bioId = localStorage.getItem('calichesBiometricId');
-            if (bioId && window.PublicKeyCredential) {
-                document.getElementById('splash-screen').style.display = 'none';
-                document.getElementById('bioWelcomeName').innerText = ', ' + currentUser.name;
-                document.getElementById('biometricLockModal').style.display = 'flex';
-            } else {
-                enterAppView();
-            }
+            /* SECURITY (login hardening): never enter the app on a saved profile
+               alone. Re-verify the stored credential against the server first. If
+               "Keep me logged in" was off there is no stored credential, so send
+               the user to the password screen. Biometric unlock is preserved: it
+               is only reached AFTER the server verifies the stored credential. */
+            if (sessionPin) { verifyStoredSessionThenEnter(); }
+            else { showLoginScreenNow(); }
         } else {
             setTimeout(function() {
                 document.getElementById('splash-screen').style.opacity = '0';
@@ -4297,6 +4292,39 @@
                 if(changed){ try{ applyRoleUI(); }catch(e){} try{ if(typeof applyFormPermissions==='function') applyFormPermissions(); }catch(e){} }
             }).catch(function(){});
         }catch(e){}
+    }
+    // Login hardening helpers ------------------------------------------------
+    // Show the password screen (fail-closed) and drop any stored credential.
+    function showLoginScreenNow(){
+        try{ sessionStorage.removeItem('calichesPin'); }catch(e){}
+        sessionPin = null;
+        var sp = document.getElementById('splash-screen');
+        var lv = document.getElementById('login-view');
+        try{ document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; }); }catch(e){}
+        var bio = document.getElementById('biometricLockModal'); if(bio) bio.style.display='none';
+        if(sp){ sp.style.opacity='0'; setTimeout(function(){ sp.style.display='none'; if(lv) lv.style.display='flex'; }, 400); }
+        else if(lv){ lv.style.display='flex'; }
+    }
+    // Verify a restored "keep me logged in" credential against the server before
+    // entering the app. No verified row => back to the password screen.
+    function verifyStoredSessionThenEnter(){
+        try{
+            supabaseClient.rpc('app_login',{p_username:currentUser.username,p_password:sessionPin}).then(function(r){
+                if((r && r.error) || !r || !r.data || !r.data.length){ showLoginScreenNow(); return; }
+                var u = r.data[0];
+                currentUser.name=u.name; currentUser.role=u.role; currentUser.permissions=u.permissions||null; currentUser.maint_board_access=(u.maint_board_access!==false); currentUser.username=u.username; currentUser.email=u.email||''; currentUser.is_developer=(u.is_developer===true);
+                try{ localStorage.setItem('calichesUser', JSON.stringify(currentUser)); }catch(e){}
+                try{ document.getElementById('greetingName').innerText='Hello, '+currentUser.name; document.getElementById('greetingRole').innerText='Role: '+currentUser.role; }catch(e){}
+                applyRoleUI(); setupNotifications(); applyFormPermissions();
+                var bioId = localStorage.getItem('calichesBiometricId');
+                if(bioId && window.PublicKeyCredential){
+                    document.getElementById('splash-screen').style.display='none';
+                    document.getElementById('bioWelcomeName').innerText=', '+currentUser.name;
+                    document.getElementById('biometricLockModal').style.display='flex';
+                } else { enterAppView(); }
+                if(u.must_set_password===true){ setTimeout(function(){ promptSetPassword(); }, 800); }
+            }).catch(function(){ showLoginScreenNow(); });
+        }catch(e){ showLoginScreenNow(); }
     }
     function attemptLogin() {
         const btn = document.getElementById('loginBtn'); const form = document.getElementById('loginForm'); const errorMsg = document.getElementById('loginError');
