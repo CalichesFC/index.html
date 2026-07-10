@@ -10,7 +10,12 @@
         });
     }
     function openAddTask(){
-        document.getElementById('atTitle').value=''; document.getElementById('atCategory').value='Payroll';
+        var ATC_DEFAULTS=['Payroll','Evaluation','Training','PIP Review','Other'];
+        var atCats=(typeof cfgListOr==='function'?cfgListOr('admin_task_cats', ATC_DEFAULTS):ATC_DEFAULTS);
+        if(!atCats || !atCats.length) atCats=ATC_DEFAULTS;
+        var atSel=document.getElementById('atCategory');
+        if(atSel){ atSel.innerHTML=atCats.map(function(c){ var lbl=(c && typeof c==='object')?(c.label||c.value||c.key||''):c; return '<option>'+escapeHtml(String(lbl))+'</option>'; }).join(''); }
+        document.getElementById('atTitle').value=''; if(atSel){ var f=atCats[0]; atSel.value=(f && typeof f==='object')?(f.label||f.value||f.key||''):f; }
         document.getElementById('atDue').value=''; document.getElementById('atLink').value='';
         document.getElementById('atMsg').style.display='none';
         document.getElementById('addTaskModal').style.display='flex';

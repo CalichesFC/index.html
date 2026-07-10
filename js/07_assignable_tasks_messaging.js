@@ -242,6 +242,12 @@
     }
     function openTrainingEdit(id){
         var m=id?((window._trainingMods||[]).filter(function(x){return x.id===id;})[0]||null):null;
+        // Training categories: display-only suggestion list, configurable via cfgListOr('training_cats').
+        // Free-text category (stored/grouped only, never branched on) so this is safe to make configurable.
+        var _tcDefaults=['Recipes','How-To','Policies','Customer Service','Onboarding'];
+        var _tcList=(typeof cfgListOr==='function'?cfgListOr('training_cats',_tcDefaults):_tcDefaults);
+        var _tcDL=document.getElementById('trainingCats');
+        if(_tcDL&&_tcList&&_tcList.length){ _tcDL.innerHTML=_tcList.map(function(c){ return '<option value="'+escapeHtml(String(c))+'"></option>'; }).join(''); }
         document.getElementById('trainingEditId').value = id||'';
         document.getElementById('trainingEditTitle').value = m?m.title:'';
         document.getElementById('trainingEditCat').value = m?(m.category||''):'';

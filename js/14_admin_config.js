@@ -8,7 +8,7 @@
 
     // ---- in-memory config cache: { group: { key: {label,value,sort} } } ----
     var HUB_CFG = {};
-    var CFG_GROUPS = ['targets','policies','emergency'];
+    var CFG_GROUPS = ['targets','policies','emergency','training_cats','admin_task_cats','attendance_reasons','leadership_names'];
 
     // Preload every contract group with the caller's creds. Tolerant of errors
     // (a missing/empty group just becomes {}). cb() fires once all groups settle.
@@ -100,13 +100,13 @@
     function acOverlay(){ var o=document.getElementById('appSettingsModal'); if(!o){ o=document.createElement('div'); o.id='appSettingsModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100000;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
     function appSettingsClose(){ var o=document.getElementById('appSettingsModal'); if(o) o.style.display='none'; }
     function acHeader(){ return '<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:5;"><b style="flex:1;font-size:16px;">&#9881;&#65039; App Settings &mdash; Admin</b><button onclick="appSettingsClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;">&times;</button></div>'; }
-    function acTabs(){ var t=_ac.tab; function b(id,label){ var on=t===id; return '<button onclick="acTab(\''+id+'\')" style="background:'+(on?'#185FA5':'#eef0f3')+';color:'+(on?'#fff':'#26242b')+';border:none;border-radius:8px;padding:8px 13px;font-weight:700;font-size:12.5px;cursor:pointer;">'+label+'</button>'; } return '<div style="display:flex;gap:8px;flex-wrap:wrap;max-width:760px;margin:12px auto 0;padding:0 16px;">'+b('targets','Business Numbers')+b('policies','Policy Text')+b('emergency','Emergency Numbers')+'</div>'; }
+    function acTabs(){ var t=_ac.tab; function b(id,label){ var on=t===id; return '<button onclick="acTab(\''+id+'\')" style="background:'+(on?'#185FA5':'#eef0f3')+';color:'+(on?'#fff':'#26242b')+';border:none;border-radius:8px;padding:8px 13px;font-weight:700;font-size:12.5px;cursor:pointer;">'+label+'</button>'; } return '<div style="display:flex;gap:8px;flex-wrap:wrap;max-width:760px;margin:12px auto 0;padding:0 16px;">'+b('targets','Business Numbers')+b('policies','Policy Text')+b('emergency','Emergency Numbers')+(typeof acRenderChoiceLists==='function'?b('lists','Lists'):'')+'</div>'; }
     function acShell(body){ acOverlay().innerHTML=acHeader()+acTabs()+'<div style="max-width:760px;margin:0 auto;padding:16px;">'+body+'</div>'; }
     function acCard(head,sub,inner){ return '<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:4px;">'+head+'</div>'+(sub?'<div style="font-size:12px;color:#6b7686;margin-bottom:8px;">'+sub+'</div>':'')+inner+'</div>'; }
     function acSaveBtn(fn,label){ return '<div style="margin-top:16px;"><button onclick="'+fn+'" style="background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:11px 18px;font-weight:800;cursor:pointer;">'+label+'</button></div>'; }
 
     function acTab(t){ _ac.tab=t; acRender(); }
-    function acRender(){ if(_ac.tab==='policies') acRenderPolicy(); else if(_ac.tab==='emergency') acRenderEmergency(); else acRenderTargets(); }
+    function acRender(){ if(_ac.tab==='policies') acRenderPolicy(); else if(_ac.tab==='emergency') acRenderEmergency(); else if(_ac.tab==='lists' && typeof acRenderChoiceLists==='function') acRenderChoiceLists(); else acRenderTargets(); }
 
     function acRenderTargets(){
       var rows=AC_TARGETS.map(function(f){

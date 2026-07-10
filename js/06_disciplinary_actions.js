@@ -280,6 +280,7 @@
         window.scrollTo(0,0);
         try{ document.getElementById('attDate').value=new Date().toISOString().slice(0,10); }catch(e){}
         attRenderTypePicker();
+        attRenderReasons();
         attInitSig();
         attLoadEmployees();
     }
@@ -290,6 +291,17 @@
         var lbl=document.getElementById('attDateLbl'); if(lbl) lbl.textContent=(attType==='tardy'?'Date of tardy':(attType==='early'?'Date left early':'Date of absence'));
     }
     function attSetType(t){ attType=t; attRenderTypePicker(); }
+    // Call-out reasons are configurable (cfgListOr). Fallback = the exact current list;
+    // reason is stored as free text (p_reason) and never branched on, so relabeling is safe.
+    function attRenderReasons(){
+        var box=document.getElementById('attReason'); if(!box) return;
+        var defs=['Illness','Accident','Personal','Bereavement','Other'];
+        var reasons=(typeof cfgListOr==='function'?cfgListOr('attendance_reasons',defs):defs);
+        if(!(reasons&&reasons.length)) reasons=defs;
+        box.innerHTML=reasons.map(function(r,i){
+            return '<label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;margin:0 6px 6px 0;"><input type="radio" name="attReason" value="'+escapeHtml(r)+'"'+(i===0?' checked':'')+'>'+escapeHtml(r)+'</label>';
+        }).join('');
+    }
     function attInitSig(){ var cv=document.getElementById('attSigPad'); if(!cv) return; attCtx=cv.getContext('2d'); cv.width=cv.offsetWidth; cv.height=cv.offsetHeight; attCtx.strokeStyle='#222'; attCtx.lineWidth=2; attCtx.lineCap='round'; attCtx.lineJoin='round'; cv._has=false;
         var draw=false; function pos(e){ var r=cv.getBoundingClientRect(); var t=e.touches?e.touches[0]:e; return [t.clientX-r.left,t.clientY-r.top]; }
         cv.onpointerdown=function(e){ draw=true; cv._has=true; var p=pos(e); attCtx.beginPath(); attCtx.moveTo(p[0],p[1]); e.preventDefault(); };

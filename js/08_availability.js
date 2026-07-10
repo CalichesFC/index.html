@@ -298,12 +298,16 @@
     }
     /* ===================== YOUR VOICE 2.0 (real anonymity + COI + Team Voice dashboard) ===================== */
     var YV2_CATS={
-      talk:['Shift Leader','Store Manager','Operations Leadership','Aaron','Adriana','Help me choose'],
       idea:['Customer Experience','Menu or Product','Store Operations','Equipment or Maintenance','Training','Employee Experience','Safety','Technology / Hub App','Community','Other'],
       feedback:['Training','Leadership','Communication','Scheduling','Tools','Workload','Workplace Environment','Hub App','Other'],
       help:['Scheduling or Hours','Pay or Payroll','Conflict with a Team Member','Concern Involving a Leader','Policy Question','Training Support','Personal Workplace Support','Other / Not Sure'],
       concern:['Harassment','Discrimination','Safety','Retaliation','Wage / Hour','Misconduct by a leader','Other']
     };
+    // 'talk' options include leadership names — read them lazily from configurable 'leadership_names' so they are not baked in (fallback keeps current behavior until edited).
+    try { Object.defineProperty(YV2_CATS,'talk',{enumerable:true,configurable:true,get:function(){
+      var lead=(typeof cfgListOr==='function'?cfgListOr('leadership_names',['Aaron Morales','Adriana Gomez']):['Aaron Morales','Adriana Gomez']);
+      return ['Shift Leader','Store Manager','Operations Leadership'].concat(lead).concat(['Help me choose']);
+    }}); } catch(e){ YV2_CATS.talk=['Shift Leader','Store Manager','Operations Leadership','Aaron Morales','Adriana Gomez','Help me choose']; }
     var YV2_TITLES={talk:'Talk to Someone',idea:'Share an Idea',feedback:'Give Feedback',help:'Ask for Help',concern:'Report a Concern'};
     function yvRpc(name,args,cb,onerr){ withPin(function(pin){ var a=Object.assign({p_username:currentUser.username,p_password:pin},args||{}); supabaseClient.rpc(name,a).then(function(r){ if(r.error){ if(onerr) onerr(r.error); else alert(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have access to this.':r.error.message); return; } cb(r.data); }).catch(function(){ if(onerr) onerr({message:'Connection error'}); else alert('Connection error.'); }); }); }
     function yv2CanManage(){ return currentUser && (currentUser.is_developer===true || (typeof isManagerRole==='function'&&isManagerRole())); }
