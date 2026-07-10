@@ -55,6 +55,26 @@
         return ['Front #1','Front #2','Drive-Thru'];
     }
 
+    var DSR_DENOM_MULT = {c_misc:1,c_ones:1,c_fives:5,c_tens:10,c_twenties:20,c_fifties:50,c_hundreds:100,checks:1,change:1};
+    function dsrNumInLive(id,label,val,type){ return '<div style="margin-bottom:9px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">'+escapeHtml(label)+'</label><input id="'+id+'" type="number" step="any" value="'+escapeHtml(val==null?'':String(val))+'" oninput="dsrRecalcLive(\''+type+'\')" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;"></div>'; }
+    function dsrSetTxt(id,txt,color){ var e=document.getElementById(id); if(e){ e.textContent=txt; if(color) e.style.color=color; } }
+    function dsrLiveReg(type,idx){ var pre='dsrR_'+type+'_'+idx+'_'; var t=0; DSR_DENOMS.forEach(function(d){ t+=(parseFloat(dsrVal(pre+d[0]))||0)*(DSR_DENOM_MULT[d[0]]||1); }); return t; }
+    function dsrRecalcLive(type){
+        var positions=dsrPositions(); var regSum=0;
+        positions.forEach(function(pos,idx){ var t=dsrLiveReg(type,idx); regSum+=t; dsrSetTxt('dsrRlive_'+type+'_'+idx, dsrMoney(t)); });
+        var tenders=0; DSR_PAY_CATS.forEach(function(pc){ tenders+=(parseFloat(dsrVal('dsrP_'+type+'_'+pc[0]))||0); });
+        var tapeUsed;
+        if(type==='night'){
+            var netTape=parseFloat(dsrVal('dsrC_night_netTape')); if(isNaN(netTape)) netTape=parseFloat(dsrVal('dsrC_night_tape'))||0;
+            var five=dsrCloseoutOf('five')||{}; var fiveTape=parseFloat(five.tape_total)||0; tapeUsed=netTape-fiveTape;
+            var fa=dsrPayAdjOf('five'); var ft=0; fa.forEach(function(a){ ft+=parseFloat(a.amount)||0; }); tenders=tenders-ft;
+        } else { tapeUsed=parseFloat(dsrVal('dsrC_five_tape'))||0; }
+        var expected=tapeUsed-tenders; var os=regSum-expected;
+        dsrSetTxt('dsrLive_reg_'+type, dsrMoney(regSum));
+        dsrSetTxt('dsrLive_exp_'+type, dsrMoney(expected));
+        dsrSetTxt('dsrLive_os_'+type, dsrMoney(os), (Math.abs(os)>0.004?'#c0264b':'#1f7a3d'));
+    }
+
     // ============================================================
     // LANDING
     // ============================================================
@@ -229,6 +249,7 @@
             default: body=dsrHeaderTab();
         }
         ov.innerHTML=dsrHeader(title,'openDailyReport()')+dsrTabsHtml()+'<div style="max-width:900px;margin:0 auto;padding:16px 16px 60px;">'+dsrStatusBar()+body+'</div>';
+        if(_dsr.wtab==='five'||_dsr.wtab==='night'){ try{ dsrRecalcLive(_dsr.wtab); }catch(e){} }
     }
 
     // ---- Header tab ----
@@ -264,8 +285,8 @@
         var detIn='<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
             '<div style="flex:1;min-width:120px;">'+dsrIn('dsrC_'+type+'_ring','Ring-out time',c.ring_out_time||'','time')+'</div>'+
             '<div style="flex:1;min-width:140px;">'+dsrIn('dsrC_'+type+'_prep','Prepared by',c.prepared_by||'')+'</div>'+
-            '<div style="flex:1;min-width:120px;">'+dsrNumIn('dsrC_'+type+'_tape','Tape/POS total ($)',c.tape_total)+'</div>'+
-            (type==='night'?('<div style="flex:1;min-width:150px;">'+dsrNumIn('dsrC_'+type+'_netTape','Net tape total ($, after 5:00 subtracted)',c.net_tape_total)+'</div>'):'')+
+            '<div style="flex:1;min-width:120px;">'+dsrNumInLive('dsrC_'+type+'_tape','Tape/POS total ($)',c.tape_total,type)+'</div>'+
+            (type==='night'?('<div style="flex:1;min-width:150px;">'+dsrNumInLive('dsrC_'+type+'_netTape','Net tape total (running end-of-day $)',c.net_tape_total,type)+'</div>'):'')+
             '</div><div style="display:flex;gap:8px;flex-wrap:wrap;">'+
             '<div style="flex:1;min-width:100px;">'+dsrNumIn('dsrC_'+type+'_bags','Bag count',c.bag_count)+'</div>'+
             '<div style="flex:1;min-width:120px;">'+dsrNumIn('dsrC_'+type+'_deposit','Deposit ($)',c.deposit)+'</div>'+
@@ -282,27 +303,28 @@
                 var pre='dsrR_'+type+'_'+idx+'_';
                 var rowH='<div style="font-size:13px;font-weight:800;color:#1f2a44;margin:10px 0 6px;">'+escapeHtml(pos)+'</div>';
                 rowH+=dsrIn(pre+'emp','Employee (roster ID, optional)',existing.employee_id!=null?existing.employee_id:'');
-                rowH+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;">'+DSR_DENOMS.map(function(d){ return dsrNumIn(pre+d[0],d[1],existing[d[0]]); }).join('')+'</div>';
-                rowH+='<div style="margin:8px 0;font-size:12.5px;color:#5b6675;">Server total (final): <b style="color:#1f2a44;">'+dsrMoney(existing.register_total)+'</b></div>';
+                rowH+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;">'+DSR_DENOMS.map(function(d){ return dsrNumInLive(pre+d[0],d[1],existing[d[0]],type); }).join('')+'</div>';
+                rowH+='<div style="margin:8px 0;font-size:12.5px;color:#5b6675;">Live total: <b id="dsrRlive_'+type+'_'+idx+'" style="color:#1f2a44;">'+dsrMoney(existing.register_total||0)+'</b></div>';
                 rowH+=dsrBtn('Save register',"dsrSaveRegister('"+type+"',"+idx+","+(existing.id!=null?existing.id:'null')+")");
                 regBody+='<div style="border:1px solid #eef0f5;border-radius:10px;padding:10px 12px;margin-bottom:10px;">'+rowH+'</div>';
             });
         }
         h+=dsrCard(regBody,'Registers');
 
-        var payBody='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;">'+DSR_PAY_CATS.map(function(pc){ var ex=payAdj.filter(function(p){return p.category===pc[0];})[0]||{}; return dsrNumIn('dsrP_'+type+'_'+pc[0],pc[1],ex.amount); }).join('')+'</div>';
+        var payBody='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;">'+DSR_PAY_CATS.map(function(pc){ var ex=payAdj.filter(function(p){return p.category===pc[0];})[0]||{}; return dsrNumInLive('dsrP_'+type+'_'+pc[0],pc[1],ex.amount,type); }).join('')+'</div>';
         payBody+=dsrBtn('Save payment adjustments','dsrSavePaymentAdj(&quot;'+type+'&quot;)');
         h+=dsrCard(payBody,'Payment adjustments');
 
         var os=c.over_short;
         var osColor=(os==null)?'#5b6675':(Math.abs(os)>0.004?'#c0264b':'#1f7a3d');
+        function ltile(lbl,id,val,col){ return '<div style="flex:1;min-width:120px;background:#fafbfd;border:1px solid #eef0f5;border-radius:10px;padding:9px 11px;"><div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#5b6675;">'+lbl+'</div><div id="'+id+'" style="font-size:16px;font-weight:800;color:'+(col||'#1f2a44')+';">'+val+'</div></div>'; }
         h+=dsrCard(
             '<div style="display:flex;flex-wrap:wrap;gap:10px;">'+
-                dsrTotalTile('Register total',dsrMoney(c.register_total))+
-                dsrTotalTile('Adjusted total',dsrMoney(c.adj_total))+
-                dsrTotalTile('Over/Short',(os==null?'Incomplete':dsrMoney(os)),osColor)+
-            '</div><div style="font-size:11px;color:#8a91a0;margin-top:8px;">Final numbers come from the server once you save each section above &mdash; not client-side math.</div>',
-            'Totals (server-computed, final)'
+                ltile('Counted cash','dsrLive_reg_'+type,dsrMoney(c.register_total||0))+
+                ltile('Expected cash','dsrLive_exp_'+type,(c.adj_total==null?'&mdash;':dsrMoney(c.adj_total)))+
+                ltile('Over / Short','dsrLive_os_'+type,(os==null?'&mdash;':dsrMoney(os)),osColor)+
+            '</div><div style="font-size:11px;color:#8a91a0;margin-top:8px;">Updates live as you type. Over/Short = counted cash &minus; (tape &minus; card/GC/ApplePay tenders)'+(type==='night'?'; night uses net tape &minus; 5:00 tape and 5:00 tenders.':'.')+' Saved values are confirmed by the server with the same formula.</div>',
+            'Totals'
         );
 
         if(type==='night'){
