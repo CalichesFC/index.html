@@ -582,6 +582,16 @@
         if(!confirm('Submit this report? It will lock normal edits and settle totals into daily sales.')) return;
         dsrRpc('dsr_submit',{p_id:_dsr.reportId},function(){ alert('Report submitted.'); dsrLoadReport(); }, function(err){ alert((err&&err.message)||'Could not submit.'); });
     }
+    function dsrActions(){ var r=_dsr.report||{}; return r.actions||[]; }
+    function dsrCreateAction(kind){
+        var labels={task:'task',maintenance:'maintenance ticket',supply:'supply request'};
+        var title=prompt('Title for the '+labels[kind]+':',''); if(title===null||!title.trim()) return;
+        var notes=prompt('Details / notes (optional):','')||'';
+        var payload={title:title.trim(),notes:notes};
+        if(kind==='maintenance'){ payload.priority='Normal'; payload.category='General'; }
+        if(kind==='supply'){ payload.urgency='Normal'; }
+        dsrRpc('dsr_action_create',{p_id:_dsr.reportId,p_kind:kind,p_payload:payload},function(){ alert('Follow-up created.'); dsrLoadReport(); }, function(err){ alert((err&&err.message)||'Could not create.'); });
+    }
     function dsrReviewTab(){
         var rep=dsrRep();
         var h=dsrCard(dsrBtn('Run validation check','dsrValidate()','primary')+'<div id="dsrValRes" style="margin-top:10px;">'+(_dsr.lastValidation?dsrValidationHtml(_dsr.lastValidation):'')+'</div>','Validate');
@@ -591,5 +601,8 @@
         } else {
             h+=dsrCard(dsrBtn('Submit report',canSubmit?'dsrSubmit()':'dsrValidate()','primary')+'<div style="font-size:11.5px;color:#8a91a0;margin-top:6px;">Run validation first &mdash; submit is blocked until there are no blockers.</div>','Submit');
         }
+        var acts=dsrActions();
+        var actList=acts.length?acts.map(function(a){ return '<div style="font-size:12.5px;padding:5px 0;border-bottom:1px solid #f1f2f6;">'+escapeHtml(a.kind||'')+' &middot; '+escapeHtml(a.title||a.target_id||'')+' <span style="color:#8a91a0;">'+escapeHtml(a.status||'')+'</span></div>'; }).join(''):dsrEmpty('No follow-ups yet.');
+        h+=dsrCard('<div style="font-size:12px;color:#6b7686;margin-bottom:8px;">Turn a shift issue into a tracked follow-up &mdash; this creates the real Task / Maintenance / Supply record.</div>'+'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">'+dsrBtn('Create task','dsrCreateAction(&quot;task&quot;)')+dsrBtn('Create maintenance ticket','dsrCreateAction(&quot;maintenance&quot;)')+dsrBtn('Create supply request','dsrCreateAction(&quot;supply&quot;)')+'</div>'+actList,'Follow-up actions');
         return h;
     }

@@ -8,7 +8,7 @@
 
     // ---- in-memory config cache: { group: { key: {label,value,sort} } } ----
     var HUB_CFG = {};
-    var CFG_GROUPS = ['targets','policies','emergency','training_cats','admin_task_cats','attendance_reasons','leadership_names','mkt_campaign_types','mkt_channels','mkt_budget_cats','mkt_asset_cats','disc_reasons_verbal','disc_reasons_written','dsr_registers','dsr_checklist','dsr_config'];
+    var CFG_GROUPS = ['targets','policies','emergency','training_cats','admin_task_cats','attendance_reasons','leadership_names','mkt_campaign_types','mkt_channels','mkt_budget_cats','mkt_asset_cats','disc_reasons_verbal','disc_reasons_written','dsr_registers','dsr_checklist','dsr_config','tg_config'];
 
     // Preload every contract group with the caller's creds. Tolerant of errors
     // (a missing/empty group just becomes {}). cb() fires once all groups settle.
@@ -106,13 +106,13 @@
     function acOverlay(){ var o=document.getElementById('appSettingsModal'); if(!o){ o=document.createElement('div'); o.id='appSettingsModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100000;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
     function appSettingsClose(){ var o=document.getElementById('appSettingsModal'); if(o) o.style.display='none'; }
     function acHeader(){ return '<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:5;"><b style="flex:1;font-size:16px;">&#9881;&#65039; App Settings &mdash; Admin</b><button onclick="appSettingsClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;">&times;</button></div>'; }
-    function acTabs(){ var t=_ac.tab; function b(id,label){ var on=t===id; return '<button onclick="acTab(\''+id+'\')" style="background:'+(on?'#185FA5':'#eef0f3')+';color:'+(on?'#fff':'#26242b')+';border:none;border-radius:8px;padding:8px 13px;font-weight:700;font-size:12.5px;cursor:pointer;">'+label+'</button>'; } return '<div style="display:flex;gap:8px;flex-wrap:wrap;max-width:760px;margin:12px auto 0;padding:0 16px;">'+b('targets','Business Numbers')+b('policies','Policy Text')+b('emergency','Emergency Numbers')+(typeof acRenderChoiceLists==='function'?b('lists','Lists'):'')+b('dsr','Daily Report')+'</div>'; }
+    function acTabs(){ var t=_ac.tab; function b(id,label){ var on=t===id; return '<button onclick="acTab(\''+id+'\')" style="background:'+(on?'#185FA5':'#eef0f3')+';color:'+(on?'#fff':'#26242b')+';border:none;border-radius:8px;padding:8px 13px;font-weight:700;font-size:12.5px;cursor:pointer;">'+label+'</button>'; } return '<div style="display:flex;gap:8px;flex-wrap:wrap;max-width:760px;margin:12px auto 0;padding:0 16px;">'+b('targets','Business Numbers')+b('policies','Policy Text')+b('emergency','Emergency Numbers')+(typeof acRenderChoiceLists==='function'?b('lists','Lists'):'')+b('dsr','Daily Report')+b('tg','Team Growth')+'</div>'; }
     function acShell(body){ acOverlay().innerHTML=acHeader()+acTabs()+'<div style="max-width:760px;margin:0 auto;padding:16px;">'+body+'</div>'; }
     function acCard(head,sub,inner){ return '<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:4px;">'+head+'</div>'+(sub?'<div style="font-size:12px;color:#6b7686;margin-bottom:8px;">'+sub+'</div>':'')+inner+'</div>'; }
     function acSaveBtn(fn,label){ return '<div style="margin-top:16px;"><button onclick="'+fn+'" style="background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:11px 18px;font-weight:800;cursor:pointer;">'+label+'</button></div>'; }
 
     function acTab(t){ _ac.tab=t; acRender(); }
-    function acRender(){ if(_ac.tab==='policies') acRenderPolicy(); else if(_ac.tab==='emergency') acRenderEmergency(); else if(_ac.tab==='lists' && typeof acRenderChoiceLists==='function') acRenderChoiceLists(); else if(_ac.tab==='dsr') acRenderDsr(); else acRenderTargets(); }
+    function acRender(){ if(_ac.tab==='policies') acRenderPolicy(); else if(_ac.tab==='emergency') acRenderEmergency(); else if(_ac.tab==='lists' && typeof acRenderChoiceLists==='function') acRenderChoiceLists(); else if(_ac.tab==='dsr') acRenderDsr(); else if(_ac.tab==='tg') acRenderTg(); else acRenderTargets(); }
 
     function acRenderTargets(){
       var rows=AC_TARGETS.map(function(f){
@@ -146,6 +146,24 @@
       var ms=document.getElementById('ac_dsr_mode'); items.push({group:'dsr_config',key:'dsr_sales_source_mode',label:'Sales source mode',value:ms?ms.value:'off',sort:99});
       acBatchSet(items,function(err){ if(!err) alert('Daily Report settings saved.'); });
     }
+
+    function acTgRpc(name,args,cb){ withPin(function(pin){ supabaseClient.rpc(name,Object.assign({p_username:currentUser.username,p_password:pin},args||{})).then(function(r){ if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Admins only.':r.error.message); return;} cb(r.data);}).catch(function(){ alert('Connection error.'); }); }); }
+    function acRenderTg(){
+      var nr=cfg('tg_config','tg_normal_raise_pct',8);
+      var c1=acCard('Team Growth','Pay-proposal guardrails and review cadences \u2014 read live by the evaluations engine.','<label style="display:block;font-size:12px;color:#6b7686;margin:6px 0 3px;">\u201CNormal\u201D raise % threshold (proposals above this get flagged)</label><input id="ac_tg_nr" type="number" step="any" value="'+acEsc(String(nr))+'" style="width:100%;max-width:220px;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;">'+acSaveBtn('acSaveTgCfg()','Save threshold'));
+      var c2=acCard('Review cadences','How often each role / lifecycle event triggers a review (days). Corporate-editable.','<div id="ac_tg_sched"><div style="color:#6b7686;font-size:12px;padding:10px;">Loading\u2026</div></div>');
+      acShell(c1+c2); acTgSchedLoad();
+    }
+    function acSaveTgCfg(){ var el=document.getElementById('ac_tg_nr'); var v=el?String(el.value).trim():''; cfgSet('tg_config','tg_normal_raise_pct','Team Growth: normal raise %',v,0,function(err){ if(!err) alert('Saved.'); }); }
+    function acTgSchedLoad(){
+      acTgRpc('app_tg_review_schedule_list',{},function(rows){ rows=rows||[];
+        var h=rows.map(function(r){ var pre='ac_sc_'+r.id+'_'; return '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid #f0f0f4;">'+'<input id="'+pre+'role" value="'+acEsc(r.role_name||'')+'" placeholder="Role (blank=all)" style="width:120px;padding:6px;border:1px solid #ddd;border-radius:6px;">'+'<input id="'+pre+'event" value="'+acEsc(r.lifecycle_event||'')+'" style="width:150px;padding:6px;border:1px solid #ddd;border-radius:6px;">'+'<input id="'+pre+'days" type="number" value="'+acEsc(String(r.cadence_days))+'" style="width:70px;padding:6px;border:1px solid #ddd;border-radius:6px;"><span style="font-size:11px;color:#8a91a0;">days</span>'+'<label style="font-size:12px;color:#5b6675;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="'+pre+'active"'+(r.active?' checked':'')+'>active</label>'+'<button onclick="acTgSchedSave('+r.id+')" style="background:#eef0f3;color:#185FA5;border:none;border-radius:7px;padding:5px 9px;font-weight:700;font-size:11.5px;cursor:pointer;">Save</button>'+'</div>'; }).join('');
+        h+='<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:12px;">'+'<input id="ac_sc_new_role" placeholder="Role (blank=all)" style="width:120px;padding:6px;border:1px solid #ddd;border-radius:6px;">'+'<input id="ac_sc_new_event" placeholder="lifecycle_event" style="width:150px;padding:6px;border:1px solid #ddd;border-radius:6px;">'+'<input id="ac_sc_new_days" type="number" placeholder="days" style="width:70px;padding:6px;border:1px solid #ddd;border-radius:6px;">'+'<button onclick="acTgSchedAdd()" style="background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-weight:800;cursor:pointer;">Add cadence</button></div>';
+        var el=document.getElementById('ac_tg_sched'); if(el) el.innerHTML=h||'<div style="color:#6b7686;font-size:12px;">No cadences yet.</div>';
+      });
+    }
+    function acTgSchedSave(id){ var pre='ac_sc_'+id+'_'; var g=function(s){var e=document.getElementById(pre+s);return e?e.value:'';}; var ac=document.getElementById(pre+'active'); acTgRpc('app_tg_review_schedule_save',{p_payload:{id:id,role_name:g('role'),lifecycle_event:g('event'),cadence_days:g('days'),active:!!(ac&&ac.checked)}},function(){ acTgSchedLoad(); }); }
+    function acTgSchedAdd(){ var g=function(s){var e=document.getElementById('ac_sc_new_'+s);return e?e.value:'';}; if(!g('event')){ alert('lifecycle_event required'); return; } acTgRpc('app_tg_review_schedule_save',{p_payload:{role_name:g('role'),lifecycle_event:g('event'),cadence_days:g('days')||30,active:true}},function(){ acTgSchedLoad(); }); }
 
     function acRenderPolicy(){
       var cards=AC_POLICIES.map(function(p){
