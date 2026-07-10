@@ -8,7 +8,7 @@
 
     // ---- in-memory config cache: { group: { key: {label,value,sort} } } ----
     var HUB_CFG = {};
-    var CFG_GROUPS = ['targets','policies','emergency','training_cats','admin_task_cats','attendance_reasons','leadership_names'];
+    var CFG_GROUPS = ['targets','policies','emergency','training_cats','admin_task_cats','attendance_reasons','leadership_names','mkt_campaign_types','mkt_channels','mkt_budget_cats','mkt_asset_cats','disc_reasons_verbal','disc_reasons_written'];
 
     // Preload every contract group with the caller's creds. Tolerant of errors
     // (a missing/empty group just becomes {}). cb() fires once all groups settle.

@@ -102,6 +102,12 @@
         writeup:{level:'final',title:'Disciplinary Action Form',label:'Write-up',reasons:['Carelessness','Attendance','Dress Code','Conduct','Other'],rec:true,recDefault:'Write-Up',sigs:['Employee','Shift Leader','Store Manager']},
         termination:{level:'termination',title:'Termination Assessment',label:'Termination',admin:true,term:true,sigs:['Manager']}
     };
+    // Disciplinary reason lists are configurable (cfgListOr). Level/label/admin/sigs stay hardcoded (logic-bearing).
+    function discReasonsFor(f){
+        var g=(discCurForm==='verbal')?'disc_reasons_verbal':((discCurForm==='written'||discCurForm==='writeup')?'disc_reasons_written':null);
+        if(g && typeof cfgListOr==='function'){ var l=cfgListOr(g,(f&&f.reasons)||[]); if(l&&l.length) return l; }
+        return (f&&f.reasons)||[];
+    }
     function discInitForms(){
         var admin=(typeof isDiscAdmin==='function' && isDiscAdmin());
         if(DISC_FORMS[discCurForm].admin && !admin) discCurForm='written';
@@ -143,7 +149,7 @@
             h+='<div style="display:flex;gap:10px;"><div style="flex:1;"><label style="'+lab+'">Eligible for re-hire?</label><select id="discRehire" style="'+inp+'"><option>No</option><option>Yes</option></select></div><div style="flex:1;"><label style="'+lab+'">Property returned?</label><select id="discProp" style="'+inp+'"><option>Yes</option><option>No</option></select></div></div>';
             h+='<label style="'+lab+'">Comments</label><textarea id="discComments" rows="2" style="'+inp+'resize:vertical;"></textarea>';
         } else {
-            h+='<label style="'+lab+'">'+(discCurForm==='written'?'Violation':'Reason(s)')+'</label><div id="discReasons">'+f.reasons.map(function(r){return '<label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;margin:0 6px 6px 0;"><input type="checkbox" value="'+escapeHtml(r)+'">'+r+'</label>';}).join('')+'</div>';
+            h+='<label style="'+lab+'">'+(discCurForm==='written'?'Violation':'Reason(s)')+'</label><div id="discReasons">'+discReasonsFor(f).map(function(r){return '<label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;margin:0 6px 6px 0;"><input type="checkbox" value="'+escapeHtml(r)+'">'+r+'</label>';}).join('')+'</div>';
             if(f.rec){ var rd=f.recDefault||'Write-Up'; h+='<label style="'+lab+'">Recommended action</label><div id="discRec" style="font-size:11.5px;color:#6b7686;margin-bottom:2px;">This sets the level: Written warning or Write-up.</div><div><label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;margin-right:6px;"><input type="radio" name="discRec" value="Only Written Warning"'+(rd==='Only Written Warning'?' checked':'')+'>Only written warning</label><label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;"><input type="radio" name="discRec" value="Write-Up"'+(rd==='Write-Up'?' checked':'')+'>Write-up</label></div>'; }
             h+='<label style="'+lab+'">Company statement</label><textarea id="discCompany" rows="3" placeholder="Describe the incident and the expectation set." style="'+inp+'resize:vertical;"></textarea>';
             h+='<div style="font-size:12px;background:#e8f2fb;color:#0d6eaf;border-radius:8px;padding:7px 10px;margin-top:8px;">The employee can add their own statement before signing.</div>';

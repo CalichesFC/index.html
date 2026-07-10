@@ -12,7 +12,13 @@
       {group:'training_cats', label:'Training library categories', defaults:['Recipes','How-To','Policies','Customer Service','Onboarding']},
       {group:'admin_task_cats', label:'Admin task categories', defaults:['Payroll','Evaluation','Training','PIP Review','Other']},
       {group:'attendance_reasons', label:'Attendance / call-out reasons', defaults:['Illness','Accident','Personal','Bereavement','Other']},
-      {group:'leadership_names', label:'Leadership names (Your Voice)', defaults:['Aaron Morales','Adriana Gomez']}
+      {group:'leadership_names', label:'Leadership names (Your Voice)', defaults:['Aaron Morales','Adriana Gomez']},
+      {group:'mkt_campaign_types', label:'Marketing \u2013 campaign types', defaults:['Seasonal Promotion','Product Launch','Limited-Time Offer','Community Event','Fundraiser Support','Grand Opening','Loyalty / App','Brand Awareness','Holiday','Other']},
+      {group:'mkt_channels', label:'Marketing \u2013 channels', defaults:['In-store Signage','Social - Instagram','Social - Facebook','Social - TikTok','Email','SMS','Website','Radio','Print','Outdoor','POS / Menu','Local Partner']},
+      {group:'mkt_budget_cats', label:'Marketing \u2013 budget categories', defaults:['Print / Signage','Paid Social','Paid Search','Radio / TV','Influencer','Giveaways / Swag','Event','Design / Creative','Other']},
+      {group:'mkt_asset_cats', label:'Marketing \u2013 asset categories', defaults:['Logo','Photo','Video','Graphic','Flyer','Menu','Social Post','Template','Brand Guide','Other']},
+      {group:'disc_reasons_verbal', label:'Discipline \u2013 verbal warning reasons', defaults:['Performance','Conduct/Behavior','Carelessness','Dress Code','Attendance/Tardies','Other']},
+      {group:'disc_reasons_written', label:'Discipline \u2013 written / write-up reasons', defaults:['Carelessness','Attendance','Dress Code','Conduct','Other']}
     ];
 
     // ---- READER HELPER (what feature files call) ----

@@ -44,7 +44,7 @@
 
     // ---- config (reuse app_settings groups; fall back to sensible defaults) ----
     function mcCfg(group, fallback){
-      var rows=_mc.settingsRows||[]; var vals=rows.filter(function(r){ return r.group===group; }).map(function(r){ return r.value; }).filter(Boolean);
+      var rows=_mc.settingsRows||[]; var vals=rows.filter(function(r){ return r.group===group; }).map(function(r){ return r.label || r.value; }).filter(Boolean);
       return vals.length ? vals : fallback;
     }
     var MC_DEF = {
