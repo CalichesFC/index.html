@@ -376,12 +376,13 @@
                 if (q.pdf_url) html += '<a href="' + q.pdf_url + '" target="_blank" style="background:#7b2d8b;color:white;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;text-decoration:none;">&#128196; View PDF</a>';
                 if (q.accept_token) html += '<button onclick="copyAcceptLink(\'' + q.accept_token + '\', this)" style="background:var(--caliches-blue);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">&#128279; Copy Accept Link</button>';
                 html += '<button onclick="editQuote(' + q.id + ')" style="background:#7b2d8b;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">&#9999;&#65039; Edit &amp; Resend</button>';
+                // Pay link is available on ANY unpaid quote (not just Accepted), so it's always reachable.
+                if (q.invoice_status !== 'Paid') {
+                    var _sqLabel = q.square_payment_url ? '💳 Refresh Pay Link' : '💳 Create Pay Link';
+                    html += '<button onclick="sendSquareInvoice(' + q.id + ', this)" style="background:#0f7a3d;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">' + _sqLabel + '</button>';
+                }
+                if (q.square_payment_url) html += '<button onclick="copyPayLink(' + q.id + ', this)" style="background:#185FA5;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">🔗 Copy Pay Link</button>';
                 if (st === 'Accepted') {
-                    if (q.invoice_status !== 'Paid') {
-                        var _sqLabel = q.square_payment_url ? '💳 Refresh Pay Link' : '💳 Create Pay Link';
-                        html += '<button onclick="sendSquareInvoice(' + q.id + ', this)" style="background:#0f7a3d;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">' + _sqLabel + '</button>';
-                    }
-                    if (q.square_payment_url) html += '<button onclick="copyPayLink(' + q.id + ', this)" style="background:#185FA5;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">🔗 Copy Pay Link</button>';
                     html += '<button onclick="quoteInvoice(' + q.id + ', this)" style="background:#1f7a3d;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">🧾 Print Invoice</button>';
                 }
                 if (st === 'Pending') {

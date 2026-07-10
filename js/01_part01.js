@@ -4,7 +4,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.07.09.2023';
+    const APP_VERSION = '2026.07.09.2052';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -1137,3 +1137,29 @@
             btn.style.display = (devOverride || !perms || perms.indexOf(f.key) !== -1) ? 'block' : 'none';
         });
     }
+
+
+    // ============================================================
+    // GLOBAL "get me out of here" — Escape key + phone/browser Back
+    // close the top open full-screen overlay or return an app-view to the
+    // main menu. Fixes screens (Marketing/Fundraiser/etc.) that trapped the
+    // user because the hardware Back button did nothing.
+    // ============================================================
+    function hubTopOverlayClose(){
+        try{
+            var nested=['mcModal2','fhModal2','wobModal2','invoicePreviewOv','setPwModal'];
+            for(var i=0;i<nested.length;i++){ var n=document.getElementById(nested[i]); if(n && n.offsetParent!==null && getComputedStyle(n).display!=='none'){ n.style.display='none'; return true; } }
+            var full=['marketingModal','fundraiserHubModal','wobModal'];
+            for(var j=0;j<full.length;j++){ var o=document.getElementById(full[j]); if(o && getComputedStyle(o).display!=='none'){ o.style.display='none'; return true; } }
+            var mm=document.getElementById('main-menu');
+            var views=document.querySelectorAll('.app-view');
+            for(var k=0;k<views.length;k++){ var v=views[k]; if(v.id && v.id!=='main-menu' && v.id!=='login-view' && v.id!=='splash-screen' && getComputedStyle(v).display!=='none'){ v.style.display='none'; if(mm) mm.style.display='block'; try{ window.scrollTo(0,0); }catch(e){} return true; } }
+        }catch(e){}
+        return false;
+    }
+    window.hubTopOverlayClose=hubTopOverlayClose;
+    document.addEventListener('keydown', function(e){ if(e.key==='Escape' || e.keyCode===27){ if(hubTopOverlayClose()){ e.preventDefault(); } } });
+    // Keep one sentinel history entry so the FIRST Back press closes an overlay
+    // instead of leaving the app. Re-push after each close so it keeps working.
+    try{ if(!window.__hubBackWired){ window.__hubBackWired=true; history.pushState({hub:1},''); window.addEventListener('popstate', function(){ var closed=hubTopOverlayClose(); if(closed){ try{ history.pushState({hub:1},''); }catch(e){} } }); } }catch(e){}
+
