@@ -18,7 +18,9 @@
       {group:'mkt_budget_cats', label:'Marketing \u2013 budget categories', defaults:['Print / Signage','Paid Social','Paid Search','Radio / TV','Influencer','Giveaways / Swag','Event','Design / Creative','Other']},
       {group:'mkt_asset_cats', label:'Marketing \u2013 asset categories', defaults:['Logo','Photo','Video','Graphic','Flyer','Menu','Social Post','Template','Brand Guide','Other']},
       {group:'disc_reasons_verbal', label:'Discipline \u2013 verbal warning reasons', defaults:['Performance','Conduct/Behavior','Carelessness','Dress Code','Attendance/Tardies','Other']},
-      {group:'disc_reasons_written', label:'Discipline \u2013 written / write-up reasons', defaults:['Carelessness','Attendance','Dress Code','Conduct','Other']}
+      {group:'disc_reasons_written', label:'Discipline \u2013 written / write-up reasons', defaults:['Carelessness','Attendance','Dress Code','Conduct','Other']},
+      {group:'dsr_registers', label:'Daily Report \u2013 register positions', defaults:['Front #1','Front #2','Drive-Thru']},
+      {group:'dsr_checklist', label:'Daily Report \u2013 manager checklist lines', defaults:['Conducted pep talk and uniform check','Changeover manager walk around','Shift manager interaction w/ customers','Temperature checklist done','Food bar and fruit quality check','Custard quality (texture/taste hourly)']}
     ];
 
     // ---- READER HELPER (what feature files call) ----

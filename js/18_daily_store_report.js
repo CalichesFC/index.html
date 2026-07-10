@@ -14,6 +14,7 @@
     var DSR_PAY_CATS = [['mc_visa','MC / Visa'],['donation_gc','Donation GC'],['voids','Voids'],['apple_pay','Apple Pay'],['caliches_gc',"Caliche's GC"],['other','Other']];
     var DSR_RATING_CATS = [['speed','Speed'],['cleanliness','Cleanliness'],['friendliness','Friendliness'],['quality','Quality / Consistency']];
     var DSR_LOG_SECTIONS = [['employee_am','Employee / Scheduling — AM'],['employee_pm','Employee / Scheduling — PM'],['customer_comments','Customer comments'],['building_maint','Building maintenance'],['cleaning','Cleaning items'],['manager_requests','Manager requests'],['delivery_issues','Delivery issues'],['balancing_comments','Balancing comments'],['general_notes','General notes']];
+    var DSR_CHECKLIST_DEFAULT = ['Conducted pep talk and uniform check','Changeover manager walk around','Shift manager interaction w/ customers','Temperature checklist done','Food bar and fruit quality check','Custard quality (texture/taste hourly)'];
     var DSR_TABS = [['header','Header'],['five','5:00 Closeout'],['night','Night Closeout'],['combined','Combined Totals'],['logbook','Log Book'],['labor','Labor'],['review','Review & Submit']];
     var DSR_STATUS_COLORS = { Draft:'#9a5b00', 'In Progress':'#9a5b00', Submitted:'#185FA5', 'Under Review':'#185FA5', Reviewed:'#1f7a3d', Locked:'#5b6472', Correction:'#c0264b', 'Correction Requested':'#c0264b', Reopened:'#7d1d4b' };
 
@@ -50,11 +51,7 @@
     function dsrWarnChip(label){ return '<span style="background:#fff4e0;color:#9a5b00;padding:2px 8px;border-radius:99px;font-size:10.5px;font-weight:700;margin-right:4px;margin-top:4px;display:inline-block;">&#9888; '+escapeHtml(label)+'</span>'; }
     function dsrIsOffice(){ return !!(currentUser && (isAdminManager() || isDiscAdmin() || currentUser.role==='Finance Approver')); }
     function dsrPositions(){
-        try{
-            var v=(typeof cfg==='function')?cfg('dsr','register_positions',null):null;
-            if(v && Object.prototype.toString.call(v)==='[object Array]') return v;
-            if(typeof v==='string' && v.indexOf(',')>=0) return v.split(',').map(function(s){return s.trim();}).filter(Boolean);
-        }catch(e){}
+        try{ if(typeof cfgListOr==='function'){ var l=cfgListOr('dsr_registers',['Front #1','Front #2','Drive-Thru']); if(l&&l.length) return l; } }catch(e){}
         return ['Front #1','Front #2','Drive-Thru'];
     }
 
@@ -164,12 +161,14 @@
     // ---- nested-data accessors (defensive — backend not built yet) ----
     function dsrRep(){ var r=_dsr.report||{}; return r.report||r; }
     function dsrCloseouts(){ var r=_dsr.report||{}; return r.closeouts||[]; }
-    function dsrCloseoutOf(type){ var list=dsrCloseouts(); for(var i=0;i<list.length;i++){ if(list[i].closeout_type===type) return list[i]; } return null; }
-    function dsrRegistersOf(type){ var c=dsrCloseoutOf(type); return (c&&c.registers)||[]; }
-    function dsrPayAdjOf(type){ var c=dsrCloseoutOf(type); return (c&&(c.payment_adj||c.payment_adjustments))||[]; }
-    function dsrChecklistItems(){ var r=_dsr.report||{}; return r.checklist_items||[]; }
-    function dsrChecklistEntries(){ var r=_dsr.report||{}; return r.checklist_entries||[]; }
-    function dsrChecklistEntryOf(itemId){ var e=dsrChecklistEntries(); for(var i=0;i<e.length;i++){ if(e[i].item_id===itemId) return e[i]; } return null; }
+    function dsrCloseoutWrap(type){ var l=dsrCloseouts(); for(var i=0;i<l.length;i++){ var c=l[i].closeout||l[i]; if(c && c.closeout_type===type) return l[i]; } return null; }
+    function dsrCloseoutOf(type){ var w=dsrCloseoutWrap(type); return w?(w.closeout||w):null; }
+    function dsrRegistersOf(type){ var w=dsrCloseoutWrap(type); return (w&&w.registers)||[]; }
+    function dsrPayAdjOf(type){ var w=dsrCloseoutWrap(type); return (w&&(w.adjustments||w.payment_adj))||[]; }
+    function dsrCkSlug(s){ return String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,60); }
+    function dsrChecklistLines(){ try{ if(typeof cfgListOr==='function'){ var l=cfgListOr('dsr_checklist',DSR_CHECKLIST_DEFAULT); if(l&&l.length) return l; } }catch(e){} return DSR_CHECKLIST_DEFAULT; }
+    function dsrChecklistEntries(){ var r=_dsr.report||{}; return r.checklist||[]; }
+    function dsrChecklistEntryOf(key){ var e=dsrChecklistEntries(); for(var i=0;i<e.length;i++){ if(e[i].item_key===key) return e[i]; } return null; }
     function dsrRatings(){ var r=_dsr.report||{}; return r.ratings||[]; }
     function dsrRatingOf(cat){ var rr=dsrRatings(); for(var i=0;i<rr.length;i++){ if(rr[i].category===cat) return rr[i]; } return null; }
     function dsrLogNotes(section){ var r=_dsr.report||{}; var all=r.log_notes||[]; return section?all.filter(function(n){return n.section===section;}):all; }
@@ -263,7 +262,7 @@
                 var existing=registers.filter(function(r){return r.position_label===pos;})[0]||{};
                 var pre='dsrR_'+type+'_'+idx+'_';
                 var rowH='<div style="font-size:13px;font-weight:800;color:#1f2a44;margin:10px 0 6px;">'+escapeHtml(pos)+'</div>';
-                rowH+=dsrIn(pre+'emp','Employee',existing.employee_id!=null?existing.employee_id:(existing.employee_name||''));
+                rowH+=dsrIn(pre+'emp','Employee (roster ID, optional)',existing.employee_id!=null?existing.employee_id:'');
                 rowH+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;">'+DSR_DENOMS.map(function(d){ return dsrNumIn(pre+d[0],d[1],existing[d[0]]); }).join('')+'</div>';
                 rowH+='<div style="margin:8px 0;font-size:12.5px;color:#5b6675;">Server total (final): <b style="color:#1f2a44;">'+dsrMoney(existing.register_total)+'</b></div>';
                 rowH+=dsrBtn('Save register',"dsrSaveRegister('"+type+"',"+idx+","+(existing.id!=null?existing.id:'null')+")");
@@ -325,7 +324,8 @@
         if(!c || c.id==null){ alert('Save the closeout details above first.'); return; }
         var pos=dsrPositions()[idx];
         var pre='dsrR_'+type+'_'+idx+'_';
-        var payload={ position_label:pos, employee_id:dsrVal(pre+'emp')||null };
+        var _emp=(dsrVal(pre+'emp')||'').trim();
+        var payload={ position_label:pos, employee_id:(/^[0-9]+$/.test(_emp)?parseInt(_emp,10):null) };
         DSR_DENOMS.forEach(function(d){ payload[d[0]]=dsrValF(pre+d[0]); });
         if(existingId!=null) payload.id=existingId;
         dsrRpc('dsr_register_save',{p_closeout_id:c.id,p_payload:payload},function(){ dsrLoadReport(); });
@@ -361,22 +361,26 @@
     // ---- Log Book tab ----
     function dsrLogBookTab(){
         var h='';
-        var items=dsrChecklistItems();
+        var lines=dsrChecklistLines();
         var ckBody='';
-        if(!items.length){ ckBody=dsrEmpty('No checklist lines configured yet.'); }
+        if(!lines.length){ ckBody=dsrEmpty('No checklist lines configured yet.'); }
         else{
-            items.forEach(function(it){
-                var en=dsrChecklistEntryOf(it.id)||{};
-                var pre='dsrCK_'+it.id+'_';
+            lines.forEach(function(lbl){
+                var key=dsrCkSlug(lbl); var en=dsrChecklistEntryOf(key)||{};
+                var pre='dsrCK_'+key+'_';
+                var stamp=function(init,at){ var s=escapeHtml(init||''); if(at) s+=(s?' &middot; ':'')+escapeHtml(String(at).slice(0,16).replace('T',' ')); return s?('<span style="font-size:10.5px;color:#8a91a0;">'+s+'</span>'):''; };
                 ckBody+='<div style="border-bottom:1px solid #f1f2f6;padding:8px 0;">'+
-                    '<div style="font-size:13px;font-weight:700;color:#1f2a44;margin-bottom:6px;">'+escapeHtml(it.label||'')+'</div>'+
-                    '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">'+
-                        '<div style="width:70px;">'+dsrIn(pre+'am','AM initials',en.am_initials||'')+'</div>'+
-                        '<div style="width:70px;">'+dsrIn(pre+'pm','PM initials',en.pm_initials||'')+'</div>'+
-                        '<label style="font-size:12px;color:#5b6675;display:flex;align-items:center;gap:5px;margin-bottom:9px;"><input type="checkbox" id="'+pre+'complete"'+(en.complete?' checked':'')+'> Complete</label>'+
-                        '<div style="flex:1;min-width:140px;">'+dsrIn(pre+'comment','Comment',en.comment||'')+'</div>'+
-                        dsrBtn('Save','dsrSaveChecklistEntry('+it.id+')')+
-                    '</div></div>';
+                    '<div style="font-size:13px;font-weight:700;color:#1f2a44;margin-bottom:6px;">'+escapeHtml(lbl)+'</div>'+
+                    '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">'+
+                        '<label style="font-size:12px;color:#5b6675;display:flex;align-items:center;gap:5px;margin-bottom:9px;"><input type="checkbox" id="'+pre+'am"'+(en.am_done?' checked':'')+'> AM done</label>'+
+                        '<div style="width:66px;">'+dsrIn(pre+'amInit','AM init.',en.am_initials||'')+'</div>'+
+                        '<label style="font-size:12px;color:#5b6675;display:flex;align-items:center;gap:5px;margin-bottom:9px;"><input type="checkbox" id="'+pre+'pm"'+(en.pm_done?' checked':'')+'> PM done</label>'+
+                        '<div style="width:66px;">'+dsrIn(pre+'pmInit','PM init.',en.pm_initials||'')+'</div>'+
+                        '<div style="flex:1;min-width:130px;">'+dsrIn(pre+'comment','Comment',en.comment||'')+'</div>'+
+                        dsrBtn('Save',"dsrSaveChecklistEntry('"+key+"')")+
+                    '</div>'+
+                    ((en.am_at||en.pm_at)?('<div style="margin-top:3px;">'+stamp(en.am_initials,en.am_at)+' '+stamp(en.pm_initials,en.pm_at)+'</div>'):'')+
+                '</div>';
             });
         }
         h+=dsrCard(ckBody,'Checklist');
@@ -420,11 +424,12 @@
         return h;
     }
 
-    function dsrSaveChecklistEntry(itemId){
-        var pre='dsrCK_'+itemId+'_';
-        var cb=document.getElementById(pre+'complete');
-        var payload={ am_initials:dsrVal(pre+'am'), pm_initials:dsrVal(pre+'pm'), complete:!!(cb&&cb.checked), comment:dsrVal(pre+'comment') };
-        dsrRpc('dsr_checklist_entry_save',{p_id:_dsr.reportId,p_item_id:itemId,p_payload:payload},function(){ dsrLoadReport(); });
+    function dsrSaveChecklistEntry(key){
+        var pre='dsrCK_'+key+'_';
+        var lbl=dsrChecklistLines().filter(function(x){return dsrCkSlug(x)===key;})[0]||key;
+        var am=document.getElementById(pre+'am'), pm=document.getElementById(pre+'pm');
+        var payload={ item_key:key, item_label:lbl, am_done:!!(am&&am.checked), pm_done:!!(pm&&pm.checked), am_initials:dsrVal(pre+'amInit'), pm_initials:dsrVal(pre+'pmInit'), comment:dsrVal(pre+'comment') };
+        dsrRpc('dsr_checklist_entry_save',{p_id:_dsr.reportId,p_payload:payload},function(){ dsrLoadReport(); });
     }
     function dsrSaveRating(cat){
         var pre='dsrRT_'+cat+'_';
