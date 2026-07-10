@@ -84,6 +84,7 @@
         h+=dsrBtn('Open Today','dsrOpenToday()','primary');
         h+=dsrBtn('Continue Draft','dsrQuickFilter(&quot;Draft&quot;)');
         if(typeof isManagerRole==='function' && (isManagerRole()||isAdminManager()||isDiscAdmin())) h+=dsrBtn('Review Submitted','dsrQuickFilter(&quot;Submitted&quot;)');
+        if(typeof isManagerRole==='function' && (isManagerRole()||isAdminManager()||isDiscAdmin())) h+=dsrBtn('Leadership dashboard','dsrOpenDashboard()');
         h+=dsrBtn('Refresh','dsrLoadList()');
         h+='</div>';
 
@@ -98,6 +99,24 @@
         else{ rows.forEach(function(r){ h+=dsrLandingCard(r); }); }
         h+='</div>';
         ov.innerHTML=h;
+    }
+
+    function dsrOpenDashboard(){ var ov=dsrOverlay(); ov.innerHTML=dsrHeader('Daily Reports \u2014 Dashboard','dsrLoadList()')+'<div style="max-width:900px;margin:0 auto;padding:14px 16px 60px;"><div style="text-align:center;color:#6b7686;padding:24px;">Loading&hellip;</div></div>'; dsrRpc('dsr_dashboard',{p_filters:{}},function(d){ dsrDashRender(d||{}); }); }
+    function dsrDashRender(d){
+        var ov=dsrOverlay(); var s=d.summary||{}; var rows=d.rows||[];
+        var stores=(typeof HUB_STORES!=='undefined'?HUB_STORES:[]); var today=dsrTodayIso();
+        var haveToday={}; rows.forEach(function(r){ if(String(r.business_date).slice(0,10)===today) haveToday[r.location]=1; });
+        var missing=stores.filter(function(st){ return !haveToday[st]; });
+        var h=dsrHeader('Daily Reports \u2014 Dashboard','dsrLoadList()')+'<div style="max-width:900px;margin:0 auto;padding:14px 16px 60px;">';
+        h+='<div style="font-size:12px;color:#8a91a0;margin-bottom:8px;">'+escapeHtml(String(d.from||''))+' &rarr; '+escapeHtml(String(d.to||''))+'</div>';
+        h+='<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;">'+dsrTotalTile('Reports',(s.total||0))+dsrTotalTile('Submitted',(s.submitted||0),'#185FA5')+dsrTotalTile('Reviewed',(s.reviewed||0),'#1f7a3d')+dsrTotalTile('In progress',(s.in_progress||0),'#9a5b00')+'</div>';
+        if(missing.length){ h+=dsrCard('<div>'+missing.map(function(m){return dsrWarnChip('No report today: '+m);}).join('')+'</div>','Missing today'); }
+        var body='';
+        if(!rows.length){ body=dsrEmpty('No reports in this range.'); }
+        else{ body='<table style="width:100%;border-collapse:collapse;font-size:12.5px;"><thead><tr>'+['Date','Store','Status','Over/Short','Avg rating','Labor %'].map(function(x){return '<th style="text-align:left;padding:6px 8px;color:#8a91a0;font-size:11px;">'+x+'</th>';}).join('')+'</tr></thead><tbody>';
+            rows.forEach(function(r){ var os=r.over_short_total; var osc=(os==null)?'#5b6675':(Math.abs(os)>0.004?'#c0264b':'#1f7a3d'); body+='<tr style="border-top:1px solid #f1f2f6;cursor:pointer;" onclick="dsrOpenReport('+r.id+')"><td style="padding:6px 8px;">'+escapeHtml(String(r.business_date).slice(0,10))+'</td><td style="padding:6px 8px;">'+escapeHtml(r.location||'')+'</td><td style="padding:6px 8px;">'+dsrBadge(r.status)+'</td><td style="padding:6px 8px;color:'+osc+';font-weight:700;">'+(os==null?'&mdash;':dsrMoney(os))+'</td><td style="padding:6px 8px;">'+(r.avg_rating==null?'&mdash;':r.avg_rating)+'</td><td style="padding:6px 8px;">'+(r.labor_pct==null?'&mdash;':r.labor_pct+'%')+'</td></tr>'; });
+            body+='</tbody></table>'; }
+        h+=dsrCard(body,'Reports'); h+='</div>'; ov.innerHTML=h;
     }
 
     function dsrRowWarnings(r){

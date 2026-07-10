@@ -8,7 +8,7 @@
 
     // ---- in-memory config cache: { group: { key: {label,value,sort} } } ----
     var HUB_CFG = {};
-    var CFG_GROUPS = ['targets','policies','emergency','training_cats','admin_task_cats','attendance_reasons','leadership_names','mkt_campaign_types','mkt_channels','mkt_budget_cats','mkt_asset_cats','disc_reasons_verbal','disc_reasons_written','dsr_registers','dsr_checklist'];
+    var CFG_GROUPS = ['targets','policies','emergency','training_cats','admin_task_cats','attendance_reasons','leadership_names','mkt_campaign_types','mkt_channels','mkt_budget_cats','mkt_asset_cats','disc_reasons_verbal','disc_reasons_written','dsr_registers','dsr_checklist','dsr_config'];
 
     // Preload every contract group with the caller's creds. Tolerant of errors
     // (a missing/empty group just becomes {}). cb() fires once all groups settle.
@@ -106,13 +106,13 @@
     function acOverlay(){ var o=document.getElementById('appSettingsModal'); if(!o){ o=document.createElement('div'); o.id='appSettingsModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100000;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
     function appSettingsClose(){ var o=document.getElementById('appSettingsModal'); if(o) o.style.display='none'; }
     function acHeader(){ return '<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:5;"><b style="flex:1;font-size:16px;">&#9881;&#65039; App Settings &mdash; Admin</b><button onclick="appSettingsClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;">&times;</button></div>'; }
-    function acTabs(){ var t=_ac.tab; function b(id,label){ var on=t===id; return '<button onclick="acTab(\''+id+'\')" style="background:'+(on?'#185FA5':'#eef0f3')+';color:'+(on?'#fff':'#26242b')+';border:none;border-radius:8px;padding:8px 13px;font-weight:700;font-size:12.5px;cursor:pointer;">'+label+'</button>'; } return '<div style="display:flex;gap:8px;flex-wrap:wrap;max-width:760px;margin:12px auto 0;padding:0 16px;">'+b('targets','Business Numbers')+b('policies','Policy Text')+b('emergency','Emergency Numbers')+(typeof acRenderChoiceLists==='function'?b('lists','Lists'):'')+'</div>'; }
+    function acTabs(){ var t=_ac.tab; function b(id,label){ var on=t===id; return '<button onclick="acTab(\''+id+'\')" style="background:'+(on?'#185FA5':'#eef0f3')+';color:'+(on?'#fff':'#26242b')+';border:none;border-radius:8px;padding:8px 13px;font-weight:700;font-size:12.5px;cursor:pointer;">'+label+'</button>'; } return '<div style="display:flex;gap:8px;flex-wrap:wrap;max-width:760px;margin:12px auto 0;padding:0 16px;">'+b('targets','Business Numbers')+b('policies','Policy Text')+b('emergency','Emergency Numbers')+(typeof acRenderChoiceLists==='function'?b('lists','Lists'):'')+b('dsr','Daily Report')+'</div>'; }
     function acShell(body){ acOverlay().innerHTML=acHeader()+acTabs()+'<div style="max-width:760px;margin:0 auto;padding:16px;">'+body+'</div>'; }
     function acCard(head,sub,inner){ return '<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:4px;">'+head+'</div>'+(sub?'<div style="font-size:12px;color:#6b7686;margin-bottom:8px;">'+sub+'</div>':'')+inner+'</div>'; }
     function acSaveBtn(fn,label){ return '<div style="margin-top:16px;"><button onclick="'+fn+'" style="background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:11px 18px;font-weight:800;cursor:pointer;">'+label+'</button></div>'; }
 
     function acTab(t){ _ac.tab=t; acRender(); }
-    function acRender(){ if(_ac.tab==='policies') acRenderPolicy(); else if(_ac.tab==='emergency') acRenderEmergency(); else if(_ac.tab==='lists' && typeof acRenderChoiceLists==='function') acRenderChoiceLists(); else acRenderTargets(); }
+    function acRender(){ if(_ac.tab==='policies') acRenderPolicy(); else if(_ac.tab==='emergency') acRenderEmergency(); else if(_ac.tab==='lists' && typeof acRenderChoiceLists==='function') acRenderChoiceLists(); else if(_ac.tab==='dsr') acRenderDsr(); else acRenderTargets(); }
 
     function acRenderTargets(){
       var rows=AC_TARGETS.map(function(f){
@@ -124,6 +124,27 @@
     function acSaveTargets(){
       var items=AC_TARGETS.map(function(f,i){ var el=document.getElementById('ac_t_'+f.k); var val=el?String(el.value).trim():''; return {group:'targets',key:f.k,label:f.l,value:val,sort:i}; });
       acBatchSet(items,function(err){ if(!err) alert('Business numbers saved.'); });
+    }
+
+    var AC_DSR = [
+      {k:'dsr_drawer_base', l:'Register drawer base ($)', d:120},
+      {k:'dsr_overshort_threshold', l:'Over/short alert threshold ($)', d:5},
+      {k:'dsr_rating_comment_max', l:'Ratings: comment required at/below', d:8},
+      {k:'dsr_labor_target_low', l:'Labor target \u2014 low (%)', d:22},
+      {k:'dsr_labor_target_high', l:'Labor target \u2014 high (%)', d:26},
+      {k:'dsr_change_target', l:'Change reconciliation target ($)', d:200}
+    ];
+    function acRenderDsr(){
+      var rows=AC_DSR.map(function(f){ var v=cfg('dsr_config',f.k,f.d); return '<label style="display:block;font-size:12px;color:#6b7686;margin:10px 0 3px;">'+acEsc(f.l)+'</label><input id="ac_dsr_'+f.k+'" type="number" step="any" value="'+acEsc(String(v))+'" style="width:100%;max-width:260px;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;">'; }).join('');
+      var mode=cfg('dsr_config','dsr_sales_source_mode','off');
+      function opt(val,lbl){ return '<option value="'+val+'"'+(mode===val?' selected':'')+'>'+lbl+'</option>'; }
+      var modeSel='<label style="display:block;font-size:12px;color:#6b7686;margin:14px 0 3px;">When a Daily Report is submitted, how should it feed store sales?</label>'+'<select id="ac_dsr_mode" style="width:100%;max-width:340px;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;">'+opt('off','Off \u2014 don\u2019t touch store sales (default)')+opt('dsr_writes','Daily Report writes the day\u2019s sales into Scorecards')+opt('reconcile','Keep separate \u2014 reconcile later')+'</select>'+'<div style="font-size:11px;color:#8a91a0;margin-top:4px;">\u201CWrites\u201D pushes the closeout\u2019s day sales (and labor %) into store metrics so Scorecards light up. Leave Off until you\u2019re ready.</div>';
+      acShell(acCard('Daily Store Report','Drawer base, thresholds, labor target and the sales-source behavior \u2014 all used live by the closeout math and submit.',rows+modeSel+acSaveBtn('acSaveDsr()','Save Daily Report settings')));
+    }
+    function acSaveDsr(){
+      var items=AC_DSR.map(function(f,i){ var el=document.getElementById('ac_dsr_'+f.k); var val=el?String(el.value).trim():''; return {group:'dsr_config',key:f.k,label:f.l,value:val,sort:i}; });
+      var ms=document.getElementById('ac_dsr_mode'); items.push({group:'dsr_config',key:'dsr_sales_source_mode',label:'Sales source mode',value:ms?ms.value:'off',sort:99});
+      acBatchSet(items,function(err){ if(!err) alert('Daily Report settings saved.'); });
     }
 
     function acRenderPolicy(){
