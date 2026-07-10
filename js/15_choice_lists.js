@@ -85,7 +85,7 @@
       if(!lbl){ if(el) el.focus(); return; }
       var existing=[]; try{ existing=cfgList(group)||[]; }catch(e){}
       var keys={}, maxSort=-1; existing.forEach(function(it){ keys[it.key]=1; if((it.sort||0)>maxSort) maxSort=it.sort||0; });
-      var base=clSlug(lbl)||('item_'+Date.now()), key=base, n=2; while(keys[key]){ key=base+'_'+(n++); }
+      var base=group+'__'+(clSlug(lbl)||('item_'+Date.now())), key=base, n=2; while(keys[key]){ key=base+'_'+(n++); }
       cfgSet(group,key,lbl,'',maxSort+1,function(err){ if(!err){ if(el) el.value=''; acRenderChoiceLists(); } });
     }
 
@@ -99,7 +99,7 @@
     function clRemove(group,key){
       if(!confirm('Remove this item from the list?')) return;
       withPin(function(pin){
-        supabaseClient.rpc('app_settings_delete',{p_username:currentUser.username,p_password:pin,p_key:key,p_group:group}).then(function(r){
+        supabaseClient.rpc('app_settings_delete',{p_username:currentUser.username,p_password:pin,p_key:key}).then(function(r){
           if(r.error){ alert(r.error.message||'Could not remove. Managers only.'); return; }
           try{ if(typeof HUB_CFG!=='undefined' && HUB_CFG[group]) delete HUB_CFG[group][key]; }catch(e){}
           acRenderChoiceLists();
