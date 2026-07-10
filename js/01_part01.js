@@ -4,7 +4,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.07.09.2215';
+    const APP_VERSION = '2026.07.10.1007';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -915,6 +915,8 @@
         { key:'maintbill',  btn:'btn-maintBilling', label:'Maintenance Billing',       emoji:'&#129534;', fn:function(){ if(typeof openMaintBilling==='function') openMaintBilling(); } },
         { key:'fundraiser2',btn:'btn-fundraiserHub',label:'Fundraiser Hub',            emoji:'&#128203;', fn:function(){ if(typeof openFundraiserHub==='function') openFundraiserHub(); } },
         { key:'marketing2', btn:'btn-marketingHub', label:'Marketing Command Center',  emoji:'&#128226;', fn:function(){ if(typeof openMarketing==='function') openMarketing(); } },
+        { key:'teamgrowth', btn:'btn-teamGrowth', label:'Team Growth & Evaluations', emoji:'&#127793;', fn:function(){ if(typeof openTeamGrowth==='function') openTeamGrowth(); } },
+        { key:'dailyreport', btn:'btn-dailyReport', label:'Daily Store Report', emoji:'&#128203;', fn:function(){ if(typeof openDailyReport==='function') openDailyReport(); } },
         { key:'stores2',    btn:'btn-storeManager', label:'Manage Stores',             emoji:'&#127978;', fn:function(){ if(typeof openStoreManager==='function') openStoreManager(); } },
         { key:'catering',   btn:'btn-catering',     label:'Catering Pipeline',         emoji:'&#127846;', fn:function(){ if(typeof openCatering==='function') openCatering(); } },
         { key:'admincon',   btn:'btn-admin-console',label:'Admin Console',             emoji:'&#128736;', fn:function(){ if(typeof openAdminConsole==='function') openAdminConsole(); } },
@@ -1045,6 +1047,8 @@
         { id:'teamdev', btn:'teamDevBtn', keywords:['team development','growth','promotion','progression','training status'] },
         { id:'fundraiser', key:'fundraiser2', btn:'btn-fundraiserHub', keywords:['fundraiser','cards','organizer','reconciliation','inquiries'] },
         { id:'marketing', key:'marketing2', btn:'btn-marketingHub', keywords:['marketing','campaign','social','promotion','budget','assets','advertising','flyer'] },
+        { id:'teamgrowth', key:'teamgrowth', btn:'btn-teamGrowth', keywords:['growth','evaluation','review','pay','raise','proposal','certification','development','passport'] },
+        { id:'dailyreport', key:'dailyreport', btn:'btn-dailyReport', keywords:['daily','closeout','close out','ring out','log book','labor','deposit','over short','store report'] },
         { id:'maintbilling', key:'maintbill', btn:'btn-maintBilling', keywords:['invoice','billing','vendor rates','approve','pay','finance'] },
         { id:'maintdash', key:'maintdash', btn:'btn-maintDash', keywords:['maintenance dashboard','dashboards','costs by store','vendor spend','leadership'], go:function(){ openDashboards('maint'); } },
         { id:'storemanager', key:'stores2', btn:'btn-storeManager', keywords:['stores','locations','add store','rename store'] },

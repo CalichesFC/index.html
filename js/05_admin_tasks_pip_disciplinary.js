@@ -493,6 +493,8 @@
         var _frBtn=document.getElementById('btn-fundraiserHub'); if(_frBtn) _frBtn.style.display=permAllow('fundraiser', (devOverride||isManager))?'block':'none';
         var _mktBtn=document.getElementById('btn-marketingHub'); if(_mktBtn) _mktBtn.style.display=permAllow('marketing', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Marketing Manager','Designer/Creative'].indexOf(role)>=0))?'block':'none';
         var _asBtn=document.getElementById('tileAppSettings'); if(_asBtn) _asBtn.style.display=(devOverride||isManager||role==='Admin Manager'||role==='Vice President/Co-Owner')?'block':'none';
+        var _tgBtn=document.getElementById('btn-teamGrowth'); if(_tgBtn) _tgBtn.style.display=permAllow('team_growth', true)?'block':'none';
+        var _drBtn=document.getElementById('btn-dailyReport'); if(_drBtn) _drBtn.style.display=permAllow('daily_report', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Shift Lead','Shift Leader','Office'].indexOf(role)>=0))?'block':'none';
         var _mbBtn=document.getElementById('btn-maintBilling'); if(_mbBtn) _mbBtn.style.display=permAllow('maint_billing', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Finance Approver','Maintenance Lead'].indexOf(role)>=0))?'block':'none';
         var _smBtn=document.getElementById('btn-storeManager'); if(_smBtn) _smBtn.style.display=permAllow('store_manager', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
         var _scBtn=document.getElementById('btn-scorecards'); if(_scBtn) _scBtn.style.display=permAllow('scorecards', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
