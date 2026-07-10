@@ -83,8 +83,10 @@
         });
         // Round to cents so Subtotal + Tax always equals Grand Total exactly.
         subtotal = Math.round(subtotal * 100) / 100;
-        const tax = Math.round(subtotal * QUOTE_TAX_RATE * 100) / 100;
+        var _tf = (typeof hubTaxFrac==='function') ? hubTaxFrac() : QUOTE_TAX_RATE;
+        const tax = Math.round(subtotal * _tf * 100) / 100;
         const total = Math.round((subtotal + tax) * 100) / 100;
+        try{ var _tl=document.getElementById('quoteTaxLabel'); if(_tl){ var _tc=(typeof hubTaxCityLabel==='function')?hubTaxCityLabel():''; _tl.innerText='Tax ('+(Math.round(_tf*10000)/100)+'%'+(_tc?(' \u2014 '+_tc):'')+'):'; } }catch(e){}
         document.getElementById('quoteSubtotal').innerText = '$' + subtotal.toFixed(2);
         document.getElementById('quoteTax').innerText = '$' + tax.toFixed(2);
         document.getElementById('quoteTotal').innerText = '$' + total.toFixed(2);
@@ -128,9 +130,11 @@
         pdfHtml += '</table>';
         // Round to cents so the PDF/stored Subtotal + Tax always equals the Grand Total.
         subtotal = Math.round(subtotal * 100) / 100;
-        const tax = Math.round(subtotal * QUOTE_TAX_RATE * 100) / 100;
+        var _tf = (typeof hubTaxFrac==='function') ? hubTaxFrac() : QUOTE_TAX_RATE;
+        var _tcity = (typeof hubTaxCityLabel==='function') ? hubTaxCityLabel() : '';
+        const tax = Math.round(subtotal * _tf * 100) / 100;
         const total = Math.round((subtotal + tax) * 100) / 100;
-        pdfHtml += '<table border="1" cellpadding="10" style="border-collapse:collapse;width:100%;font-size:13px;border-color:#ccc;border-top:none;margin-bottom:20px;"><tr><td style="width:60%;vertical-align:top;"><strong>Notes:</strong> ' + (notes || '&mdash;') + '</td><td style="width:40%;padding:0;vertical-align:top;"><table style="width:100%;border-collapse:collapse;font-size:14px;"><tr><td style="padding:8px;font-weight:bold;border-bottom:1px solid #ccc;">Subtotal</td><td style="padding:8px;text-align:right;border-bottom:1px solid #ccc;">$' + subtotal.toFixed(2) + '</td></tr><tr><td style="padding:8px;font-weight:bold;border-bottom:1px solid #ccc;">Tax (8.39%)</td><td style="padding:8px;text-align:right;border-bottom:1px solid #ccc;">$' + tax.toFixed(2) + '</td></tr><tr><td style="padding:8px;font-weight:900;font-size:16px;">Grand Total</td><td style="padding:8px;text-align:right;font-weight:900;font-size:16px;">$' + total.toFixed(2) + '</td></tr></table></td></tr></table>';
+        pdfHtml += '<table border="1" cellpadding="10" style="border-collapse:collapse;width:100%;font-size:13px;border-color:#ccc;border-top:none;margin-bottom:20px;"><tr><td style="width:60%;vertical-align:top;"><strong>Notes:</strong> ' + (notes || '&mdash;') + '</td><td style="width:40%;padding:0;vertical-align:top;"><table style="width:100%;border-collapse:collapse;font-size:14px;"><tr><td style="padding:8px;font-weight:bold;border-bottom:1px solid #ccc;">Subtotal</td><td style="padding:8px;text-align:right;border-bottom:1px solid #ccc;">$' + subtotal.toFixed(2) + '</td></tr><tr><td style="padding:8px;font-weight:bold;border-bottom:1px solid #ccc;">Tax (' + (Math.round(_tf*10000)/100) + '%' + (_tcity?(' \u2014 '+_tcity):'') + ')</td><td style="padding:8px;text-align:right;border-bottom:1px solid #ccc;">$' + tax.toFixed(2) + '</td></tr><tr><td style="padding:8px;font-weight:900;font-size:16px;">Grand Total</td><td style="padding:8px;text-align:right;font-weight:900;font-size:16px;">$' + total.toFixed(2) + '</td></tr></table></td></tr></table>';
         pdfHtml += '<div style="font-size:12px;color:#666;line-height:1.6;border-top:1px solid #eee;padding-top:15px;"><strong>Updated Booking and Payment Policy:</strong> At Caliche\'s Frozen Custard, we\'ve updated our booking and payment terms to better serve our clients. We no longer require a 50% non-refundable deposit to secure your event. To confirm your booking, simply respond with your approval to your Caliche\'s Frozen Custard contact, and we will take care of scheduling your event. The full balance is due on the day of the event, offering you greater flexibility. We accept payments in cash, by check, or online via credit card, according to what\'s most convenient for you.</div>';
         pdfHtml += '<p style="text-align:center;color:#6b7686;font-size:11px;margin-top:25px;border-top:1px solid #eee;padding-top:10px;">Caliche\'s Catering Quote</p>';
         pdfHtml += '</div>';

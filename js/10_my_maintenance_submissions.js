@@ -848,6 +848,39 @@
     // CATERING QUOTE BUILDER (Issac only)
     // ============================================================
     const QUOTE_TAX_RATE = 0.0839;
+
+    // ===== Per-city catering tax — configurable in-app (app_settings group 'tax_rates') =====
+    // Reuses app_settings_get/set/delete (no new backend). Falls back to QUOTE_TAX_RATE
+    // when no city is picked or a city has no rate yet, so nothing breaks before it's configured.
+    var HUB_TAX_RATES = {};  // { 'City Name': 8.39 }  percent numbers
+    function hubTaxFrac(){
+        try{ var sel=document.getElementById('quoteTaxCity'); var c=sel?sel.value:''; if(c && HUB_TAX_RATES[c]!=null){ var pp=parseFloat(HUB_TAX_RATES[c]); if(!isNaN(pp)) return pp/100; } }catch(e){}
+        return QUOTE_TAX_RATE;
+    }
+    function hubTaxCityLabel(){ try{ var sel=document.getElementById('quoteTaxCity'); var c=sel?sel.value:''; return (c&&HUB_TAX_RATES[c]!=null)?c:''; }catch(e){ return ''; } }
+    function hubLoadTaxRates(){
+        try{
+            var pin=sessionPin; if(!pin||!currentUser||!currentUser.username) return;
+            supabaseClient.rpc('app_settings_get',{p_username:currentUser.username,p_password:pin,p_group:'tax_rates'}).then(function(r){
+                HUB_TAX_RATES={}; ((r&&r.data)||[]).forEach(function(row){ var pct=parseFloat(row.value); if(!isNaN(pct)) HUB_TAX_RATES[row.label||row.key]=pct; });
+                var sel=document.getElementById('quoteTaxCity');
+                if(sel){ var cur=sel.value; var hh='<option value="">Default ('+(QUOTE_TAX_RATE*100).toFixed(2)+'%)</option>'; Object.keys(HUB_TAX_RATES).sort().forEach(function(c){ hh+='<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+' ('+HUB_TAX_RATES[c]+'%)</option>'; }); sel.innerHTML=hh; if(cur && HUB_TAX_RATES[cur]!=null) sel.value=cur; }
+                if(typeof recalcQuoteTotals==='function') recalcQuoteTotals();
+            }).catch(function(){});
+        }catch(e){}
+    }
+    function openTaxRatesEditor(){ var ov=document.getElementById('taxRatesModal'); if(!ov){ ov=document.createElement('div'); ov.id='taxRatesModal'; ov.style.cssText='position:fixed;inset:0;background:rgba(20,20,30,.55);z-index:100060;display:flex;align-items:center;justify-content:center;padding:16px;'; document.body.appendChild(ov); } ov.style.display='flex'; taxRatesRender(); }
+    function taxRatesCloseEditor(){ var o=document.getElementById('taxRatesModal'); if(o) o.style.display='none'; }
+    function taxRatesRender(){
+        var ov=document.getElementById('taxRatesModal'); if(!ov) return;
+        var rows=Object.keys(HUB_TAX_RATES).sort().map(function(c){ var cj=String(c).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); return '<div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #eee;"><div style="flex:1;font-size:13px;">'+escapeHtml(c)+'</div><div style="width:70px;font-size:13px;text-align:right;">'+HUB_TAX_RATES[c]+'%</div><button onclick="taxRatesEdit(\''+cj+'\')" style="background:#eef0f3;border:none;border-radius:7px;padding:5px 9px;cursor:pointer;">Edit</button><button onclick="taxRatesRemove(\''+cj+'\')" style="background:#fdeaea;color:#a01b3e;border:none;border-radius:7px;padding:5px 9px;cursor:pointer;">Remove</button></div>'; }).join('') || '<div style="color:#6b7686;font-size:13px;padding:8px 0;">No cities yet. Add the cities you cater in and their sales-tax rate.</div>';
+        ov.innerHTML='<div style="background:#fff;border-radius:16px;max-width:460px;width:100%;max-height:88vh;overflow:auto;padding:18px;"><div style="font-size:18px;font-weight:800;color:#1f2a44;margin-bottom:4px;">Tax rates by city</div><div style="font-size:12.5px;color:#6b7686;margin-bottom:12px;">Set each city&#39;s sales-tax rate. A quote uses the rate for the city you pick on the quote (otherwise the default '+(QUOTE_TAX_RATE*100).toFixed(2)+'%).</div>'+rows+'<div style="display:flex;gap:8px;margin-top:12px;"><input id="taxNewCity" placeholder="City name" style="flex:1;padding:9px;border:1px solid #ddd;border-radius:8px;"><input id="taxNewRate" type="number" step="0.01" placeholder="Rate %" style="width:90px;padding:9px;border:1px solid #ddd;border-radius:8px;"><button onclick="taxRatesSaveNew()" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:9px 14px;font-weight:800;cursor:pointer;">Add</button></div><button onclick="taxRatesCloseEditor()" style="width:100%;background:#eef0f3;border:none;border-radius:9px;padding:11px;margin-top:12px;font-weight:700;cursor:pointer;">Done</button></div>';
+    }
+    function taxRatesSaveNew(){ var c=((document.getElementById('taxNewCity')||{}).value||'').trim(); var v=(document.getElementById('taxNewRate')||{}).value; if(!c){ alert('Enter a city name.'); return; } var pp=parseFloat(v); if(isNaN(pp)||pp<0){ alert('Enter a valid rate %.'); return; } taxRatesSave(c,pp); }
+    function taxRatesEdit(c){ var v=prompt('Tax rate % for '+c+':', HUB_TAX_RATES[c]); if(v===null) return; var pp=parseFloat(v); if(isNaN(pp)||pp<0){ alert('Invalid rate.'); return; } taxRatesSave(c,pp); }
+    function taxRatesSave(city,pct){ withPin(function(pin){ var key='city_'+String(city).toLowerCase().replace(/[^a-z0-9]+/g,'_'); supabaseClient.rpc('app_settings_set',{p_username:currentUser.username,p_password:pin,p_key:key,p_group:'tax_rates',p_label:city,p_value:String(pct),p_sort:0}).then(function(r){ if(r.error){ alert(r.error.message||'Could not save. (Managers only.)'); return; } HUB_TAX_RATES[city]=pct; taxRatesRender(); hubLoadTaxRates(); }).catch(function(){ alert('Could not save.'); }); }); }
+    function taxRatesRemove(city){ if(!confirm('Remove '+city+'?')) return; withPin(function(pin){ var key='city_'+String(city).toLowerCase().replace(/[^a-z0-9]+/g,'_'); supabaseClient.rpc('app_settings_delete',{p_username:currentUser.username,p_password:pin,p_key:key,p_group:'tax_rates'}).then(function(r){ if(r.error){ alert(r.error.message||'Could not remove.'); return; } delete HUB_TAX_RATES[city]; taxRatesRender(); hubLoadTaxRates(); }).catch(function(){ alert('Could not remove.'); }); }); }
+
     let quoteRowCount = 0;
 
     // Common line-item templates for quick-adding to a quote
