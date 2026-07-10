@@ -95,6 +95,12 @@
 
     var AC_POLICY_DEFAULT = 'A 50% deposit is due to reserve your event date; the remaining balance is due on or before the event. Cancellations made within 7 days of the event may forfeit the deposit. (Paste your full Booking & Payment Policy here.)';
 
+    var SCOOPY_TONE_DEFAULT = 'Greet them by their first name, keep things warm and personable, and respond with genuine empathy and emotion when the situation calls for it';
+    var AC_POLICIES = [
+      {key:'booking', label:'Booking & Payment Policy', head:'Booking &amp; Payment Policy', sub:'Shown on catering quotes / PDFs and the public quote form. Paste your current policy here.', def:AC_POLICY_DEFAULT, rows:12},
+      {key:'scoopy_tone', label:'Mr. Scoopy \u2014 Assistant Tone', head:'Mr. Scoopy &mdash; Assistant Tone', sub:'How Mr. Scoopy talks to the team in the AI chat \u2014 describe the personality and tone (warm, upbeat, concise, etc.).', def:SCOOPY_TONE_DEFAULT, rows:4}
+    ];
+
     function acEsc(s){ try{ return (typeof escapeHtml==='function') ? escapeHtml(String(s==null?'':s)) : String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }catch(e){ return ''; } }
 
     function acOverlay(){ var o=document.getElementById('appSettingsModal'); if(!o){ o=document.createElement('div'); o.id='appSettingsModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100000;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
@@ -121,13 +127,17 @@
     }
 
     function acRenderPolicy(){
-      var v=cfg('policies','booking',AC_POLICY_DEFAULT);
-      var inner='<textarea id="ac_policy" rows="12" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-family:inherit;">'+acEsc(String(v))+'</textarea>'+acSaveBtn('acSavePolicy()','Save policy text');
-      acShell(acCard('Booking &amp; Payment Policy','Shown on catering quotes / PDFs and the public quote form. Paste your current policy here.',inner));
+      var cards=AC_POLICIES.map(function(p){
+        var v=cfg('policies',p.key,p.def);
+        var inner='<textarea id="ac_policy_'+p.key+'" rows="'+(p.rows||8)+'" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-family:inherit;">'+acEsc(String(v))+'</textarea>'+acSaveBtn("acSavePolicyKey('"+p.key+"')",'Save');
+        return acCard(p.head||p.label,p.sub||'',inner);
+      }).join('<div style="height:14px;"></div>');
+      acShell(cards);
     }
-    function acSavePolicy(){
-      var el=document.getElementById('ac_policy'); var v=el?el.value:'';
-      cfgSet('policies','booking','Booking & Payment Policy',v,0,function(err){ if(!err) alert('Policy saved.'); });
+    function acSavePolicyKey(key){
+      var p=AC_POLICIES.filter(function(x){return x.key===key;})[0]; if(!p) return;
+      var el=document.getElementById('ac_policy_'+key); var v=el?el.value:'';
+      cfgSet('policies',key,p.label,v,0,function(err){ if(!err) alert(p.label+' saved.'); });
     }
 
     function acRenderEmergency(){

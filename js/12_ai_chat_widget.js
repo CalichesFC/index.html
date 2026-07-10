@@ -33,7 +33,7 @@
                 if (role === 'Vice President/Co-Owner') role = 'Vice President / Co-Owner';
                 var store = (typeof activeStoreLoc === 'function' && activeStoreLoc()) || currentUser.home_location || '';
                 var who = currentUser.name + ', who is a ' + role + (store ? ' (home store: ' + store + ')' : '');
-                return who + '. Greet them by their first name, keep things warm and personable, and respond with genuine empathy and emotion when the situation calls for it';
+                return who + '. ' + ((typeof cfg==='function'?cfg('policies','scoopy_tone','Greet them by their first name, keep things warm and personable, and respond with genuine empathy and emotion when the situation calls for it'):'Greet them by their first name, keep things warm and personable, and respond with genuine empathy and emotion when the situation calls for it'));
             } catch (e) { return (currentUser && currentUser.name) || 'Team Member'; }
         }
 
