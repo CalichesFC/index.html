@@ -580,7 +580,7 @@
                 currentUser.name=u.name; currentUser.role=u.role; currentUser.permissions=u.permissions||null; currentUser.maint_board_access=(u.maint_board_access!==false); currentUser.username=u.username; currentUser.email=u.email||''; currentUser.is_developer=(u.is_developer===true);
                 try{ localStorage.setItem('calichesUser', JSON.stringify(currentUser)); }catch(e){}
                 try{ var gr=document.getElementById('greetingRole'); if(gr) gr.innerText='Role: '+currentUser.role; }catch(e){}
-                if(changed){ try{ applyRoleUI(); }catch(e){} try{ if(typeof applyFormPermissions==='function') applyFormPermissions(); }catch(e){} }
+                if(changed){ try{ applyRoleUI(); try{ if(typeof cfgLoadAll==='function') cfgLoadAll(); }catch(e){} }catch(e){} try{ if(typeof applyFormPermissions==='function') applyFormPermissions(); }catch(e){} }
             }).catch(function(){});
         }catch(e){}
     }
@@ -606,7 +606,7 @@
                 currentUser.name=u.name; currentUser.role=u.role; currentUser.permissions=u.permissions||null; currentUser.maint_board_access=(u.maint_board_access!==false); currentUser.username=u.username; currentUser.email=u.email||''; currentUser.is_developer=(u.is_developer===true);
                 try{ localStorage.setItem('calichesUser', JSON.stringify(currentUser)); }catch(e){}
                 try{ document.getElementById('greetingName').innerText='Hello, '+currentUser.name; document.getElementById('greetingRole').innerText='Role: '+currentUser.role; }catch(e){}
-                applyRoleUI(); setupNotifications(); applyFormPermissions();
+                applyRoleUI(); try{ if(typeof cfgLoadAll==='function') cfgLoadAll(); }catch(e){} setupNotifications(); applyFormPermissions();
                 var bioId = localStorage.getItem('calichesBiometricId');
                 if(bioId && window.PublicKeyCredential){
                     document.getElementById('splash-screen').style.display='none';
@@ -636,7 +636,7 @@
             logActivity(user.username, user.name, 'login');
             document.getElementById('greetingName').innerText = 'Hello, ' + user.name;
             document.getElementById('greetingRole').innerText = 'Role: ' + user.role;
-            applyRoleUI();
+            applyRoleUI(); try{ if(typeof cfgLoadAll==='function') cfgLoadAll(); }catch(e){}
             setupNotifications();
             applyFormPermissions();
             triggerTransition(() => {

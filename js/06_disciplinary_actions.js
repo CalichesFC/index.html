@@ -689,13 +689,14 @@
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;font-size:13px;">'+escapeHtml(r.error.message)+'</p>'; return; }
                 var list=r.data||[];
                 if(!list.length){ c.innerHTML='<p style="color:#6b7686;font-size:13px;margin:0;">No days entered yet.</p>'; return; }
-                var html='<div style="font-size:11.5px;color:#6b7686;margin-bottom:6px;">Labor target <b>18%–23%</b>. <span style="color:#c0264b;">Red</span> = over 23% · <span style="color:#1b7a3d;">Green</span> = on target · <span style="color:#b06a00;">Amber</span> = under 18%.</div>'+
+                var lLo=(typeof cfgNum==='function'?cfgNum('targets','labor_pct_lo',18):18), lHi=(typeof cfgNum==='function'?cfgNum('targets','labor_pct_hi',23):23);
+                var html='<div style="font-size:11.5px;color:#6b7686;margin-bottom:6px;">Labor target <b>'+lLo+'%–'+lHi+'%</b>. <span style="color:#c0264b;">Red</span> = over '+lHi+'% · <span style="color:#1b7a3d;">Green</span> = on target · <span style="color:#b06a00;">Amber</span> = under '+lLo+'%.</div>'+
                     '<table style="width:100%;border-collapse:collapse;font-size:13px;"><tr style="color:#6b7686;text-align:left;border-bottom:1px solid #eee;"><th style="padding:6px 4px;">Date</th><th>Sales</th><th>Labor</th><th>Labor%</th></tr>';
                 list.forEach(function(d){
                     var lp=d.labor_pct;
                     var pct=(lp===null||lp===undefined)?'—':lp+'%';
                     var color='#1b7a3d';
-                    if(lp!==null&&lp!==undefined){ if(lp>23) color='#c0264b'; else if(lp<18) color='#b06a00'; }
+                    if(lp!==null&&lp!==undefined){ if(lp>lHi) color='#c0264b'; else if(lp<lLo) color='#b06a00'; }
                     html+='<tr style="border-bottom:1px solid #f3f3f3;"><td style="padding:7px 4px;">'+escapeHtml(d.date)+'</td>'+
                         '<td>$'+(d.gross!=null?Number(d.gross).toLocaleString():'—')+'</td>'+
                         '<td>$'+(d.labor!=null?Number(d.labor).toLocaleString():'—')+'</td>'+
@@ -763,7 +764,8 @@
                 '<span style="font-weight:900;font-size:15px;min-width:130px;">'+pin+' '+loc+'</span>'+
                 '<span style="color:#5b6675;font-size:13px;">No sales entered yet</span></div>'; }
             any=true;
-            var lp=d.labor_pct; var laborCol=(lp==null)?'#7a8a98':(lp>23?'#c0264b':(lp<18?'#b06a00':'#1f7a3d'));
+            var lLo=(typeof cfgNum==='function'?cfgNum('targets','labor_pct_lo',18):18), lHi=(typeof cfgNum==='function'?cfgNum('targets','labor_pct_hi',23):23);
+            var lp=d.labor_pct; var laborCol=(lp==null)?'#7a8a98':(lp>lHi?'#c0264b':(lp<lLo?'#b06a00':'#1f7a3d'));
             return '<div style="background:linear-gradient(100deg,#fbfdff,#f3f8fd);border:1px solid #e7eef5;border-left:5px solid #106ab3;border-radius:12px;padding:13px 15px;margin-bottom:9px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;">'+
               '<span style="font-weight:900;font-size:15px;min-width:130px;">'+pin+' '+loc+'</span>'+
               '<span style="display:flex;flex-direction:column;"><small style="'+st+'">Net Sales</small><b style="font-size:17px;color:#0f4d7e;">'+(d.gross!=null?adMoney(d.gross):'—')+'</b></span>'+
@@ -805,7 +807,7 @@
         window.scrollTo(0,0);
         document.getElementById('pcStoreLabel').innerHTML='&#127970; '+escapeHtml(tempStoreLoc()||'No store set');
         document.getElementById('pcWeek').value=pcMonday();
-        document.getElementById('pcTax').value='8.31';
+        document.getElementById('pcTax').value=(typeof cfgNum==='function'?cfgNum('targets','prime_tax_pct',8.31):8.31);
         document.getElementById('pcMgr').value=''; document.getElementById('pcBeg').value=''; document.getElementById('pcEnd').value=''; document.getElementById('pcNote').value='';
         buildPcGrid();
         document.getElementById('pcInvRows').innerHTML=''; addInvoiceRow();
@@ -928,14 +930,15 @@
         var prime=cogs+labor;
         document.getElementById('pcInvTotal').textContent='Total purchases: '+pcMoney(purchases);
         function band(v,lo,hi){ if(v>hi) return '#ff8a8a'; if(v<lo) return '#ffd27f'; return '#9be8b4'; }
+        var pcFLo=(typeof cfgNum==='function'?cfgNum('targets','food_pct_lo',30):30), pcFHi=(typeof cfgNum==='function'?cfgNum('targets','food_pct_hi',33):33), pcLLo=(typeof cfgNum==='function'?cfgNum('targets','labor_pct_lo',18):18), pcLHi=(typeof cfgNum==='function'?cfgNum('targets','labor_pct_hi',23):23), pcPLo=(typeof cfgNum==='function'?cfgNum('targets','prime_pct_lo',48):48), pcPHi=(typeof cfgNum==='function'?cfgNum('targets','prime_pct_hi',56):56);
         var lpct=net>0?labor/net*100:0, fpct=net>0?cogs/net*100:0, ppct=net>0?prime/net*100:0;
         document.getElementById('pcSummary').innerHTML=
           '<div style="font-weight:bold;font-size:15px;margin-bottom:8px;">Live Prime Cost</div>'+
           '<div style="display:flex;flex-wrap:wrap;gap:14px;">'+
             '<div>Net sales<br><b>'+pcMoney(net)+'</b></div>'+
-            '<div>Food (COGS)<br><b>'+pcMoney(cogs)+'</b> <span style="color:'+band(fpct,30,33)+';">'+(net>0?fpct.toFixed(1)+'%':'—')+'</span></div>'+
-            '<div>Labor<br><b>'+pcMoney(labor)+'</b> <span style="color:'+band(lpct,18,23)+';">'+(net>0?lpct.toFixed(1)+'%':'—')+'</span></div>'+
-            '<div>Prime cost<br><b>'+pcMoney(prime)+'</b> <span style="color:'+band(ppct,48,56)+';font-weight:bold;">'+(net>0?ppct.toFixed(1)+'%':'—')+'</span></div>'+
+            '<div>Food (COGS)<br><b>'+pcMoney(cogs)+'</b> <span style="color:'+band(fpct,pcFLo,pcFHi)+';">'+(net>0?fpct.toFixed(1)+'%':'—')+'</span></div>'+
+            '<div>Labor<br><b>'+pcMoney(labor)+'</b> <span style="color:'+band(lpct,pcLLo,pcLHi)+';">'+(net>0?lpct.toFixed(1)+'%':'—')+'</span></div>'+
+            '<div>Prime cost<br><b>'+pcMoney(prime)+'</b> <span style="color:'+band(ppct,pcPLo,pcPHi)+';font-weight:bold;">'+(net>0?ppct.toFixed(1)+'%':'—')+'</span></div>'+
           '</div>';
     }
     function gatherPrime(){
@@ -996,13 +999,14 @@
                 var list=r.data||[];
                 if(!list.length){ c.innerHTML='<p style="color:#6b7686;font-size:13px;margin:0;">No weeks saved yet.</p>'; return; }
                 function col(v,lo,hi){ if(v==null) return '#888'; if(v>hi) return '#c0264b'; if(v<lo) return '#b06a00'; return '#1b7a3d'; }
+                var wkFLo=(typeof cfgNum==='function'?cfgNum('targets','food_pct_lo',30):30), wkFHi=(typeof cfgNum==='function'?cfgNum('targets','food_pct_hi',33):33), wkLLo=(typeof cfgNum==='function'?cfgNum('targets','labor_pct_lo',18):18), wkLHi=(typeof cfgNum==='function'?cfgNum('targets','labor_pct_hi',23):23), wkPLo=(typeof cfgNum==='function'?cfgNum('targets','prime_pct_lo',48):48), wkPHi=(typeof cfgNum==='function'?cfgNum('targets','prime_pct_hi',56):56);
                 var html='<table style="width:100%;border-collapse:collapse;font-size:12.5px;"><tr style="color:#6b7686;text-align:left;border-bottom:1px solid #eee;"><th style="padding:6px 3px;">Week</th><th>Net</th><th>Food%</th><th>Labor%</th><th>Prime%</th><th></th></tr>';
                 list.forEach(function(w){
                     html+='<tr style="border-bottom:1px solid #f3f3f3;"><td style="padding:6px 3px;">'+escapeHtml(w.week_start)+'</td>'+
                         '<td>'+pcMoney(w.net||0)+'</td>'+
-                        '<td style="font-weight:bold;color:'+col(w.food_pct,30,33)+';">'+(w.food_pct!=null?w.food_pct+'%':'—')+'</td>'+
-                        '<td style="font-weight:bold;color:'+col(w.labor_pct,18,23)+';">'+(w.labor_pct!=null?w.labor_pct+'%':'—')+'</td>'+
-                        '<td style="font-weight:bold;color:'+col(w.prime_pct,48,56)+';">'+(w.prime_pct!=null?w.prime_pct+'%':'—')+'</td>'+
+                        '<td style="font-weight:bold;color:'+col(w.food_pct,wkFLo,wkFHi)+';">'+(w.food_pct!=null?w.food_pct+'%':'—')+'</td>'+
+                        '<td style="font-weight:bold;color:'+col(w.labor_pct,wkLLo,wkLHi)+';">'+(w.labor_pct!=null?w.labor_pct+'%':'—')+'</td>'+
+                        '<td style="font-weight:bold;color:'+col(w.prime_pct,wkPLo,wkPHi)+';">'+(w.prime_pct!=null?w.prime_pct+'%':'—')+'</td>'+
                         '<td>'+(w.xlsx_url?'<a href="'+escapeHtml(w.xlsx_url)+'" target="_blank" style="color:#0f4d27;font-weight:bold;text-decoration:none;">&#128202; Excel</a>':'')+'</td></tr>';
                 });
                 html+='</table>';

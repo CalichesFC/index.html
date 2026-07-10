@@ -175,67 +175,74 @@
     }
 
     // ===== Emergency Mode (static, works offline) =====
-    var EMERGENCY = [
+    // ===== Emergency Mode (static, works offline) — phone numbers read from cfg lazily at render =====
+    function buildEmergency(){
+      return [
       {icon:'⚡', title:'Power outage', steps:[
         'Stay calm; keep team and customers safe (use phone flashlights if needed).',
         'Keep freezers and the dipping cabinet CLOSED to hold temperature as long as possible.',
         'Write down the time the power went out (for food-safety records).',
-        'Call the manager on call: [____].',
-        'Report the outage to the utility company: [____].',
+        'Call the manager on call: '+(typeof cfg==='function'?cfg('emergency','manager_on_call','[____]'):'[____]')+'.',
+        'Report the outage to the utility company: '+(typeof cfg==='function'?cfg('emergency','utility','[____]'):'[____]')+'.',
         'If power is out more than [2 hours], check product temps and follow Food-Safety before serving.'
       ]},
       {icon:'📶', title:'Internet / Wi-Fi outage', steps:[
         'Switch the register to offline/backup mode if available, or take orders on paper.',
         'For card payments, see "Credit-card / payment failure".',
         'Restart the modem/router (unplug 30 seconds, plug back in).',
-        'Call the manager on call: [____]; if still down, call the internet provider: [____].'
+        'Call the manager on call: '+(typeof cfg==='function'?cfg('emergency','manager_on_call','[____]'):'[____]')+'; if still down, call the internet provider: '+(typeof cfg==='function'?cfg('emergency','internet','[____]'):'[____]')+'.'
       ]},
       {icon:'💳', title:'Credit-card / payment failure', steps:[
         'Let customers know cards are temporarily down; offer cash or hold the order.',
         'Do NOT write down or key in card numbers by hand.',
         'Try restarting the card terminal.',
-        'Call the manager on call: [____].'
+        'Call the manager on call: '+(typeof cfg==='function'?cfg('emergency','manager_on_call','[____]'):'[____]')+'.'
       ]},
       {icon:'🌪️', title:'Severe weather', steps:[
         'Move customers and staff away from windows; follow any official shelter guidance.',
         'If told to evacuate, secure cash, lock up if safe, and leave.',
         'Keep freezers closed if power is affected (see Power outage).',
-        'Call the manager on call: [____].'
+        'Call the manager on call: '+(typeof cfg==='function'?cfg('emergency','manager_on_call','[____]'):'[____]')+'.'
       ]},
       {icon:'🔥', title:'Fire', steps:[
         'Get everyone out immediately — people first.',
         'Call 911.',
         'Only use an extinguisher on a small, contained fire if trained and safe (PASS: Pull, Aim, Squeeze, Sweep).',
         'Do NOT re-enter the building.',
-        'Once safe, call the manager on call: [____].'
+        'Once safe, call the manager on call: '+(typeof cfg==='function'?cfg('emergency','manager_on_call','[____]'):'[____]')+'.'
       ]},
       {icon:'🚨', title:'Robbery / threatening person', steps:[
         'Your safety comes first — do not resist. Stay calm and comply.',
         'Do not chase or confront anyone.',
         'Once it is safe, call 911.',
         'Lock the doors if safe; keep everyone together; do not touch what the person handled.',
-        'Call the manager on call: [____]. Write down what you remember as soon as you can.'
+        'Call the manager on call: '+(typeof cfg==='function'?cfg('emergency','manager_on_call','[____]'):'[____]')+'. Write down what you remember as soon as you can.'
       ]},
       {icon:'🍦', title:'Custard / shake machine failure', steps:[
         'Stop using the machine; note the time and what happened.',
         'Move product to a working freezer if needed to protect it.',
         'File a repair report (Work → Report a Repair).',
-        'Call the manager on call: [____]; machine vendor: [____].'
+        'Call the manager on call: '+(typeof cfg==='function'?cfg('emergency','manager_on_call','[____]'):'[____]')+'; machine vendor: '+(typeof cfg==='function'?cfg('emergency','machine_vendor','[____]'):'[____]')+'.'
       ]},
       {icon:'🚰', title:'Water interruption', steps:[
         'Stop any task that needs running water (handwashing, dishes, certain prep).',
         'Hand sanitizer is NOT a substitute for handwashing for food tasks.',
-        'If water safety is in question, stop serving affected items and call the manager on call: [____].',
-        'Report to the water utility: [____].'
+        'If water safety is in question, stop serving affected items and call the manager on call: '+(typeof cfg==='function'?cfg('emergency','manager_on_call','[____]'):'[____]')+'.',
+        'Report to the water utility: '+(typeof cfg==='function'?cfg('emergency','water_utility','[____]'):'[____]')+'.'
       ]},
       {icon:'🦠', title:'Food-safety concern', steps:[
         'Stop serving the affected product; set it aside and label it "DO NOT USE" (do not discard yet).',
         'Check and record temperatures of the unit/product.',
         'Note what happened, when, and which products are affected.',
-        'Call the manager on call: [____] before resuming.',
+        'Call the manager on call: '+(typeof cfg==='function'?cfg('emergency','manager_on_call','[____]'):'[____]')+' before resuming.',
         'Follow management direction on discarding or keeping product.'
       ]}
-    ];
+      ];
+    }
+    // Expose EMERGENCY as a live getter so external callers (js/09 renderEmergency /
+    // toggleEmergency) keep using it as an array while cfg is re-read fresh on each render.
+    try { Object.defineProperty(window,'EMERGENCY',{configurable:true,get:buildEmergency}); }
+    catch(e){ window.EMERGENCY = buildEmergency(); }
     /* ===== Admin Console ===== */
     var NOTIF_TYPES=[
         {k:'equipment_maintenance',l:'Equipment maintenance due'},
@@ -557,7 +564,7 @@
     function lmsMarkDone(){ var c=window._lmsCur&&window._lmsCur.course; if(!c) return; lmsRecord(c.id,100,true,null,null); }
     function lmsStartQuiz(){
         var c=window._lmsCur&&window._lmsCur.course; if(!c) return; var qs=c.quiz||[];
-        var h=lmsHeader('Quick check','lmsRenderLesson()')+'<div style="max-width:640px;margin:0 auto;padding:16px;"><div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:18px;"><div style="font-size:12.5px;color:#6b6275;margin-bottom:12px;">Answer all questions &mdash; you need '+(c.pass_pct||80)+'% to pass.</div>';
+        var h=lmsHeader('Quick check','lmsRenderLesson()')+'<div style="max-width:640px;margin:0 auto;padding:16px;"><div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:18px;"><div style="font-size:12.5px;color:#6b6275;margin-bottom:12px;">Answer all questions &mdash; you need '+(c.pass_pct||(typeof cfgNum==='function'?cfgNum('targets','lms_pass_pct',80):80))+'% to pass.</div>';
         qs.forEach(function(q,i){ var ty=q.type||'mc'; h+='<div style="margin-bottom:16px;"><div style="font-weight:700;font-size:14.5px;color:#26242b;margin-bottom:8px;">'+(i+1)+'. '+escapeHtml(q.q)+'</div>'; if(ty==='mc'){ (q.choices||[]).forEach(function(ch,ci){ h+='<label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid #e6e6ee;border-radius:9px;margin-bottom:6px;cursor:pointer;font-size:13.5px;color:#33303a;"><input type="radio" name="lq'+i+'" value="'+ci+'" style="width:17px;height:17px;"> '+escapeHtml(ch)+'</label>'; }); } else if(ty==='short'){ h+='<input id="lq_short_'+i+'" placeholder="Your answer" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13.5px;box-sizing:border-box;">'; } else { h+='<textarea id="lq_long_'+i+'" placeholder="Write your response" style="width:100%;height:80px;padding:9px;border:1px solid #ddd;border-radius:8px;font-size:13.5px;box-sizing:border-box;"></textarea>'; } h+='</div>'; });
         h+='<div id="lmsQuizMsg" style="font-size:13px;margin-bottom:8px;"></div><button onclick="lmsSubmitQuiz()" style="width:100%;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;">Submit</button></div></div>';
         lmsOverlay().innerHTML=h;
@@ -566,7 +573,7 @@
         var cur=window._lmsCur; if(!cur) return; var c=cur.course; var qs=c.quiz||[]; var msg=document.getElementById('lmsQuizMsg'); var correct=0, gradable=0, unanswered=false; var responses=[];
         qs.forEach(function(q,i){ var ty=q.type||'mc'; if(ty==='long'){ var ta=document.getElementById('lq_long_'+i); if(!ta||!ta.value.trim()) unanswered=true; else responses.push({q:q.q,type:'long',answer:ta.value.trim()}); } else if(ty==='short'){ var si=document.getElementById('lq_short_'+i); if(!si||!si.value.trim()){ unanswered=true; } else { responses.push({q:q.q,type:'short',answer:si.value.trim()}); if(q.accept&&String(q.accept).trim()){ gradable++; if(si.value.trim().toLowerCase()===String(q.accept).trim().toLowerCase()) correct++; } } } else { var sel=document.querySelector('input[name="lq'+i+'"]:checked'); if(!sel){ unanswered=true; } else { gradable++; var _ci=parseInt(sel.value,10); if(_ci===q.a) correct++; responses.push({q:q.q,type:'mc',answer:((q.choices||[])[_ci]||''),correct:(_ci===q.a)}); } } });
         if(unanswered){ if(msg){ msg.style.color='#c0264b'; msg.textContent='Please answer every question.'; } return; }
-        var score=gradable>0?Math.round(100*correct/gradable):100; var total=gradable||(qs.length||1); var pass=score>=(c.pass_pct||80);
+        var score=gradable>0?Math.round(100*correct/gradable):100; var total=gradable||(qs.length||1); var pass=score>=(c.pass_pct||(typeof cfgNum==='function'?cfgNum('targets','lms_pass_pct',80):80));
         if(msg){ msg.style.color='#5b6472'; msg.textContent='Saving…'; }
         lmsRecord(c.id,score,pass,correct,total,responses);
     }
@@ -591,7 +598,7 @@
         h+='<div style="font-size:46px;">'+(pass?'&#127881;':'&#128170;')+'</div><h2 style="margin:8px 0 4px;color:'+(pass?'#1b7a3d':'#9a5b00')+';">'+(pass?'Passed!':'Almost there')+'</h2>'+(correct!=null?'<p style="font-size:15px;color:#33303a;">You scored <b>'+score+'%</b> ('+correct+' of '+total+').</p>':'<p style="font-size:15px;color:#33303a;">Lesson complete.</p>');
         if(pathDone&&path){ h+='<p style="color:#1b7a3d;font-size:13.5px;font-weight:700;">&#127894; '+escapeHtml(path.title)+' complete &mdash; certification earned!</p>'; }
         else if(pass){ h+='<p style="color:#1b7a3d;font-size:13px;">Course complete &mdash; saved to your record.</p>'; }
-        else { h+='<p style="color:#9a5b00;font-size:13px;">You need '+((c&&c.pass_pct)||80)+'% to pass. Review the lesson and try again.</p>'; }
+        else { h+='<p style="color:#9a5b00;font-size:13px;">You need '+((c&&c.pass_pct)||(typeof cfgNum==='function'?cfgNum('targets','lms_pass_pct',80):80))+'% to pass. Review the lesson and try again.</p>'; }
         if(_lms.gamify){ var _g=_lms.gamify; h+='<div style="background:#fff7e6;border:1px solid #ffe2a8;border-radius:12px;padding:11px;margin-top:8px;"><div style="font-size:22px;font-weight:800;color:#9a5b00;">'+(_g.points||0)+' pts</div>'+((_g.badges&&_g.badges.length)?('<div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:6px;">'+_g.badges.map(function(_b){return '<span style="background:#fff;border:1px solid #ffe2a8;border-radius:99px;padding:3px 9px;font-size:11.5px;font-weight:700;color:#9a5b00;">'+_b.icon+' '+escapeHtml(_b.name)+'</span>';}).join('')+'</div>'):'')+'</div>'; }
         h+='<div style="display:flex;gap:8px;margin-top:14px;">';
         if(!pass) h+='<button onclick="lmsRenderLesson()" style="flex:1;background:#eef3fb;color:#185FA5;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;">Review lesson</button>';

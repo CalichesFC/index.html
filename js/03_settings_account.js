@@ -426,7 +426,7 @@
             schedSaveLayout(); renderScheduleGrid();
         }});
     }
-    function schedLaborTarget(){ var t=parseFloat(localStorage.getItem('laborTargetPct')); return (isNaN(t)||t<=0)?25:t; }
+    function schedLaborTarget(){ var t=parseFloat(localStorage.getItem('laborTargetPct')); var d=(typeof cfgNum==='function'?cfgNum('targets','labor_pct',25):25); return (isNaN(t)||t<=0)?d:t; }
     function schedSetLaborTarget(v){ var t=parseFloat(v); if(!isNaN(t)&&t>0){ try{ localStorage.setItem('laborTargetPct',t); }catch(e){} renderScheduleGrid(); } }
     function schedSetForecast(ds, val){
         const amt = parseFloat(val); if (isNaN(amt)) return;
@@ -441,6 +441,9 @@
     // pick black or white text for legibility on a colored chip (WCAG-ish luminance)
     function hbTextOn(hex){ if(!hex||hex[0]!=='#'||hex.length<7) return '#fff'; const r=parseInt(hex.substr(1,2),16),g=parseInt(hex.substr(3,2),16),b=parseInt(hex.substr(5,2),16); return ((0.299*r+0.587*g+0.114*b)/255) > 0.5 ? '#1f2a44' : '#fff'; }
     function renderScheduleGrid() {
+        var OT_THRESH=(typeof cfgNum==='function'?cfgNum('targets','ot_threshold_hrs',40):40);
+        var OT_MULT=(typeof cfgNum==='function'?cfgNum('targets','ot_multiplier',1.5):1.5);
+        var OT_NEAR=(typeof cfgNum==='function'?cfgNum('targets','ot_near_hrs',36):36);
         const ws = schedState.weekStart;
         const days = []; for (let i=0;i<7;i++) days.push(schedAddDays(ws,i));
         const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -500,7 +503,7 @@
         const tagOf = e => { const list=(e.stores&&e.stores.length)?e.stores:(e.home_location?[e.home_location]:[]); return list.length?'<span class="hbg-tag">'+list.map(schedAbbr).join('&middot;')+'</span> ':''; };
         const dayStaff = {}; shifts.forEach(s => { if(s.employee_id!=null){ (dayStaff[s.shift_date]=dayStaff[s.shift_date]||{})[s.employee_id]=1; } });
         let weekHrs=0, weekCost=0;
-        emps.forEach(e=>{ const eh=empHrs[e.id]||0; const reg=Math.min(eh,40),ot=Math.max(0,eh-40); weekCost+=reg*(wageOf[e.id]||0)+ot*(wageOf[e.id]||0)*1.5; });
+        emps.forEach(e=>{ const eh=empHrs[e.id]||0; const reg=Math.min(eh,OT_THRESH),ot=Math.max(0,eh-OT_THRESH); weekCost+=reg*(wageOf[e.id]||0)+ot*(wageOf[e.id]||0)*OT_MULT; });
         days.forEach(d=>{ weekHrs += dayHrs[schedFmt(d)]||0; });
         const fc = schedState.forecast||{};
         const mobile = window.innerWidth < 760;
@@ -536,7 +539,7 @@
             html += '<tr class="hbg-band"><td class="hbg-e" colspan="9"><span style="color:#1f2a44;">Team members ('+emps.length+')</span>'+(elseEmpN?' &nbsp; <span style="font-weight:400;color:#5b6675;">&#128205; '+elseEmpN+' scheduled at '+elseStoreN+' other location'+(elseStoreN>1?'s':'')+'</span>':'')+'</td></tr>';
             if (!shownEmps.length) html += '<tr><td colspan="9" style="text-align:center;padding:20px;color:#6b7686;">'+(emps.length?'No team members match your search.':'No employees on this store yet. Use Tools &rarr; Add employee.')+'</td></tr>';
             shownEmps.forEach(e => {
-                const eh = empHrs[e.id]||0; const reg=Math.min(eh,40), ot=Math.max(0,eh-40); const cost=reg*(wageOf[e.id]||0)+ot*(wageOf[e.id]||0)*1.5;
+                const eh = empHrs[e.id]||0; const reg=Math.min(eh,OT_THRESH), ot=Math.max(0,eh-OT_THRESH); const cost=reg*(wageOf[e.id]||0)+ot*(wageOf[e.id]||0)*OT_MULT;
                 html += '<tr class="hbg-emprow" data-empid="'+e.id+'"><td class="hbg-e"><div style="display:flex;align-items:center;gap:6px;">'+DRAG_GRIP+avatarHtml(e)+'<div style="min-width:0;"><div class="hbg-nm">'+escapeHtml(e.name)+'</div><div class="hbg-sub">'+tagOf(e)+(empRole[e.id]?escapeHtml(empRole[e.id]):'')+'</div></div></div></td>';
                 days.forEach(d => {
                     const ds=schedFmt(d); const k=e.id+'|'+ds; const cell=byKey[k]||[]; const off=offMap[k]; const elsw=elseMap[k]||[]; const conflict=(cell.length>0&&elsw.length>0);
@@ -550,8 +553,8 @@
                         html += '</td>';
                     }
                 });
-                var otCls = ot>0?' hbg-ot':(eh>=36?' hbg-near':'');
-                html += '<td class="hbg-rowt'+otCls+'" title="'+(ot>0?'In overtime':(eh>=36?'Approaching 40h overtime':''))+'">'+eh.toFixed(1)+'h<br>'+money(cost)+(ot>0?'<br><span class="hbg-ot">'+ot.toFixed(1)+' OT</span>':(eh>=36?'<br><span class="hbg-near">near OT</span>':''))+'</td></tr>';
+                var otCls = ot>0?' hbg-ot':(eh>=OT_NEAR?' hbg-near':'');
+                html += '<td class="hbg-rowt'+otCls+'" title="'+(ot>0?'In overtime':(eh>=OT_NEAR?'Approaching 40h overtime':''))+'">'+eh.toFixed(1)+'h<br>'+money(cost)+(ot>0?'<br><span class="hbg-ot">'+ot.toFixed(1)+' OT</span>':(eh>=OT_NEAR?'<br><span class="hbg-near">near OT</span>':''))+'</td></tr>';
             });
             html += '</tbody><tfoot><tr><td class="hbg-e">Hours <span style="color:#185FA5;">'+weekHrs.toFixed(1)+'</span></td>';
             days.forEach(d => { const ds=schedFmt(d); const hh=dayHrs[ds]||0; const n=dayStaff[ds]?Object.keys(dayStaff[ds]).length:0; html += '<td>&#128100; '+n+'<br><span style="font-weight:400;font-size:10px;color:#7a828f;">'+hh.toFixed(1)+'h</span></td>'; });
