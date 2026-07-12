@@ -372,6 +372,7 @@
                 if (needsFollowUp) html += '<div style="background:var(--fail-red);color:white;border-radius:20px;padding:4px 12px;font-size:11px;font-weight:bold;white-space:nowrap;">&#9200; Follow-up (' + daysPending + 'd)</div>';
                 html += '</div>';
                 html += '</div>';
+                try{ window._qCache = window._qCache || {}; window._qCache[q.id] = q; }catch(_e){}
                 html += '<div style="font-size:20px;font-weight:900;color:var(--caliches-blue);margin:8px 0;">$' + (Number(q.total) || 0).toFixed(2) + '</div>';
                 if (q.accepted_at) html += '<div class="maint-card-meta" style="color:var(--pass-green);font-weight:bold;">&#10003; Accepted on ' + new Date(q.accepted_at).toLocaleDateString() + '</div>';
                 if (q.invoice_number) html += '<div class="maint-card-meta" style="color:#1f7a3d;font-weight:bold;">🧾 Invoice ' + escapeHtml(q.invoice_number) + '</div>';
@@ -388,6 +389,8 @@
                     html += '<button onclick="sendSquareInvoice(' + q.id + ', this)" style="background:#0f7a3d;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">' + _sqLabel + '</button>';
                 }
                 if (q.square_payment_url) html += '<button onclick="copyPayLink(' + q.id + ', this)" style="background:#185FA5;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">🔗 Copy Pay Link</button>';
+                if (q.invoice_status !== 'Paid') html += '<button onclick="markQuotePaid(' + q.id + ')" style="background:#1b7a3d;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">&#128179; Mark Paid</button>';
+                if (q.invoice_status === 'Paid') html += '<button onclick="showQuoteReceipt(' + q.id + ')" style="background:#185FA5;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">&#129534; Receipt</button>';
                 if (st === 'Accepted') {
                     html += '<button onclick="quoteInvoice(' + q.id + ', this)" style="background:#1f7a3d;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">🧾 Print Invoice</button>';
                 }
@@ -1054,3 +1057,72 @@
                 }).catch(() => { if (btn) { btn.disabled = false; btn.innerText = '💾 Save'; } });
             }, function() { if (btn) { btn.disabled = false; btn.innerText = '💾 Save'; } });
         }
+
+
+// ── Catering: manual Mark Paid + printable Receipt (added for Square paid-status) ──
+window.markQuotePaid = function(id){
+  var q = (window._qCache||{})[id] || {};
+  var amt = prompt('Amount received for '+(q.company||q.contact_name||('quote #'+id))+'?\nLeave blank to use the quote total ($'+(Number(q.total)||0).toFixed(2)+').');
+  if (amt === null) return; // cancelled
+  var method = prompt('Payment method? (Square, Cash, Card, Check, Other)', 'Square');
+  if (method === null) return;
+  var ref = prompt('Reference / confirmation # (optional):', '') || '';
+  withPin(function(pin){
+    supabaseClient.rpc('app_quote_mark_paid_manual', {
+      p_username: currentUser.username, p_password: pin, p_id: id,
+      p_amount: amt.trim()===''? null : (parseFloat(amt)||null),
+      p_method: method || 'Manual', p_reference: ref
+    }).then(function(r){
+      if (r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers/office only.':r.error.message); return; }
+      alert('Marked paid. A receipt is now available on this quote.');
+      if (typeof loadSalesPipeline==='function') loadSalesPipeline();
+      else if (typeof searchCustomerHistory==='function') searchCustomerHistory();
+    }).catch(function(){ alert('Connection error.'); });
+  });
+};
+
+window.showQuoteReceipt = function(id){
+  var q = (window._qCache||{})[id];
+  if (!q){ alert('Reopen the pipeline and try again.'); return; }
+  var esc = (typeof escapeHtml==='function') ? escapeHtml : function(x){return (''+x);};
+  var money = function(v){ return '$'+(Number(v)||0).toFixed(2); };
+  var items = [];
+  try { items = Array.isArray(q.line_items) ? q.line_items : (q.line_items ? JSON.parse(q.line_items) : []); } catch(e){ items = []; }
+  var rows = items.map(function(it){
+    var name = it.name||it.label||it.item||it.description||'Item';
+    var qty  = it.qty||it.quantity||1;
+    var line = (it.amount!=null)? it.amount : ((Number(it.price||it.unit||0))*(Number(qty)||1));
+    return '<tr><td style="padding:4px 0;">'+esc(name)+' &times; '+esc(qty)+'</td><td style="padding:4px 0;text-align:right;">'+money(line)+'</td></tr>';
+  }).join('');
+  var paidLine = q.paid_at ? new Date(q.paid_at).toLocaleDateString() : new Date().toLocaleDateString();
+  var rc = '<div id="qReceipt" style="font-family:Georgia,serif;color:#222;max-width:420px;margin:0 auto;">'
+    + '<div style="text-align:center;border-bottom:2px solid #185FA5;padding-bottom:8px;margin-bottom:10px;">'
+    + '<div style="font-size:20px;font-weight:800;color:#185FA5;">Caliche’s Frozen Custard</div>'
+    + '<div style="font-size:13px;color:#1b7a3d;font-weight:700;">PAID RECEIPT</div>'
+    + '<div style="font-size:11px;color:#666;">'+esc(q.invoice_number||q.order_num||('Quote #'+id))+'</div></div>'
+    + '<div style="font-size:12.5px;color:#333;">'
+    + '<div><b>Customer:</b> '+esc(q.company||q.contact_name||'')+(q.company&&q.contact_name?(' ('+esc(q.contact_name)+')'):'')+'</div>'
+    + (q.event_date?'<div><b>Event:</b> '+esc(q.event_type||'')+' &middot; '+new Date(q.event_date).toLocaleDateString()+'</div>':'')
+    + '<div><b>Paid:</b> '+paidLine+(q.payment_method?(' &middot; '+esc(q.payment_method)):'')+(q.payment_reference?(' &middot; ref '+esc(q.payment_reference)):'')+'</div>'
+    + '</div>'
+    + '<table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px;border-top:1px solid #e5e5e5;">'+rows+'</table>'
+    + '<div style="border-top:1px solid #e5e5e5;margin-top:6px;padding-top:6px;font-size:12.5px;">'
+    + (q.subtotal!=null?'<div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>'+money(q.subtotal)+'</span></div>':'')
+    + (q.tax!=null?'<div style="display:flex;justify-content:space-between;"><span>Tax</span><span>'+money(q.tax)+'</span></div>':'')
+    + '<div style="display:flex;justify-content:space-between;font-weight:800;font-size:15px;color:#185FA5;margin-top:4px;"><span>Amount Paid</span><span>'+money(q.amount_paid!=null?q.amount_paid:q.total)+'</span></div>'
+    + '</div>'
+    + '<div style="text-align:center;margin-top:12px;font-size:11px;color:#6b7686;">Thank you for choosing Caliche’s! &middot; Generated '+new Date().toLocaleDateString()+'</div></div>';
+  var ov = document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;z-index:100090;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:18px;';
+  ov.onclick=function(e){ if(e.target===ov) document.body.removeChild(ov); };
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;padding:20px;max-width:460px;width:100%;max-height:90vh;overflow:auto;">'+rc
+    + '<div style="display:flex;gap:8px;margin-top:14px;"><button id="qrClose" style="flex:1;background:#eef0f3;border:none;border-radius:9px;padding:10px;font-weight:700;cursor:pointer;">Close</button>'
+    + '<button id="qrPrint" style="flex:2;background:#185FA5;color:#fff;border:none;border-radius:9px;padding:10px;font-weight:800;cursor:pointer;">Print / Save PDF</button></div></div>';
+  document.body.appendChild(ov);
+  document.getElementById('qrClose').onclick=function(){ document.body.removeChild(ov); };
+  document.getElementById('qrPrint').onclick=function(){
+    var w=window.open('','_blank'); if(!w){ alert('Allow pop-ups to print.'); return; }
+    w.document.write('<html><head><title>Receipt</title></head><body style="margin:20px;">'+rc+'</body></html>');
+    w.document.close(); w.focus(); setTimeout(function(){ w.print(); }, 250);
+  };
+};

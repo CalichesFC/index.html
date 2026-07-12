@@ -502,6 +502,9 @@
         var _thBtn=document.getElementById('btn-trainingHub'); if(_thBtn) _thBtn.style.display=permAllow('training_hub', true)?'block':'none';
         var _wtBtn=document.getElementById('btn-writeupTemplates'); if(_wtBtn) _wtBtn.style.display=permAllow('writeup_templates', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Shift Lead','Shift Leader'].indexOf(role)>=0))?'block':'none';
         var _rrBtn=document.getElementById('btn-requestsRails'); if(_rrBtn) _rrBtn.style.display=permAllow('requests_rails', true)?'block':'none';
+        var _ccBtn=document.getElementById('btn-commandCenter'); if(_ccBtn) _ccBtn.style.display=permAllow('command_center', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Office'].indexOf(role)>=0))?'block':'none';
+        var _ptBtn=document.getElementById('btn-payTools'); if(_ptBtn) _ptBtn.style.display=permAllow('pay_tools', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Office'].indexOf(role)>=0))?'block':'none';
+        var _m2Btn=document.getElementById('btn-marketingV2'); if(_m2Btn) _m2Btn.style.display=permAllow('marketing_v2', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Marketing Manager','Office'].indexOf(role)>=0))?'block':'none';
         var _smBtn=document.getElementById('btn-storeManager'); if(_smBtn) _smBtn.style.display=permAllow('store_manager', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
         var _scBtn=document.getElementById('btn-scorecards'); if(_scBtn) _scBtn.style.display=permAllow('scorecards', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
         var _catBtn=document.getElementById('btn-catering'); if(_catBtn) _catBtn.style.display=permAllow('catering', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
