@@ -207,6 +207,7 @@
             h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">';
             h+='<button onclick="tgEvalStartPrep('+e.employee_id+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Start Evaluation</button>';
             h+='<button onclick="tgProposalNewPrep('+e.employee_id+')" style="background:#e8f5ec;color:#1b7a3d;border:none;border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Submit Pay Proposal</button>';
+            if(typeof tgxPromoRecommend==='function') h+='<button onclick="tgxPromoRecommend('+e.employee_id+')" style="background:#f3e8f7;color:#7b2d8b;border:none;border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Promotion</button>';
             if(typeof openShoutout==='function') h+='<button onclick="tgAddRecognition('+e.employee_id+')" style="background:#fff4e0;color:#9a5b00;border:none;border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Add Recognition</button>';
             h+='<button onclick="tgViewProfile('+e.employee_id+')" style="background:#f4f5f8;color:#5b6472;border:none;border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">View Profile</button>';
             h+='</div></div>';
@@ -337,10 +338,12 @@
     // ============================================================
     function tgLoadPayTab(){
         tgBodySet(tgLoadingHtml('Loading pay proposals…'));
-        tgRpc('app_tg_proposal_list',{p_filters:{location:_tg.store||''}}, function(d){ _tg.proposalList=d||[]; tgBodySet(tgPayTabHtml()); }, function(err){ tgBodySet(tgErrHtml(err&&err.message)); });
+        tgRpc('app_tg_proposal_list',{p_filters:{location:_tg.store||''}}, function(d){ _tg.proposalList=d||[]; tgBodySet(tgPayTabHtml()); if(typeof tgxLoadMoneyCards==='function') tgxLoadMoneyCards(_tg.store||'', null, 'tgxMoneyCards'); }, function(err){ tgBodySet(tgErrHtml(err&&err.message)); });
     }
     function tgPayTabHtml(){
         var h='<div style="background:#fff4e0;border:1px solid #ffe2a8;color:#9a5b00;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-bottom:12px;">Raises are never automatic — every proposal requires a human corporate decision.</div>';
+        if(typeof tgxLoadMoneyCards==='function') h='<div id="tgxMoneyCards"></div>'+h;
+        if(typeof tgxPromoQueueBtnHtml==='function') h+=tgxPromoQueueBtnHtml();
         h+='<button onclick="tgProposalNewPrep()" style="width:100%;background:var(--caliches-pink,#ec3e7e);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:14px;">&#10133; New Pay Proposal</button>';
         h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:8px;">Proposals</div>';
         if(!_tg.proposalList.length) return h+tgEmptyCard('No pay proposals yet.','Create one above.');
@@ -379,11 +382,13 @@
         h+=tgField('Proposed effective date','tgPEffDate',p.proposed_effective_date,'date');
         h+='<label style="font-size:12px;font-weight:700;color:#5b6675;">Raise type</label><select id="tgPRaiseType" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:9px;margin:4px 0 10px;box-sizing:border-box;">'+['merit','promotion','market_adjustment','annual_review','equity'].map(function(t){return '<option value="'+t+'"'+(p.raise_type===t?' selected':'')+'>'+t.replace(/_/g,' ')+'</option>';}).join('')+'</select>';
         h+='<label style="font-size:12px;font-weight:700;color:#5b6675;">Reason</label><textarea id="tgPReason" style="width:100%;min-height:60px;padding:8px;border:1px solid #ddd;border-radius:9px;margin:4px 0 10px;box-sizing:border-box;">'+escapeHtml(p.reason||'')+'</textarea>';
+        if(typeof tgxProposalExtrasHtml==='function') h+=tgxProposalExtrasHtml(p);
         h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin:10px 0 6px;">Digital Raise Eligibility Checklist</div>';
         TG_CHECKLIST_ITEMS.forEach(function(it){ var checked=!!(p.checklist&&p.checklist[it[0]]); h+='<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#33303a;padding:5px 0;"><input type="checkbox" id="tgChk_'+it[0]+'" '+(checked?'checked':'')+' onchange="tgProposalChecklistToggle(&quot;'+it[0]+'&quot;,this.checked)"> '+escapeHtml(it[1])+'</label>'; });
         h+='<div id="tgPropFlags" style="margin:10px 0;"></div>';
         h+='<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;"><button onclick="tgProposalSaveForm()" style="flex:1;min-width:120px;background:#eef3fb;color:#185FA5;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;">Save</button><button onclick="tgProposalValidateForm()" style="flex:1;min-width:120px;background:#f4f5f8;color:#5b6472;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;">Validate</button><button onclick="tgProposalSubmitForm()" style="flex:1;min-width:120px;background:#1f7a3d;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;">Submit</button></div>';
         tgModal2Body(h);
+        if(typeof tgxProposalExtrasInit==='function') tgxProposalExtrasInit(p);
     }
     function tgProposalChecklistToggle(key,val){ if(!_tg.proposalDraft) return; _tg.proposalDraft.checklist=_tg.proposalDraft.checklist||{}; _tg.proposalDraft.checklist[key]=val; }
     function tgProposalCollect(){
@@ -414,7 +419,7 @@
                 var hasRed=flags.some(function(f){ return (f.severity||f.level)==='red'; });
                 tgRenderFlags(res);
                 if(hasRed && !confirm('This proposal has red flags. Submit anyway?')) return;
-                tgRpc('app_tg_proposal_submit',{p_proposal_id:p.id}, function(){ tgModal2Close(); alert('Proposal submitted for corporate review.'); tgLoadPayTab(); });
+                if(typeof tgxProposalSubmit==='function'){ tgxProposalSubmit(p, function(){ tgModal2Close(); alert('Proposal submitted for corporate review.'); tgLoadPayTab(); }); } else { tgRpc('app_tg_proposal_submit',{p_proposal_id:p.id}, function(){ tgModal2Close(); alert('Proposal submitted for corporate review.'); tgLoadPayTab(); }); }
             });
         });
     }
@@ -437,6 +442,7 @@
             h+='</div></div>';
         }
         if(tgIsCorp() && p.status==='approved'){ h+='<button onclick="tgProposalMarkPayroll('+p.id+')" style="width:100%;margin-top:12px;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;">Mark Payroll Processed</button>'; }
+        if(typeof tgxRaiseSheetBtnHtml==='function') h+=tgxRaiseSheetBtnHtml(p.id);
         tgModal2Body(h);
     }
     function tgProposalDecide(id,decision){

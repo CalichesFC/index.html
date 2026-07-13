@@ -432,8 +432,15 @@ window.tgxAdjustOpen = function(id, curRate){
     + '<textarea id="tgxAdjReason" rows="2" style="width:100%;padding:9px;border:1px solid #d8dbe3;border-radius:8px;margin:4px 0 12px;" placeholder="Why is this being adjusted?"></textarea>'
     + '<div style="display:flex;gap:8px;"><button onclick="tgxAdjustPanel()" style="flex:1;background:#eef0f3;border:none;border-radius:9px;padding:10px;font-weight:700;cursor:pointer;">Cancel</button>'
     + '<button onclick="tgxAdjustSave('+id+')" style="flex:2;background:#7b2d8b;color:#fff;border:none;border-radius:9px;padding:10px;font-weight:800;cursor:pointer;">Save adjustment</button></div>'
-    + '<div style="font-size:11px;color:#6b7686;margin-top:8px;">Hub record only &mdash; enter the new rate in Aloha for payroll.</div></div>';
+    + '<div style="font-size:11px;color:#6b7686;margin-top:8px;">Hub record only &mdash; enter the new rate in Aloha for payroll.</div>'
+    + '<div id="tgxAdjHist" style="margin-top:12px;"></div></div>';
   tgxModalBody(h);
+  tgxRpc('app_tg_proposal_adjust_list',{p_proposal_id:id}, function(list){
+    var box=document.getElementById('tgxAdjHist'); if(!box) return;
+    if(!list||!list.length){ box.innerHTML='<div style="font-size:11px;color:#9aa0ab;">No prior adjustments.</div>'; return; }
+    box.innerHTML='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#7b2d8b;margin-bottom:2px;">Adjustment history</div>'
+      + list.map(function(x){ return '<div style="font-size:11.5px;color:#3a4352;border-top:1px solid #eef0f3;padding:6px 0;"><b style="text-transform:capitalize;">'+tgxEsc(x.action)+'</b> &middot; '+tgxDate(x.adjusted_at)+(x.new_rate!=null?(' &middot; &rarr; '+tgxMoney(x.new_rate)):'')+(x.reason?('<br><span style="color:#6b7686;">'+tgxEsc(x.reason)+'</span>'):'')+'</div>'; }).join('');
+  }, function(){});
 };
 window.tgxAdjustSave = function(id){
   var act=tgxVal('tgxAdjAction')||'amend';

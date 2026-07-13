@@ -428,6 +428,8 @@
     }
     function schedLaborTarget(){ var t=parseFloat(localStorage.getItem('laborTargetPct')); var d=(typeof cfgNum==='function'?cfgNum('targets','labor_pct',25):25); return (isNaN(t)||t<=0)?d:t; }
     function schedSetLaborTarget(v){ var t=parseFloat(v); if(!isNaN(t)&&t>0){ try{ localStorage.setItem('laborTargetPct',t); }catch(e){} renderScheduleGrid(); } }
+    // Shared with the Command Center: green ok / amber near-target / red over. near = points below target that still counts as "near".
+    function schedPctCol(pct,tgt,near){ if(pct==null) return '#5b6675'; near=near||2; if(pct>tgt) return '#c0392b'; if(pct>=tgt-near) return '#b06a00'; return '#1f7a3d'; }
     function schedSetForecast(ds, val){
         const amt = parseFloat(val); if (isNaN(amt)) return;
         schedState.forecast = schedState.forecast || {}; schedState.forecast[ds] = amt;
@@ -506,6 +508,7 @@
         emps.forEach(e=>{ const eh=empHrs[e.id]||0; const reg=Math.min(eh,OT_THRESH),ot=Math.max(0,eh-OT_THRESH); weekCost+=reg*(wageOf[e.id]||0)+ot*(wageOf[e.id]||0)*OT_MULT; });
         days.forEach(d=>{ weekHrs += dayHrs[schedFmt(d)]||0; });
         const fc = schedState.forecast||{};
+        var _tgt=schedLaborTarget(), _near=(typeof cfgNum==='function'?cfgNum('cc_config','cc_proj_near_pp',2):2);
         const mobile = window.innerWidth < 760;
         shownEmps.forEach(e=>{ days.forEach(d=>{ const ds=schedFmt(d); if((byKey[e.id+'|'+ds]||[]).length>0 && (elseMap[e.id+'|'+ds]||[]).length>0) conflicts++; }); });
 
@@ -527,7 +530,8 @@
                 html += '<div class="sp-mrow" data-empid="'+e.id+'" oncontextmenu="schedCtx(event,'+e.id+",'"+ds+"',"+(cell[0]?cell[0].id:'null')+')">'+DRAG_GRIP+avatarHtml(e)+'<div style="flex:1;min-width:0;"><div class="hbg-nm">'+escapeHtml(e.name)+'</div><div class="hbg-sub">'+tagOf(e)+(empRole[e.id]?escapeHtml(empRole[e.id]):'')+'</div></div><div style="text-align:right;max-width:48%;">'+right+'</div></div>';
             });
             const pv=(ds in fc)?fc[ds]:'';
-            html += '<div class="sp-laborbar"><div><div class="lbl">'+dayNames[di]+' labor</div><b>'+money(dayCost[ds]||0)+'</b></div><div style="text-align:center;"><div class="lbl">Predicted</div><input type="number" class="sp-pred" value="'+pv+'" placeholder="$" onchange="schedSetForecast(\''+ds+'\',this.value)"></div><div style="text-align:right;"><div class="lbl">Week</div><b>'+money(weekCost)+'</b></div></div>';
+            var _mpct=(parseFloat(pv)||0)>0?((dayCost[ds]||0)/(parseFloat(pv)||0)*100):null;
+            html += '<div class="sp-laborbar"><div><div class="lbl">'+dayNames[di]+' labor</div><b>'+money(dayCost[ds]||0)+'</b>'+(_mpct!=null?'<div style="font-size:10px;font-weight:700;color:'+schedPctCol(_mpct,_tgt,_near)+';">'+_mpct.toFixed(0)+'% labor</div>':'')+'</div><div style="text-align:center;"><div class="lbl">Predicted</div><input type="number" class="sp-pred" value="'+pv+'" placeholder="$" onchange="schedSetForecast(\''+ds+'\',this.value)"></div><div style="text-align:right;"><div class="lbl">Week</div><b>'+money(weekCost)+'</b></div></div>';
         } else {
             html += '<table class="hbg"><thead><tr><th class="hbg-e">Team member <span style="font-weight:400;color:#5b6675;font-size:10px;">(drag &#8942;&#8942; to reorder)</span></th>';
             days.forEach((d,i) => { html += '<th>'+dayNames[i]+'<br><span style="font-weight:400;color:#5b6675;">'+(d.getMonth()+1)+'/'+d.getDate()+'</span></th>'; });
@@ -559,12 +563,11 @@
             html += '</tbody><tfoot><tr><td class="hbg-e">Hours <span style="color:#185FA5;">'+weekHrs.toFixed(1)+'</span></td>';
             days.forEach(d => { const ds=schedFmt(d); const hh=dayHrs[ds]||0; const n=dayStaff[ds]?Object.keys(dayStaff[ds]).length:0; html += '<td>&#128100; '+n+'<br><span style="font-weight:400;font-size:10px;color:#7a828f;">'+hh.toFixed(1)+'h</span></td>'; });
             html += '<td></td></tr></tfoot></table>';
-            var _tgt=schedLaborTarget();
             html += '<div class="sp-laborbar wide"><div class="lbl" style="min-width:96px;">Labor / day<br><span style="font-weight:400;font-size:10px;color:#5b6675;">target <input type="number" value="'+_tgt+'" onchange="schedSetLaborTarget(this.value)" style="width:34px;padding:1px 3px;font-size:10px;">%</span></div>';
             var _weekPred=0;
-            days.forEach((d,di2)=>{ const ds=schedFmt(d); const pv=(ds in fc)?fc[ds]:''; const cst=dayCost[ds]||0; const pred=parseFloat(pv)||0; _weekPred+=pred; const pct=pred>0?(cst/pred*100):null; const ph=(pct!=null)?'<div style="font-size:10px;font-weight:700;color:'+(pct>_tgt?'#c0392b':'#1f7a3d')+';">'+pct.toFixed(0)+'% labor</div>':''; html += '<div class="lcell"><div class="lbl">'+dayNames[di2]+' &middot; '+money(cst)+'</div><input type="number" class="sp-pred" value="'+pv+'" placeholder="pred" onchange="schedSetForecast(\''+ds+'\',this.value)">'+ph+'</div>'; });
+            days.forEach((d,di2)=>{ const ds=schedFmt(d); const pv=(ds in fc)?fc[ds]:''; const cst=dayCost[ds]||0; const pred=parseFloat(pv)||0; _weekPred+=pred; const pct=pred>0?(cst/pred*100):null; const ph=(pct!=null)?'<div style="font-size:10px;font-weight:700;color:'+schedPctCol(pct,_tgt,_near)+';" title="'+((pct-_tgt)>=0?'+':'')+(pct-_tgt).toFixed(1)+' pts vs '+_tgt+'% target">'+pct.toFixed(0)+'% labor</div>':''; html += '<div class="lcell"><div class="lbl">'+dayNames[di2]+' &middot; '+money(cst)+'</div><input type="number" class="sp-pred" value="'+pv+'" placeholder="pred" onchange="schedSetForecast(\''+ds+'\',this.value)">'+ph+'</div>'; });
             var _wpct=_weekPred>0?(weekCost/_weekPred*100):null;
-            html += '<div style="text-align:right;min-width:78px;"><div class="lbl">Week</div><b>'+money(weekCost)+'</b>'+(_wpct!=null?'<div style="font-size:10px;font-weight:700;color:'+(_wpct>_tgt?'#c0392b':'#1f7a3d')+';">'+_wpct.toFixed(0)+'%</div>':'')+'</div></div>';
+            html += '<div style="text-align:right;min-width:78px;"><div class="lbl">Week</div><b>'+money(weekCost)+'</b>'+(_wpct!=null?'<div style="font-size:10px;font-weight:700;color:'+schedPctCol(_wpct,_tgt,_near)+';" title="week labor vs '+_tgt+'% target">'+_wpct.toFixed(0)+'%</div>':'')+'</div></div>';
         }
         const pb = document.getElementById('schedPublishBtn');
         if (conflicts>0) {
