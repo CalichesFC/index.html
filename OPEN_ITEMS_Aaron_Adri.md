@@ -1,40 +1,20 @@
 # Caliche's Hub — Open Items from Aaron's & Adri's Requests
-_As of 2026-07-12. Everything not listed here is built and deployed live._
+_Updated 2026-07-13. Everything not listed under "Still open" is built, deployed, and verified live._
 
-Every system Aaron and Adri requested is built, applied to the database, and pushed live:
-Team Growth & Evaluations, Daily Store Report, Shift Leader Console, Store & Site Inspection,
-Monthly Ops Meeting Hub, Training Hub, Marketing Command Center (v1 + v2), and all five of Adri's
-items (pay-raise tools, employment verification/W-2, write-up forms, party-pack and gift-card auto-tasks).
-What remains below is finishing touches + a few things that need you.
+## Still open — needs you (ops config, outside the code)
 
-## Aaron — open items
+- [ ] **Square production token + webhook signature key** — set `SQUARE_ACCESS_TOKEN` to your Production token, `SQUARE_ENV=production`, and create a production webhook subscription (events: `payment.updated`, `payment.created`, `invoice.payment_made`, `invoice.updated`) whose **Signature Key** goes in `SQUARE_WEBHOOK_SIGNATURE_KEY`. This makes catering invoices flip to **Paid** automatically. Until then the manual **Mark Paid** button works.
+- [ ] **Connect the other stores to Axial** — only Roadrunner has data today. Valley / Lenox / Alamogordo / Roswell auto-map into the scorecards, Command Center, and prime-cost auto-fill as soon as they're granted Axial data access. No code needed.
 
-### Needs you (config / ops — outside the code)
-- [ ] **Aloha: create a "Manager" job**, set each manager's **pay rate**, and have managers **clock in** under it — so manager labor flows into Labor % automatically. Until then, Labor % is hourly-crew-only.
-- [ ] **Connect the other stores to Axial** — only Roadrunner has data today. Valley / Lenox / Alamogordo / Roswell auto-map once they get Axial data access.
+## Resolved this pass (2026-07-13)
 
-### Built but not fully wired (dev follow-ups I can finish)
-- [ ] **Labor-aware scheduling chip** — the Command Center's labor-projection helper is live, but the "projected labor X% vs target" chip isn't dropped into the Schedule Builder yet.
-- [ ] **Teach Mr. Scoopy the new features** — only the Requests/Orders rail taught him so far. The other 8 new systems (Shift Console, Site Inspection, Ops Meeting, Training Hub, Write-Ups, Command Center, Pay Tools, Marketing store tools) still need Q&A added.
-- [ ] **Config-editor polish** — the new config groups (shift console, inspection, ops meeting, training, command center, marketing) are editable in Business Settings via the generic list editor; a few could use friendlier labels/drawers.
+- [x] **Manager / shift-leader hours in labor** — confirmed from the live Axial feed that your shift-leaders and store managers already clock in under the "Runner" job (a "manager" in Aloha is void/register access, not a separate job), so their hours are **already inside the Hub's total labor and Labor %**. You do NOT need a separate Manager job in Aloha. Fixed two display/calc bugs: the Command Center no longer shows a misleading "Manager 0%" split, and SPLH now divides by real paid hours (excludes the $0 shared-register terminals).
 
-### Deferred by design (waiting on real data)
-- [ ] **Team Growth hours & payroll-dollar impact** — promotion "hours" and the pay-raise dollar impact are **estimates** (manager-entered typical weekly hours) until real clock/schedule hours flow. Becomes exact automatically once hours land.
+## Done and live (build 2026.07.12.2329 and 2026.07.13)
 
-## Adri — open items
-
-### Built but not fully wired (dev follow-up I can finish)
-- [ ] **Pay-raise concern gate + raise sheet, inline** — these work today inside the standalone **Pay Tools** tile. The deeper hooks that put the concern warning right at proposal-submit and the raise-sheet button inside the Team Growth "Pay Proposals" screen aren't wired into that screen yet.
-
-### Deferred by design
-- [ ] Same hours / dollar-impact estimate note applies to Adri's pay-raise money cards.
-
-## Cross-cutting — needs you (Square, from the catering work)
-- [ ] **Square production token** — set `SQUARE_ACCESS_TOKEN` to your Production token and `SQUARE_ENV=production`.
-- [ ] **Square webhook signature key** — create a production webhook subscription (events: `payment.updated`, `payment.created`, `invoice.payment_made`, `invoice.updated`) and paste its **Signature Key** into the `SQUARE_WEBHOOK_SIGNATURE_KEY` secret. This is what flips catering invoices to **Paid** automatically. Until then, use the manual **Mark Paid** button (already live).
-
----
-### The three dev follow-ups I can knock out on your say-so
-1. Wire the labor-projection chip into the Schedule Builder.
-2. Wire the pay-raise concern gate + raise sheet into the Team Growth "Pay Proposals" screen.
-3. Teach Mr. Scoopy all the new features.
+- Aaron's four systems: Shift Leader Console, Store & Site Inspection, Monthly Ops Meeting Hub, Training Hub.
+- Adri's five: pay-raise tools (Pay Tools + concern gate + printable raise sheet + adjust-approved-raise with history), employment verification / W-2, digital write-up templates, party-pack auto-task, gift-card auto-task.
+- Super-app: Store Intelligence Command Center + Marketing v2 store tools.
+- Labor-aware scheduling: Schedule Builder shows projected labor % per day and week with green / amber / red vs target.
+- Pay-raise hooks wired into the Team Growth "Pay Proposals" screen (money cards, promo queue, concern gate, raise sheet, Promotion button).
+- Mr. Scoopy taught all 8 new systems (18 Q&A, live).

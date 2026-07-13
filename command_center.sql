@@ -103,8 +103,12 @@ begin
   -- crew vs management split (Axial-sync keys; null-safe if columns absent)
   v_mgr  := nullif(m->>'mgr_labor','')::numeric;
   v_crew := nullif(m->>'crew_labor','')::numeric;
-  if coalesce(v_mgr,0) + coalesce(v_crew,0) > 0 then
-    v_mgr_share  := round(coalesce(v_mgr,0)  / (coalesce(v_mgr,0)+coalesce(v_crew,0)) * 100, 1);
+  -- Only show a manager/crew split when there is REAL, separate manager-job labor.
+  -- At Caliche's everyone (crew, shift-leaders, store managers) clocks under one job
+  -- ("Runner"), so management labor is already inside labor_cost/labor_pct and there is
+  -- no separate figure to split out. Requiring v_mgr>0 prevents a misleading "Manager 0%".
+  if coalesce(v_mgr,0) > 0 and coalesce(v_crew,0) > 0 then
+    v_mgr_share  := round(v_mgr / (v_mgr + v_crew) * 100, 1);
     v_crew_share := round(100 - v_mgr_share, 1);
   end if;
 
