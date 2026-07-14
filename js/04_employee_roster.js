@@ -115,11 +115,14 @@
         const box=document.getElementById('rosterList');
         box.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading&hellip;</p>';
         withPin(function(pin){
+            var hoursEnd=new Date(), hoursStart=new Date(); hoursStart.setDate(hoursStart.getDate()-6);
+            var hoursEndStr=hoursEnd.toISOString().slice(0,10), hoursStartStr=hoursStart.toISOString().slice(0,10);
             Promise.all([
                 supabaseClient.rpc('app_roster_list',{p_username:currentUser.username,p_password:pin}),
                 supabaseClient.rpc('app_pip_active',{p_username:currentUser.username,p_password:pin}),
                 supabaseClient.rpc('app_upcoming_celebrations',{p_username:currentUser.username,p_password:pin}),
-                supabaseClient.rpc('app_emp_phones',{p_username:currentUser.username,p_password:pin})
+                supabaseClient.rpc('app_emp_phones',{p_username:currentUser.username,p_password:pin}),
+                supabaseClient.rpc('app_employee_hours_for_roster',{p_username:currentUser.username,p_password:pin,p_start_date:hoursStartStr,p_end_date:hoursEndStr})
             ]).then(function(res){
                 const error=res[0].error;
                 if(error){ if(error.code==='42501') sessionPin=null; box.innerHTML='<p style="color:red;text-align:center;padding:20px;">Error: '+error.message+'</p>'; return; }
@@ -132,6 +135,9 @@
                 var celeb=(res[2] && res[2].data) ? res[2].data : [];
                 if(celeb && celeb[0] && celeb[0].items) celeb=celeb[0].items;
                 (celeb||[]).forEach(function(c){ var eid=c.employee_id||c.id; if(eid!=null && !celebRosterMap[eid]) celebRosterMap[eid]=(c.kind||'').toLowerCase(); });
+                rosterState.hours={};
+                var hrs=(res[4]&&res[4].data)?res[4].data:[];
+                (hrs||[]).forEach(function(h){ rosterState.hours[h.employee_id]=h.hours; });
                 renderRosterTable();
             }).catch(()=>{ box.innerHTML='<p style="color:red;text-align:center;">Connection error.</p>'; });
         }, function(){ box.innerHTML='<p style="text-align:center;padding:20px;color:#6b7686;">PIN required.</p>'; });
@@ -524,7 +530,7 @@
         const total=rosterState.list.length, linked=rosterState.list.filter(e=>e.is_linked).length;
         document.getElementById('rosterSummary').innerText=total+' employees · '+linked+' linked · '+(total-linked)+' unlinked';
         if(!rows.length){ box.innerHTML='<p style="text-align:center;padding:24px;color:#6b7686;">No employees match.</p>'; return; }
-        let html='<table class="roster-tbl"><thead><tr><th>Name</th><th>Role</th><th>Home store</th><th>Login</th><th></th></tr></thead><tbody>';
+        let html='<table class="roster-tbl"><thead><tr><th>Name</th><th>Role</th><th>Home store</th><th>Hours (7d)</th><th>Login</th><th></th></tr></thead><tbody>';
         rows.forEach(e=>{
             const dot = e.position_color ? '<span class="role-dot" style="background:'+rosterEsc(e.position_color)+'"></span>' : '';
             const role = e.position_name ? dot+rosterEsc(e.position_name) : '<span style="color:#aab2bd">&mdash;</span>';
@@ -542,7 +548,9 @@
                 ? '<button class="roster-act" style="color:#c0264b;" onclick="rosterSetActive('+e.id+',false,&quot;'+rosterEsc(nmJs)+'&quot;)">Terminate</button>'
                 : '<button class="roster-act" style="color:#1f7a3d;" onclick="rosterSetActive('+e.id+',true,&quot;'+rosterEsc(nmJs)+'&quot;)">Reactivate</button>';
             const celIc = celebRosterMap[e.id]==='birthday' ? ' <span title="Birthday coming up">🎂</span>' : (celebRosterMap[e.id] ? ' <span title="Work anniversary coming up">🎉</span>' : '');
-            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+celIc+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;">'+((rosterState.phones&&rosterState.phones[e.id])?('<a class="roster-act" style="color:#1f7a3d;" href="tel:'+String(rosterState.phones[e.id]).replace(/[^0-9+]/g,'')+'">&#128222; '+rosterEsc(String(rosterState.phones[e.id]))+'</a>'):'')+'<button class="roster-act" onclick="openEmployeeProfile('+e.id+',&quot;'+rosterEsc(nmJs)+'&quot;)">&#128100; Profile</button><button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button>'+'<button class="roster-act" onclick="openEmpCerts('+e.id+',&quot;'+rosterEsc(nmJs)+'&quot;)">&#128203; Certs</button>'+termBtn+'</td></tr>';
+            const hoursVal = (rosterState.hours && rosterState.hours[e.id]!=null) ? rosterState.hours[e.id] : null;
+            const hours = hoursVal!=null ? (Number(hoursVal).toFixed(1)+' hrs') : '<span style="color:#aab2bd" title="No Axial punches matched yet">&mdash;</span>';
+            html+='<tr class="'+(e.active?'':'roster-row-inactive')+'"><td>'+rosterEsc(e.name)+celIc+(e.active?'':' <small style="color:#c0264b">(inactive)</small>')+'</td><td>'+role+'</td><td>'+home+'</td><td>'+hours+'</td><td>'+login+'</td><td style="text-align:right;white-space:nowrap;">'+((rosterState.phones&&rosterState.phones[e.id])?('<a class="roster-act" style="color:#1f7a3d;" href="tel:'+String(rosterState.phones[e.id]).replace(/[^0-9+]/g,'')+'">&#128222; '+rosterEsc(String(rosterState.phones[e.id]))+'</a>'):'')+'<button class="roster-act" onclick="openEmployeeProfile('+e.id+',&quot;'+rosterEsc(nmJs)+'&quot;)">&#128100; Profile</button><button class="roster-act" onclick="openRosterModal('+e.id+')">Edit</button>'+'<button class="roster-act" onclick="openEmpCerts('+e.id+',&quot;'+rosterEsc(nmJs)+'&quot;)">&#128203; Certs</button>'+termBtn+'</td></tr>';
         });
         html+='</tbody></table>';
         box.innerHTML=html;

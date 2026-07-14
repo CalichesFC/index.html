@@ -1,7 +1,7 @@
 {
   "_comment": "Known-good Supabase RPC names the Hub is allowed to call. The pre-deploy check fails if index.html calls an rpc() name NOT in this list (a typo or a function you forgot to create in the DB). When you legitimately add a NEW backend function, add its name here in the same change.",
-  "generated": "2026-07-13 (added 22 RPCs for Aaron's-spec finish pass: TG corp dashboard/reports/spine/automation, OPM autofill+audit, inspection reminders, training Ready-to-Start/Quick Scoop/SCORM — SQL in team_growth_finish.sql, dsr_opm_finish.sql, site_inspection_finish.sql, training_finish.sql)",
-  "count": 446,
+  "generated": "2026-07-14 (added 2 RPCs for Axial-to-Hub per-employee hours sync: app_employee_hours_sync, app_employee_hours_for_roster — SQL in employee_hours_axial_sync.sql)",
+  "count": 448,
   "rpcs": [
     "app_achievement_add",
     "app_admin_activity_log",
@@ -98,6 +98,8 @@
     "app_emp_set_phone",
     "app_emp_set_wage",
     "app_emp_wage",
+    "app_employee_hours_for_roster",
+    "app_employee_hours_sync",
     "app_equipment_delete",
     "app_equipment_get",
     "app_equipment_list",
