@@ -29,7 +29,9 @@ security definer
 set search_path = public, extensions
 as $fn$
 declare
-  v_uid uuid; v_role text; v_name text;
+  -- v_uid is bigint (matches _pp_auth's real uid type) -- was uuid, which made
+  -- every call fail on the auth line before it ever reached the update below.
+  v_uid bigint; v_role text; v_name text;
   v_row public.quotes;
 begin
   select uid, urole, uname into v_uid, v_role, v_name
@@ -59,8 +61,4 @@ begin
 
   return jsonb_build_object(
     'id', v_row.id, 'invoice_status', v_row.invoice_status,
-    'paid_at', v_row.paid_at, 'amount_paid', v_row.amount_paid,
-    'payment_method', v_row.payment_method, 'payment_reference', v_row.payment_reference,
-    'invoice_number', v_row.invoice_number
-  );
-end $fn$;
+    'paid_at', v_row.paid_at, 'amount_paid', v_row.

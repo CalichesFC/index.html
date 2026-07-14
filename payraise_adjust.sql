@@ -15,12 +15,18 @@ create table if not exists public.tg_pay_proposal_adjustments (
   old_effective_date  date,
   new_effective_date  date,
   reason              text,
-  adjusted_by         uuid,
+  adjusted_by         bigint,
   adjusted_by_name    text,
   adjusted_at         timestamptz not null default now()
 );
 alter table public.tg_pay_proposal_adjustments enable row level security;
 create index if not exists tg_pp_adj_prop_idx on public.tg_pay_proposal_adjustments(proposal_id);
+-- NOTE (2026-07-14): adjusted_by was originally uuid, matching a v_uid uuid bug in
+-- both functions below -- _pp_auth's uid is actually bigint, so app_tg_proposal_adjust
+-- failed on its very first line every time it was called and never inserted a row
+-- here. Column changed to bigint (table had zero rows, so this is a no-op cast) and
+-- both functions below fixed to declare v_uid bigint.
+alter table public.tg_pay_proposal_adjustments alter column adjusted_by type bigint using adjusted_by::text::bigint;
 
 -- Adjust an approved raise. Manager/corporate only. Only works once the proposal
 -- has been approved (corporate_decision approved, or payroll processed, or status
@@ -36,7 +42,7 @@ create or replace function public.app_tg_proposal_adjust(
 language plpgsql security definer set search_path=public,extensions
 as $fn$
 declare
-  v_uid uuid; v_role text; v_name text;
+  v_uid bigint; v_role text; v_name text;
   v_p public.tg_pay_proposals;
   v_approved boolean;
   v_act text := lower(coalesce(p_action,'amend'));
@@ -98,16 +104,4 @@ end $fn$;
 
 -- History for a proposal (newest first).
 create or replace function public.app_tg_proposal_adjust_list(
-  p_username text, p_password text, p_proposal_id bigint
-) returns jsonb
-language plpgsql security definer set search_path=public,extensions
-as $fn$
-declare v_uid uuid; v_role text; v_name text;
-begin
-  select uid,urole,uname into v_uid,v_role,v_name from public._pp_auth(p_username,p_password);
-  if v_uid is null then raise exception 'forbidden'; end if;
-  return coalesce((
-    select jsonb_agg(to_jsonb(a) order by a.adjusted_at desc)
-    from public.tg_pay_proposal_adjustments a where a.proposal_id = p_proposal_id
-  ), '[]'::jsonb);
-end $fn$;
+  p_username text, p_password text

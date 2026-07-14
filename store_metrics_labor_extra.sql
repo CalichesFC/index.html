@@ -12,18 +12,15 @@ create or replace function public.app_metrics_labor_extra(
 ) returns jsonb
 language plpgsql security definer set search_path=public,extensions
 as $fn$
-declare v_uid uuid; v_role text; v_name text;
+declare v_uid bigint; v_role text; v_name text;
+-- NOTE (2026-07-14): v_uid was originally declared uuid, but _pp_auth's uid column
+-- is bigint -- every call failed on the very first line ("invalid input syntax for
+-- type uuid"), so mgr_labor/crew_labor/splh were never actually written by the
+-- automated Axial sync. Fixed to bigint to match _pp_auth's real return type.
 begin
   select uid,urole,uname into v_uid,v_role,v_name from public._pp_auth(p_username,p_password);
   if v_uid is null then raise exception 'forbidden'; end if;
   if not (v_role ilike '%manager%' or v_role ilike '%admin%' or v_role ilike '%lead%'
           or v_role ilike '%owner%' or v_role ilike '%VP%' or v_role ilike '%office%') then
     raise exception 'forbidden'; end if;
-  update public.store_metrics
-     set mgr_labor=coalesce(p_mgr_labor,mgr_labor),
-         crew_labor=coalesce(p_crew_labor,crew_labor),
-         splh=coalesce(p_splh,splh),
-         updated_at=now()
-   where location=p_location and metric_date=p_date;
-  return jsonb_build_object('ok',true,'location',p_location,'date',p_date);
-end $fn$;
+  update p
