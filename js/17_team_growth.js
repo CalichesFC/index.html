@@ -5,7 +5,7 @@
     // Raises are never automatic — every pay proposal requires a human
     // corporate decision (app_tg_proposal_decide). See specs/PLAN_evaluations_build.md.
     // ============================================================
-    var _tg = { tab:'my', store:'', myData:null, mgrData:null, statusLabels:[], evalList:[], evalTemplates:[], proposalList:[], payRanges:[], evalDraft:null, proposalDraft:null, rosterCache:null };
+    var _tg = { tab:'my', store:'', myData:null, mgrData:null, statusLabels:[], evalList:[], evalTemplates:[], proposalList:[], payRanges:[], evalDraft:null, proposalDraft:null, rosterCache:null, corpData:null, corpReport:null };
 
     var TG_EVAL_TYPES = [
         ['30-day','30-Day Review'],
@@ -66,7 +66,7 @@
     function tgTabsAllowed(){
         var t=[{id:'my',label:'My Growth Path'}];
         if(tgIsMgr()) t.push({id:'mgr',label:'My Team'},{id:'eval',label:'Evaluations'},{id:'pay',label:'Pay Proposals'});
-        if(tgIsCorp()) t.push({id:'admin',label:'Pay Rules / Admin'});
+        if(tgIsCorp()) t.push({id:'corp',label:'Company'},{id:'admin',label:'Pay Rules / Admin'});
         return t;
     }
     function tgTabBar(){
@@ -93,6 +93,7 @@
         if(_tg.tab==='mgr') tgLoadMgrDash();
         else if(_tg.tab==='eval') tgLoadEvalTab();
         else if(_tg.tab==='pay') tgLoadPayTab();
+        else if(_tg.tab==='corp') tgLoadCorpTab();
         else if(_tg.tab==='admin') tgLoadAdminTab();
         else tgLoadMyGrowth();
     }
@@ -210,19 +211,44 @@
             if(typeof tgxPromoRecommend==='function') h+='<button onclick="tgxPromoRecommend('+e.employee_id+')" style="background:#f3e8f7;color:#7b2d8b;border:none;border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Promotion</button>';
             if(typeof openShoutout==='function') h+='<button onclick="tgAddRecognition('+e.employee_id+')" style="background:#fff4e0;color:#9a5b00;border:none;border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Add Recognition</button>';
             h+='<button onclick="tgViewProfile('+e.employee_id+')" style="background:#f4f5f8;color:#5b6472;border:none;border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">View Profile</button>';
+            if(tgCanPip()) h+='<button onclick="tgPipStart('+e.employee_id+')" style="background:#fdeaea;color:#b4264b;border:none;border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">PIP</button>';
             h+='</div></div>';
         });
         return h;
     }
     function tgAddRecognition(empId){ tgClose(); if(typeof openShoutout==='function') openShoutout(); }
-    function tgViewProfile(empId){ if(typeof openEmployeeProfile==='function'){ tgClose(); openEmployeeProfile(empId); return; } tgGrowthProfileView(empId); }
+    // Employee detail inside Team Growth: Development card (app_tg_spine) +
+    // Active-PIP chip / PIP action (lazy app_pip_active — one call per detail
+    // view, never per row) + eval/proposal history. Full roster profile is one
+    // tap away via "Open full profile".
+    function tgViewProfile(empId){ tgGrowthProfileView(empId); }
     function tgGrowthProfileView(empId){
         tgRpc('app_tg_growth_profile',{p_employee_id:empId}, function(d){
-            var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><b style="flex:1;font-size:16px;color:#1f2a44;">'+escapeHtml((d&&d.name)||('Employee #'+empId))+'</b><button onclick="tgModal2Close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7686;">&times;</button></div>';
-            h+='<pre style="white-space:pre-wrap;word-break:break-word;font-size:12px;color:#33303a;background:#faf9fc;border:1px solid #f0eef4;border-radius:8px;padding:10px;">'+escapeHtml(JSON.stringify(d,null,2))+'</pre>';
+            var emp=(d&&d.employee)||{};
+            var nm=emp.name||(d&&d.name)||('Employee #'+empId);
+            var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><b style="flex:1;font-size:16px;color:#1f2a44;">'+escapeHtml(nm)+'</b><span id="tgPipChip"></span><button onclick="tgModal2Close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7686;">&times;</button></div>';
+            h+='<div style="font-size:12px;color:#6b7686;margin-bottom:10px;">'+escapeHtml(emp.location||'')+(emp.wage!=null?(' &middot; '+tgMoneyC(emp.wage)+'/hr'):'')+'</div>';
+            h+='<div id="tgPipRow"></div>';
+            h+='<div id="tgSpineCard">'+tgLoadingHtml('Loading development…')+'</div>';
+            var evs=(d&&d.evaluations)||[];
+            h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:12px;margin-bottom:10px;">';
+            h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:6px;">Evaluations</div>';
+            if(!evs.length) h+='<div style="font-size:12px;color:#9aa2ae;">No evaluations yet.</div>';
+            else evs.slice(0,6).forEach(function(e){ h+='<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f3f4f8;"><span style="flex:1;font-size:12.5px;color:#26242b;">'+escapeHtml(e.eval_type||'')+' &middot; '+escapeHtml(String(e.eval_date||'').slice(0,10))+'</span>'+(e.overall_score!=null?('<b style="font-size:12.5px;color:#185FA5;">'+escapeHtml(String(e.overall_score))+'</b>'):'')+tgEvalStatusBadge(e.status)+'</div>'; });
+            h+='</div>';
+            var prs=(d&&d.proposals)||[];
+            h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:12px;margin-bottom:10px;">';
+            h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:6px;">Pay proposals</div>';
+            if(!prs.length) h+='<div style="font-size:12px;color:#9aa2ae;">No pay proposals yet.</div>';
+            else prs.slice(0,6).forEach(function(p){ h+='<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f3f4f8;"><span style="flex:1;font-size:12.5px;color:#26242b;">'+(p.proposed_rate!=null?(tgMoneyC(p.proposed_rate)+'/hr'):'&mdash;')+(p.proposed_role?(' &middot; '+escapeHtml(p.proposed_role)):'')+'</span>'+tgProposalStatusBadge(p.status)+'</div>'; });
+            h+='</div>';
+            if(typeof openEmployeeProfile==='function') h+='<button onclick="tgOpenFullProfile('+empId+')" style="width:100%;background:#f4f5f8;color:#5b6472;border:none;border-radius:10px;padding:10px;font-weight:700;cursor:pointer;">Open full profile</button>';
             tgModal2Body(h);
+            tgSpineLoad(empId);
+            tgPipLoad(empId);
         });
     }
+    function tgOpenFullProfile(empId){ tgModal2Close(); tgClose(); if(typeof openEmployeeProfile==='function') openEmployeeProfile(empId); }
 
     // ============================================================
     // EVALUATIONS (managers start/submit; self ack) —
@@ -528,3 +554,211 @@
 
     // ===== export =====
     window.openTeamGrowth = openTeamGrowth;
+
+    // ============================================================
+    // COMPANY TAB (corporate/admin) — app_tg_corp_dashboard + four printable
+    // reports (app_tg_report_evals/certs/growth/recognition), plus the
+    // development spine (app_tg_spine) and PIP surfacing (openPip/app_pip_active)
+    // used by the employee detail above. Backend: team_growth_finish.sql.
+    // ============================================================
+    function tgMoneyC(n){ if(typeof tgxMoney==='function') return tgxMoney(n); if(n==null||isNaN(n)) return '—'; var v=Number(n); return (v<0?'-$':'$')+Math.abs(v).toFixed(2); }
+    function tgCanPip(){ return (typeof openPip==='function') && (typeof isDiscAdmin!=='function' || isDiscAdmin()); }
+    function tgTeamRowById(empId){
+        var d=_tg.mgrData||{}; var emps=d.employees||d.team||[];
+        for(var i=0;i<emps.length;i++){ if(emps[i].employee_id===empId) return emps[i]; }
+        return null;
+    }
+    function tgPipStart(empId){
+        if(typeof openPip!=='function'){ alert('The PIP module is not available.'); return; }
+        var row=tgTeamRowById(empId)||{};
+        tgModal2Close(); tgClose();
+        openPip(empId, row.name||'', row.location||'', row.role||'');
+    }
+    function tgPipLoad(empId){
+        // lazy Active-PIP lookup: ONE app_pip_active call per detail view (same
+        // call shape as js/04 loadRoster); quietly skips if the caller lacks access
+        tgRpc('app_pip_active',{}, function(list){
+            var pip=null; (list||[]).forEach(function(p){ if(p.employee_id===empId) pip=p; });
+            var chip=document.getElementById('tgPipChip');
+            if(chip&&pip) chip.innerHTML='<span style="background:#fdeaea;color:#b4264b;font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;">Active PIP</span>';
+            var row=document.getElementById('tgPipRow'); if(!row) return;
+            if(pip){
+                row.innerHTML='<div style="background:#fff4f6;border:1px solid #f3c9d6;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-bottom:10px;"><b style="color:#b4264b;">On a Performance Improvement Plan</b><div style="color:#6b7686;margin-top:3px;">'+escapeHtml(String(pip.start||''))+' &rarr; '+escapeHtml(String(pip['end']||''))+(pip.reason?('<br>'+escapeHtml(String(pip.reason))):'')+'</div></div>';
+            } else if(tgCanPip()){
+                row.innerHTML='<button onclick="tgPipStart('+empId+')" style="width:100%;background:#fff;border:1px solid #b4264b;color:#b4264b;border-radius:10px;padding:10px;font-weight:800;cursor:pointer;margin-bottom:10px;">Start corrective action / PIP</button>';
+            }
+        }, function(){ /* restricted (disc admins only) — leave the detail clean */ });
+    }
+
+    // ===== Development card (app_tg_spine) =====
+    function tgSpineLoad(empId){
+        tgRpc('app_tg_spine',{p_employee_id:empId}, function(s){
+            var box=document.getElementById('tgSpineCard'); if(!box) return;
+            box.innerHTML=tgSpineCardHtml(s||{});
+        }, function(){ var b=document.getElementById('tgSpineCard'); if(b) b.innerHTML='<div style="font-size:12px;color:#9aa2ae;margin-bottom:10px;">Development data unavailable (apply team_growth_finish.sql).</div>'; });
+    }
+    function tgSpineCardHtml(s){
+        var h='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:12px;margin-bottom:10px;">';
+        h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:6px;">Development</div>';
+        h+='<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:12.5px;color:#5b6675;">Passport level</span><b style="font-size:13.5px;color:#185FA5;">'+escapeHtml(s.passport_level||'—')+'</b></div>';
+        if(s.passport_level&&typeof passportMeter==='function') h+='<div style="margin-top:5px;">'+passportMeter(s.passport_level)+'</div>';
+        if(s.stations_total!=null) h+='<div style="font-size:11.5px;color:#8a93a3;margin-top:4px;">'+(s.stations_qualified||0)+'/'+s.stations_total+' stations at Qualified or above</div>';
+        var lps=s.lp_progress||[];
+        h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin:10px 0 4px;">Learning paths</div>';
+        if(!lps.length) h+='<div style="font-size:12px;color:#9aa2ae;">No learning paths assigned.</div>';
+        else lps.forEach(function(lp){
+            var pct=Math.max(0,Math.min(100,Number(lp.pct)||0));
+            h+='<div style="margin-bottom:6px;"><div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#33303a;"><span>'+escapeHtml(lp.path||'')+(lp.status==='completed'?' &#10003;':'')+'</span><b>'+pct+'%</b></div>';
+            h+='<div style="height:6px;border-radius:99px;background:#edf0f4;margin-top:3px;"><div style="height:6px;border-radius:99px;width:'+pct+'%;background:'+(pct>=100?'#1f7a3d':'#185FA5')+';"></div></div></div>';
+        });
+        var cls=s.clearances||[];
+        h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin:10px 0 4px;">Cleared stations</div>';
+        if(!cls.length) h+='<div style="font-size:12px;color:#9aa2ae;">No station clearances yet.</div>';
+        else h+='<div style="display:flex;gap:5px;flex-wrap:wrap;">'+cls.map(function(c){ return '<span style="background:#e8f5ec;color:#1b7a3d;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;">'+escapeHtml(c)+'</span>'; }).join('')+'</div>';
+        h+='<div style="font-size:10.5px;color:#9aa2ae;margin-top:8px;">Real eligibility inputs — reviewed alongside evaluations when judging raises and promotions.</div>';
+        h+='</div>';
+        return h;
+    }
+
+    // ===== Company tab =====
+    function tgLoadCorpTab(){
+        if(!tgIsCorp()){ tgBodySet(tgErrHtml('Corporate / admin only.')); return; }
+        tgBodySet(tgLoadingHtml('Loading company dashboard…'));
+        tgRpc('app_tg_corp_dashboard',{}, function(d){ _tg.corpData=d||{}; tgBodySet(tgCorpTabHtml()); }, function(err){ tgBodySet(tgErrHtml((err&&err.message)||'Could not load (apply team_growth_finish.sql).')); });
+    }
+    function tgCorpTabHtml(){
+        var d=_tg.corpData||{}; var c=d.company||{};
+        var h='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:8px;">Company Overview</div>';
+        h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">';
+        h+=tgSummaryCard(c.compliance_pct!=null?(c.compliance_pct+'%'):null,'Eval compliance','#185FA5');
+        h+=tgSummaryCard(c.evals_overdue,'Reviews overdue','#c0264b');
+        h+=tgSummaryCard(c.pending_proposals,'Pending proposals','#9a5b00');
+        h+=tgSummaryCard(tgMoneyC(c.pending_weekly_exposure),'Est. weekly exposure','#a85217');
+        h+='</div>';
+        h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px;">';
+        h+=tgSummaryCard(c.promotion_queue,'Promotion queue','#7b2d8b');
+        h+=tgSummaryCard(c.certs_expiring,'Certs expiring '+(c.cert_expiring_days||30)+'d','#9a5b00');
+        h+=tgSummaryCard(c.recognition_30d!=null?c.recognition_30d:'—','Recognition 30d','#1f7a3d');
+        h+=tgSummaryCard(c.open_concerns,'Open concerns','#c0264b');
+        h+='</div>';
+        h+='<div style="font-size:10.5px;color:#8a8f99;margin-bottom:14px;">&#9432; Dollar figures are ESTIMATES (delta rate &times; typical weekly hours, default '+escapeHtml(String(c.default_weekly_hours!=null?c.default_weekly_hours:25))+' hrs) &mdash; '+tgMoneyC(c.pending_monthly_exposure)+'/mo est. pending.'+(d.recognition_available===false?' Recognition feed is not readable on this database.':'')+'</div>';
+        h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:8px;">Printable Reports</div>';
+        h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">';
+        [['evals','Evaluation Compliance'],['certs','Training &amp; Certifications'],['growth','Employee Growth 90d'],['recognition','Recognition Summary']].forEach(function(rp){
+            h+='<button onclick="tgCorpReport(&quot;'+rp[0]+'&quot;)" style="flex:1;min-width:150px;background:#eef3fb;color:#185FA5;border:1px solid #cfe0f5;border-radius:10px;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;">&#128424; '+rp[1]+'</button>';
+        });
+        h+='</div>';
+        var stores=d.stores||[];
+        h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:8px;">Per-Store</div>';
+        if(!stores.length) return h+tgEmptyCard('No store data yet.','Rows appear once employees and evaluations exist.');
+        h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:6px;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:11.5px;min-width:640px;">';
+        h+='<tr style="color:#6b7686;text-align:left;"><th style="padding:6px;">Store</th><th style="padding:6px;">Team</th><th style="padding:6px;">Compliance</th><th style="padding:6px;">Overdue</th><th style="padding:6px;">Pending $/wk</th><th style="padding:6px;">Promo</th><th style="padding:6px;">Certs exp.</th><th style="padding:6px;">Recog 30d</th><th style="padding:6px;">Concerns</th></tr>';
+        stores.forEach(function(s){
+            var comp=(s.compliance_pct!=null)?Number(s.compliance_pct):null;
+            var compCol=comp==null?'#6b7686':(comp>=90?'#1f7a3d':(comp>=70?'#9a5b00':'#c0264b'));
+            h+='<tr style="border-top:1px solid #ececf2;">';
+            h+='<td style="padding:6px;font-weight:700;color:#26242b;">'+escapeHtml(s.location||'(unassigned)')+'</td>';
+            h+='<td style="padding:6px;">'+(s.employees!=null?s.employees:'—')+'</td>';
+            h+='<td style="padding:6px;font-weight:800;color:'+compCol+';">'+(comp!=null?(comp+'%'):'—')+'</td>';
+            h+='<td style="padding:6px;">'+(s.evals_overdue!=null?s.evals_overdue:'—')+'</td>';
+            h+='<td style="padding:6px;">'+(s.pending_proposals!=null?(s.pending_proposals+' / '+tgMoneyC(s.pending_weekly_exposure||0)):'—')+'</td>';
+            h+='<td style="padding:6px;">'+(s.promotion_queue!=null?s.promotion_queue:0)+'</td>';
+            h+='<td style="padding:6px;">'+(s.certs_expiring!=null?s.certs_expiring:0)+'</td>';
+            h+='<td style="padding:6px;">'+(s.recognition_30d!=null?s.recognition_30d:'—')+'</td>';
+            h+='<td style="padding:6px;font-weight:700;color:'+((s.open_concerns||0)>0?'#c0264b':'#26242b')+';">'+(s.open_concerns!=null?s.open_concerns:'—')+'</td>';
+            h+='</tr>';
+        });
+        h+='</table></div>';
+        return h;
+    }
+
+    // ===== four printable report views (print pattern mirrors tgxPrintSheet, js/25) =====
+    var TG_CORP_REPORTS={ evals:'Evaluation Compliance', certs:'Training & Certification Status', growth:'Employee Growth — Last 90 Days', recognition:'Recognition Summary' };
+    function tgCorpReport(kind){
+        var title=TG_CORP_REPORTS[kind]||'Report';
+        tgModal2Body('<div style="text-align:center;color:#6b7686;padding:30px;">Loading '+escapeHtml(title)+'&hellip;</div>');
+        tgRpc('app_tg_report_'+kind,{p_location:''}, function(rows){
+            _tg.corpReport={kind:kind,data:rows};
+            var inner='';
+            if(kind==='evals') inner=tgCorpReportEvalsHtml(rows||[]);
+            else if(kind==='certs') inner=tgCorpReportCertsHtml(rows||{});
+            else if(kind==='growth') inner=tgCorpReportGrowthHtml(rows||[]);
+            else inner=tgCorpReportRecogHtml(rows||{});
+            var h='<div id="tgCorpReport" style="font-family:Georgia,serif;color:#222;">';
+            h+='<div style="text-align:center;border-bottom:2px solid #185FA5;padding-bottom:8px;margin-bottom:10px;">';
+            h+='<div style="font-size:19px;font-weight:800;color:#185FA5;">Caliche&rsquo;s Frozen Custard &mdash; '+escapeHtml(title)+'</div>';
+            h+='<div style="font-size:12px;color:#666;">Generated '+new Date().toLocaleDateString()+' &bull; all stores</div></div>';
+            h+=inner+'</div>';
+            h+='<div style="display:flex;gap:8px;margin-top:12px;"><button onclick="tgModal2Close()" style="flex:1;background:#eef0f3;border:none;border-radius:9px;padding:10px;font-weight:700;cursor:pointer;">Close</button><button onclick="tgCorpPrintReport(&quot;'+tgAttrEsc(title)+'&quot;)" style="flex:2;background:#185FA5;color:#fff;border:none;border-radius:9px;padding:10px;font-weight:800;cursor:pointer;">Print / Save PDF</button></div>';
+            tgModal2Body(h);
+        }, function(err){ tgModal2Body('<div style="color:#c0264b;padding:20px;">'+escapeHtml((err&&err.message)||'Could not load report.')+'</div><button onclick="tgModal2Close()" style="width:100%;background:#eef0f3;border:none;border-radius:9px;padding:10px;font-weight:700;cursor:pointer;">Close</button>'); });
+    }
+    function tgCorpPrintReport(title){
+        var c=document.getElementById('tgCorpReport'); if(!c) return;
+        var w=window.open('','_blank'); if(!w) return;
+        w.document.write('<html><head><title>'+title+'</title></head><body style="font-family:Georgia,serif;padding:24px;max-width:840px;margin:0 auto;">'+c.innerHTML+'</body></html>');
+        w.document.close(); w.print();
+    }
+    function tgCorpTable(headers,rowsHtml){
+        return '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">'+
+            '<tr style="text-align:left;color:#555;">'+headers.map(function(x){return '<th style="padding:5px 6px;border-bottom:2px solid #ccc;">'+x+'</th>';}).join('')+'</tr>'+rowsHtml+'</table></div>';
+    }
+    function tgCorpTd(v){ return '<td style="padding:5px 6px;border-bottom:1px solid #eee;">'+v+'</td>'; }
+    function tgCorpReportEvalsHtml(rows){
+        if(!rows.length) return '<div style="color:#666;padding:14px;">No employees found.</div>';
+        var body=rows.map(function(r){
+            var col=r.review_status==='Overdue'?'#c0264b':(r.review_status==='Due soon'?'#9a5b00':(r.review_status==='Never evaluated'?'#7b2d8b':'#1f7a3d'));
+            return '<tr>'+tgCorpTd(escapeHtml(r.name||('#'+r.employee_id)))+tgCorpTd(escapeHtml(r.location||''))+
+                tgCorpTd(r.last_eval_date?(escapeHtml(String(r.last_eval_date).slice(0,10))+' ('+escapeHtml(r.last_eval_type||'')+')'):'&mdash;')+
+                tgCorpTd(r.overall_score!=null?escapeHtml(String(r.overall_score)):'&mdash;')+
+                tgCorpTd(r.next_review_date?escapeHtml(String(r.next_review_date).slice(0,10)):'&mdash;')+
+                '<td style="padding:5px 6px;border-bottom:1px solid #eee;font-weight:700;color:'+col+';">'+escapeHtml(r.review_status||'')+'</td></tr>';
+        }).join('');
+        return tgCorpTable(['Employee','Store','Last evaluation','Score','Next review','Status'],body);
+    }
+    function tgCorpReportCertsHtml(d){
+        var certs=(d&&d.certs)||[]; var tr=(d&&d.training)||[];
+        var h='<div style="font-size:12px;font-weight:800;color:#444;text-transform:uppercase;margin:4px 0 6px;">Certifications</div>';
+        if(!certs.length) h+='<div style="color:#666;padding:4px 0 12px;">No certifications on file.</div>';
+        else h+=tgCorpTable(['Employee','Store','Certification','Issued','Expires','Status'], certs.map(function(c){
+            var col=c.status==='Expired'?'#c0264b':(c.status==='Expiring soon'?'#9a5b00':'#1f7a3d');
+            return '<tr>'+tgCorpTd(escapeHtml(c.name||('#'+c.employee_id)))+tgCorpTd(escapeHtml(c.location||''))+
+                tgCorpTd(escapeHtml(c.cert_type||''))+tgCorpTd(c.issued?escapeHtml(String(c.issued).slice(0,10)):'&mdash;')+
+                tgCorpTd(c.expires?escapeHtml(String(c.expires).slice(0,10)):'&mdash;')+
+                '<td style="padding:5px 6px;border-bottom:1px solid #eee;font-weight:700;color:'+col+';">'+escapeHtml(c.status||'')+'</td></tr>';
+        }).join(''));
+        h+='<div style="font-size:12px;font-weight:800;color:#444;text-transform:uppercase;margin:14px 0 6px;">Training paths</div>';
+        if(!tr.length) h+='<div style="color:#666;padding:4px 0;">No training-path enrollments.</div>';
+        else h+=tgCorpTable(['Employee','Store','Path','Status','Progress','Due'], tr.map(function(t){
+            var pct=Math.max(0,Math.min(100,Number(t.pct)||0));
+            return '<tr>'+tgCorpTd(escapeHtml(t.name||('#'+t.employee_id)))+tgCorpTd(escapeHtml(t.location||''))+
+                tgCorpTd(escapeHtml(t.path||''))+tgCorpTd(escapeHtml(t.status||''))+
+                tgCorpTd('<b>'+pct+'%</b>')+tgCorpTd(t.due_date?escapeHtml(String(t.due_date).slice(0,10)):'&mdash;')+'</tr>';
+        }).join(''));
+        return h;
+    }
+    function tgCorpReportGrowthHtml(rows){
+        if(!rows.length) return '<div style="color:#666;padding:14px;">No growth events in the last 90 days.</div>';
+        var KIND={passport_level:'Passport level',certification:'Certification',evaluation:'Evaluation',promotion:'Promotion'};
+        var body=rows.map(function(r){
+            return '<tr>'+tgCorpTd(escapeHtml(String(r.at||'').slice(0,10)))+tgCorpTd(escapeHtml(KIND[r.kind]||r.kind||''))+
+                tgCorpTd(escapeHtml(r.name||('#'+(r.employee_id!=null?r.employee_id:''))))+tgCorpTd(escapeHtml(r.location||''))+
+                tgCorpTd(escapeHtml(r.detail||''))+tgCorpTd(escapeHtml(r.by||''))+'</tr>';
+        }).join('');
+        return tgCorpTable(['Date','Type','Employee','Store','Change','By'],body);
+    }
+    function tgCorpReportRecogHtml(d){
+        if(d&&d.available===false) return '<div style="color:#666;padding:14px;">'+escapeHtml(d.note||'Recognition feed is not readable on this database yet.')+'</div>';
+        var by=(d&&d.by_employee)||[]; var items=(d&&d.items)||[];
+        var h='<div style="font-size:12px;font-weight:800;color:#444;text-transform:uppercase;margin:4px 0 6px;">Shout-outs by employee (last '+((d&&d.days)||90)+' days)</div>';
+        if(!by.length) h+='<div style="color:#666;padding:4px 0 12px;">No recognition recorded in this window.</div>';
+        else h+=tgCorpTable(['Employee','Count'], by.map(function(b){
+            return '<tr>'+tgCorpTd(escapeHtml(b.name||('#'+b.employee_id)))+tgCorpTd('<b>'+(b.count||0)+'</b>')+'</tr>';
+        }).join(''));
+        h+='<div style="font-size:12px;font-weight:800;color:#444;text-transform:uppercase;margin:14px 0 6px;">Recent shout-outs</div>';
+        if(!items.length) h+='<div style="color:#666;padding:4px 0;">None.</div>';
+        else items.slice(0,40).forEach(function(it){
+            h+='<div style="padding:5px 0;border-bottom:1px solid #eee;font-size:12px;">&#127881; '+escapeHtml(it.message||it.type||'')+' <span style="color:#888;">&mdash; '+escapeHtml(it.name||'')+(it.location?(' &middot; '+escapeHtml(it.location)):'')+' &middot; '+escapeHtml(String(it.created_at||'').slice(0,10))+'</span></div>';
+        });
+        return h;
+    }

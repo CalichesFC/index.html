@@ -4,7 +4,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.07.13.1654';
+    const APP_VERSION = '2026.07.14.0646';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -908,13 +908,13 @@
         { key:'maintenance', btn:'btn-maintenance', label:'Maintenance',     emoji:'&#128295;', fn:function(){ openForm('maintenanceView'); } },
         { key:'damage',      btn:'btn-damage',      label:'Damage Report',   emoji:'&#9888;',   fn:function(){ openForm('damageView'); } },
         { key:'messages',    btn:'topMessagesBtn',  label:'Messages',        emoji:'&#128172;', fn:function(){ openMessages(); } },
-        { key:'quotes',      btn:'quotesBtn',       label:'Catering Quote',  emoji:'&#128221;', fn:function(){ if(typeof clearQuoteEdit==='function')clearQuoteEdit(); openForm('quotesView'); } },
+        { key:'quotes',      btn:'btn-catering',    label:'Catering Quote',  emoji:'&#128221;', fn:function(){ if(typeof clearQuoteEdit==='function')clearQuoteEdit(); openForm('quotesView'); if(typeof hubLoadTaxRates==='function')hubLoadTaxRates(); } },
         { key:'mynotes',    btn:'',                 label:'My Coaching Notes',         emoji:'&#128172;', fn:function(){ if(typeof openMyNotes==='function') openMyNotes(); } },
         { key:'maintdash',  btn:'btn-maintDash',    label:'Maintenance Dashboard',     emoji:'&#128295;', fn:function(){ if(typeof openDashboards==='function') openDashboards('maint'); else openMaintDashboard(); } },
         { key:'scorecards2',btn:'btn-scorecards',   label:'Store Scorecards',          emoji:'&#128202;', fn:function(){ if(typeof openDashboards==='function') openDashboards('scorecards'); else openScorecards(); } },
         { key:'maintbill',  btn:'btn-maintBilling', label:'Maintenance Billing',       emoji:'&#129534;', fn:function(){ if(typeof openMaintBilling==='function') openMaintBilling(); } },
         { key:'fundraiser2',btn:'btn-fundraiserHub',label:'Fundraiser Hub',            emoji:'&#128203;', fn:function(){ if(typeof openFundraiserHub==='function') openFundraiserHub(); } },
-        { key:'marketing2', btn:'btn-marketingHub', label:'Marketing Command Center',  emoji:'&#128226;', fn:function(){ if(typeof openMarketing==='function') openMarketing(); } },
+        { key:'marketing2', btn:'btn-marketingHub', label:'Marketing Command Center',  emoji:'&#128226;', fn:function(){ if(typeof openMarketingHub==='function') openMarketingHub(); else if(typeof openMarketing==='function') openMarketing(); } },
         { key:'teamgrowth', btn:'btn-teamGrowth', label:'Team Growth & Evaluations', emoji:'&#127793;', fn:function(){ if(typeof openTeamGrowth==='function') openTeamGrowth(); } },
         { key:'dailyreport', btn:'btn-dailyReport', label:'Daily Store Report', emoji:'&#128203;', fn:function(){ if(typeof openDailyReport==='function') openDailyReport(); } },
         { key:'stores2',    btn:'btn-storeManager', label:'Manage Stores',             emoji:'&#127978;', fn:function(){ if(typeof openStoreManager==='function') openStoreManager(); } },
@@ -1031,8 +1031,8 @@
         { id:'maintboard', btn:'maintBoardBtn', keywords:['maintenance board','prioritize','repairs'] },
         { id:'mysubmissions', btn:'mySubmissionsBtn', keywords:['my submissions','past reports','history','sent'] },
         { id:'driver', key:'driver', btn:'btn-driver', keywords:['driver','vehicle','trailer','checkout','check out','pre roll','fleet','safety'] },
-        { id:'quotes', key:'quotes', btn:'quotesBtn', keywords:['quote','catering','event','pricing','estimate'] },
-        { id:'salespipeline', btn:'salesPipelineBtn', keywords:['pipeline','leads','catering sales'] },
+        { id:'quotes', key:'quotes', btn:'btn-catering', keywords:['quote','catering','event','pricing','estimate'] },
+        { id:'salespipeline', key:'catering', btn:'btn-catering', keywords:['pipeline','leads','catering sales','invoices'] },
         { id:'dashboards', btn:'btn-dashboards', keywords:['dashboard','dashboards','metrics','kpi','numbers','reports'] },
         { id:'livedash', btn:'adminDashBtn', keywords:['live dashboard','dashboards','ncr','square','pulse','revenue','sales now'], go:function(){ openDashboards('live'); } },
         { id:'commandcenter', btn:'commandCenterBtn', keywords:['command center','dashboards','ops','at a glance','live ops'], go:function(){ openDashboards('command'); } },

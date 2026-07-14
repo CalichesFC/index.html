@@ -343,8 +343,9 @@
             </div>
             <div class="sec-title" style="margin-top:8px;"><h2 style="font-size:15px;">🚚 Vending &amp; Catering</h2></div>
             <button id="btn-driver" class="menu-btn" onclick="openForm('driverView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128666;</span><b>Vehicle &amp; Trailer Check-Out</b><small>Pre-roll safety checklist</small></button>
-            <button id="quotesBtn" class="menu-btn" style="display:none;" onclick="if(typeof clearQuoteEdit==='function')clearQuoteEdit();openForm('quotesView');if(typeof hubLoadTaxRates==='function')hubLoadTaxRates();"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128221;</span><b>Create Catering Quote</b><small>Build &amp; send event quotes</small></button>
-            <button id="salesPipelineBtn" class="menu-btn" style="display:none;" onclick="openSalesPipeline()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128202;</span><b>Sales Pipeline</b><small>Catering leads &amp; quotes</small></button>
+            <!-- Retired 2026-07-13: "Create Catering Quote" + "Sales Pipeline" tiles merged into the
+                 Catering Pipeline board (btn-catering). quotesView / salesPipelineView stay live and
+                 open from buttons inside the Catering Pipeline. -->
             <p style="flex-basis:100%;font-size:12.5px;color:#6b7686;text-align:center;margin:8px 4px 0;">Vending revenue by town &amp; catering metrics live in <b>&#9889; Admin &rarr; &#128202; Dashboards</b>.</p>
             <div class="sec-title" style="margin-top:8px;"><h2 style="font-size:15px;">More</h2></div>
             <button id="mySubmissionsBtn" class="menu-btn" onclick="openMySubmissions()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128203;</span><b>My Submissions</b><small>Your past reports</small></button>
@@ -379,7 +380,7 @@
                  single Dashboards tile above. -->
             <div id="legacyDashTiles" style="display:none;" aria-hidden="true">
                 <button id="adminDashBtn" class="menu-btn" style="display:none;" onclick="openAdminDash()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128225;</span><b>Live Dashboard</b><small>NCR Pulse &amp; Square</small></button>
-                <button id="commandCenterBtn" class="menu-btn" style="display:none;" onclick="openCommandCenter()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Command Center</b><small>Live ops at a glance</small></button>
+                <button id="commandCenterBtn" class="menu-btn" style="display:none;" onclick="openCommandCenter()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Store Intelligence</b><small>Live ops at a glance</small></button>
                 <button id="managerBtn" class="menu-btn" style="display:none;" onclick="openDashboard()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128200;</span><b>Manager Dashboard</b><small>Submissions &amp; activity</small></button>
                 <button id="btn-scorecards" class="menu-btn" style="display:none;" onclick="openScorecards()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Store Scorecards</b><small>Sales vs LY, labor, speed, inspection &amp; more</small></button>
                 <button id="btn-maintDash" class="menu-btn" style="display:none;" onclick="openMaintDashboard()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128295;</span><b>Maintenance Leadership Dashboard</b><small>Open work, costs by store, vendor spend</small></button>
@@ -392,7 +393,7 @@
             <button id="btn-permMatrix" class="menu-btn" style="display:none;" onclick="openPermMatrix()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128272;</span><b>Roles &amp; Permissions</b><small>Control what each role can see</small></button>
             <button id="shortageTrendsBtn" class="menu-btn" style="display:none;" onclick="openShortageTrends()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128200;</span><b>Shortage Trends</b><small>What runs low, often</small></button>
             <button id="btn-fundraiserHub" class="menu-btn" style="display:none;" onclick="openFundraiserHub()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128203;</span><b>Fundraiser Hub</b><small>Inquiries, cards, returns, reconciliation &amp; reports</small></button>
-            <button id="btn-marketingHub" class="menu-btn" style="display:none;" onclick="openMarketing()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128226;</span><b>Marketing Command Center</b><small>Campaigns, requests, budgets, assets &amp; results</small></button>
+            <button id="btn-marketingHub" class="menu-btn" style="display:none;" onclick="if(typeof openMarketingHub==='function')openMarketingHub();else openMarketing();"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128226;</span><b>Marketing Command Center</b><small>Campaigns, budgets, assets, results &amp; store tools</small></button>
             <button id="btn-teamGrowth" class="menu-btn" style="display:none;" onclick="openTeamGrowth()"><span class="rchip mgr">Team</span><span class="tile-ic">&#127793;</span><b>Team Growth &amp; Evaluations</b><small>Growth path, evaluations, certifications &amp; pay proposals</small></button>
             <button id="btn-dailyReport" class="menu-btn" style="display:none;" onclick="openDailyReport()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128203;</span><b>Daily Store Report</b><small>Closeout, log book, ratings &amp; labor</small></button>
             <button id="btn-shiftConsole" class="menu-btn" style="display:none;" onclick="openShiftConsole()"><span class="rchip mgr">Shift Lead</span><span class="tile-ic">&#128188;</span><b>Shift Leader Console</b><small>Active shift mode &middot; priorities, checklists &amp; handoff</small></button>
@@ -403,7 +404,9 @@
             <button id="btn-requestsRails" class="menu-btn" onclick="openRequestsRails()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128203;</span><b>Requests &amp; Orders</b><small>Employment verification, W-2, party packs &amp; gift cards</small></button>
             <button id="btn-commandCenter" class="menu-btn" style="display:none;" onclick="openCommandCenter()"><span class="rchip mgr">Leadership</span><span class="tile-ic">&#128202;</span><b>Store Intelligence</b><small>Live labor %, sales-per-labor-hour, sales vs last year &amp; alerts</small></button>
             <button id="btn-payTools" class="menu-btn" style="display:none;" onclick="openPayTools()"><span class="rchip mgr">Leadership</span><span class="tile-ic">&#128179;</span><b>Pay Tools</b><small>Approved raises, payroll impact &amp; promotion-ready queue</small></button>
-            <button id="btn-marketingV2" class="menu-btn" style="display:none;" onclick="openMarketingV2()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128227;</span><b>Marketing &mdash; Store Tools</b><small>Store instructions, closeout, approvals, spend &amp; alerts</small></button>
+            <!-- Retired 2026-07-13: "Marketing — Store Tools" tile folded into the single
+                 Marketing Command Center door (btn-marketingHub → openMarketingHub router).
+                 openMarketingV2 stays live, reached via the Store Tools tab inside v1. -->
             <button id="btn-maintBilling" class="menu-btn" style="display:none;" onclick="openMaintBilling()"><span class="rchip mgr">Finance</span><span class="tile-ic">&#129534;</span><b>Maintenance Billing</b><small>Invoices, approvals &amp; vendor rates</small></button>
             <button id="btn-storeManager" class="menu-btn" style="display:none;" onclick="openStoreManager()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#127978;</span><b>Manage Stores</b><small>Add, rename or remove store locations</small></button>
             <button id="btn-catering" class="menu-btn" style="display:none;" onclick="openCatering()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#127846;</span><b>Catering Pipeline</b><small>Inquiries, quotes, bookings &amp; run sheets</small></button>
@@ -1493,7 +1496,7 @@
     <div class="hb-head">
         <button class="hb-back" onclick="openMenu()">&#8249; Menu</button>
         <div class="hb-ico">&#128202;</div>
-        <div><h2>Command Center</h2><div class="hb-sub">Live operations at a glance</div></div>
+        <div><h2>Store Intelligence</h2><div class="hb-sub">Live operations at a glance</div></div>
         <span style="flex:1"></span>
         <button class="hb-back" onclick="ccLoad()" aria-label="Refresh" title="Refresh">&#8635;</button>
     </div>

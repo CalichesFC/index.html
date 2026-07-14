@@ -72,6 +72,9 @@
       if(a.can_budget) h+=b('budgets','Budgets');
       h+=b('assets','Assets')+b('results','Results')+b('profiles','Store Profiles');
       if(a.is_leader) h+=b('audit','Audit');
+      /* Merged 2026-07-13: Store Tools (marketing v2) is reached from inside the one
+         Marketing Command Center door instead of its own menu tile. */
+      h+='<button onclick="if(typeof openMarketingV2===\'function\')openMarketingV2()" style="flex:1;min-width:86px;background:#c0264b;color:#fff;border:none;padding:10px 6px;font-size:12.5px;font-weight:700;cursor:pointer;border-radius:9px;">&#127978; Store Tools</button>';
       h+='</div>'; return h;
     }
     function mcTab(t){ _mc.tab=t;

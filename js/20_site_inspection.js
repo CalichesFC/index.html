@@ -398,7 +398,7 @@
             inspRpc('insp_submit',{p_id:d.id},function(res){
                 if(res&&res.ok===false){ _insp.blockers=res.blockers||[]; alert('Not ready yet — '+_insp.blockers.length+' item(s) need attention.'); inspRenderReview(); return; }
                 _insp.cur=res; _insp.blockers=null;
-                alert('Inspection submitted. Corrective tasks were routed to '+(res.location||'the store')+'.');
+                alert('Inspection submitted. Corrective tasks were routed to '+(res.location||'the store')+'.'+((res.followup_recommended&&res.followup_date)?(' Follow-up inspection scheduled for '+String(res.followup_date)+'.'):''));
                 inspRenderDetail();
             });
         });
@@ -459,7 +459,9 @@
         var h=inspHeader(d.location+' — '+(d.insp_type||'Inspection'),'inspLoadList()');
         h+='<div style="max-width:860px;margin:0 auto;padding:14px 16px 60px;">';
         h+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">'+inspBadge(d.status)
-            +'<span style="font-size:12px;color:#6b7686;">'+escapeHtml(String(d.submitted_at||d.started_at||'').slice(0,10))+' &middot; '+escapeHtml(d.inspector_name||'')+(d.manager_on_duty?(' &middot; MOD: '+escapeHtml(d.manager_on_duty)):'')+(d.announced==='unannounced'?' &middot; Unannounced':'')+'</span></div>';
+            +(d.is_followup?('<span style="background:#185FA5;color:#fff;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:800;">Follow-up'+(d.followup_of_id?(' of #'+d.followup_of_id):'')+'</span>'):'')
+            +'<span style="font-size:12px;color:#6b7686;">'+escapeHtml(String(d.submitted_at||d.started_at||'').slice(0,10))+' &middot; '+escapeHtml(d.inspector_name||'')+(d.manager_on_duty?(' &middot; MOD: '+escapeHtml(d.manager_on_duty)):'')+(d.announced==='unannounced'?' &middot; Unannounced':'')+'</span>'
+            +'<span style="flex:1;"></span>'+(d.status==='submitted'?inspBtn('&#128424; Print / Save PDF','inspPrint()'):'')+'</div>';
         h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">'
             +inspTile('Overall score',inspPct(d.overall_pct))
             +inspTile('Critical items',String(d.critical_count||0),(d.critical_count?'#c0264b':'#1f7a3d'))
@@ -472,6 +474,7 @@
         });
         if(sb) h+=inspCard(sb,'Inspection summary');
         h+=inspCard(inspActionsHtml(d),'Corrective actions ('+(d.actions||[]).length+')');
+        var fx=inspFixesHtml(d); if(fx) h+=inspCard(fx,'Fixes — before &amp; after');
         (d.sections||[]).forEach(function(sec){
             var body='<div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:13.5px;">'+escapeHtml(sec.label||sec.key)+'</b><span style="font-size:12px;">'+(sec.pct!=null?inspPct(sec.pct):'')+'</span></div>';
             (sec.items||[]).forEach(function(it){
@@ -510,6 +513,7 @@
             +inspTile('Critical findings',String(s.critical_findings||0),(s.critical_findings?'#c0264b':'#1f7a3d'))
             +inspTile('Follow-ups recommended',String(s.followups_recommended||0))
             +'</div>';
+        h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">'+inspBtn('&#128276; Reminders','inspRunReminders()')+'<span style="font-size:11px;color:#8a91a0;">Nudges stores about draft follow-up inspections due within 3 days or overdue.</span></div>';
         var locs=d.locations||[];
         var lb='';
         if(!locs.length) lb=inspEmpty('No inspections yet — location status appears after the first submitted inspection.');
@@ -551,4 +555,113 @@
         h+=inspCard(sab,'Weakest sections company-wide');
         h+='</div>';
         ov.innerHTML=h;
+    }
+
+    // ============================================================
+    // FINISH PASS: FIXES TIMELINE + REMINDERS + PRINT (js/20 only)
+    // ============================================================
+
+    // ---- Fixes (before/after): pure client-side join of the existing
+    // insp_get payload — actions[].line_id -> sections[].items[].line_id.
+    // Before = the finding's evidence photos; After = the corrective
+    // action's completion/proof photos (insp_action_update photo_url).
+    function inspFixesHtml(d){
+        var evid=inspCfgNum('evidence_min_score',2);
+        var byLine={};
+        (d.sections||[]).forEach(function(s){ (s.items||[]).forEach(function(it){ if(it.line_id!=null) byLine[it.line_id]={sec:s,it:it}; }); });
+        var pairs=[];
+        (d.actions||[]).forEach(function(a){
+            if(a.line_id==null||a.status==='cancelled') return;
+            var m=byLine[a.line_id]; if(!m) return;
+            var it=m.it;
+            if(it.na||it.score==null||it.score>evid) return;
+            pairs.push({sec:m.sec,it:it,a:a});
+        });
+        if(!pairs.length) return '';
+        function thumbs(list){
+            list=list||[];
+            if(!list.length) return '';
+            return list.map(function(p){ return '<a href="'+escapeHtml(p.url||'')+'" target="_blank" rel="noopener"><img src="'+escapeHtml(p.url||'')+'" alt="'+escapeHtml(p.caption||'photo')+'" style="width:84px;height:84px;object-fit:cover;border-radius:8px;border:1px solid #e2e6ee;margin:0 4px 4px 0;"></a>'; }).join('');
+        }
+        var h='<p style="font-size:11px;color:#8a91a0;margin:0 0 4px;">Each low-score finding paired with its corrective action&rsquo;s proof of completion.</p>';
+        pairs.forEach(function(p){
+            var it=p.it,a=p.a;
+            var sc=a.status==='done'?'#1f7a3d':(a.status==='pending_manual'?'#c0264b':'#9a5b00');
+            h+='<div style="border-top:1px solid #f0f1f6;padding:9px 0;">'
+                +'<div style="font-size:12.5px;"><b>'+escapeHtml(it.label||it.key)+'</b>'+inspSevChip(it.severity)
+                +' <span style="background:'+sc+';color:#fff;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:800;">'+escapeHtml(a.status)+'</span></div>'
+                +'<div style="font-size:11px;color:#6b7686;margin:2px 0 6px;">'+escapeHtml(p.sec.label||'')+' &middot; Score '+it.score+' &middot; '+escapeHtml(a.title||a.kind)+(a.closed_at?(' &middot; closed '+escapeHtml(String(a.closed_at).slice(0,10))):'')+'</div>'
+                +'<div style="display:flex;gap:12px;flex-wrap:wrap;">'
+                +'<div style="flex:1;min-width:150px;"><div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#c0264b;margin-bottom:3px;">Before (finding)</div>'
+                +(thumbs(it.photos)||'<span style="font-size:11px;color:#8a91a0;">No photo'+(it.no_photo_reason?(' &mdash; '+escapeHtml(it.no_photo_reason)):'')+'</span>')+'</div>'
+                +'<div style="flex:1;min-width:150px;"><div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#1f7a3d;margin-bottom:3px;">After (fixed)</div>'
+                +(thumbs(a.completion_photos)||('<span style="font-size:11px;color:#8a91a0;">'+(a.status==='done'?'Done &mdash; no proof photo attached':'Awaiting fix &mdash; no proof photo yet')+'</span>'))
+                +(a.completion_note?('<div style="font-size:11px;color:#5b6675;margin-top:3px;">'+escapeHtml(a.completion_note)+'</div>'):'')+'</div>'
+                +'</div></div>';
+        });
+        return h;
+    }
+
+    // ---- tiny non-blocking toast (js/20-local) ----
+    function inspToast(msg){
+        var t=document.createElement('div');
+        t.textContent=msg;
+        t.style.cssText='position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#1f2a44;color:#fff;padding:10px 16px;border-radius:10px;font-size:12.5px;font-weight:700;z-index:100002;box-shadow:0 6px 18px rgba(0,0,0,.25);max-width:88%;text-align:center;';
+        document.body.appendChild(t);
+        setTimeout(function(){ t.style.transition='opacity .4s'; t.style.opacity='0'; setTimeout(function(){ try{ document.body.removeChild(t); }catch(e){} },450); },3200);
+    }
+
+    // ---- Reminders (leadership dashboard button) -> insp_reminder_scan ----
+    function inspRunReminders(){
+        inspToast('Scanning for due follow-up inspections…');
+        inspRpc('insp_reminder_scan',{},function(r){
+            r=r||{};
+            var total=(r.due_soon||0)+(r.overdue||0);
+            if(!total){ inspToast('Reminder scan: nothing due — no draft follow-ups within 3 days.'); return; }
+            inspToast('Reminders: '+(r.due_soon||0)+' due soon, '+(r.overdue||0)+' overdue — '+(r.created||0)+' reminder task(s) created'+(r.skipped_recent?(', '+r.skipped_recent+' already reminded recently'):'')+(r.task_failed?(', '+r.task_failed+' failed'):'')+'.');
+        },function(err){ inspToast('Reminder scan failed: '+((err&&err.message)||'error')); });
+    }
+
+    // ---- Print / Save PDF packet (pattern replicated from js/21 opmPrint) ----
+    function inspPrint(){
+        var d=_insp.cur; if(!d||!d.id) return;
+        var evid=inspCfgNum('evidence_min_score',2);
+        var w=window.open('','_blank'); if(!w){ alert('Allow pop-ups to print the inspection.'); return; }
+        var x='<html><head><title>Inspection packet</title><style>body{font-family:Arial,sans-serif;color:#222;max-width:700px;margin:24px auto;}h1{font-size:20px;margin-bottom:2px;}h2{font-size:15px;border-bottom:1px solid #ccc;padding-bottom:3px;margin-top:22px;}p{font-size:13px;}li{margin:4px 0;font-size:13px;}table{border-collapse:collapse;width:100%;font-size:13px;}td,th{border-bottom:1px solid #eee;padding:4px 6px;text-align:left;}img{max-width:180px;max-height:140px;border:1px solid #ccc;border-radius:4px;margin:2px 4px 2px 0;vertical-align:top;}.f{page-break-inside:avoid;border-bottom:1px solid #eee;padding:8px 0;}.meta{color:#666;font-size:12px;}.sev{font-weight:bold;text-transform:uppercase;font-size:11px;}</style></head><body>';
+        x+='<h1>Store &amp; Site Inspection &mdash; '+escapeHtml(d.location||'')+'</h1>';
+        x+='<p class="meta">'+escapeHtml(d.insp_type||'')+' &middot; '+escapeHtml(d.site_type||'')+' &middot; '+escapeHtml(String(d.submitted_at||d.started_at||'').slice(0,10))+' &middot; Inspector: '+escapeHtml(d.inspector_name||'')+(d.manager_on_duty?(' &middot; MOD: '+escapeHtml(d.manager_on_duty)):'')+(d.announced==='unannounced'?' &middot; Unannounced':'')+(d.is_followup?(' &middot; Follow-up'+(d.followup_of_id?(' of inspection #'+d.followup_of_id):'')):'')+'</p>';
+        x+='<p style="font-size:15px;"><b>Overall: '+(d.overall_pct!=null?parseFloat(d.overall_pct).toFixed(1)+'%':'&mdash;')+'</b> &middot; '+(d.critical_count||0)+' critical finding(s) &middot; Follow-up: '+(d.followup_recommended?('YES'+(d.followup_date?(' ('+escapeHtml(String(d.followup_date))+')'):'')):'No')+(d.pride_score!=null?(' &middot; Pride score '+d.pride_score+'/5'):'')+'</p>';
+        x+='<h2>Section scores</h2><table><tr><th>Section</th><th>Score</th></tr>';
+        (d.sections||[]).forEach(function(s){ x+='<tr><td>'+escapeHtml(s.label||s.key)+'</td><td>'+(s.pct!=null?parseFloat(s.pct).toFixed(1)+'%':'&mdash;')+'</td></tr>'; });
+        x+='</table>';
+        var flagged=[];
+        (d.sections||[]).forEach(function(s){ (s.items||[]).forEach(function(it){ if(!it.na&&it.score!=null&&it.score<=evid) flagged.push({sec:s,it:it}); }); });
+        x+='<h2>Findings (score '+evid+' or below)</h2>';
+        if(!flagged.length) x+='<p>No low or critical findings.</p>';
+        else flagged.forEach(function(f){
+            var it=f.it;
+            x+='<div class="f"><b>'+escapeHtml(it.label||it.key)+'</b> <span class="sev">['+escapeHtml(it.severity||'')+' &middot; score '+it.score+']</span>'
+                +'<div class="meta">'+escapeHtml(f.sec.label||'')+'</div>'
+                +(it.note?('<p style="margin:4px 0;">'+escapeHtml(it.note)+'</p>'):'')
+                +(it.no_photo_reason?('<p class="meta" style="margin:4px 0;">No photo: '+escapeHtml(it.no_photo_reason)+'</p>'):'')
+                +(it.photos||[]).map(function(p){ return '<img src="'+escapeHtml(p.url||'')+'" alt="'+escapeHtml(p.caption||'photo')+'">'; }).join('')
+                +'</div>';
+        });
+        var acts=(d.actions||[]);
+        x+='<h2>Corrective actions ('+acts.length+')</h2>';
+        if(!acts.length) x+='<p>None.</p>';
+        else acts.forEach(function(a){
+            x+='<div class="f"><b>'+escapeHtml(a.title||a.kind)+'</b> <span class="sev">['+escapeHtml(a.status||'')+']</span>'
+                +'<div class="meta">'+escapeHtml(a.kind||'')+(a.severity?(' &middot; '+escapeHtml(a.severity)):'')+(a.target_table?(' &rarr; '+escapeHtml(a.target_table)+' #'+escapeHtml(String(a.target_id||''))):'')+(a.due_date?(' &middot; due '+escapeHtml(String(a.due_date))):'')+(a.owner_name?(' &middot; '+escapeHtml(a.owner_name)):'')+(a.auto_created?' &middot; auto-routed':'')+'</div>'
+                +(a.notes?('<p style="margin:4px 0;">'+escapeHtml(a.notes)+'</p>'):'')
+                +(a.completion_note?('<p style="margin:4px 0;"><b>Completed:</b> '+escapeHtml(a.completion_note)+'</p>'):'')
+                +(a.completion_photos||[]).map(function(p){ return '<img src="'+escapeHtml(p.url||'')+'" alt="proof">'; }).join('')
+                +'</div>';
+        });
+        var sums=[['Top strengths',d.top_strengths],['Top issues',d.top_issues],['Urgent / critical notes',d.urgent_notes],['Maintenance needs',d.maint_notes],['Supply needs',d.supply_notes],['Final notes',d.final_notes]].filter(function(p){ return !!p[1]; });
+        if(sums.length){ x+='<h2>Inspector summary</h2>'; sums.forEach(function(p){ x+='<p><b>'+escapeHtml(p[0])+':</b> '+escapeHtml(p[1])+'</p>'; }); }
+        x+='<p class="meta">Caliche\'s Hub &mdash; Store &amp; Site Inspection #'+d.id+'. Generated '+inspTodayIso()+'.</p>';
+        x+='</body></html>';
+        w.document.write(x); w.document.close();
+        setTimeout(function(){ try{ w.print(); }catch(e){} },300);
     }

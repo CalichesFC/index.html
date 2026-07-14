@@ -23,7 +23,7 @@
     // for digital lessons — this module never redefines them.
     // ============================================================
 
-    var _trh = { tab:'my', my:null, team:null, admin:null, store:'', detail:null, evidenceUrl:'', evidenceName:'' };
+    var _trh = { tab:'my', my:null, team:null, admin:null, store:'', detail:null, evidenceUrl:'', evidenceName:'', psMine:null, psTeam:null, qsMine:null, qsTeam:null };
 
     var TRH_KINDS = {
         digital_course:     ['💻','Digital lesson'],
@@ -53,6 +53,8 @@
         if(m.indexOf('already_requested')>=0) return 'A sign-off request is already pending for this item.';
         if(m.indexOf('complete_in_training_portal')>=0) return 'Digital lessons are completed in the Training Portal — tap Continue instead.';
         if(m.indexOf('title_required')>=0) return 'A title is required.';
+        if(m.indexOf('already_approved')>=0) return 'That record is already approved.';
+        if(m.indexOf('already_completed')>=0) return 'Already marked finished — a manager can approve it now.';
         return m;
     }
     function trhIsMgr(){ return !!(currentUser&&(currentUser.is_developer===true||(typeof isManagerRole==='function'&&isManagerRole()))); }
@@ -80,9 +82,18 @@
     function trhLoading(msg){ trhOv().innerHTML=trhHeader()+'<div style="max-width:860px;margin:0 auto;padding:40px 16px;text-align:center;color:#6b7686;">'+msg+'</div>'; }
     function trhFail(msg){ trhOv().innerHTML=trhHeader()+trhTabs()+'<div style="max-width:860px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">'+escapeHtml(msg||'Could not load.')+'</div>'; }
 
-    function openTrainingHub(){ _trh.tab='my'; _trh.my=null; _trh.team=null; _trh.admin=null; _trh.detail=null; trhLoadMy(); }
-    function trhLoadMy(){ trhLoading('Loading your training&hellip;'); trhRpc('trh_my',{},function(d){ _trh.my=d||{}; trhRender(); },function(e){ trhFail(e.message); }); }
-    function trhLoadTeam(){ trhLoading('Loading team&hellip;'); trhRpc('trh_team',{p_store:_trh.store||''},function(d){ _trh.team=d||{}; trhRender(); },function(e){ trhFail(String(e.message||'').indexOf('forbidden')>=0?'Managers and leads only.':e.message); }); }
+    function openTrainingHub(){ _trh.tab='my'; _trh.my=null; _trh.team=null; _trh.admin=null; _trh.detail=null; _trh.psMine=null; _trh.psTeam=null; _trh.qsMine=null; _trh.qsTeam=null; trhLoadMy(); }
+    function trhLoadMy(){ trhLoading('Loading your training&hellip;'); trhRpc('trh_my',{},function(d){ _trh.my=d||{}; trhRender(); trhLoadMyExtras(); },function(e){ trhFail(e.message); }); }
+    function trhLoadMyExtras(){
+        trhRpc('trh_prestart_my',{},function(d){ _trh.psMine=d||{rows:[]}; if(_trh.tab==='my'&&!_trh.detail) trhRender(); },function(){ _trh.psMine=_trh.psMine||{rows:[]}; });
+        trhRpc('trh_qs_my',{},function(d){ _trh.qsMine=d||{rows:[]}; if(_trh.tab==='my'&&!_trh.detail) trhRender(); },function(){ _trh.qsMine=_trh.qsMine||{rows:[]}; });
+    }
+    function trhLoadTeam(){ trhLoading('Loading team&hellip;'); trhRpc('trh_team',{p_store:_trh.store||''},function(d){ _trh.team=d||{}; trhRender(); trhLoadTeamExtras(); },function(e){ trhFail(String(e.message||'').indexOf('forbidden')>=0?'Managers and leads only.':e.message); }); }
+    function trhLoadTeamExtras(){
+        if(!trhIsMgr()) return;
+        trhRpc('trh_prestart_team',{},function(d){ _trh.psTeam=d||{rows:[]}; if((_trh.tab==='team'||_trh.tab==='certs')&&!_trh.detail) trhRender(); },function(){ _trh.psTeam=_trh.psTeam||{rows:[]}; });
+        trhRpc('trh_qs_team',{p_store:_trh.store||''},function(d){ _trh.qsTeam=d||{scoops:[],open:[]}; if((_trh.tab==='team'||_trh.tab==='certs')&&!_trh.detail) trhRender(); },function(){ _trh.qsTeam=_trh.qsTeam||{scoops:[],open:[]}; });
+    }
     function trhLoadAdmin(){ trhLoading('Loading path builder&hellip;'); trhRpc('trh_admin_get',{},function(d){ _trh.admin=d||{}; trhRender(); },function(e){ trhFail(String(e.message||'').indexOf('forbidden')>=0?'Managers only.':e.message); }); }
     function trhRender(){
         var body;
@@ -118,12 +129,14 @@
             h+=trhEmpty('Your login isn’t linked to a roster profile yet, so no learning path can be assigned. Ask a manager to link your account on the Employee Roster.');
             return h;
         }
+        h+=trhPsMineHtml();
         var active=enr.filter(function(e){ return e.status==='active'; });
         var done=enr.filter(function(e){ return e.status==='completed'; });
         if(!active.length&&!done.length){
             h+=trhEmpty('No learning path assigned yet. Your manager assigns paths from the Training Hub'+(trhIsMgr()?' — open the <b>Path Builder</b> tab to assign one.':'.'));
         }
         active.forEach(function(e){ h+=trhEnrCard(e,false); });
+        h+=trhQsMineHtml();
         // certifications
         var ch='';
         certs.forEach(function(c){
@@ -249,6 +262,7 @@
                 trhBar(t.pct)+'<div style="font-size:11px;color:#8a91a0;margin-top:4px;">'+(t.done||0)+'/'+(t.total||0)+' ('+(t.pct||0)+'%)</div></div>';
         });
         h+=trhCard(th||'<div style="color:#6b7686;font-size:12.5px;">No active learning-path enrollments'+(_trh.store?' at this store':'')+'. Assign one from the Path Builder tab.</div>','Active trainees ('+team.length+')');
+        if(trhIsMgr()){ h+=trhPsTeamHtml(); h+=trhQsTeamHtml(); }
         return h;
     }
     function trhOpenEmp(enrId){
@@ -280,7 +294,10 @@
     }
     function trhRecordModal(enrId,reqId){
         var r=trhFindReq(reqId)||{id:reqId,kind:'practical_signoff',title:'Requirement',criteria:[]};
-        _trhRec={enr:enrId,req:reqId,meta:r}; _trh.evidenceUrl=''; _trh.evidenceName='';
+        var empId=null,empName='';
+        if(_trh.detail&&_trh.detail.enrollment&&_trh.detail.enrollment.enrollment_id===enrId){ empId=_trh.detail.enrollment.employee_id; empName=(_trh.detail.employee&&_trh.detail.employee.name)||''; }
+        else{ ((_trh.team&&_trh.team.pending)||[]).some(function(p){ if(p.enrollment_id===enrId){ empId=p.employee_id; empName=p.employee||''; return true; } return false; }); }
+        _trhRec={enr:enrId,req:reqId,meta:r,empId:empId,empName:empName}; _trh.evidenceUrl=''; _trh.evidenceName='';
         var km=TRH_KINDS[r.kind]||['•',r.kind];
         var opts;
         if(r.kind==='ojt_practice') opts=[['logged','Practice session logged'],['pass','Pass — practice complete'],['partial','Partial — needs more practice'],['not_observed','Not observed'],['exception','Exception (explain)']];
@@ -308,6 +325,7 @@
             trhM2Close();
             _trh.team=null; _trh.my=null;
             if(_trh.detail){ trhOpenEmp(_trhRec.enr); } else if(_trh.tab==='team'){ trhLoadTeam(); } else { trhLoadMy(); }
+            if(st==='fail'&&r.kind==='practical_signoff'&&trhIsMgr()&&_trhRec.empId){ trhQsOfferFromFail(_trhRec.empId,_trhRec.empName,r.title||'this station'); }
         });
     }
     function trhUploadEvidence(){
@@ -472,6 +490,7 @@
             trhSel('trhRfKind','Type *',kOpts,r.kind||'practical_signoff')+
             trhInp('trhRfTitle','Title *',r.title||'','e.g. Item-Making Foundations')+
             trhSel('trhRfCourse','Linked Training Portal course (digital / knowledge check)',cOpts,r.lp_course_id||'')+
+            trhScormRowHtml()+
             trhSel('trhRfPos','Station / position (practical sign-off → grants clearance on award)',posOpts,r.position_id||'')+
             trhInp('trhRfCert','External credential type (matches cert list, e.g. Food Handler)',r.cert_type||'','')+
             trhTxt('trhRfCrit','Observable criteria (one per line — shown as a checklist at sign-off)',critLines,'Follows procedure without prompting\nMeets speed and accuracy standards')+
@@ -515,6 +534,324 @@
             trhM2Close(); alert(((d&&d.enrolled)||0)+' assigned'+((d&&d.skipped)?(', '+d.skipped+' already active (skipped)'):'')+'.');
             _trh.admin=null; _trh.team=null; trhLoadAdmin();
         });
+    }
+
+    // ============================================================
+    // READY-TO-START (paid pre-start certificate + time capture)
+    // Server accumulates minutes from start/finish timestamps and caps
+    // them at app_settings trh_rules.prestart_max_minutes (default 120).
+    // ============================================================
+    function trhPsStatusChip(r){
+        var map={assigned:['assigned','#185FA5'],in_progress:['in progress','#9a5b00'],completed:['finished — review','#185FA5'],approved:['approved','#1f7a3d']};
+        var m=map[r.status]||[r.status,'#5b6472'];
+        return trhChip(escapeHtml(m[0]),m[1]);
+    }
+    function trhPsMineHtml(){
+        var d=_trh.psMine; if(!d||!(d.rows||[]).length) return '';
+        var cap=d.cap||120; var h='';
+        (d.rows||[]).forEach(function(r){
+            h+='<div style="border:1px solid #ececf2;border-radius:11px;padding:10px 12px;margin-bottom:8px;">'+
+               '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-size:18px;">💵</span>'+
+               '<div style="flex:1;min-width:150px;"><b style="font-size:13.5px;color:#26242b;">'+escapeHtml(r.path_title||'Pre-start training')+'</b>'+
+               '<div style="font-size:11px;color:#8a91a0;">Earns: '+escapeHtml(r.cert_name||'entry certificate')+' &middot; assigned '+trhDate(r.assigned_at)+'</div></div>'+trhPsStatusChip(r)+'</div>'+
+               '<div style="font-size:12.5px;color:#33303a;margin-top:7px;"><b>'+(r.minutes_spent||0)+'</b> paid minute'+((r.minutes_spent||0)===1?'':'s')+' recorded (max '+cap+')'+(r.session_open?' &middot; <b style="color:#1f7a3d;">session running</b>':'')+'</div>';
+            if(r.status==='approved'){
+                h+='<div style="font-size:12px;color:#1f7a3d;font-weight:700;margin-top:7px;">🏅 '+escapeHtml(r.cert_name||'Certificate')+' awarded'+(r.approved_by?' by '+escapeHtml(r.approved_by):'')+' '+trhDate(r.approved_at)+'.</div>';
+            } else if(r.status==='completed'){
+                h+='<div style="font-size:12px;color:#9a5b00;font-weight:700;margin-top:7px;">Waiting on a manager to review and award your certificate.</div>';
+            } else {
+                h+='<div style="display:flex;gap:8px;margin-top:9px;flex-wrap:wrap;">';
+                if(r.session_open) h+='<button onclick="trhPsAction('+r.id+',&quot;finish&quot;)" style="background:#9a5b00;color:#fff;border:none;border-radius:9px;padding:9px 13px;font-size:12.5px;font-weight:800;cursor:pointer;">⏹ End session</button>';
+                else h+='<button onclick="trhPsAction('+r.id+',&quot;start&quot;)" style="background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:9px 13px;font-size:12.5px;font-weight:800;cursor:pointer;">▶ Start session</button>';
+                h+='<button onclick="trhPsAction('+r.id+',&quot;complete&quot;)" style="background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:9px 13px;font-size:12.5px;font-weight:700;cursor:pointer;">✓ I finished the course</button></div>';
+            }
+            h+='</div>';
+        });
+        h+='<div style="font-size:11.5px;color:#6b7686;background:#f2f7f3;border:1px solid #d9eadf;border-radius:9px;padding:8px 10px;">💵 <b>This pre-start training is paid time.</b> Tap Start session while you learn and End session when you stop — your minutes (up to '+cap+') are recorded here and sent to payroll after a manager approves.</div>';
+        return trhCard(h,'Ready-to-Start — paid pre-start training');
+    }
+    function trhPsAction(id,action){
+        if(action==='complete'&&!confirm('Mark the whole pre-start course finished? Any running session is ended, and a manager will review and award your certificate.')) return;
+        trhRpc('trh_prestart_progress',{p_id:id,p_action:action},function(){
+            trhRpc('trh_prestart_my',{},function(d){ _trh.psMine=d||{rows:[]}; if(_trh.tab==='my'&&!_trh.detail) trhRender(); },function(){});
+        });
+    }
+    function trhPsTeamHtml(){
+        var d=_trh.psTeam;
+        var head='<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">'+
+            '<button onclick="trhPsAssignForm()" style="background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;">+ Assign pre-start</button>'+
+            '<button onclick="trhPsExport()" style="background:#185FA5;color:#fff;border:none;border-radius:9px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;">⬇ Export payroll CSV'+(d&&d.unexported?' ('+d.unexported+')':'')+'</button></div>';
+        if(!d) return trhCard(head+'<div style="color:#6b7686;font-size:12.5px;">Loading&hellip;</div>','Ready-to-Start — paid pre-start');
+        var rows=d.rows||[]; var h=head;
+        if(!rows.length) h+='<div style="color:#6b7686;font-size:12.5px;">No pre-start assignments yet. New hires complete paid, timed pre-start training before their first shift, then you approve it to award the entry certificate.</div>';
+        rows.forEach(function(r){
+            h+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f1f2f6;flex-wrap:wrap;">'+
+               '<div style="flex:1;min-width:160px;"><b style="font-size:13.5px;color:#26242b;">'+escapeHtml(r.employee||'')+'</b>'+(r.store?' <span style="font-size:11px;color:#8a91a0;">&middot; '+escapeHtml(r.store)+'</span>':'')+
+               '<div style="font-size:11px;color:#8a91a0;">'+(r.path_title?escapeHtml(r.path_title)+' &middot; ':'')+(r.minutes_spent||0)+' paid min'+(r.session_open?' &middot; session running':'')+' &middot; assigned '+trhDate(r.assigned_at)+(r.status==='approved'?(r.exported?' &middot; sent to payroll':' &middot; awaiting payroll export'):'')+'</div></div>'+
+               trhPsStatusChip(r);
+            if(r.status!=='approved') h+='<button onclick="trhPsApprove('+r.id+','+(r.status==='completed'?'true':'false')+')" style="background:'+(r.status==='completed'?'#1f7a3d':'#eef0f3')+';color:'+(r.status==='completed'?'#fff':'#5b6472')+';border:none;border-radius:8px;padding:7px 11px;font-size:11.5px;font-weight:700;cursor:pointer;">🏅 Approve</button>';
+            h+='</div>';
+        });
+        h+='<div style="font-size:11px;color:#8a91a0;margin-top:8px;">Approving awards the entry certificate and queues the recorded minutes for the payroll export. Paid time is capped at '+(d.cap||120)+' minutes per hire (Business Settings &rsaquo; group <b>trh_rules</b>).</div>';
+        return trhCard(h,'Ready-to-Start — paid pre-start');
+    }
+    function trhPsAssignForm(){
+        var d=_trh.psTeam||{}; var emps=d.employees||[];
+        if(!emps.length){ alert('Still loading the roster — try again in a second.'); return; }
+        var pOpts=[['','— none (self-guided) —']].concat((d.paths||[]).map(function(p){ return [p.id,p.title]; }));
+        var eh=emps.map(function(x){
+            return '<label data-trhname="'+escapeHtml(String(x.name||'').toLowerCase())+'" style="display:flex;align-items:center;gap:8px;font-size:13px;color:#33303a;padding:4px 0;"><input type="checkbox" class="trhPsEmp" value="'+x.id+'"> '+escapeHtml(x.name||'')+' <span style="font-size:10.5px;color:#8a91a0;">'+escapeHtml(x.role||'')+(x.store?' &middot; '+escapeHtml(x.store):'')+'</span></label>';
+        }).join('');
+        trhM2('<b style="font-size:15px;color:#1f2a44;">💵 Assign Ready-to-Start (paid)</b>'+
+            '<div style="font-size:11.5px;color:#8a91a0;margin-top:2px;">Timed, paid pre-start training. Anyone with an open pre-start record is skipped automatically.</div>'+
+            trhSel('trhPsPath','Pre-start course / learning path (optional)',pOpts,'')+
+            trhInp('trhPsCert','Entry certificate name (blank = '+escapeHtml(d.default_cert||'Ready-to-Start Certificate')+')','','')+
+            '<div style="margin-top:8px;"><input id="trhPsFilter" placeholder="Type to filter names…" onkeyup="trhPsFilter()" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #d8dce4;border-radius:9px;font-size:13px;"></div>'+
+            '<div id="trhPsList" style="max-height:240px;overflow:auto;margin-top:6px;border:1px solid #ececf2;border-radius:9px;padding:6px 10px;">'+eh+'</div>'+
+            trhBtnRow('Assign','trhPsAssignSave()'));
+    }
+    function trhPsFilter(){
+        var q=trhVal('trhPsFilter').toLowerCase();
+        var list=document.getElementById('trhPsList'); if(!list) return;
+        Array.prototype.forEach.call(list.querySelectorAll('label[data-trhname]'),function(l){ l.style.display=(!q||l.getAttribute('data-trhname').indexOf(q)>=0)?'flex':'none'; });
+    }
+    function trhPsAssignSave(){
+        var ids=[]; Array.prototype.forEach.call(document.querySelectorAll('.trhPsEmp:checked'),function(c){ ids.push(parseInt(c.value,10)); });
+        if(!ids.length){ alert('Pick at least one employee.'); return; }
+        trhRpc('trh_prestart_assign',{p_employee_ids:ids,p_path_id:trhVal('trhPsPath')?parseInt(trhVal('trhPsPath'),10):null,p_cert_name:trhVal('trhPsCert')||null,p_note:null},function(d){
+            trhM2Close(); alert(((d&&d.assigned)||0)+' assigned'+((d&&d.skipped)?(', '+d.skipped+' already had an open pre-start (skipped)'):'')+'.');
+            trhLoadTeamExtras();
+        });
+    }
+    function trhPsApprove(id,ready){
+        var note=prompt((ready?'':'This person has not marked the course finished yet. ')+'Approve and award the entry certificate? Optional note:','');
+        if(note===null) return;
+        trhRpc('trh_prestart_approve',{p_id:id,p_note:note||null},function(d){
+            alert('🏅 '+((d&&d.cert_name)||'Certificate')+' awarded — '+((d&&d.minutes_spent)||0)+' paid minutes queued for payroll export.');
+            trhLoadTeamExtras();
+        });
+    }
+    function trhCsvCell(s){ s=String(s==null?'':s); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+    function trhPsExport(){
+        trhRpc('trh_prestart_payroll_export',{},function(d){
+            var rows=(d&&d.rows)||[];
+            if(!rows.length){ alert('Nothing to export — no approved, unexported pre-start records.'); return; }
+            var csv='Employee,Date,Minutes\r\n'+rows.map(function(r){ return trhCsvCell(r.employee)+','+trhCsvCell(r.date)+','+(r.minutes||0); }).join('\r\n')+'\r\n';
+            var a=document.createElement('a');
+            a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+            a.download='ready_to_start_payroll_'+new Date().toISOString().slice(0,10)+'.csv';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            alert(rows.length+' row'+(rows.length>1?'s':'')+' exported and stamped — the same minutes will never export twice.');
+            trhLoadTeamExtras();
+        });
+    }
+
+    // ============================================================
+    // QUICK SCOOPS (refresher / retraining bites)
+    // ============================================================
+    function trhQsMineHtml(){
+        var d=_trh.qsMine; if(!d||!(d.rows||[]).length) return '';
+        var h='';
+        (d.rows||[]).forEach(function(r){
+            h+='<div style="border:1px solid #ececf2;border-radius:11px;padding:10px 12px;margin-bottom:8px;">'+
+               '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:17px;">🍦</span><b style="flex:1;font-size:13.5px;color:#26242b;">'+escapeHtml(r.title||'')+'</b>'+
+               (r.overdue?trhChip('overdue','#c0264b'):(r.due_at?trhChip('due '+trhDate(r.due_at),'#9a5b00'):''))+'</div>'+
+               (r.body?'<div style="font-size:13px;color:#33303a;line-height:1.55;margin-top:7px;white-space:pre-wrap;">'+escapeHtml(r.body)+'</div>':'')+
+               '<div style="font-size:11px;color:#8a91a0;margin-top:6px;">From '+escapeHtml(r.assigned_by||'your manager')+' &middot; '+trhDate(r.assigned_at)+'</div>';
+            if(r.check_question) h+='<div style="margin-top:8px;"><label style="font-size:11.5px;font-weight:700;color:#5b6472;">'+escapeHtml(r.check_question)+'</label><input id="trhQsAns_'+r.id+'" placeholder="Your answer…" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #d8dce4;border-radius:8px;font-size:13px;margin-top:3px;"></div>';
+            h+='<button onclick="trhQsDone('+r.id+','+(r.check_question?'true':'false')+')" style="margin-top:9px;background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:9px 13px;font-size:12.5px;font-weight:800;cursor:pointer;">✓ Mark done</button></div>';
+        });
+        return trhCard(h,'Quick Scoops — refreshers ('+(d.rows||[]).length+')');
+    }
+    function trhQsDone(assignId,hasCheck){
+        var resp=null;
+        if(hasCheck){
+            var row=((_trh.qsMine&&_trh.qsMine.rows)||[]).filter(function(r){ return r.id===assignId; })[0]||{};
+            var el=document.getElementById('trhQsAns_'+assignId);
+            var ans=el?String(el.value||'').trim():'';
+            if(!ans){ alert('Answer the quick check question first — it shows your manager the scoop landed.'); return; }
+            resp={question:row.check_question||'',answer:ans};
+        }
+        trhRpc('trh_qs_complete',{p_assignment_id:assignId,p_response:resp},function(){
+            trhRpc('trh_qs_my',{},function(d){ _trh.qsMine=d||{rows:[]}; if(_trh.tab==='my'&&!_trh.detail) trhRender(); },function(){});
+        });
+    }
+    function trhQsTeamHtml(){
+        var d=_trh.qsTeam;
+        var head='<div style="display:flex;gap:8px;margin-bottom:10px;"><div style="flex:1;font-size:12px;color:#6b7686;">Short refreshers and retraining bites — create one, assign it (by person or audience), and watch completion.</div>'+
+            '<button onclick="trhQsForm(null)" style="background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;">+ New scoop</button></div>';
+        if(!d) return trhCard(head+'<div style="color:#6b7686;font-size:12.5px;">Loading&hellip;</div>','Quick Scoops');
+        var h=head; var scoops=d.scoops||[]; var open=d.open||[];
+        if(!scoops.length) h+='<div style="color:#6b7686;font-size:12.5px;">No Quick Scoops yet — e.g. “Cup sizes refresher” or “New closing checklist”.</div>';
+        scoops.forEach(function(s){
+            h+='<div style="border:1px solid #ececf2;border-radius:10px;padding:9px 11px;margin-bottom:7px;'+(s.active?'':'opacity:.55;')+'">'+
+               '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;"><b style="flex:1;min-width:140px;font-size:13px;color:#26242b;">🍦 '+escapeHtml(s.title||'')+'</b>'+
+               '<span style="font-size:11px;color:#8a91a0;">'+(s.audience_role?escapeHtml(s.audience_role):'all roles')+' &middot; '+(s.audience_store?escapeHtml(s.audience_store):'all stores')+' &middot; due in '+(s.due_days||3)+'d</span>'+
+               trhChip((s.done||0)+'/'+(s.assigned||0)+' done',(s.assigned&&s.done>=s.assigned)?'#1f7a3d':'#185FA5')+(s.overdue?trhChip(s.overdue+' overdue','#c0264b'):'')+
+               '<button onclick="trhQsAssignForm('+s.id+')" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Assign</button>'+
+               '<button onclick="trhQsForm('+s.id+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Edit</button></div></div>';
+        });
+        if(open.length){
+            h+='<div style="font-size:11.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#8a91a0;margin:10px 0 4px;">Waiting on ('+open.length+')</div>';
+            open.forEach(function(o){
+                h+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f2f6;font-size:12.5px;color:#26242b;"><b style="flex:1;">'+escapeHtml(o.employee||'')+'</b><span style="color:#5b6472;">'+escapeHtml(o.title||'')+'</span>'+(o.overdue?trhChip('overdue','#c0264b'):(o.due_at?'<span style="font-size:11px;color:#8a91a0;">due '+trhDate(o.due_at)+'</span>':''))+'</div>';
+            });
+        }
+        return trhCard(h,'Quick Scoops');
+    }
+    function trhQsFind(id){ return ((_trh.qsTeam&&_trh.qsTeam.scoops)||[]).filter(function(s){ return s.id===id; })[0]||null; }
+    function trhQsForm(id){
+        var s=id?(trhQsFind(id)||{}):{};
+        var stores=[['','All stores']].concat(((typeof HUB_STORES!=='undefined'?HUB_STORES:[]).concat(['Warehouse'])).map(function(x){ return [x,x]; }));
+        trhM2('<b style="font-size:15px;color:#1f2a44;">'+(id?'Edit':'New')+' Quick Scoop</b>'+
+            trhInp('trhQsfTitle','Title *',s.title||'','e.g. Cup sizes refresher')+
+            trhTxt('trhQsfBody','What should they read / re-learn?',s.body||'','Keep it short — a scoop, not a course.')+
+            trhInp('trhQsfRole','Audience roles (csv, blank = all)',s.audience_role||'','e.g. crew,lead')+
+            trhSel('trhQsfStore','Audience store',stores,s.audience_store||'')+
+            trhInp('trhQsfDue','Due in (days)',s.due_days!=null?s.due_days:3,'','number')+
+            trhInp('trhQsfCheck','Optional 1-question check',s.check_question||'','e.g. What size is a Small?')+
+            (id?'<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#33303a;margin-top:8px;"><input type="checkbox" id="trhQsfActive"'+(s.active!==false?' checked':'')+'> Active (assignable)</label>':'')+
+            trhBtnRow('Save scoop','trhQsSave('+(id||'null')+')'));
+    }
+    function trhQsSave(id){
+        var t=trhVal('trhQsfTitle'); if(!t){ alert('Title is required.'); return; }
+        var ac=true; if(id){ var cb=document.getElementById('trhQsfActive'); ac=!!(cb&&cb.checked); }
+        trhRpc('trh_qs_save',{p_id:id,p_title:t,p_body:trhVal('trhQsfBody')||null,p_audience_role:trhVal('trhQsfRole')||null,p_audience_store:trhVal('trhQsfStore')||null,p_due_days:trhVal('trhQsfDue')?parseInt(trhVal('trhQsfDue'),10):3,p_check_question:trhVal('trhQsfCheck')||null,p_active:ac},function(){
+            trhM2Close(); trhLoadTeamExtras();
+        });
+    }
+    function trhQsAssignForm(scoopId){
+        var d=_trh.qsTeam||{}; var s=trhQsFind(scoopId)||{}; var emps=d.employees||[];
+        var eh=emps.map(function(x){
+            return '<label data-trhname="'+escapeHtml(String(x.name||'').toLowerCase())+'" style="display:flex;align-items:center;gap:8px;font-size:13px;color:#33303a;padding:4px 0;"><input type="checkbox" class="trhQsEmp" value="'+x.id+'"> '+escapeHtml(x.name||'')+' <span style="font-size:10.5px;color:#8a91a0;">'+escapeHtml(x.role||'')+(x.store?' &middot; '+escapeHtml(x.store):'')+'</span></label>';
+        }).join('');
+        trhM2('<b style="font-size:15px;color:#1f2a44;">Assign: '+escapeHtml(s.title||'Quick Scoop')+'</b>'+
+            '<div style="font-size:11.5px;color:#8a91a0;margin-top:2px;">Anyone who already has this scoop open is skipped (no duplicates).</div>'+
+            '<button onclick="trhQsAssignSave('+scoopId+',true)" style="width:100%;margin-top:10px;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;">📣 Assign to the scoop&rsquo;s audience ('+(s.audience_role?escapeHtml(s.audience_role):'all roles')+' &middot; '+(s.audience_store?escapeHtml(s.audience_store):'all stores')+')</button>'+
+            '<div style="font-size:11px;color:#8a91a0;margin-top:8px;">…or pick specific people:</div>'+
+            '<div style="margin-top:6px;"><input id="trhQsFilter" placeholder="Type to filter names…" onkeyup="trhQsFilterList()" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #d8dce4;border-radius:9px;font-size:13px;"></div>'+
+            '<div id="trhQsList" style="max-height:220px;overflow:auto;margin-top:6px;border:1px solid #ececf2;border-radius:9px;padding:6px 10px;">'+(eh||'<div style="font-size:12px;color:#8a91a0;padding:8px 0;">No roster employees found.</div>')+'</div>'+
+            trhBtnRow('Assign to selected','trhQsAssignSave('+scoopId+',false)'));
+    }
+    function trhQsFilterList(){
+        var q=trhVal('trhQsFilter').toLowerCase();
+        var list=document.getElementById('trhQsList'); if(!list) return;
+        Array.prototype.forEach.call(list.querySelectorAll('label[data-trhname]'),function(l){ l.style.display=(!q||l.getAttribute('data-trhname').indexOf(q)>=0)?'flex':'none'; });
+    }
+    function trhQsAssignSave(scoopId,audience){
+        var ids=[];
+        if(!audience){
+            Array.prototype.forEach.call(document.querySelectorAll('.trhQsEmp:checked'),function(c){ ids.push(parseInt(c.value,10)); });
+            if(!ids.length){ alert('Pick at least one employee (or use the audience button).'); return; }
+        }
+        trhRpc('trh_qs_assign',{p_quickscoop_id:scoopId,p_employee_ids:ids,p_source:audience?'audience':'manual'},function(d){
+            trhM2Close(); alert(((d&&d.assigned)||0)+' assigned'+((d&&d.skipped)?(', '+d.skipped+' already open (skipped)'):'')+'.');
+            trhLoadTeamExtras();
+        });
+    }
+    // failed practical sign-off -> offer a pre-filled Quick Scoop (retraining,
+    // never discipline). Hooked from trhRecordSubmit; managers only.
+    var _trhQsFail={emp:null};
+    function trhQsOfferFromFail(empId,empName,station){
+        _trhQsFail={emp:empId};
+        trhM2('<b style="font-size:15px;color:#1f2a44;">🍦 Assign a Quick Scoop?</b>'+
+            '<div style="font-size:12.5px;color:#6b7686;margin-top:4px;">'+escapeHtml(empName||'This employee')+' didn&rsquo;t pass <b>'+escapeHtml(station)+'</b>. A Quick Scoop sends a short refresher they read and mark done — remediation guidance, never automatic discipline.</div>'+
+            trhInp('trhQfTitle','Title *','Refresher: '+station,'')+
+            trhTxt('trhQfBody','What should they review?','Quick refresher after the "'+station+'" sign-off. Review the steps with your leader&rsquo;s notes in mind, then mark done. You can request your next sign-off any time.','')+
+            trhInp('trhQfCheck','Optional 1-question check','','e.g. What are the three steps?')+
+            trhBtnRow('Create &amp; assign','trhQsFailSave()'));
+    }
+    function trhQsFailSave(){
+        var t=trhVal('trhQfTitle'); if(!t){ alert('Title is required.'); return; }
+        trhRpc('trh_qs_save',{p_id:null,p_title:t,p_body:trhVal('trhQfBody')||null,p_audience_role:null,p_audience_store:null,p_due_days:3,p_check_question:trhVal('trhQfCheck')||null,p_active:true},function(d){
+            var sid=d&&d.id;
+            if(!sid){ alert('Could not create the scoop.'); return; }
+            trhRpc('trh_qs_assign',{p_quickscoop_id:sid,p_employee_ids:[_trhQsFail.emp],p_source:'failed_signoff'},function(a){
+                trhM2Close(); alert(((a&&a.assigned)?'Quick Scoop assigned.':'They already had this scoop open — nothing duplicated.'));
+                trhLoadTeamExtras();
+            });
+        });
+    }
+
+    // ============================================================
+    // SCORM PACKAGE (attach to the linked LMS course) — minimal + honest.
+    // Hosts the unzipped package via the scorm-upload edge function
+    // (path-preserving signed uploads) and stores the launch URL with
+    // app_lp_set_scorm. NO runtime / scoring bridge is built here:
+    // completion is still recorded by the sign-off / knowledge check.
+    // ============================================================
+    function trhScormRowHtml(){
+        return '<div style="margin-top:8px;"><label style="font-size:11.5px;font-weight:700;color:#5b6472;">SCORM package (for the linked course)</label>'+
+            '<div style="display:flex;gap:6px;margin-top:3px;align-items:center;flex-wrap:wrap;">'+
+            '<button onclick="trhScormUpload()" style="background:#7d1d4b;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;">⬆ Upload .zip</button>'+
+            '<button onclick="trhScormLaunch()" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;">▶ Launch</button>'+
+            '<span id="trhScormMsg" style="font-size:11.5px;color:#6b7686;"></span></div>'+
+            '<div style="font-size:10.5px;color:#8a91a0;margin-top:3px;">Opens the interactive course; completion is recorded by your sign-off/quiz.</div></div>';
+    }
+    function trhScormSetMsg(t){ var e=document.getElementById('trhScormMsg'); if(e) e.textContent=t||''; }
+    function trhScormCourseId(){ var v=parseInt(trhVal('trhRfCourse'),10); return isNaN(v)?0:v; }
+    function trhScormUpload(){
+        var cid=trhScormCourseId();
+        if(!cid){ alert('Pick a linked Training Portal course first — the SCORM package attaches to that course.'); return; }
+        if(typeof JSZip==='undefined'){ alert('The unzip tool is still loading — please try again in a few seconds.'); return; }
+        withPin(function(pin){
+            var inp=document.createElement('input'); inp.type='file'; inp.accept='.zip,application/zip';
+            inp.onchange=function(){ var f=inp.files&&inp.files[0]; if(f) trhScormDoUpload(cid,f,pin); };
+            inp.click();
+        });
+    }
+    async function trhScormSign(cid,pin,relpath){
+        var res=await supabaseClient.functions.invoke('scorm-upload',{body:{username:currentUser.username,pin:pin,course_id:cid,relpath:relpath}});
+        var d=(res&&res.data)||{};
+        var err=(res&&res.error&&res.error.message)||d.error;
+        if(err||!d.token) throw new Error(err||'Could not authorize upload (managers only).');
+        return d;
+    }
+    async function trhScormDoUpload(cid,file,pin){
+        try{
+            trhScormSetMsg('Reading package…');
+            var zip=await JSZip.loadAsync(file);
+            var names=Object.keys(zip.files).filter(function(n){ return !zip.files[n].dir; });
+            if(!names.length){ trhScormSetMsg(''); alert('That .zip appears to be empty.'); return; }
+            // launch page: imsmanifest.xml's first resource href, else the shortest HTML file
+            var launchRel='';
+            var manName=names.filter(function(n){ return /(^|\/)imsmanifest\.xml$/i.test(n); })[0];
+            if(manName){
+                try{
+                    var xml=await zip.files[manName].async('string');
+                    var doc=new DOMParser().parseFromString(xml,'text/xml');
+                    var rlist=doc.getElementsByTagName('resource');
+                    for(var ri=0;ri<rlist.length;ri++){ if(rlist[ri].getAttribute('href')){ launchRel=manName.replace(/imsmanifest\.xml$/i,'')+rlist[ri].getAttribute('href'); break; } }
+                }catch(e){}
+            }
+            if(!launchRel){ var htmls=names.filter(function(n){ return /\.html?$/i.test(n); }).sort(function(a,b){ return a.length-b.length; }); launchRel=htmls[0]||''; }
+            if(!launchRel){ trhScormSetMsg(''); alert('Could not find a launch page (no imsmanifest.xml or HTML file). Is this a SCORM package?'); return; }
+            var launchClean=launchRel.split('?')[0].replace(/^\.?\//,'');
+            var launchQuery=launchRel.indexOf('?')>=0?launchRel.slice(launchRel.indexOf('?')):'';
+            var ver='v'+Date.now(); var launchUrl='';
+            for(var k=0;k<names.length;k++){
+                var name=names[k];
+                trhScormSetMsg('Uploading file '+(k+1)+' of '+names.length+'…');
+                var blob=await zip.files[name].async('blob');
+                var d=await trhScormSign(cid,pin,ver+'/'+name);
+                var up=await supabaseClient.storage.from('training-materials').uploadToSignedUrl(d.path,d.token,blob,{contentType:(typeof lmsScormType==='function'?lmsScormType(name):'application/octet-stream')});
+                if(up.error) throw new Error(up.error.message);
+                if(name.replace(/^\.?\//,'')===launchClean) launchUrl=d.url+launchQuery;
+            }
+            if(!launchUrl){ var ld=await trhScormSign(cid,pin,ver+'/'+launchClean); launchUrl=ld.url+launchQuery; }
+            trhScormSetMsg('Attaching to the course…');
+            await new Promise(function(res,rej){ supabaseClient.rpc('app_lp_set_scorm',{p_username:currentUser.username,p_password:pin,p_course_id:cid,p_url:launchUrl,p_version:'1.2'}).then(function(r){ if(r.error) rej(new Error(r.error.message)); else res(); }).catch(rej); });
+            trhScormSetMsg('✓ SCORM package attached');
+        }catch(e){ trhScormSetMsg(''); alert('Upload failed: '+((e&&e.message)?e.message:e)); }
+    }
+    function trhScormLaunch(){
+        var cid=trhScormCourseId();
+        if(!cid){ alert('Pick a linked Training Portal course first.'); return; }
+        var w=window.open('about:blank','_blank');
+        trhRpc('trh_scorm_info',{p_course_id:cid},function(d){
+            if(d&&d.scorm_url){ if(w){ w.location=d.scorm_url; } else { window.open(d.scorm_url,'_blank'); } }
+            else{ if(w) w.close(); alert('No SCORM package attached to this course yet — upload a .zip first.'); }
+        },function(e){ if(w) w.close(); alert(trhErrMsg((e&&e.message)||'Could not check the course.')); });
     }
 
     // ===== export =====

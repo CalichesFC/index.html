@@ -388,7 +388,7 @@
        Deep-linkable: openDashboards('live'|'command'|'manager'|'scorecards'|'maint'). */
     var DASH_TABS=[
         { k:'live',       emoji:'&#128225;', short:'Live',       title:'Live Dashboard',      btn:'adminDashBtn',     desc:'NCR Pulse net sales, labor &amp; transactions per store, plus vending routes &amp; catering.', go:function(){ openAdminDash(); } },
-        { k:'command',    emoji:'&#128202;', short:'Command',    title:'Command Center',      btn:'commandCenterBtn', desc:'Who is on the clock right now, hours today &amp; this week, and open tasks.', go:function(){ openCommandCenter(); } },
+        { k:'command',    emoji:'&#128202;', short:'Command',    title:'Store Intelligence',  btn:'commandCenterBtn', desc:'Who is on the clock right now, hours today &amp; this week, and open tasks.', go:function(){ openCommandCenter(); } },
         { k:'manager',    emoji:'&#128200;', short:'Manager',    title:'Manager Dashboard',   btn:'managerBtn',       desc:'Submitted forms &amp; activity: pop-ins, checklists, temp logs &amp; more.', go:function(){ openDashboard(); } },
         { k:'scorecards', emoji:'&#127978;', short:'Scorecards', title:'Store Scorecards',    btn:'btn-scorecards',   desc:'Per-store scorecard: sales vs last year, labor, speed, inspection &amp; training.', go:function(){ openScorecards(); } },
         { k:'maint',      emoji:'&#128295;', short:'Maintenance', title:'Maintenance Leadership', btn:'btn-maintDash', desc:'Open work orders, costs by store &amp; vendor spend for leadership.', go:function(){ openMaintDashboard(); } }
@@ -491,7 +491,8 @@
         if (shortageTrendsBtn) shortageTrendsBtn.style.display = permAllow('shortage_trends', (devOverride || isManager)) ? 'block' : 'none';
         var _teamDevBtn=document.getElementById('teamDevBtn'); if(_teamDevBtn) _teamDevBtn.style.display=permAllow('team_dev', (devOverride||isManager))?'block':'none';
         var _frBtn=document.getElementById('btn-fundraiserHub'); if(_frBtn) _frBtn.style.display=permAllow('fundraiser', (devOverride||isManager))?'block':'none';
-        var _mktBtn=document.getElementById('btn-marketingHub'); if(_mktBtn) _mktBtn.style.display=permAllow('marketing', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Marketing Manager','Designer/Creative'].indexOf(role)>=0))?'block':'none';
+        /* Single marketing door (2026-07-13): role union of the old v1 + v2 tiles ('Office' added from v2). */
+        var _mktBtn=document.getElementById('btn-marketingHub'); if(_mktBtn) _mktBtn.style.display=(permAllow('marketing', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Marketing Manager','Designer/Creative'].indexOf(role)>=0))||permAllow('marketing_v2', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Marketing Manager','Office'].indexOf(role)>=0)))?'block':'none';
         var _asBtn=document.getElementById('tileAppSettings'); if(_asBtn) _asBtn.style.display=(devOverride||isManager||role==='Admin Manager'||role==='Vice President/Co-Owner')?'block':'none';
         var _tgBtn=document.getElementById('btn-teamGrowth'); if(_tgBtn) _tgBtn.style.display=permAllow('team_growth', true)?'block':'none';
         var _drBtn=document.getElementById('btn-dailyReport'); if(_drBtn) _drBtn.style.display=permAllow('daily_report', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Shift Lead','Shift Leader','Office'].indexOf(role)>=0))?'block':'none';
@@ -504,7 +505,7 @@
         var _rrBtn=document.getElementById('btn-requestsRails'); if(_rrBtn) _rrBtn.style.display=permAllow('requests_rails', true)?'block':'none';
         var _ccBtn=document.getElementById('btn-commandCenter'); if(_ccBtn) _ccBtn.style.display=permAllow('command_center', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Office'].indexOf(role)>=0))?'block':'none';
         var _ptBtn=document.getElementById('btn-payTools'); if(_ptBtn) _ptBtn.style.display=permAllow('pay_tools', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Office'].indexOf(role)>=0))?'block':'none';
-        var _m2Btn=document.getElementById('btn-marketingV2'); if(_m2Btn) _m2Btn.style.display=permAllow('marketing_v2', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Marketing Manager','Office'].indexOf(role)>=0))?'block':'none';
+        /* btn-marketingV2 tile retired 2026-07-13 — folded into btn-marketingHub (openMarketingHub router). */
         var _smBtn=document.getElementById('btn-storeManager'); if(_smBtn) _smBtn.style.display=permAllow('store_manager', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
         var _scBtn=document.getElementById('btn-scorecards'); if(_scBtn) _scBtn.style.display=permAllow('scorecards', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
         var _catBtn=document.getElementById('btn-catering'); if(_catBtn) _catBtn.style.display=permAllow('catering', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
@@ -513,10 +514,8 @@
         var _dashBtn=document.getElementById('btn-dashboards'); if(_dashBtn) _dashBtn.style.display=(typeof dashAnyAllowed==='function'&&dashAnyAllowed())?'block':'none';
         const formsLinksBtn = document.getElementById('formsLinksBtn');
         if (formsLinksBtn) formsLinksBtn.style.display = permAllow('forms_links', (devOverride || isManager)) ? 'block' : 'none';
-        const quotesBtn = document.getElementById('quotesBtn');
-        if (quotesBtn) quotesBtn.style.display = ((typeof isManagerRole==='function'&&isManagerRole())||devOverride) ? 'block' : 'none';
-        const salesPipelineBtn = document.getElementById('salesPipelineBtn');
-        if (salesPipelineBtn) salesPipelineBtn.style.display = ((typeof isManagerRole==='function'&&isManagerRole())||devOverride) ? 'block' : 'none';
+        /* quotesBtn + salesPipelineBtn tiles retired 2026-07-13 — merged into the Catering
+           Pipeline board (btn-catering), which carries the manager gate. */
         document.getElementById('developerBtn').style.display = (currentUser.is_developer === true) ? 'block' : 'none';
         const futureIntegrations = document.getElementById('futureIntegrations');
         if (futureIntegrations) futureIntegrations.style.display = devOverride ? 'block' : 'none';

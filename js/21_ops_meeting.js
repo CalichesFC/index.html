@@ -28,7 +28,7 @@
  * ==========================================================================*/
 
     var _opm = { view:'home', mid:null, data:null, list:[], dash:null, cfgd:null,
-                 tab:'prep', store:'', leaders:null, followup:null, busy:false };
+                 tab:'prep', store:'', leaders:null, followup:null, busy:false, history:null };
 
     function opmRpc(name,args,cb,onerr){ withPin(function(pin){ supabaseClient.rpc(name,Object.assign({p_username:currentUser.username,p_password:pin},args||{})).then(function(r){ if(r.error){ if(onerr)onerr(r.error); else alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':r.error.message); return;} cb(r.data);}).catch(function(){ if(onerr)onerr({message:'Connection error'}); else alert('Connection error.'); }); }); }
 
@@ -133,7 +133,7 @@
     }
 
     /* ===== meeting workspace ================================================ */
-    function opmOpen(id){ _opm.mid=id; _opm.view='meeting'; opmLoading('Loading meeting…');
+    function opmOpen(id){ _opm.mid=id; _opm.view='meeting'; _opm.history=null; opmLoading('Loading meeting…');
         opmRpc('opm_get',{p_id:id},function(d){ _opm.data=d||{}; _opm.tab=(d&&d.me&&d.me.can_manage)?_opm.tab:'brief'; if(!_opm.data.me) _opm.data.me={}; opmRender(); },
         function(e){ alert(e.message||'Could not open the meeting.'); openOpsMeeting(); });
     }
@@ -142,7 +142,7 @@
 
     function opmTabsHtml(){
         var d=_opm.data, mgr=d.me.can_manage, t=_opm.tab;
-        var tabs=mgr?[['prep','Prep'],['perf','Performance'],['agenda','Agenda + AI'],['brief','Brief & Questions'],['live','Live Meeting'],['actions','Action Items'],['recap','Recap'],['followup','Follow-up']]
+        var tabs=mgr?[['prep','Prep'],['perf','Performance'],['agenda','Agenda + AI'],['brief','Brief & Questions'],['live','Live Meeting'],['actions','Action Items'],['recap','Recap'],['followup','Follow-up'],['history','History']]
                     :[['brief','My Brief'],['actions','My Action Items'],['recap','Recap']];
         var h='<div style="display:flex;gap:6px;max-width:860px;margin:12px auto 0;padding:0 16px;overflow-x:auto;">';
         tabs.forEach(function(x){ h+='<button onclick="opmSetTab(\''+x[0]+'\')" style="flex:0 0 auto;background:'+(t===x[0]?'#185FA5':'#eef0f3')+';color:'+(t===x[0]?'#fff':'#5b6472')+';border:none;padding:9px 13px;font-size:12.5px;font-weight:700;cursor:pointer;border-radius:9px;white-space:nowrap;">'+x[1]+'</button>'; });
@@ -165,10 +165,12 @@
         else if(t==='agenda') body=opmAgendaHtml(); else if(t==='brief') body=mgr?opmBriefMgrHtml():opmBriefSLHtml();
         else if(t==='live') body=opmLiveHtml(); else if(t==='actions') body=opmActionsHtml();
         else if(t==='recap') body=opmRecapHtml(); else if(t==='followup') body=opmFollowupHtml();
+        else if(t==='history') body=opmHistoryHtml();
         h+='<div style="max-width:860px;margin:0 auto;padding:12px 16px 60px;">'+body+'</div>';
         opmWrap(h);
         if(t==='followup'&&mgr&&!_opm.followup) opmFollowupLoad();
         if(t==='actions'&&mgr&&!_opm.leaders){ _opm.leaders=[]; opmLeadersLoad(); }
+        if(t==='history'&&mgr&&!_opm.history) opmHistoryLoad();
     }
 
     /* ===== PREP (manager first screen) ===================================== */
@@ -264,7 +266,8 @@
               +'<input id="opm_sl_manual_guests" placeholder="Guests" value="'+opmEsc(s.sl_manual_guests||'')+'" style="flex:1;min-width:90px;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:12.5px;">'
               +'</div></div>';
         }
-        if(mgr) inner+='<div style="margin-top:10px;">'+opmBtn('Save performance notes','opmPerfSave()')+'</div>';
+        if(mgr) inner+='<div id="opmAfPanel"></div>';
+        if(mgr) inner+='<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">'+opmBtn('Save performance notes','opmPerfSave()')+opmBtnGhost('&#8635; Auto-fill from store data','opmPerfAutofill()')+'</div>';
         h+=opmCard(inner);
         if(mgr) h+=opmCard('<b style="font-size:13.5px;color:#1f2a44;">Manager-only performance notes</b><textarea id="opm_mgr_perf_private" rows="3" placeholder="Private context, staffing/HR notes — never shown to shift leaders." style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:12.5px;margin-top:6px;">'+opmEsc(s.mgr_perf_private||'')+'</textarea><div style="display:flex;align-items:center;gap:8px;margin-top:8px;">'+opmSensBadge('manager_only')+opmBtnGhost('Save private note','opmPerfSave()')+'</div>');
         return h;
@@ -677,4 +680,65 @@
         x+='</body></html>';
         w.document.write(x); w.document.close();
         setTimeout(function(){ try{ w.print(); }catch(e){} },300);
+    }
+
+    /* ===== PERFORMANCE AUTO-FILL (Axial-fed store tables; manager approves) =
+     * opm_perf_autofill returns the review month vs prior month vs same month
+     * last year from store_metrics / daily_sales / prime-cost tables (nulls
+     * where a store has no synced data). It only FILLS the manual fields —
+     * nothing is saved until the manager presses "Save performance notes". */
+    function opmPerfAutofill(){
+        if(_opm.busy) return; _opm.busy=true;
+        var p=document.getElementById('opmAfPanel');
+        if(p) p.innerHTML='<div style="font-size:12px;color:#6b7686;padding:6px 0;">Pulling store data&hellip;</div>';
+        opmRpc('opm_perf_autofill',{p_id:_opm.mid},function(r){ _opm.busy=false; opmAfRender(r||{}); },
+            function(e){ _opm.busy=false; if(p) p.innerHTML='<div style="font-size:12px;color:#a01b3e;padding:6px 0;">'+opmEsc((e&&e.message)||'Could not pull store data.')+'</div>'; });
+    }
+    function opmAfFmt(v,money,suf){ if(v==null||v===''||isNaN(parseFloat(v))) return '—'; return money?opmMoney(v):(parseFloat(v).toLocaleString()+(suf||'')); }
+    function opmAfRender(r){
+        var p=document.getElementById('opmAfPanel'); if(!p) return;
+        var cur=r.current||{}, pr=r.prior||{}, ly=r.last_year||{};
+        function row(lbl,k,money,suf){ return '<tr style="border-top:1px solid #f2f2f6;"><td style="padding:4px 6px;color:#5b6472;">'+lbl+'</td><td style="padding:4px 6px;font-weight:700;color:#1f2a44;">'+opmAfFmt(cur[k],money,suf)+'</td><td style="padding:4px 6px;">'+opmAfFmt(pr[k],money,suf)+'</td><td style="padding:4px 6px;">'+opmAfFmt(ly[k],money,suf)+'</td></tr>'; }
+        p.innerHTML='<div style="border:1px solid #ececf2;border-radius:10px;padding:9px 11px;margin-top:10px;background:#fafbfd;">'
+          +'<div style="font-size:12px;font-weight:800;color:#1f2a44;">Store data &mdash; '+opmEsc(opmMonthLbl(r.review_month))+'</div>'
+          +'<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:5px;"><tr style="color:#8a93a3;font-size:10.5px;"><td style="padding:4px 6px;"></td><td style="padding:4px 6px;">Review month</td><td style="padding:4px 6px;">Prior month</td><td style="padding:4px 6px;">Same month LY</td></tr>'
+          +row('Sales','sales',true)
+          +row('Labor $','labor_cost',true)
+          +row('Labor %','labor_pct',false,'%')
+          +row('Prime cost %','prime_pct',false,'%')
+          +row('Transactions','transactions',false)
+          +row('Avg ticket','avg_ticket',true)
+          +'</table>'
+          +'<div style="font-size:11px;color:#8a93a3;margin-top:5px;">Pulled from the Axial-fed store tables. Blanks mean this store has no synced data yet &mdash; the manual fields stay in charge. Nothing is saved until you press Save.</div></div>';
+        var s=r.suggest||{}, n=0;
+        [['opm_sl_manual_sales','sl_manual_sales'],['opm_sl_manual_sales_ly','sl_manual_sales_ly'],['opm_sl_manual_labor','sl_manual_labor'],['opm_sl_manual_guests','sl_manual_guests']].forEach(function(x){
+            var e=document.getElementById(x[0]); if(e && s[x[1]]!=null && s[x[1]]!==''){ e.value=s[x[1]]; n++; }
+        });
+        if(n) alert('Filled '+n+' manual field'+(n>1?'s':'')+' from store data. Review or edit them, then press "Save performance notes".');
+    }
+
+    /* ===== HISTORY (read-only audit trail — manager view) =================== */
+    function opmHistoryLoad(){
+        opmRpc('opm_audit_list',{p_id:_opm.mid},function(r){ _opm.history=r||{events:[]}; opmRender(); },
+            function(e){ _opm.history={events:[],error:(e&&e.message)||'Could not load the meeting history.'}; opmRender(); });
+    }
+    function opmHistoryHtml(){
+        var d=_opm.data;
+        if(!d.me.can_manage) return opmCard(opmEmpty('&#128274;','The meeting history is manager-only.'));
+        var f=_opm.history;
+        if(!f) return opmCard(opmEmpty('&#8987;','Loading meeting history…'));
+        if(f.error) return opmCard('<div style="font-size:12.5px;color:#a01b3e;">'+opmEsc(f.error)+'</div>');
+        var ev=f.events||[];
+        var h='<b style="font-size:13.5px;color:#1f2a44;">&#128220; Meeting history</b>'
+          +'<div style="font-size:11.5px;color:#6b7686;margin:5px 0 8px;">Read-only audit trail: status changes, AI-suggestion decisions, topic decisions, shift-leader question reviews, and the recap send.</div>';
+        if(!ev.length) h+=opmEmpty('&#128220;','Nothing recorded for this meeting yet.');
+        ev.forEach(function(x){
+            h+='<div style="display:flex;gap:8px;padding:7px 0;border-top:1px solid #f2f2f6;align-items:baseline;flex-wrap:wrap;">'
+              +'<span style="font-size:11px;color:#8a93a3;white-space:nowrap;">'+opmEsc(String(x.at||'').slice(0,16).replace('T',' '))+'</span>'
+              +'<span style="flex:1;min-width:200px;font-size:12.5px;color:#3a4352;"><b>'+opmEsc(x.actor||'System')+'</b> &mdash; '+opmEsc(x.detail||x.action||'')
+              +(x.reason?'<div style="font-size:11.5px;color:#8a93a3;">Reason: '+opmEsc(x.reason)+'</div>':'')+'</span>'
+              +opmBadge(opmEsc(x.action||''),'#eef0f3','#5b6472')
+              +'</div>';
+        });
+        return opmCard(h);
     }

@@ -235,6 +235,8 @@
                 '<div style="display:flex;gap:8px;"><select id="p4lbStore" class="rm-inp" style="flex:2;">'+opts+'</select><select id="p4lbShift" class="rm-inp" style="flex:1;"><option>AM</option><option>PM</option></select></div>'+
                 '<textarea id="p4lbNote" rows="3" class="rm-inp" style="margin-top:8px;" placeholder="e.g. Freezer 2 running warm — PM watch it. Maria crushed the rush."></textarea>'+
                 '<button onclick="p4LogAdd()" class="sched-btn publish" style="width:100%;margin-top:10px;">Save to logbook</button></div>'+
+            '<p style="font-size:12px;color:#8a8594;margin:6px 2px 0;">One logbook everywhere: notes saved here also appear in that day\'s <b>Daily Store Report &rarr; Log Book</b> (and vice-versa).'
+            +' <a href="javascript:void(0)" onclick="if(typeof openDailyReport===\'function\')openDailyReport();" style="color:#7a4bd3;font-weight:700;">Open Daily Store Report &rarr;</a></p>'+
             p4CardO('&#128214; Today','Newest first')+'<div id="p4lbToday"><p style="color:#6b7686;font-size:13px;">Loading&hellip;</p></div></div>'+
             '<div style="margin-top:14px;"><button onclick="p4LogToggleHist()" style="width:100%;background:none;border:1px dashed var(--bd,#ccc);border-radius:12px;padding:10px;color:var(--txt2,#6b7686);font-weight:700;cursor:pointer;" id="p4lbHistBtn">&#9662; Show last 7 days</button><div id="p4lbHist" style="display:none;margin-top:8px;"></div></div>'+
             '</div>');
@@ -250,7 +252,11 @@
         });
     }
     function p4LogRowHtml(r){
-        return '<div style="padding:9px 0;border-bottom:1px solid var(--bd,#eee);"><div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--txt2,#8a8594);"><span><b style="color:var(--txt,#444);">'+p4Esc(r.author_name||'')+'</b> &middot; '+p4Esc(r.location||'')+' &middot; '+p4Esc(r.shift||'')+'</span><span>'+p4Esc(r.entry_date||'')+'</span></div><div style="font-size:13.5px;color:var(--txt,#333);white-space:pre-wrap;margin-top:3px;">'+p4Esc(r.note||'')+'</div></div>';
+        /* Notes written from the Daily Store Report arrive tagged "[DSR#123|section]" —
+           show a friendly chip instead of the raw tag (same single manager_logbook table). */
+        var raw=String(r.note||''), m=raw.match(/^\[DSR#(\d+)(?:\|([^\]]*))?\]\s*/), chip='';
+        if(m){ raw=raw.slice(m[0].length); chip=' <span style="background:#eef;color:#3b2f6b;border-radius:6px;font-size:10px;font-weight:800;padding:1px 6px;vertical-align:middle;">DSR'+(m[2]?(' &middot; '+p4Esc(m[2])):'')+'</span>'; }
+        return '<div style="padding:9px 0;border-bottom:1px solid var(--bd,#eee);"><div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--txt2,#8a8594);"><span><b style="color:var(--txt,#444);">'+p4Esc(r.author_name||'')+'</b> &middot; '+p4Esc(r.location||'')+' &middot; '+p4Esc(r.shift||'')+chip+'</span><span>'+p4Esc(r.entry_date||'')+'</span></div><div style="font-size:13.5px;color:var(--txt,#333);white-space:pre-wrap;margin-top:3px;">'+p4Esc(raw)+'</div></div>';
     }
     function p4LogLoad(){
         var elT=document.getElementById('p4lbToday'), elH=document.getElementById('p4lbHist');
@@ -486,7 +492,14 @@
     function catRenderBoard(){
         var box=document.getElementById('catBody'); if(!box) return;
         var html=catChipsHtml();
-        html+='<button onclick="catNewForm()" style="width:100%;background:var(--caliches-pink,#c0264b);color:#fff;border:none;border-radius:11px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:14px;">+ New event (phone/walk-in)</button>';
+        html+='<button onclick="catNewForm()" style="width:100%;background:var(--caliches-pink,#c0264b);color:#fff;border:none;border-radius:11px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:8px;">+ New event (phone/walk-in)</button>';
+        // Merged 2026-07-13: the formal quote builder + quotes/invoices pipeline (the proven
+        // quotes-table engine w/ Square pay links) now live INSIDE this board instead of two
+        // separate menu tiles. Same functions, one door.
+        html+='<div style="display:flex;gap:8px;margin-bottom:14px;">'
+            +'<button onclick="if(typeof clearQuoteEdit===\'function\')clearQuoteEdit();openForm(\'quotesView\');if(typeof hubLoadTaxRates===\'function\')hubLoadTaxRates();" style="flex:1;background:#7b2d8b;color:#fff;border:none;border-radius:11px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">&#128221; Quote Builder</button>'
+            +'<button onclick="openSalesPipeline()" style="flex:1;background:#26242b;color:#fff;border:none;border-radius:11px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">&#128202; Quotes &amp; Invoices</button>'
+            +'</div>';
         if(!catList.length){ html+='<p style="text-align:center;color:#8a8594;padding:26px 10px;font-size:13.5px;">Nothing here yet. Website inquiries land in this pipeline automatically, or add a phone/walk-in event above.</p>'; box.innerHTML=html; return; }
         var order=CAT_STAGES.concat(['lost']);
         for(var s=0;s<order.length;s++){

@@ -8,7 +8,7 @@
     // Entry point: openDailyReport(). Overlay id: dsrModal.
     // ============================================================
 
-    var _dsr = { view:'landing', list:[], filters:{ location:'', date:'', status:'' }, report:null, reportId:null, wtab:'header', lastValidation:null };
+    var _dsr = { view:'landing', list:[], filters:{ location:'', date:'', status:'' }, report:null, reportId:null, wtab:'header', lastValidation:null, audit:null, showAudit:false };
 
     var DSR_DENOMS = [['c_misc','Misc $'],['c_ones','$1s'],['c_fives','$5s'],['c_tens','$10s'],['c_twenties','$20s'],['c_fifties','$50s'],['c_hundreds','$100s'],['checks','Checks'],['change','Change']];
     var DSR_PAY_CATS = [['mc_visa','MC / Visa'],['donation_gc','Donation GC'],['voids','Voids'],['apple_pay','Apple Pay'],['caliches_gc',"Caliche's GC"],['other','Other']];
@@ -187,7 +187,7 @@
     // ============================================================
     // WORKSPACE
     // ============================================================
-    function dsrWorkspace(id){ _dsr.view='workspace'; _dsr.wtab='header'; _dsr.reportId=id; _dsr.lastValidation=null; dsrLoadReport(); }
+    function dsrWorkspace(id){ _dsr.view='workspace'; _dsr.wtab='header'; _dsr.reportId=id; _dsr.lastValidation=null; _dsr.audit=null; _dsr.showAudit=false; dsrLoadReport(); }
 
     function dsrLoadReport(){
         var ov=dsrOverlay();
@@ -229,7 +229,15 @@
 
     function dsrStatusBar(){
         var rep=dsrRep();
-        return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;"><span style="font-size:12px;color:#6b7686;">Status:</span>'+dsrBadge(rep.status)+(rep.correction_of_id?('<span style="font-size:11.5px;color:#c0264b;font-weight:700;">Correction of #'+escapeHtml(String(rep.correction_of_id))+'</span>'):'')+'</div>';
+        var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;"><span style="font-size:12px;color:#6b7686;">Status:</span>'+dsrBadge(rep.status)+(rep.correction_of_id?('<span style="font-size:11.5px;color:#c0264b;font-weight:700;">Correction of #'+escapeHtml(String(rep.correction_of_id))+'</span>'):'')+'<span style="flex:1;"></span>';
+        if(dsrIsSubmittedStatus(rep.status)){
+            h+=dsrBtn('&#128424; Print / Save PDF','dsrPrint()');
+            if(typeof hubGenHrPdf==='function') h+=dsrBtn('Archive PDF','dsrArchivePdf()');
+        }
+        if(dsrCanSeeAudit()) h+=dsrBtn(_dsr.showAudit?'Hide history':'History','dsrToggleHistory()');
+        h+='</div>';
+        if(_dsr.showAudit) h+=dsrHistoryCard();
+        return h;
     }
 
     function dsrRenderWorkspace(){
@@ -605,4 +613,166 @@
         var actList=acts.length?acts.map(function(a){ return '<div style="font-size:12.5px;padding:5px 0;border-bottom:1px solid #f1f2f6;">'+escapeHtml(a.kind||'')+' &middot; '+escapeHtml(a.title||a.target_id||'')+' <span style="color:#8a91a0;">'+escapeHtml(a.status||'')+'</span></div>'; }).join(''):dsrEmpty('No follow-ups yet.');
         h+=dsrCard('<div style="font-size:12px;color:#6b7686;margin-bottom:8px;">Turn a shift issue into a tracked follow-up &mdash; this creates the real Task / Maintenance / Supply record.</div>'+'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">'+dsrBtn('Create task','dsrCreateAction(&quot;task&quot;)')+dsrBtn('Create maintenance ticket','dsrCreateAction(&quot;maintenance&quot;)')+dsrBtn('Create supply request','dsrCreateAction(&quot;supply&quot;)')+'</div>'+actList,'Follow-up actions');
         return h;
+    }
+
+    // ============================================================
+    // PRINT / ARCHIVE PACKET + AUDIT HISTORY (submitted reports)
+    // Print mirrors opmPrint() in js/21 (popup + inline styles);
+    // Archive reuses the existing hubGenHrPdf Dropbox pipeline
+    // (js/06) defensively; History reads the existing dsr_audit_list
+    // RPC (managers+).
+    // ============================================================
+    function dsrIsSubmittedStatus(s){ s=String(s||'').toLowerCase(); return ['submitted','under review','under_review','reviewed','locked'].indexOf(s)>=0; }
+    function dsrCanSeeAudit(){ return !!(typeof isManagerRole==='function' && (isManagerRole()||isAdminManager()||isDiscAdmin())); }
+    function dsrToggleHistory(){
+        if(_dsr.showAudit){ _dsr.showAudit=false; dsrRenderWorkspace(); return; }
+        _dsr.showAudit=true;
+        dsrRenderWorkspace();
+        if(!_dsr.audit){
+            dsrRpc('dsr_audit_list',{p_id:_dsr.reportId},function(d){ _dsr.audit=d||[]; if(_dsr.showAudit) dsrRenderWorkspace(); },
+                function(err){ _dsr.audit=[]; if(_dsr.showAudit) dsrRenderWorkspace(); alert((err&&err.message)||'Could not load history.'); });
+        }
+    }
+    function dsrHistoryCard(){
+        if(!_dsr.audit) return dsrCard('<div style="color:#6b7686;font-size:12.5px;">Loading history&hellip;</div>','History');
+        var rows=_dsr.audit;
+        if(!rows.length) return dsrCard(dsrEmpty('No audit entries recorded for this report yet.'),'History');
+        var b='<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr>'+['When','Who','Action','Change'].map(function(x){return '<th style="text-align:left;padding:5px 7px;color:#8a91a0;font-size:10.5px;text-transform:uppercase;">'+x+'</th>';}).join('')+'</tr></thead><tbody>';
+        rows.forEach(function(a){
+            var change='';
+            if(a.field){ change=escapeHtml(a.field)+': '+escapeHtml(a.old_val==null?'—':String(a.old_val))+' &rarr; '+escapeHtml(a.new_val==null?'—':String(a.new_val)); }
+            else if(a.new_val!=null){ change=escapeHtml(String(a.new_val)); }
+            if(a.reason) change+=(change?'<br>':'')+'<span style="color:#8a91a0;">Reason: '+escapeHtml(a.reason)+'</span>';
+            b+='<tr style="border-top:1px solid #f1f2f6;vertical-align:top;"><td style="padding:5px 7px;white-space:nowrap;color:#5b6675;">'+escapeHtml(String(a.at||'').slice(0,16).replace('T',' '))+'</td><td style="padding:5px 7px;">'+escapeHtml(a.actor_name||'')+'</td><td style="padding:5px 7px;font-weight:700;color:#1f2a44;">'+escapeHtml(a.action||'')+'</td><td style="padding:5px 7px;">'+(change||'&mdash;')+'</td></tr>';
+        });
+        b+='</tbody></table>';
+        return dsrCard(b,'History (audit trail)');
+    }
+
+    // ---- print packet builder (inline styles only, so the same HTML works
+    // in the popup print window AND through the hubGenHrPdf pipeline) ----
+    function dsrPacketHtml(){
+        var rep=dsrRep();
+        var TD='padding:4px 6px;border:1px solid #ddd;font-size:11.5px;text-align:left;vertical-align:top;';
+        var TH='padding:4px 6px;border:1px solid #ddd;font-size:10.5px;text-align:left;background:#f2f4f7;color:#444;';
+        function lv(a,b){ return a!=null?a:b; }
+        function h2(t){ return '<h2 style="font-size:14.5px;border-bottom:1px solid #ccc;padding-bottom:3px;margin:20px 0 8px;color:#1f2a44;">'+escapeHtml(t)+'</h2>'; }
+        function kvTable(rows){
+            var t='<table style="width:100%;border-collapse:collapse;margin:6px 0;">';
+            rows.forEach(function(r){ t+='<tr><td style="'+TD+'width:34%;font-weight:700;color:#555;">'+escapeHtml(r[0])+'</td><td style="'+TD+'">'+((r[1]==null||r[1]==='')?'&mdash;':r[1])+'</td></tr>'; });
+            return t+'</table>';
+        }
+        var x='<div style="font-family:Arial,Helvetica,sans-serif;color:#222;max-width:760px;margin:0 auto;">';
+        x+='<h1 style="font-size:19px;margin:0 0 4px;color:#185FA5;">Daily Store Report &mdash; '+escapeHtml(rep.location||'')+'</h1>';
+        x+='<p style="font-size:12.5px;margin:0 0 14px;color:#555;">'+escapeHtml(rep.business_date?String(rep.business_date).slice(0,10):'')+' &middot; Status: '+escapeHtml(rep.status||'')+(rep.submitted_by?(' &middot; Submitted by '+escapeHtml(rep.submitted_by)+(rep.submitted_at?(' ('+escapeHtml(String(rep.submitted_at).slice(0,16).replace('T',' '))+')'):'')):'')+'</p>';
+        x+=h2('Header');
+        x+=kvTable([['AM Manager',escapeHtml(rep.am_manager||'')],['PM Manager',escapeHtml(rep.pm_manager||'')],['Weather',escapeHtml(rep.weather||'')],['Ops notes',escapeHtml(rep.ops_notes||'')]]);
+        function coSec(type,label){
+            var c=dsrCloseoutOf(type)||{}; var regs=dsrRegistersOf(type); var pays=dsrPayAdjOf(type);
+            var s=h2(label);
+            var rows=[['Ring-out time',escapeHtml(c.ring_out_time||'')],['Prepared by',escapeHtml(c.prepared_by||'')],['Tape/POS total',dsrMoney(c.tape_total)]];
+            if(type==='night') rows.push(['Net tape total (end of day)',dsrMoney(c.net_tape_total)]);
+            rows.push(['Bag count',(c.bag_count==null?'':escapeHtml(String(c.bag_count)))]);
+            rows.push(['Deposit',dsrMoney(c.deposit)]);
+            rows.push(['Transactions',(c.transactions==null?'':escapeHtml(String(c.transactions)))]);
+            rows.push(['Counted cash (registers)',dsrMoney(c.register_total)]);
+            rows.push(['Card / GC / other tenders',dsrMoney(c.adj_total)]);
+            rows.push(['Over / Short','<b>'+dsrMoney(c.over_short)+'</b>']);
+            s+=kvTable(rows);
+            if(regs.length){
+                s+='<table style="width:100%;border-collapse:collapse;margin:6px 0;"><tr><th style="'+TH+'">Register</th>'+DSR_DENOMS.map(function(d){return '<th style="'+TH+'">'+escapeHtml(d[1])+'</th>';}).join('')+'<th style="'+TH+'">Total</th></tr>';
+                regs.forEach(function(rg){
+                    s+='<tr><td style="'+TD+'font-weight:700;">'+escapeHtml(rg.position_label||'')+'</td>'+DSR_DENOMS.map(function(d){var v=rg[d[0]];return '<td style="'+TD+'">'+(v==null?'&mdash;':escapeHtml(String(v)))+'</td>';}).join('')+'<td style="'+TD+'font-weight:700;">'+dsrMoney(rg.register_total)+'</td></tr>';
+                });
+                s+='</table>';
+            }
+            if(pays.length){
+                s+='<table style="width:100%;border-collapse:collapse;margin:6px 0;"><tr><th style="'+TH+'">Payment adjustment</th><th style="'+TH+'">Amount</th></tr>';
+                DSR_PAY_CATS.forEach(function(pc){ var ex=pays.filter(function(p){return p.category===pc[0];})[0]; if(ex) s+='<tr><td style="'+TD+'">'+escapeHtml(pc[1])+'</td><td style="'+TD+'">'+dsrMoney(ex.amount)+'</td></tr>'; });
+                s+='</table>';
+            }
+            return s;
+        }
+        x+=coSec('five','5:00 Closeout');
+        x+=coSec('night','Night Closeout');
+        var five=dsrCloseoutOf('five')||{}, night=dsrCloseoutOf('night')||{};
+        x+=h2('Combined Totals');
+        x+='<table style="width:100%;border-collapse:collapse;margin:6px 0;"><tr><th style="'+TH+'">Field</th><th style="'+TH+'">5:00</th><th style="'+TH+'">Night</th><th style="'+TH+'">Total</th></tr>';
+        [['Register total','register_total'],['Tape total','tape_total'],['Adjusted total','adj_total'],['Deposit','deposit'],['Over/Short','over_short']].forEach(function(rr){
+            x+='<tr><td style="'+TD+'">'+escapeHtml(rr[0])+'</td><td style="'+TD+'">'+dsrMoney(five[rr[1]])+'</td><td style="'+TD+'">'+dsrMoney(night[rr[1]])+'</td><td style="'+TD+'font-weight:700;">'+dsrMoney(dsrSum(five[rr[1]],night[rr[1]]))+'</td></tr>';
+        });
+        x+='</table>';
+        var cr=dsrChangeRecon()||{};
+        if(cr.id!=null){
+            x+=h2('Change reconciliation');
+            x+=kvTable([['Change in safe',dsrMoney(cr.change_in_safe)],['Required target',dsrMoney(cr.required_target)],['Need additional',dsrMoney(cr.need_additional)],['Counted total',dsrMoney(cr.total)],['Over / Short','<b>'+dsrMoney(cr.over_short)+'</b>']]);
+        }
+        var pr=dsrPromo()||{};
+        if(pr.id!=null){
+            x+=h2('Promo & waste');
+            x+=kvTable([['Free items',(pr.free_items==null?'':escapeHtml(String(pr.free_items)))],['Promo total ($)',dsrMoney(pr.promo_total_amt)],['Promo total (#)',(pr.promo_total_num==null?'':escapeHtml(String(pr.promo_total_num)))],['Open discount',dsrMoney(pr.open_discount)],['Food waste',dsrMoney(pr.food_waste)],['Employee discount',dsrMoney(pr.employee_discount)]]);
+        }
+        x+=h2('Log Book');
+        var lines=dsrChecklistLines();
+        if(lines.length){
+            x+='<table style="width:100%;border-collapse:collapse;margin:6px 0;"><tr><th style="'+TH+'">Checklist item</th><th style="'+TH+'">AM</th><th style="'+TH+'">PM</th><th style="'+TH+'">Comment</th></tr>';
+            lines.forEach(function(lbl){
+                var en=dsrChecklistEntryOf(dsrCkSlug(lbl))||{};
+                var am=(en.am_done?'&#10003;':'&mdash;')+(en.am_initials?(' '+escapeHtml(en.am_initials)):'');
+                var pm=(en.pm_done?'&#10003;':'&mdash;')+(en.pm_initials?(' '+escapeHtml(en.pm_initials)):'');
+                x+='<tr><td style="'+TD+'">'+escapeHtml(lbl)+'</td><td style="'+TD+'">'+am+'</td><td style="'+TD+'">'+pm+'</td><td style="'+TD+'">'+escapeHtml(en.comment||'')+'</td></tr>';
+            });
+            x+='</table>';
+        }
+        x+='<table style="width:100%;border-collapse:collapse;margin:6px 0;"><tr><th style="'+TH+'">Rating</th><th style="'+TH+'">AM</th><th style="'+TH+'">AM comment</th><th style="'+TH+'">PM</th><th style="'+TH+'">PM comment</th></tr>';
+        DSR_RATING_CATS.forEach(function(rc){
+            var ex=dsrRatingOf(rc[0])||{};
+            x+='<tr><td style="'+TD+'">'+escapeHtml(rc[1])+'</td><td style="'+TD+'">'+(ex.am_score==null?'&mdash;':ex.am_score)+'</td><td style="'+TD+'">'+escapeHtml(ex.am_comment||'')+'</td><td style="'+TD+'">'+(ex.pm_score==null?'&mdash;':ex.pm_score)+'</td><td style="'+TD+'">'+escapeHtml(ex.pm_comment||'')+'</td></tr>';
+        });
+        x+='</table>';
+        DSR_LOG_SECTIONS.forEach(function(sec){
+            var notes=dsrLogNotes(sec[0]);
+            if(notes.length){
+                x+='<p style="font-size:12px;margin:8px 0 2px;"><b>'+escapeHtml(sec[1])+'</b></p>';
+                notes.forEach(function(n){ x+='<p style="font-size:12px;margin:2px 0;">&bull; '+escapeHtml(n.body||'')+(n.by?(' <span style="color:#888;">('+escapeHtml(n.by)+')</span>'):'')+'</p>'; });
+            }
+        });
+        var atts=dsrAttachments();
+        if(atts.length){
+            x+='<p style="font-size:12px;margin:8px 0 2px;"><b>Attachments</b></p>';
+            atts.forEach(function(a){ x+='<p style="font-size:11.5px;margin:2px 0;">&#128206; '+escapeHtml(a.caption||a.section||'Attachment')+' &mdash; '+escapeHtml(a.url||'')+'</p>'; });
+        }
+        var l=dsrLabor()||{};
+        x+=h2('Labor projection');
+        x+=kvTable([
+            ['Projected AM sales',dsrMoney(l.proj_am_sales)],['Projected PM sales',dsrMoney(l.proj_pm_sales)],['Avg hourly wage',dsrMoney(l.avg_wage)],
+            ['AM hours',(l.am_hours==null?'':escapeHtml(String(l.am_hours)))],['PM hours',(l.pm_hours==null?'':escapeHtml(String(l.pm_hours)))],
+            ['AM manager',escapeHtml(l.am_mgr||'')],['PM manager',escapeHtml(l.pm_mgr||'')],
+            ['AM labor cost / %',dsrMoney(lv(l.am_cost,l.am_labor_cost))+((lv(l.am_pct,l.am_labor_pct)!=null)?(' / '+parseFloat(lv(l.am_pct,l.am_labor_pct)).toFixed(1)+'%'):'')],
+            ['PM labor cost / %',dsrMoney(lv(l.pm_cost,l.pm_labor_cost))+((lv(l.pm_pct,l.pm_labor_pct)!=null)?(' / '+parseFloat(lv(l.pm_pct,l.pm_labor_pct)).toFixed(1)+'%'):'')],
+            ['Daily labor cost / %','<b>'+dsrMoney(lv(l.daily_cost,l.daily_labor_cost))+((lv(l.daily_pct,l.daily_labor_pct)!=null)?(' / '+parseFloat(lv(l.daily_pct,l.daily_labor_pct)).toFixed(1)+'%'):'')+'</b>']]);
+        x+='<p style="margin-top:22px;font-size:10px;color:#777;border-top:1px solid #eee;padding-top:8px;">Generated by Caliche&#39;s Hub on '+escapeHtml(new Date().toLocaleString())+'. Money/percent values are server-computed; Office Use figures are excluded from this packet.</p>';
+        x+='</div>';
+        return x;
+    }
+    function dsrPrint(){
+        var w=window.open('','_blank'); if(!w){ alert('Allow pop-ups to print the report.'); return; }
+        var x='<html><head><title>Daily Store Report</title><style>body{font-family:Arial,sans-serif;color:#222;max-width:780px;margin:24px auto;}@media print{body{margin:0;}}</style></head><body>'+dsrPacketHtml()+'</body></html>';
+        w.document.write(x); w.document.close();
+        setTimeout(function(){ try{ w.print(); }catch(e){} },300);
+    }
+    function dsrArchivePdf(){
+        if(typeof hubGenHrPdf!=='function'){ alert('PDF archiving is not available in this build. Use Print / Save PDF instead.'); return; }
+        var rep=dsrRep();
+        if(!confirm('Archive this report as a PDF (filed to Dropbox, linked back as an attachment)?')) return;
+        var fileName=(rep.business_date?String(rep.business_date).slice(0,10):dsrTodayIso())+' - Daily Store Report.pdf';
+        hubGenHrPdf('Daily Store Report', rep.location||'', 'Daily Store Reports', fileName, dsrPacketHtml(), function(pdfUrl){
+            if(pdfUrl){
+                dsrRpc('dsr_attachment_add',{p_id:_dsr.reportId,p_section:'archive_pdf',p_url:pdfUrl,p_caption:fileName},
+                    function(){ alert('PDF filed to Dropbox and linked on the Log Book tab.'); dsrLoadReport(); },
+                    function(){ alert('PDF filed to Dropbox. (Could not link it as an attachment on this report.)'); });
+            } else {
+                alert('The PDF service could not be reached — use Print / Save PDF instead.');
+            }
+        });
     }

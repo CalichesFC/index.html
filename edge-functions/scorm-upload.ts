@@ -52,7 +52,9 @@ Deno.serve(async (req) => {
     }
 
     const path = `scorm/${cid}/${rel}`;
-    const { data, error } = await sb.storage.from(BUCKET).createSignedUploadUrl(path);
+    // upsert:true lets a manager re-upload / replace a package for the same course
+    // (otherwise createSignedUploadUrl rejects an existing object with "resource already exists").
+    const { data, error } = await sb.storage.from(BUCKET).createSignedUploadUrl(path, { upsert: true });
     if (error) {
       return new Response(JSON.stringify({ error: error.message }), { status: 200, headers: CORS });
     }

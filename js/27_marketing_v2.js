@@ -104,6 +104,15 @@
       'School/Community Partnership','Signage','Social Post','Hiring Push','Donation/Sponsorship',
       'Photo/Video','Menu/Item Promotion','Other'];
 
+    // ---- SINGLE MARKETING DOOR (added 2026-07-13) ----
+    // One menu tile → planner (v1) for those cleared for it, Store Tools (v2) otherwise.
+    // Both remain cross-linked internally (v1 tab bar has a Store Tools button).
+    function openMarketingHub(){
+      if(typeof mcCanOpen==='function' && mcCanOpen() && typeof openMarketing==='function'){ openMarketing(); }
+      else { openMarketingV2(); }
+    }
+    window.openMarketingHub = openMarketingHub;
+
     // ---- ENTRY POINT ----
     function openMarketingV2(){
       if(!m2CanOpen()){ alert('Marketing tools are for managers, leads, and the marketing team.'); return; }
