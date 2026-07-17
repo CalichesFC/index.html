@@ -57,6 +57,25 @@
                 if (error && error.code === '42501') sessionPin = null;
                 if (error) { console.error('[Dashboard] Error:', error); results.innerHTML = '<p style="color:red;padding:20px;">Error (' + error.code + '): ' + error.message + '</p>'; return; }
                 if (!supaData || supaData.length === 0) { results.innerHTML = '<p style="padding:20px;">No data found. Submit a form then check this tab.</p>'; return; }
+                // H3 fix (2026-07-17): dashDateFilter's selected value was never read, so changing
+                // it silently re-fetched the same unfiltered query. These 5 tables each name their
+                // date column differently (ReportDate/OrderDate/IncidentDate/Date/date), so filter
+                // client-side against whichever one the row has -- same pattern already used by
+                // Shortage Trends (js/11_customer_history_autosuggest.js, fetchShortageTrends()).
+                let data = supaData;
+                let filterSel = document.getElementById('dashDateFilter');
+                let daysLimit = filterSel ? parseInt(filterSel.value, 10) : 30;
+                if (daysLimit && daysLimit < 900) {
+                    const cutoff = new Date();
+                    cutoff.setDate(cutoff.getDate() - daysLimit);
+                    data = supaData.filter(row => {
+                        const dateStr = row.ReportDate || row.OrderDate || row.IncidentDate || row.Date || row.date || row.created_at;
+                        if (!dateStr) return true;
+                        const d = new Date(dateStr);
+                        return !isNaN(d) && d >= cutoff;
+                    });
+                }
+                if (!data.length) { results.innerHTML = '<p style="padding:20px;">No data found in this time range.</p>'; return; }
                 let allKeys = Object.keys(supaData[0]).filter(k => k !== 'id');
                 let hasPdf = allKeys.includes('PDF_Archive');
                 let headers = allKeys.filter(k => k !== 'PDF_Archive');
@@ -66,7 +85,7 @@
                 if(hasPdf) html += '<th>PDF</th>';
                 if(tabName==='Maintenance Logs'||tabName==='Damage Reports') html += '<th>Action</th>';
                 html += '</tr></thead><tbody>';
-                supaData.forEach(row => {
+                data.forEach(row => {
                     html += '<tr>';
                     headers.forEach((h,i) => {
                         if(i>=maxCols) return;
@@ -124,7 +143,7 @@
                         let maintBoardChecked = (u.maint_board_access !== false);
                         checks += '<label style="margin-right:8px;font-size:11px;font-weight:bold;white-space:nowrap;color:var(--maint-orange);"><input type="checkbox" id="mb-' + u.id + '" ' + (maintBoardChecked?'checked':'') + ' style="transform:scale(1.2);vertical-align:middle;"> Maint. Board</label>';
                     }
-                    html += '<tr><td style="font-weight:500;">' + u.name + '</td><td style="color:var(--na-gray);">' + u.username + '</td><td style="color:var(--na-gray);">' + (u.email||'—') + '</td><td><select id="role-select-' + u.id + '" class="role-select"><option value="Blue Apron"' + (u.role==='Blue Apron'?' selected':'') + '>Blue Apron</option><option value="Shift Lead"' + (u.role==='Shift Lead'?' selected':'') + '>Shift Lead</option><option value="Manager"' + (u.role==='Manager'?' selected':'') + '>Manager</option><option value="Maintenance"' + (u.role==='Maintenance'?' selected':'') + '>Maintenance</option><option value="Admin Manager"' + (u.role==='Admin Manager'?' selected':'') + '>Admin Manager</option>' + (u.role==='Vice President/Co-Owner' ? '<option value="Vice President/Co-Owner" selected>Vice President/Co-Owner</option>' : '') + '</select></td><td><div id="perm-' + u.id + '" style="display:flex;flex-wrap:wrap;gap:2px;max-width:260px;">' + checks + '</div></td><td style="white-space:nowrap;"><button class="update-role-btn" onclick="updateRole(' + u.id + ')">Save Role</button><button class="update-action-btn" onclick="updatePermissions(' + u.id + ')" style="margin-left:5px;">Save Forms</button><button class="delete-btn" onclick="deleteUser(' + u.id + ')">Delete</button></td></tr>';
+                    html += '<tr><td style="font-weight:500;">' + u.name + '</td><td style="color:var(--na-gray);">' + u.username + '</td><td style="color:var(--na-gray);">' + (u.email||'—') + '</td><td><select id="role-select-' + u.id + '" class="role-select"><option value="Blue Apron"' + (u.role==='Blue Apron'?' selected':'') + '>Blue Apron</option><option value="Shift Lead"' + (u.role==='Shift Lead'?' selected':'') + '>Shift Lead</option><option value="Manager"' + (u.role==='Manager'?' selected':'') + '>Manager</option><option value="Maintenance"' + (u.role==='Maintenance'?' selected':'') + '>Maintenance</option><option value="Admin Manager"' + (u.role==='Admin Manager'?' selected':'') + '>Admin Manager</option>' + (u.role==='Vice President/Co-Owner' ? '<option value="Vice President/Co-Owner" selected>Vice President/Co-Owner</option>' : '') + '</select></td><td><div id="perm-' + u.id + '" style="display:flex;flex-wrap:wrap;gap:2px;max-width:260px;">' + checks + '</div></td><td style="white-space:nowrap;"><button class="update-role-btn" onclick="updateRole(' + u.id + ')">Save Role</button><button class="update-action-btn" onclick="updatePermissions(' + u.id + ')" style="margin-left:5px;">Save Forms</button><button class="delete-btn" onclick="deleteUser(' + u.id + ')">Remove Login</button></td></tr>';
                 });
                 html += '</tbody></table></div>'; results.innerHTML = html;
             }).catch(() => { results.innerHTML = '<p style="color:red;">Connection Error.</p>'; });
@@ -158,12 +177,24 @@
     }
 
     function deleteUser(id) {
-        if(!confirm('Are you sure you want to permanently delete this user?')) return;
+        // H6 fix (2026-07-17): wording used to say "permanently delete this user", which directly
+        // contradicts the Admin Console's Data Retention promise ("Records are archived, never
+        // hard-deleted") and the owner's standing archive-don't-delete policy. This Users tab
+        // manages the users/login table (p_user_id) -- a different table and id space than the
+        // Employee Roster's employees table (p_employee_id), so it cannot simply be rewired to the
+        // Roster's app_emp_set_active archive RPC (rosterSetActive(), js/04_employee_roster.js)
+        // without a verified user-to-employee mapping, which isn't guaranteed to exist for every
+        // login. Whether app_admin_delete_user performs a real SQL DELETE or a soft/archive flag is
+        // NOT verifiable from this repo -- no SQL source exists for it anywhere (live-DB-only
+        // function; confirmed by exhaustive grep of every .sql file in the repo). Flagged for Issac
+        // to confirm directly against the live database. Until then, the wording below no longer
+        // claims permanence either way, and the backend call is left unchanged.
+        if(!confirm('Remove this user login? Company policy is to archive employee records, not permanently delete them. If this account has history (schedule, discipline, timesheets), confirm with an Admin Manager first.')) return;
         withPin(function(pin) {
             supabaseClient.rpc('app_admin_delete_user', { p_admin_username: currentUser.username, p_admin_password: pin, p_user_id: id })
             .then(({ error }) => {
                 if (error && error.code === '42501') sessionPin = null;
-                if(!error) { alert('User deleted.'); fetchUsers(document.querySelector('.dash-tab.active')); } else alert('Error: ' + error.message);
+                if(!error) { alert('User login removed.'); fetchUsers(document.querySelector('.dash-tab.active')); } else alert('Error: ' + error.message);
             });
         });
     }
@@ -305,7 +336,7 @@
     // ============================================================
     // SUPABASE SAVE HELPER
     // ============================================================
-    function saveToSupabase(tableName, form, pdfUrl, onSuccess) {
+    function saveToSupabase(tableName, form, pdfUrl, onSuccess, onError) {
         let insertObj = Object.fromEntries(new FormData(form).entries());
         delete insertObj.ReportHTML; delete insertObj.action;
         insertObj.PDF_Archive = pdfUrl || 'PDF Failed to Generate';
@@ -313,9 +344,23 @@
         supabaseClient.rpc('app_form_insert', { p_table: tableName, p_data: insertObj })
         .then(({ data, error }) => {
             console.log('[Supabase] Response from ' + tableName + ':', { data, error });
-            if (error) { console.error('[Supabase] Error:', error.code, error.message); alert('PDF was emailed BUT failed to save to dashboard.\n\nError (' + error.code + '): ' + error.message); return; }
+            if (error) {
+                console.error('[Supabase] Error:', error.code, error.message);
+                // H1: hand the failure back to the caller so it can re-enable its button, keep the user's
+                // input, and show an accurate message. The legacy "PDF was emailed" alert is now used ONLY
+                // by callers that don't pass onError (the PDF-first forms where that claim is actually true).
+                var _errMsg = 'Error (' + (error.code||'?') + '): ' + (error.message||'save failed');
+                if (typeof onError === 'function') { onError(_errMsg); }
+                else { alert('PDF was emailed BUT failed to save to dashboard.\n\n' + _errMsg); }
+                return;
+            }
             onSuccess();
-        }).catch(err => { console.error('[Supabase] Unexpected error:', err); alert('Unexpected error: ' + (err.message||err)); });
+        }).catch(err => {
+            console.error('[Supabase] Unexpected error:', err);
+            var _errMsg = 'Unexpected error: ' + (err && err.message ? err.message : err);
+            if (typeof onError === 'function') { onError(_errMsg); }
+            else { alert(_errMsg); }
+        });
     }
 
     // ============================================================
@@ -386,6 +431,7 @@
     // ============================================================
     function submitAudit() {
         const btn = document.getElementById('submitBtn'); const form = document.getElementById('auditForm');
+        var _submitBtnLabel = btn.innerHTML;  // H1: restore exactly on a failed save so the manager can retry
         if(!document.getElementById('loc').value||!document.getElementById('sldr').value||!document.getElementById('conductor').value) { return alert('Please fill out Location, Shift Leader, and Conducted By!'); }
         let answered = 0; for(let i=1;i<=totalQuestions;i++) { if(document.querySelector('input[name="q'+i+'"]:checked')) answered++; }
         if(answered<totalQuestions) { return alert('Please answer all questions. You have answered '+answered+' out of '+totalQuestions+'.'); }
@@ -424,12 +470,27 @@
                 btn.onclick = _popInPrint;
                 _popInCorrective();
             });
+        }, function(_errMsg){
+            // H1: the DB save is the FIRST step here (before any PDF/email) — on failure NOTHING was sent,
+            // so re-enable and let the manager retry with all 51 answers still filled in. (No false success.)
+            alert('Could not save the inspection. Nothing was submitted yet — check your connection and tap Submit again.\n\n' + _errMsg);
+            btn.disabled = false; btn.innerHTML = _submitBtnLabel;
         });
     }
 
     function submitDriverForm() {
         const btn = document.getElementById('submitDriverBtn'); const form = document.getElementById('driverForm');
         if(!document.getElementById('vehicle').value||!document.getElementById('signature').value) { return alert('Please select a vehicle and sign the form!'); }
+        // H5: all six pre-roll safety/equipment checks must be confirmed before a check-out can be submitted.
+        var _safetyChecks=['tires','lights','hitch','fridge','ingredients','safety_gear'];
+        var _missingSafety=_safetyChecks.filter(function(n){ var el=form.querySelector('input[type="checkbox"][name="'+n+'"]'); return !(el&&el.checked); });
+        var _safetyMsg=document.getElementById('driverSafetyMsg');
+        if(_missingSafety.length){
+            if(_safetyMsg){ _safetyMsg.textContent='Please confirm all 6 safety checks (tires/tread, lights, hitch, refrigeration latched, cargo secured, fire extinguisher & first-aid) before checking out. '+_missingSafety.length+' still unchecked.'; _safetyMsg.style.display='block'; try{ _safetyMsg.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} }
+            else { alert('Please confirm all 6 safety checks before checking out.'); }
+            return;
+        }
+        if(_safetyMsg){ _safetyMsg.style.display='none'; }
         btn.innerText = 'Generating PDF...'; btn.disabled = true;
         let pdfHtml = getBrandHeader('Vehicle & Trailer Check-Out','#c53a74');
         pdfHtml += '<table border="1" cellpadding="12" style="border-collapse:collapse;width:100%;font-size:15px;border-color:#ddd;">';
@@ -438,7 +499,7 @@
         document.getElementById('driverReportHtml').value = pdfHtml;
         fetch(G_URL, { method:'POST', body:new FormData(form) })
         .then(res => res.json())
-        .then(googleData => { console.log('[Driver] GAS:', googleData); saveToSupabase('driver_logs', form, googleData.pdfUrl, () => { btn.disabled=false; btn.style.backgroundColor='var(--pass-green)'; btn.innerText='LOG SECURED AND SENT!'; setTimeout(() => { form.reset(); btn.style.backgroundColor='var(--caliches-pink)'; btn.innerText='SUBMIT DRIVER CHECKLIST'; openMenu(); }, 3000); }); })
+        .then(googleData => { console.log('[Driver] GAS:', googleData); saveToSupabase('driver_logs', form, googleData.pdfUrl, () => { btn.disabled=false; btn.style.backgroundColor='var(--pass-green)'; btn.innerText='LOG SECURED AND SENT!'; setTimeout(() => { form.reset(); btn.style.backgroundColor='var(--caliches-pink)'; btn.innerText='SUBMIT DRIVER CHECKLIST'; openMenu(); }, 3000); }, function(_errMsg){ alert('The PDF was generated, but saving the check-out to the dashboard failed. Please tap Submit again.\n\n'+_errMsg); btn.disabled=false; btn.innerText='SUBMIT DRIVER CHECKLIST'; }); })
         .catch(err => { console.error('[Driver] GAS error:', err); alert('Could not reach PDF server: '+err.message); btn.disabled=false; btn.innerText='SUBMIT DRIVER CHECKLIST'; });
     }
 
@@ -796,6 +857,18 @@
             supplyLoadList('incoming');
         }).catch(function(){ alert('Connection error.'); });
     }
+    // ============================================================
+    // ORPHANED / DEAD CODE - RETIRE (audit H4): "Store Shortage Report"
+    // (submitShortage + #shortageView + #shortageForm) is unreachable from any live
+    // button - btn-shortage now calls openSupplyRequest() (the full Supply Request
+    // module). The only remaining openForm('shortageView') caller is the archived
+    // _archive/index.html.html. Nothing new lands in the 'shortages' table, so the
+    // Manager Dashboard "Shortages" tab is permanently stale. Left wired (harmless)
+    // only in case an old bookmark/QR still points at #shortageView; safe to delete
+    // once confirmed unused. This is the "orphaned" one of the three supply-request
+    // systems (the other two: Supply Request module [primary] + Inventory Count's
+    // inline Request -> app_inventory_request [now closeable via openInvRequests]).
+    // ============================================================
     function submitShortage() {
         const btn = document.getElementById('submitShortageBtn'); const form = document.getElementById('shortageForm');
         if(!form.querySelector('select[name="Store"]').value||!form.querySelector('input[name="ManagerName"]').value) { return alert('Please select a store and enter your name!'); }
@@ -840,7 +913,7 @@
         document.getElementById('damageReportHtml').value = pdfHtml;
         fetch(G_URL, { method:'POST', body:new FormData(form) })
         .then(res => res.json())
-        .then(googleData => { console.log('[Damage] GAS:', googleData); saveToSupabase('damage_reports', form, googleData.pdfUrl, () => { btn.disabled=false; btn.style.backgroundColor='var(--pass-green)'; btn.innerText='DAMAGE REPORT SENT!'; setTimeout(() => { form.reset(); damagePhotos=[]; document.getElementById('damagePrev').innerHTML=''; btn.style.backgroundColor='#e74c3c'; btn.innerText='SUBMIT DAMAGE REPORT'; openMenu(); }, 3000); }); })
+        .then(googleData => { console.log('[Damage] GAS:', googleData); saveToSupabase('damage_reports', form, googleData.pdfUrl, () => { btn.disabled=false; btn.style.backgroundColor='var(--pass-green)'; btn.innerText='DAMAGE REPORT SENT!'; setTimeout(() => { form.reset(); damagePhotos=[]; document.getElementById('damagePrev').innerHTML=''; btn.style.backgroundColor='#e74c3c'; btn.innerText='SUBMIT DAMAGE REPORT'; openMenu(); }, 3000); }, function(_errMsg){ alert('The PDF was generated, but saving the damage report to the dashboard failed. Please tap Submit again.\n\n'+_errMsg); btn.disabled=false; btn.innerText='SUBMIT DAMAGE REPORT'; }); })
         .catch(err => { console.error('[Damage] GAS error:', err); alert('Could not reach PDF server: '+err.message); btn.disabled=false; btn.innerText='SUBMIT DAMAGE REPORT'; });
     }
 

@@ -3,7 +3,12 @@
     function woOverlay(){ var ov=document.getElementById('woModal'); if(!ov){ ov=document.createElement('div'); ov.id='woModal'; ov.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100000;overflow:auto;'; document.body.appendChild(ov);} ov.style.display='block'; return ov; }
     function woClose(){ var o=document.getElementById('woModal'); if(o)o.style.display='none'; var m=document.getElementById('woModal2'); if(m)m.style.display='none'; }
     function woHeader(title,back){ return '<div style="background:linear-gradient(120deg,#D85A30,#7d1d4b);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;">'+(back?'<button onclick="'+back+'" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;">&#8249; Back</button>':'')+'<b style="flex:1;font-size:16px;">'+title+'</b><button onclick="woClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;">&times;</button></div>'; }
-    function woIsMaint(){ var r=currentUser.role; return r==='Maintenance Lead'||r==='Maintenance Contributor'; }
+    // ROLE-STRING FIX (2026-07-17): 'Maintenance' -- the actual, only assignable maintenance
+    // role in the Roster (js/04 PERM_ROLES) -- was missing here entirely. A Maintenance-role
+    // tech got neither My Queue, Board, nor Completed tabs; only Report. 'Maintenance
+    // Contributor' isn't a real assignable role anywhere else in the app; left in place
+    // (harmless) in case anything already relies on it.
+    function woIsMaint(){ var r=currentUser.role; return r==='Maintenance'||r==='Maintenance Lead'||r==='Maintenance Contributor'; }
     function woIsMgr(){ return currentUser.is_developer===true||['Admin Manager','Manager','Vice President/Co-Owner','Store Manager'].indexOf(currentUser.role)>=0; }
     function openWorkOrders(){ _wo.preset=null; var _dt=woIsMaint()?'queue':(woIsMgr()?'board':'report'); var _st=lsGet('woTab',_dt); var _ok={report:1,board:woIsMgr(),queue:(woIsMaint()||woIsMgr()),history:(woIsMgr()||woIsMaint())}; _wo.tab=_ok[_st]?_st:_dt; woLoad(function(){ woRender(); }); }
     /* ===================== STORE SCORECARDS ===================== */
@@ -432,6 +437,12 @@
         if((canM||lead) && s==='Documented') btns.push(woBtn('Verify &amp; close','woAct(&quot;verify&quot;)','#1f7a3d'));
         if((canM||lead) && s==='Closed') btns.push(woBtn('Reopen','woAct(&quot;reopen&quot;)','#9a5b00'));
         if(canM && s!=='Closed' && s!=='Cancelled' && s!=='Documented' && s!=='Reported') btns.push(woBtn('Reassign','woAssign('+d.id+')','#eef0f3','#5b6472'));
+        // CANCEL ACTION (2026-07-17, audit_maintenance.md H5): 'Cancelled' was already a
+        // defined terminal status (woIsDone/woStatusChip) but no control ever set it, so a
+        // mis-reported/duplicate WO had to be pushed through the full lifecycle or sit open
+        // forever. Same manager-tier gate (canM) as Assign/Reassign above -- no new permission
+        // scheme. Hidden once the WO is already done (woIsDone covers Closed/Cancelled/Verified).
+        if(canM && !woIsDone(s)) btns.push(woBtn('Cancel work order','woAct(&quot;cancel&quot;)','#fdeaea','#a01b3e'));
         if(!btns.length) return '';
         return '<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;">'+btns.join('')+'</div>';
     }
@@ -440,6 +451,7 @@
         if(action==='hold'){ note=prompt('Reason for hold (optional):')||''; }
         if(action==='verify'){ note=prompt('Verification note (what you confirmed):')||''; }
         if(action==='reopen'){ note=prompt('Why are you reopening this?')||''; if(!note) return; }
+        if(action==='cancel'){ if(!confirm('Cancel this work order? It will be marked Cancelled and kept in history — this cannot be undone from here.')) return; }
         withPin(function(pin){
             supabaseClient.rpc('app_wo_advance',{p_username:currentUser.username,p_password:pin,p_id:id,p_action:action,p_note:note,p_work_performed:workPerformed||null}).then(function(r){
                 if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Not permitted for your role.':r.error.message); return; }

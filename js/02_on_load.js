@@ -4,19 +4,18 @@
     function enterAppView() {
         document.getElementById('splash-screen').style.display = 'none';
         loadHubStores(); loadPermMatrix();
-        if (currentUser.role === 'Maintenance') {
-            document.getElementById('maintenanceBoardView').style.display = 'block';
-            switchMaintTab('stores');
-            fetchMaintenanceBoard();
-            fetchVehicleMaintTracker();
-        } else {
-            document.getElementById('main-menu').style.display = 'block';
-            switchMenuTab('home');
-            applyWeeklyQuotes();
-            fetchAnnouncement();
-            setTimeout(showAppTour, 800);
-            setTimeout(maybeShowHowTo, 1300);
-        }
+        // MAINTENANCE-BOARD RETIREMENT FIX (2026-07-17): role 'Maintenance' used to land
+        // straight on the old Maintenance Board, which no longer receives real repairs (Work
+        // Orders does) and whose own Back button logged the user straight out -- a hard
+        // dead-end with no way to reach the main menu or the live Work Orders queue. Per
+        // Issac, the old board is now fully retired, so every role -- Maintenance included --
+        // goes through the normal main-menu path.
+        document.getElementById('main-menu').style.display = 'block';
+        switchMenuTab('home');
+        applyWeeklyQuotes();
+        fetchAnnouncement();
+        setTimeout(showAppTour, 800);
+        setTimeout(maybeShowHowTo, 1300);
         if (window._pendingEquip) { var _eq=window._pendingEquip; var _eqGo=window._pendingEquipGo; window._pendingEquip=null; window._pendingEquipGo=null; try { if(history.replaceState) history.replaceState(null,'',location.pathname); } catch(e){} setTimeout(function(){ if(_eqGo==='report' && typeof woReportForEquipment==='function'){ woReportForEquipment(parseInt(_eq,10)); } else if(typeof openEquipmentDetail==='function'){ openEquipmentDetail(parseInt(_eq,10)); } }, 800); }
         if (window._pendingGo === 'tasks') { window._pendingGo=null; try { if(history.replaceState) history.replaceState(null,'',location.pathname); } catch(e){} setTimeout(function(){ try { if(typeof hubNav==='function') hubNav('tasks'); } catch(e){} }, 700); }
         setTimeout(checkScheduleGate, 450);
@@ -35,23 +34,34 @@
         window._gateWeek=d.week_start;
         var ov=document.getElementById('scheduleGate');
         if(!ov){ ov=document.createElement('div'); ov.id='scheduleGate'; document.body.appendChild(ov); }
+        // TRAP FIX (2026-07-17): this screen used to have no close button, no backdrop-dismiss,
+        // and no coverage by the app's own goBack() stuck-modal recovery -- if the Confirm call
+        // ever errored (expired session PIN, WiFi blip), a person was locked out of the entire
+        // app, including Time Clock, with no way out except re-typing a conflict note through a
+        // prompt() they might not even have. Added a real "Not now" dismiss and backdrop-click,
+        // matching every other overlay in this codebase. Confirming is still one tap away and
+        // still the encouraged path -- this only guarantees there is always a way out.
+        ov.setAttribute('onclick','if(event.target===this) dismissScheduleGate();');
         ov.style.cssText='position:fixed;inset:0;background:rgba(18,18,28,.97);z-index:2147483600;display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto;';
         var shifts=d.shifts||[];
         var rows = shifts.length ? shifts.map(function(s){
             var dn=s.shift_date||''; try{ var dt=new Date(s.shift_date+'T00:00:00'); dn=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()]+' '+(dt.getMonth()+1)+'/'+dt.getDate(); }catch(e){}
             return '<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #edf0f5;"><span style="width:74px;flex:none;color:#6b7686;font-size:13px;font-weight:700;">'+escapeHtml(dn)+'</span><span style="flex:1;color:#1f2a44;font-size:13.5px;">'+gateTime(s.start)+'&ndash;'+gateTime(s.end)+' &middot; '+escapeHtml(s.position||'Shift')+' <span style="color:#5b6675;">@ '+escapeHtml(s.location||'')+'</span></span></div>';
         }).join('') : '<div style="color:#5b6675;font-size:13px;">No shifts listed for this week.</div>';
-        ov.innerHTML='<div style="background:#fff;border-radius:18px;max-width:460px;width:100%;max-height:90vh;overflow:auto;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.5);">'+
+        ov.innerHTML='<div onclick="event.stopPropagation();" style="position:relative;background:#fff;border-radius:18px;max-width:460px;width:100%;max-height:90vh;overflow:auto;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.5);">'+
+            '<button onclick="dismissScheduleGate()" aria-label="Close" style="position:absolute;top:12px;right:12px;background:#f2f3f6;border:none;color:#6b7686;width:30px;height:30px;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;line-height:1;">&times;</button>'+
             '<div style="text-align:center;font-size:34px;line-height:1;">&#128197;</div>'+
             '<h2 style="margin:8px 0 4px;text-align:center;color:#1f2a44;font-size:20px;">Confirm your schedule</h2>'+
             '<p style="text-align:center;color:#6b7686;font-size:13.5px;margin:0 0 14px;">Please review your shifts for the week of <b>'+escapeHtml(String(d.week_start||''))+'</b> before you continue.</p>'+
             '<div style="background:#f6f8fb;border:1px solid #e6ebf2;border-radius:12px;padding:8px 14px;margin-bottom:16px;">'+rows+'</div>'+
             '<button id="scheduleGateBtn" onclick="confirmScheduleGate()" style="width:100%;background:#1f7a3d;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;">&#9989; I&rsquo;ve seen my schedule &mdash; Confirm</button>'+
             '<button onclick="schedGateFlagConflict()" style="width:100%;background:none;border:1px solid #e6c200;color:#8a6d00;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;margin-top:10px;">Something is wrong &mdash; tell my manager</button>'+
+            '<button onclick="dismissScheduleGate()" style="width:100%;background:none;border:none;color:#8a94a6;border-radius:10px;padding:9px;font-size:12.5px;font-weight:600;cursor:pointer;margin-top:4px;">Not now &mdash; remind me later</button>'+
             '<p style="text-align:center;color:#5b6675;font-size:11.5px;margin:10px 0 0;">Confirm to continue, or tap &ldquo;Something is wrong&rdquo; to flag it for your manager.</p>'+
             '</div>';
         ov.style.display='flex';
     }
+    function dismissScheduleGate(){ var ov=document.getElementById('scheduleGate'); if(ov) ov.style.display='none'; }
     function schedFlagConflict(){
         var ws=(typeof schedFmt==='function' && schedState && schedState.weekStart)?schedFmt(schedState.weekStart):null; if(!ws) return;
         var note=prompt('What is the conflict with this schedule? Your manager will be notified.'); if(note===null) return; note=(note||'').trim();
@@ -77,7 +87,7 @@
         var pin=window._gatePin||sessionPin;
         if(!pin){ if(btn){ btn.disabled=false; btn.textContent='Try again'; } return; }
         supabaseClient.rpc('app_week_confirm',{p_username:currentUser.username,p_password:pin,p_week_start:ws}).then(function(r){
-            if(r.error){ if(btn){ btn.disabled=false; btn.textContent='Try again'; } alert('Could not confirm: '+r.error.message); return; }
+            if(r.error){ if(btn){ btn.disabled=false; btn.textContent='Try again'; } alert('Could not confirm: '+r.error.message+'\n\nYou can tap the X or "Not now" to close this and keep using the app — we\'ll ask again next time.'); return; }
             var ov=document.getElementById('scheduleGate'); if(ov) ov.style.display='none';
         }).catch(function(){ if(btn){ btn.disabled=false; btn.textContent='Try again'; } });
     }
@@ -641,15 +651,10 @@
             applyFormPermissions();
             triggerTransition(() => {
                 document.getElementById('login-view').style.display = 'none';
-                if (user.role === 'Maintenance') {
-                    document.getElementById('maintenanceBoardView').style.display = 'block';
-                    switchMaintTab('stores');
-                    fetchMaintenanceBoard();
-                    fetchVehicleMaintTracker();
-                } else {
-                    document.getElementById('main-menu').style.display = 'block';
-                    setTimeout(showAppTour, 600);
-                }
+                // MAINTENANCE-BOARD RETIREMENT FIX (2026-07-17): see enterAppView() -- same
+                // fix applied to this second, fresh-login entry path.
+                document.getElementById('main-menu').style.display = 'block';
+                setTimeout(showAppTour, 600);
                 resetTimer();
             });
             if (user.must_set_password === true) { setTimeout(function(){ promptSetPassword(); }, 800); }

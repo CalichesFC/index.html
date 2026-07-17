@@ -377,7 +377,27 @@
                 if (q.accepted_at) html += '<div class="maint-card-meta" style="color:var(--pass-green);font-weight:bold;">&#10003; Accepted on ' + new Date(q.accepted_at).toLocaleDateString() + '</div>';
                 if (q.invoice_number) html += '<div class="maint-card-meta" style="color:#1f7a3d;font-weight:bold;">🧾 Invoice ' + escapeHtml(q.invoice_number) + '</div>';
                 if (q.invoice_status === 'Paid') html += '<div class="maint-card-meta" style="color:#1b7a3d;font-weight:bold;">💳 Paid' + (q.paid_at ? ' on ' + new Date(q.paid_at).toLocaleDateString() : '') + '</div>';
-                else if (q.square_payment_url) html += '<div class="maint-card-meta" style="color:#185FA5;font-weight:bold;">💳 Pay link ready — awaiting payment</div>';
+                else if (q.square_payment_url) {
+                    html += '<div class="maint-card-meta" style="color:#185FA5;font-weight:bold;">💳 Pay link ready — awaiting payment</div>';
+                    // H3 fix: if Square's "Paid" webhook never lands (e.g. the webhook secrets
+                    // aren't set yet — see SQUARE_INVOICE_SETUP.md), an old pay link just sits
+                    // here looking identical to "customer hasn't paid yet." Flag it once it's
+                    // stale so a manager knows to double-check with the customer / Square instead
+                    // of assuming it's simply unpaid. Reuses the same FOLLOWUP_DAYS threshold as
+                    // the pending-quote follow-up flag below.
+                    var _linkAge = q.invoiced_at || q.accepted_at;
+                    var _linkDays = _linkAge ? Math.floor((Date.now() - new Date(_linkAge)) / 86400000) : 0;
+                    if (_linkDays >= FOLLOWUP_DAYS) html += '<div class="maint-card-meta" style="color:var(--fail-red);font-weight:bold;">⚠️ Sent ' + _linkDays + 'd ago, still unpaid — verify with the customer/Square (the auto-Paid webhook may not be live yet)</div>';
+                }
+                else if (st === 'Accepted' && q.accepted_at && (Date.now() - new Date(q.accepted_at)) > 10 * 60000) {
+                    // H3 fix: autoSendSquareInvoice() (js/02_on_load.js) only console.error's when
+                    // the customer-side pay-link creation fails (missing/bad Square secrets, Square
+                    // error, etc.) — nothing alerts staff. This is that staff-visible signal: an
+                    // Accepted quote with no pay link, more than 10 minutes after acceptance (a
+                    // grace period so this doesn't fire while the auto-send is simply still in
+                    // flight).
+                    html += '<div class="maint-card-meta" style="color:var(--maint-orange);font-weight:bold;">⚠️ No pay link yet — the auto-send may have failed. Use "Create Pay Link" below, or confirm the customer is paying cash/check.</div>';
+                }
                 if (q.reminder_sent) html += '<div class="maint-card-meta" style="color:var(--maint-orange);font-weight:bold;">&#128276; Follow-up reminder sent</div>';
                 html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">';
                 if (q.pdf_url) html += '<a href="' + q.pdf_url + '" target="_blank" style="background:#7b2d8b;color:white;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:bold;text-decoration:none;">&#128196; View PDF</a>';
@@ -1075,8 +1095,12 @@ window.markQuotePaid = function(id){
     }).then(function(r){
       if (r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers/office only.':r.error.message); return; }
       alert('Marked paid. A receipt is now available on this quote.');
-      if (typeof loadSalesPipeline==='function') loadSalesPipeline();
-      else if (typeof searchCustomerHistory==='function') searchCustomerHistory();
+      // H1 fix: this used to call loadSalesPipeline()/searchCustomerHistory(), neither of
+      // which exists anywhere in the codebase (dead reference), so the pipeline never
+      // refreshed after a successful Mark Paid. fetchSalesPipeline() is the real pipeline
+      // loader (see openSalesPipeline/updateQuoteStatus/sendSquareInvoice above), matching
+      // how every other successful-save action here refreshes the view.
+      if (typeof fetchSalesPipeline==='function') fetchSalesPipeline();
     }).catch(function(){ alert('Connection error.'); });
   });
 };

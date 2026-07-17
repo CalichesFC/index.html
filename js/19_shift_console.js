@@ -198,7 +198,8 @@
             var U={p_username:currentUser.username,p_password:pin};
             supabaseClient.rpc('app_temp_points',Object.assign({p_location:loc},U)).then(function(r){ if(!r.error){ _shc.data.temps=r.data||[]; shcPatch(); } }).catch(function(){});
             ['open','close','clean'].forEach(function(sh){
-                supabaseClient.rpc('app_checklist_items',Object.assign({p_shift:sh,p_location:loc},U)).then(function(r){ if(!r.error){ _shc.data.checks[sh]=r.data||[]; shcPatch(); } }).catch(function(){});
+                var pShift=({open:'Opening',close:'Closing',clean:'Cleaning'}[sh]||sh); // match capitalized shift_type stored in DB (audit B1)
+                supabaseClient.rpc('app_checklist_items',Object.assign({p_shift:pShift,p_location:loc},U)).then(function(r){ if(!r.error){ _shc.data.checks[sh]=r.data||[]; shcPatch(); } }).catch(function(){});
             });
             supabaseClient.rpc('app_checklist_windows',U).then(function(r){ if(!r.error){ _shc.data.windows=r.data||[]; shcPatch(); } }).catch(function(){});
             supabaseClient.rpc('app_my_tasks',U).then(function(r){ if(!r.error){ _shc.data.tasks=(r.data&&r.data.tasks)||[]; shcPatch(); } }).catch(function(){});
@@ -475,7 +476,7 @@
     function shcToggleCheck(itemId,done){
         shcRpc('app_checklist_toggle',{p_item_id:itemId,p_location:shcSess().location,p_done:done},function(){
             withPin(function(pin){
-                supabaseClient.rpc('app_checklist_items',{p_username:currentUser.username,p_password:pin,p_shift:_shcClTab,p_location:shcSess().location}).then(function(r){ if(!r.error){ _shc.data.checks[_shcClTab]=r.data||[]; shcPatch(); } }).catch(function(){});
+                supabaseClient.rpc('app_checklist_items',{p_username:currentUser.username,p_password:pin,p_shift:({open:'Opening',close:'Closing',clean:'Cleaning'}[_shcClTab]||_shcClTab),p_location:shcSess().location}).then(function(r){ if(!r.error){ _shc.data.checks[_shcClTab]=r.data||[]; shcPatch(); } }).catch(function(){});
             });
         });
     }

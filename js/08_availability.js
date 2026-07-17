@@ -310,7 +310,15 @@
     }}); } catch(e){ YV2_CATS.talk=['Shift Leader','Store Manager','Operations Leadership','Aaron Morales','Adriana Gomez','Help me choose']; }
     var YV2_TITLES={talk:'Talk to Someone',idea:'Share an Idea',feedback:'Give Feedback',help:'Ask for Help',concern:'Report a Concern'};
     function yvRpc(name,args,cb,onerr){ withPin(function(pin){ var a=Object.assign({p_username:currentUser.username,p_password:pin},args||{}); supabaseClient.rpc(name,a).then(function(r){ if(r.error){ if(onerr) onerr(r.error); else alert(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have access to this.':r.error.message); return; } cb(r.data); }).catch(function(){ if(onerr) onerr({message:'Connection error'}); else alert('Connection error.'); }); }); }
-    function yv2CanManage(){ return currentUser && (currentUser.is_developer===true || (typeof isManagerRole==='function'&&isManagerRole())); }
+    // SECURITY FIX (2026-07-17): was gated on isManagerRole() (includes plain 'Manager'),
+    // wider than the app's own printed promise that a concern "goes only to Admin Managers...
+    // not visible to store management." Tightened to isDiscAdmin() -- the same admin-only
+    // gate the legacy concern list already correctly uses a few lines below -- so the whole
+    // Team Voice Dashboard (which bundles all pathways, concern included, in one view) is
+    // now Admin-Manager-only, matching the promise. If non-admin managers should keep seeing
+    // the lower-sensitivity Talk/Idea/Feedback/Help pathways, that needs a separate
+    // per-pathway split, not a change to this gate.
+    function yv2CanManage(){ return currentUser && (currentUser.is_developer===true || (typeof isDiscAdmin==='function'&&isDiscAdmin())); }
     function yv2Ov(){ var o=document.getElementById('yv2Modal'); if(!o){ o=document.createElement('div'); o.id='yv2Modal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100040;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
     function yv2Close(){ var o=document.getElementById('yv2Modal'); if(o) o.style.display='none'; }
     function yv2Head(title){ return '<div style="background:linear-gradient(120deg,#5b3aa6,#106ab3);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;"><button onclick="yv2Close()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;">&lsaquo; Back</button><b style="flex:1;font-size:16px;">'+title+'</b></div>'; }
@@ -341,7 +349,15 @@
       h+='<div style="display:flex;gap:8px;"><button onclick="yv2Close();yv2Home()" style="flex:1;background:#eef0f3;border:none;border-radius:9px;padding:11px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="yv2Submit(\''+type+'\')" style="flex:2;background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:11px;font-weight:800;cursor:pointer;">Send</button></div></div>';
       yv2Wrap(h); }
     function yv2Submit(type){ var body=yv2val('yvfBody'); var err=document.getElementById('yvfErr'); if(!body){ if(err) err.textContent='Please add a few words.'; return; }
-      var anon=document.getElementById('yvfAnon'); var payload={pathway:type,category:yv2val('yvfCat'),store:yv2val('yvfStore'),subject:yv2val('yvfSubject'),body:body,urgency:(document.getElementById('yvfUrg')?yv2val('yvfUrg'):'Normal'),anonymous:!!(anon&&anon.checked)};
+      var anon=document.getElementById('yvfAnon'); var isAnon=!!(anon&&anon.checked); var payload={pathway:type,category:yv2val('yvfCat'),store:yv2val('yvfStore'),subject:yv2val('yvfSubject'),body:body,urgency:(document.getElementById('yvfUrg')?yv2val('yvfUrg'):'Normal'),anonymous:isAnon};
+      // ANONYMITY FIX (2026-07-17, audit B2): when the reporter chooses "anonymous" we must never transmit their identity to the
+      // server. yvRpc() unconditionally injects p_username:currentUser.username (+ the PIN as p_password), so routing an anonymous
+      // report through it would send exactly the identity we print a promise NOT to record. For anonymous submissions we therefore
+      // bypass yvRpc entirely and call yv_submit with p_username/p_password explicitly NULL (and no PIN prompt) -- the server never
+      // receives who submitted. Identity in this app is carried ONLY by these RPC params (anon key, no Supabase Auth session), so
+      // nulling them is a real guarantee, not a cosmetic UI hide. Non-anonymous submissions keep the normal authenticated path so
+      // "My Submissions" (yv_mine) can still link them to the signed-in user.
+      if(isAnon){ supabaseClient.rpc('yv_submit',{p_payload:payload,p_username:null,p_password:null}).then(function(r){ if(r.error){ if(err) err.textContent=(String(r.error.message||'').indexOf('forbidden')>=0?'Anonymous reporting is temporarily unavailable. Please try again later.':(r.error.message||'Could not send. Please try again.')); return; } yv2Confirm(r.data); }).catch(function(){ if(err) err.textContent='Connection error. Please try again.'; }); return; }
       yvRpc('yv_submit',{p_payload:payload},function(r){ yv2Confirm(r); }); }
     function yvCopyCode(ref,acc){ var t="Caliche's Your Voice\nReference: "+ref+"\nAccess code: "+acc; if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(function(){ alert('Copied. Paste it somewhere safe so you can check status later.'); },function(){ alert('Reference: '+ref+'\nAccess code: '+acc); }); } else { alert('Reference: '+ref+'\nAccess code: '+acc); } }
     function yv2Confirm(r){ var anon=(r&&r.anonymous); var ref=(r&&r.ref_code)||''; var acc=(r&&r.access_code)||'';

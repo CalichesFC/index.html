@@ -99,7 +99,11 @@
     var DISC_FORMS={
         verbal:{level:'verbal',title:'Notice of Verbal Warning',label:'Verbal',reasons:['Performance','Conduct/Behavior','Carelessness','Dress Code','Attendance/Tardies','Other'],sigs:['Employee','Shift Lead','Store Manager']},
         written:{level:'written',title:'Disciplinary Action Form',label:'Written',reasons:['Carelessness','Attendance','Dress Code','Conduct','Other'],rec:true,recDefault:'Only Written Warning',sigs:['Employee','Shift Leader','Store Manager']},
-        writeup:{level:'final',title:'Disciplinary Action Form',label:'Write-up',reasons:['Carelessness','Attendance','Dress Code','Conduct','Other'],rec:true,recDefault:'Write-Up',sigs:['Employee','Shift Leader','Store Manager']},
+        // SECURITY FIX (2026-07-17): added admin:true -- this form issues a level='final'
+        // Write-Up, the same level as the alert text below claims is "Admin Managers only,"
+        // but this card had no admin gate at all (only Termination did). Now gated the same
+        // way Termination already is.
+        writeup:{level:'final',title:'Disciplinary Action Form',label:'Write-up',admin:true,reasons:['Carelessness','Attendance','Dress Code','Conduct','Other'],rec:true,recDefault:'Write-Up',sigs:['Employee','Shift Leader','Store Manager']},
         termination:{level:'termination',title:'Termination Assessment',label:'Termination',admin:true,term:true,sigs:['Manager']}
     };
     // Disciplinary reason lists are configurable (cfgListOr). Level/label/admin/sigs stay hardcoded (logic-bearing).
@@ -150,7 +154,14 @@
             h+='<label style="'+lab+'">Comments</label><textarea id="discComments" rows="2" style="'+inp+'resize:vertical;"></textarea>';
         } else {
             h+='<label style="'+lab+'">'+(discCurForm==='written'?'Violation':'Reason(s)')+'</label><div id="discReasons">'+discReasonsFor(f).map(function(r){return '<label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;margin:0 6px 6px 0;"><input type="checkbox" value="'+escapeHtml(r)+'">'+r+'</label>';}).join('')+'</div>';
-            if(f.rec){ var rd=f.recDefault||'Write-Up'; h+='<label style="'+lab+'">Recommended action</label><div id="discRec" style="font-size:11.5px;color:#6b7686;margin-bottom:2px;">This sets the level: Written warning or Write-up.</div><div><label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;margin-right:6px;"><input type="radio" name="discRec" value="Only Written Warning"'+(rd==='Only Written Warning'?' checked':'')+'>Only written warning</label><label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;"><input type="radio" name="discRec" value="Write-Up"'+(rd==='Write-Up'?' checked':'')+'>Write-up</label></div>'; }
+            if(f.rec){ var rd=f.recDefault||'Write-Up';
+                // SECURITY FIX (2026-07-17): this radio used to let ANY management user viewing
+                // the (non-admin-gated) "written" form escalate lvl to 'final' by picking
+                // "Write-Up" here, bypassing the admin-only gate on the dedicated Write-up card.
+                // The Write-Up option now only renders for Admin Managers; everyone else only
+                // ever sees/can submit "Only written warning" from this form.
+                var fAdmin=(typeof isDiscAdmin==='function' && isDiscAdmin());
+                h+='<label style="'+lab+'">Recommended action</label><div id="discRec" style="font-size:11.5px;color:#6b7686;margin-bottom:2px;">'+(fAdmin?'This sets the level: Written warning or Write-up.':'Only Admin Managers can issue a Write-up.')+'</div><div><label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;margin-right:6px;"><input type="radio" name="discRec" value="Only Written Warning"'+((!fAdmin||rd==='Only Written Warning')?' checked':'')+'>Only written warning</label>'+(fAdmin?('<label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid #cfcfcf;border-radius:8px;padding:5px 9px;"><input type="radio" name="discRec" value="Write-Up"'+(rd==='Write-Up'?' checked':'')+'>Write-up</label>'):'')+'</div>'; }
             h+='<label style="'+lab+'">Company statement</label><textarea id="discCompany" rows="3" placeholder="Describe the incident and the expectation set." style="'+inp+'resize:vertical;"></textarea>';
             h+='<div style="font-size:12px;background:#e8f2fb;color:#0d6eaf;border-radius:8px;padding:7px 10px;margin-top:8px;">The employee can add their own statement before signing.</div>';
             h+='<label style="'+lab+'">Employee statement</label><textarea id="discEmpStmt" rows="2" placeholder="Employee response (optional)." style="'+inp+'resize:vertical;"></textarea>';
@@ -554,8 +565,11 @@
         var c=document.getElementById('clItems'); var loc=tempStoreLoc();
         if(!loc){ c.innerHTML='<p style="color:#6b7686;text-align:center;padding:20px;">No store set on your account.</p>'; document.getElementById('clProgress').textContent=''; return; }
         c.innerHTML='<p style="text-align:center;padding:20px;color:#6b7686;">Loading...</p>';
+        // Admin saves checklist shift_type capitalized ('Opening'/'Closing'/'Cleaning' via admListShift / admin_lists.sql);
+        // the crew tabs use short keys ('open'/'close'/'clean'). Send the stored form so items actually match. (audit B1)
+        var clShiftDb=({open:'Opening',close:'Closing',clean:'Cleaning'}[clShift]||clShift);
         withPin(function(pin){
-            supabaseClient.rpc('app_checklist_items',{p_username:currentUser.username,p_password:pin,p_shift:clShift,p_location:loc}).then(function(r){
+            supabaseClient.rpc('app_checklist_items',{p_username:currentUser.username,p_password:pin,p_shift:clShiftDb,p_location:loc}).then(function(r){
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;padding:20px;">'+escapeHtml(r.error.message)+'</p>'; return; }
                 var list=r.data||[]; var done=list.filter(function(i){return i.done;}).length;
                 if(!list.length){
@@ -647,23 +661,56 @@
             }).catch(function(){ alert('Connection error.'); });
         });
     }
+    // Inventory supply requests (from Inventory Count's "Request" button) had no way to be resolved —
+    // the list could only grow (audit H3). There is no server-side fulfill/close RPC: app_inventory_request
+    // / app_inventory_requests live only in the DB (no *_close in rpc_manifest.json) and the list RPC's
+    // source isn't in this repo, so we can't safely filter closed rows server-side. As a safe, self-contained
+    // step a manager can mark a request Fulfilled here; fulfilled ones are remembered per-device in
+    // localStorage and hidden from the open list so it stops accumulating forever.
+    // FULL FIX (needs DB access): add a status column + app_inventory_request_close RPC, have
+    // app_inventory_requests return only open rows, and key the UI off that instead of localStorage.
+    var _invReqAll=[];             // last-loaded requests
+    var _invReqShowClosed=false;   // reveal fulfilled ones
+    function invReqClosedList(){ try{ return JSON.parse(localStorage.getItem('calichesInvReqClosed')||'[]'); }catch(e){ return []; } }
+    function invReqSaveClosed(a){ try{ localStorage.setItem('calichesInvReqClosed',JSON.stringify(a||[])); }catch(e){} }
+    function invReqSig(o){ return (o&&o.id!=null)?('id:'+o.id):[(o&&o.location)||'',(o&&o.item)||'',(o&&o.qty)||'',(o&&o.by)||'',(o&&o.at)||''].join('|'); }
+    function invReqIsClosed(o){ return invReqClosedList().indexOf(invReqSig(o))>=0; }
+    function invReqMarkFulfilled(idx){ var o=(_invReqAll||[])[idx]; if(!o) return; var s=invReqSig(o); var a=invReqClosedList(); if(a.indexOf(s)<0){ a.push(s); invReqSaveClosed(a); } invReqRender(); }
+    function invReqReopen(idx){ var o=(_invReqAll||[])[idx]; if(!o) return; var s=invReqSig(o); invReqSaveClosed(invReqClosedList().filter(function(x){ return x!==s; })); invReqRender(); }
+    function invReqToggleShowClosed(){ _invReqShowClosed=!_invReqShowClosed; invReqRender(); }
     function openInvRequests(){
         var modal=document.getElementById('invReqModal');
         document.getElementById('invReqBody').innerHTML='<p style="color:#6b7686;">Loading...</p>';
         modal.style.display='flex';
+        _invReqShowClosed=false;
         withPin(function(pin){
             supabaseClient.rpc('app_inventory_requests',{p_username:currentUser.username,p_password:pin}).then(function(r){
                 if(r.error){ document.getElementById('invReqBody').innerHTML='<p style="color:red;">'+escapeHtml(r.error.message)+'</p>'; return; }
-                var list=r.data||[];
-                if(!list.length){ document.getElementById('invReqBody').innerHTML='<p style="color:#6b7686;">No pending requests. 🎉</p>'; return; }
-                document.getElementById('invReqBody').innerHTML=list.map(function(o){
-                    return '<div style="padding:9px 0;border-bottom:1px solid #eee;">'+
-                        '<div style="font-weight:bold;font-size:14px;color:#333;">'+escapeHtml(o.item)+' × '+o.qty+'</div>'+
-                        '<div style="font-size:12px;color:#6b7686;">'+escapeHtml(o.location||'')+' • '+escapeHtml(o.by||'')+' • '+socFmt(o.at)+(o.note?' • '+escapeHtml(o.note):'')+'</div>'+
-                    '</div>';
-                }).join('');
+                _invReqAll=r.data||[];
+                invReqRender();
             });
         });
+    }
+    function invReqRender(){
+        var body=document.getElementById('invReqBody'); if(!body) return;
+        var all=_invReqAll||[]; var closedCount=0; var shown=0; var rows='';
+        all.forEach(function(o,idx){
+            var closed=invReqIsClosed(o); if(closed) closedCount++;
+            if(closed && !_invReqShowClosed) return;
+            shown++;
+            rows+='<div style="padding:9px 0;border-bottom:1px solid #eee;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;'+(closed?'opacity:0.55;':'')+'">'+
+                '<div style="flex:1;min-width:0;">'+
+                    '<div style="font-weight:bold;font-size:14px;color:#333;">'+escapeHtml(o.item)+' × '+o.qty+(closed?' <span style="color:#1b7a3d;font-weight:600;font-size:12px;">(fulfilled)</span>':'')+'</div>'+
+                    '<div style="font-size:12px;color:#6b7686;">'+escapeHtml(o.location||'')+' • '+escapeHtml(o.by||'')+' • '+socFmt(o.at)+(o.note?' • '+escapeHtml(o.note):'')+'</div>'+
+                '</div>'+
+                (closed
+                    ? '<button onclick="invReqReopen('+idx+')" style="background:#eee;color:#555;border:none;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:bold;cursor:pointer;white-space:nowrap;">Reopen</button>'
+                    : '<button onclick="invReqMarkFulfilled('+idx+')" style="background:#1b7a3d;color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:bold;cursor:pointer;white-space:nowrap;">Mark fulfilled</button>')+
+            '</div>';
+        });
+        if(!shown){ rows=_invReqShowClosed?'<p style="color:#6b7686;">No requests.</p>':'<p style="color:#6b7686;">No open requests.</p>'; }
+        if(closedCount>0){ rows+='<div style="margin-top:12px;text-align:center;"><button onclick="invReqToggleShowClosed()" style="background:none;border:none;color:#a35200;font-size:12.5px;font-weight:bold;cursor:pointer;text-decoration:underline;">'+(_invReqShowClosed?'Hide fulfilled':('Show fulfilled ('+closedCount+')'))+'</button></div>'; }
+        body.innerHTML=rows;
     }
 
     // ============================================================
@@ -797,17 +844,11 @@
     }
     function adRender(){
         adLoadNcr();
-        var max=Math.max.apply(null, AD_ROUTES.map(function(r){return r.rev;}));
-        document.getElementById('adRoutes').innerHTML=AD_ROUTES.map(function(r){
-            return '<div style="background:#fff;border:1px solid #e7eef5;border-radius:12px;padding:13px 15px;margin-bottom:10px;box-shadow:0 3px 10px rgba(20,50,80,.05);">'+
-              '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span style="font-weight:900;font-size:15px;">'+r.ic+' '+r.town+'</span><span style="margin-left:auto;font-weight:900;color:#1f7a3d;font-size:17px;">'+adMoney(r.rev)+'</span></div>'+
-              '<div style="height:12px;border-radius:999px;background:#eef4fa;overflow:hidden;"><i style="display:block;height:100%;width:'+Math.round(r.rev/max*100)+'%;background:linear-gradient(90deg,#ec3e7e,#106ab3);"></i></div>'+
-              '<div style="font-size:12px;color:#5b6675;font-weight:700;margin-top:6px;">&#127847; '+r.cups.toLocaleString()+' cups served · this month</div>'+
-            '</div>';
-        }).join('');
-        var tot=AD_CATER.reduce(function(a,b){return a+b.amt;},0);
-        document.getElementById('adCater').innerHTML='<div style="font-size:13px;color:#555;margin-bottom:8px;">Pre-booked event revenue (MTD): <b style="color:#1f7a3d;font-size:18px;">'+adMoney(tot)+'</b> &middot; '+AD_CATER.length+' events</div>'+
-            AD_CATER.map(function(c){ return '<div style="display:flex;align-items:center;gap:11px;padding:10px 2px;border-bottom:1px dashed #eee;"><span style="font-size:18px;">'+c.ic+'</span><span><b>'+escapeHtml(c.name)+'</b><br><small style="color:#6b7686;">'+escapeHtml(c.town)+' · paid via text link</small></span><span style="margin-left:auto;font-weight:900;color:#1f7a3d;">'+adMoney(c.amt)+'</span></div>'; }).join('');
+        // FAKE-DATA FIX (2026-07-17): this used to render AD_ROUTES/AD_CATER -- 100% invented
+        // sample numbers (towns that aren't even real store locations) -- under this screen's
+        // "live" header. Per Issac's decision: hidden until a real Square feed exists (see
+        // #adSquareComingSoon in index.html). Left the arrays/containers in place so wiring up
+        // real data later is a small change, not a rebuild.
     }
 
     // ============================================================

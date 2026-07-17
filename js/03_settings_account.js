@@ -167,6 +167,12 @@
         }
     }
     function goBack(){
+        // TRAP FIX (2026-07-17): #scheduleGate doesn't match "[id$=Modal]" or ".modal-overlay"
+        // below, so it was invisible to this whole recovery mechanism. It now also has its own
+        // visible close button (see dismissScheduleGate in js/02_on_load.js), but this stays as
+        // a second, defense-in-depth way out for any global Back action.
+        var _sg=document.getElementById('scheduleGate');
+        if(_sg && getComputedStyle(_sg).display!=='none'){ if(typeof dismissScheduleGate==='function') dismissScheduleGate(); else _sg.style.display='none'; return; }
         // A Back press first dismisses any visible dynamically-created full-screen overlay
         // (ids ending in "Modal", incl. the yv2 overlay) — these are not .app-view/.modal-overlay.
         var _dynOv=null;

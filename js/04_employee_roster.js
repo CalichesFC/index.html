@@ -170,7 +170,13 @@
     var _empProfile=null;
     function empManageHtml(p){
         if(!(typeof isManagerRole==='function' && isManagerRole())) return '';
-        var ladder=['Crew Member','Crew Trainer','Shift Leader','Assistant Manager','Store Manager','Admin Manager'];
+        // ROLE-STRING FIX (2026-07-17): was 'Shift Leader' -- every permission gate in the app
+        // checks the string 'Shift Lead' (no "er"), so promoting someone through this exact
+        // dropdown silently stripped their Disciplinary/Attendance/Pre-Shift/Pop-In/Inventory/
+        // Crew Trainer/Celebrations access. 'Shift Lead' is now canonical -- picked because the
+        // large majority of existing gates already use it. Anyone already stored with the old
+        // 'Shift Leader' spelling needs a one-time correction; see specs/AUDIT_MASTER_SUMMARY.md.
+        var ladder=['Crew Member','Crew Trainer','Shift Lead','Assistant Manager','Store Manager','Admin Manager'];
         var cur=p.role||''; if(cur && ladder.indexOf(cur)<0) ladder.unshift(cur);
         var roleOpts=ladder.map(function(r){return '<option'+(r===cur?' selected':'')+'>'+escapeHtml(r)+'</option>';}).join('');
         var h='<div style="margin-top:16px;border-top:1px solid #eef0f5;padding-top:14px;">';
@@ -779,8 +785,17 @@
     // ============================================================
     var PERM_OVR={};
     var PERM_PROTECTED_ROLES=['Admin Manager','Vice President/Co-Owner'];
-    var PERM_FEATURES=[{id:'mgmt_tab',label:'Management tab'},{id:'command_center',label:'Command Center'},{id:'admin_dash',label:'Admin Dashboard'},{id:'admin_console',label:'Admin Console'},{id:'roster',label:'Employee Roster'},{id:'manager_admin',label:'Manager tools'},{id:'knowledge_base',label:'Knowledge Base (Scoopy)'},{id:'sales',label:'Sales'},{id:'prime_cost',label:'Prime Cost'},{id:'requests',label:'Requests'},{id:'assign_task',label:'Assign Task'},{id:'shortage_trends',label:'Shortage Trends'},{id:'team_dev',label:'Team Development'},{id:'fundraiser',label:'Fundraiser Hub'},{id:'forms_links',label:'Forms & Links'},{id:'announce',label:'Announcements'},{id:'discipline',label:'Disciplinary Actions'},{id:'attendance',label:'Attendance'},{id:'preshift',label:'Pre-Shift Lineup'},{id:'avail_approvals',label:'Availability Approvals'},{id:'celebrations',label:'Celebrations'},{id:'crew_trainer',label:'Crew Trainer'},{id:'popin',label:'Pop-In'},{id:'inventory',label:'Inventory'},{id:'maint_billing',label:'Maintenance Billing'},{id:'maint_dash',label:'Maintenance Dashboard'},{id:'scorecards',label:'Store Scorecards'},{id:'store_manager',label:'Manage Stores'}];
-    var PERM_ROLES=['Manager','Store Manager','Finance Approver','Maintenance Lead','Shift Lead','Crew Trainer','Maintenance','Blue Apron','Crew Member'];
+    var PERM_FEATURES=[{id:'mgmt_tab',label:'Management tab'},{id:'command_center',label:'Command Center'},{id:'admin_dash',label:'Admin Dashboard'},{id:'admin_console',label:'Admin Console'},{id:'roster',label:'Employee Roster'},{id:'manager_admin',label:'Manager tools'},{id:'knowledge_base',label:'Knowledge Base (Scoopy)'},{id:'sales',label:'Sales'},{id:'prime_cost',label:'Prime Cost'},{id:'requests',label:'Requests'},{id:'assign_task',label:'Assign Task'},{id:'shortage_trends',label:'Shortage Trends'},{id:'team_dev',label:'Team Development'},{id:'fundraiser',label:'Fundraiser Hub'},{id:'forms_links',label:'Forms & Links'},{id:'announce',label:'Announcements'},{id:'discipline',label:'Disciplinary Actions'},{id:'attendance',label:'Attendance'},{id:'preshift',label:'Pre-Shift Lineup'},{id:'avail_approvals',label:'Availability Approvals'},{id:'celebrations',label:'Celebrations'},{id:'crew_trainer',label:'Crew Trainer'},{id:'popin',label:'Pop-In'},{id:'inventory',label:'Inventory'},{id:'maint_billing',label:'Maintenance Billing'},{id:'maint_dash',label:'Maintenance Dashboard'},{id:'scorecards',label:'Store Scorecards'},{id:'store_manager',label:'Manage Stores'},
+    // H4 fix (2026-07-17): these 12 feature ids were already gated via permAllow() at their tile's
+    // applyRoleUI() call site (js/05_admin_tasks_pip_disciplinary.js) but had no row here, so an
+    // Admin Manager had no way to actually toggle them for a role -- the screen's own copy ("turn
+    // its tools on or off") over-promised what it covered. Added additively; see permDefault() below
+    // for matching default on/off state per role.
+    {id:'pay_tools',label:'Pay Tools'},{id:'catering',label:'Catering Pipeline'},{id:'daily_report',label:'Daily Store Report'},{id:'shift_console',label:'Shift Leader Console'},{id:'site_inspection',label:'Store & Site Inspection'},{id:'ops_meeting',label:'Ops Meeting Hub'},{id:'writeup_templates',label:'Performance Write-Ups'},{id:'marketing',label:'Marketing Hub'},{id:'marketing_v2',label:'Marketing Hub (v2)'},{id:'team_growth',label:'Team Growth & Evaluations'},{id:'training_hub',label:'Training Hub'},{id:'requests_rails',label:'Requests & Orders'}
+    ];
+    // Added 'Assistant Manager' (2026-07-17) -- it's a real rung on the Roster's own promotion
+    // ladder but had no row here, so an Admin Manager had no way to configure its tool access at all.
+    var PERM_ROLES=['Manager','Store Manager','Assistant Manager','Finance Approver','Maintenance Lead','Shift Lead','Crew Trainer','Maintenance','Blue Apron','Crew Member'];
     function permAllow(fid, def){
         try{ if(currentUser && currentUser.is_developer===true && (typeof isPreviewMode!=='function'||!isPreviewMode())) return true; }catch(e){}
         var role=(currentUser&&currentUser.role)||'';
@@ -801,7 +816,17 @@
             case 'crew_trainer': return isMgr||sl||tr;
             case 'popin': case 'inventory': return isMgr||sl;
             case 'maint_billing': case 'maint_dash': return isMgr||inB(['Vice President/Co-Owner','Store Manager','Finance Approver','Maintenance Lead']);
-            case 'store_manager': case 'scorecards': return isMgr||inB(['Vice President/Co-Owner','Store Manager']);
+            case 'store_manager': case 'scorecards': case 'catering': return isMgr||inB(['Vice President/Co-Owner','Store Manager']);
+            // H4 fix (2026-07-17): default-state cases for the 12 feature ids added to PERM_FEATURES
+            // above, mirrored from the same OR-lists their tiles actually use in applyRoleUI()
+            // (js/05_admin_tasks_pip_disciplinary.js ~lines 495-507), so the matrix's "default on/off"
+            // tag and initial checkbox state reflect real current behavior instead of always "off".
+            case 'ops_meeting': case 'pay_tools': return isMgr||inB(['Vice President/Co-Owner','Store Manager','Office']);
+            case 'daily_report': case 'shift_console': return isMgr||sl||inB(['Vice President/Co-Owner','Store Manager','Shift Leader','Office']);
+            case 'site_inspection': case 'writeup_templates': return isMgr||sl||inB(['Vice President/Co-Owner','Store Manager','Shift Leader']);
+            case 'marketing': return isMgr||inB(['Vice President/Co-Owner','Store Manager','Marketing Manager','Designer/Creative']);
+            case 'marketing_v2': return isMgr||inB(['Vice President/Co-Owner','Store Manager','Marketing Manager','Office']);
+            case 'team_growth': case 'training_hub': case 'requests_rails': return true;
             default: return false;
         }
     }
@@ -870,7 +895,13 @@
     function isManagerRole(){ return currentUser && (currentUser.role==='Admin Manager' || currentUser.role==='Manager' || currentUser.role==='Vice President/Co-Owner' || currentUser.is_developer===true); }
     // Broad "management" gate: Shift Lead and above, store/assistant managers, admins, or developer.
     // Used to lock management-only tools (Pop-In, Inventory, HR forms) away from line staff.
-    function isMgmt(){ return currentUser && (currentUser.is_developer===true || isManagerRole() || currentUser.role==='Shift Lead' || currentUser.isStoreManager===true); }
+    // ROLE-STRING FIX (2026-07-17): added the 'Assistant Manager' role-string check. This
+    // function's own comment above already says "Shift Lead and above, store/assistant
+    // managers" -- but assistant managers only ever got in via the isStoreManager flag (a
+    // separate per-store assignment system). Someone promoted to "Assistant Manager" via the
+    // Roster's role ladder alone (no separate per-store assignment) fell through every check
+    // here and was treated as line staff. This is additive -- nobody loses access.
+    function isMgmt(){ return currentUser && (currentUser.is_developer===true || isManagerRole() || currentUser.role==='Shift Lead' || currentUser.role==='Assistant Manager' || currentUser.isStoreManager===true); }
     function openCommandCenter(){
         if(!isManagerRole()){ alert('Managers only.'); return; }
         triggerTransition(()=>{

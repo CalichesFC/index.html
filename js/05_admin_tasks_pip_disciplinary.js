@@ -127,7 +127,10 @@
     }
 
     // ============================================================
-    // TIME CLOCK (Phase 2a, TEST) - clock in/out/breaks
+    // TIME CLOCK (Phase 2a) - clock in/out/breaks
+    // Self-service by default: a staff member clocks THEMSELVES in (own linked
+    // employee record, picker hidden). Managers get a "clock in as a teammate"
+    // override picker. Nothing here is a "test" tool.
     // ============================================================
     let clockState = { status: null, timer: null };
     function clockSelectedEmp() { const s = document.getElementById('clockEmpSelect'); return s && s.value ? parseInt(s.value,10) : null; }
@@ -150,9 +153,40 @@
                 if (error) { sel.innerHTML = '<option>Error loading</option>'; return; }
                 const list = data || [];
                 sel.innerHTML = list.map(e => '<option value="'+e.id+'">'+escapeHtml(e.name)+'</option>').join('');
+                // Default to the logged-in user's OWN employee record ("clock yourself in").
+                // Primary match is the roster link (schedule_employees.linked_username =
+                // users.username); fall back to name so a linked field's absence never breaks it.
+                const uname = (currentUser.username||'').trim().toLowerCase();
+                const ufull = (currentUser.name||'').trim().toLowerCase();
+                let mine = uname ? list.find(e => e.linked_username && String(e.linked_username).trim().toLowerCase() === uname) : null;
+                if (!mine && ufull) mine = list.find(e => (e.name||'').trim().toLowerCase() === ufull);
+                if (mine) sel.value = mine.id;
+                clockApplyPickerMode(mine);
                 clockRefreshStatus();
             });
         });
+    }
+    // Decide who the picker is for. Regular staff clock themselves in (no picker,
+    // no "test" wording); managers keep the ability to clock a teammate in. If we
+    // can't identify a staffer's own record, we FALL BACK to a plain name picker so
+    // nobody is ever locked out of clocking in.
+    function clockApplyPickerMode(mine) {
+        const wrap = document.getElementById('clockPickerWrap');
+        const label = document.getElementById('clockAsLabel');
+        const nameLine = document.getElementById('clockAsName');
+        const isMgr = (typeof schedIsMgr === 'function') && schedIsMgr();
+        if (isMgr) {
+            if (wrap) wrap.style.display = 'block';
+            if (label) label.innerText = 'Clock in as (you, or pick a teammate):';
+            if (nameLine) nameLine.style.display = 'none';
+        } else if (mine) {
+            if (wrap) wrap.style.display = 'none';
+            if (nameLine) { nameLine.style.display = 'block'; nameLine.innerText = 'Clocking in as ' + (mine.name || currentUser.name || 'you'); }
+        } else {
+            if (wrap) wrap.style.display = 'block';
+            if (label) label.innerText = 'Choose your name:';
+            if (nameLine) nameLine.style.display = 'none';
+        }
     }
 
     function clockRefreshStatus() {
@@ -208,15 +242,17 @@
         const loc = document.getElementById('clockLocSelect').value;
         withPin(function(pin){
             if (window._clockBusy) return; window._clockBusy = true; var _clkDone=function(){ window._clockBusy=false; }; setTimeout(_clkDone, 8000);
-            const rpc = open ? 'app_clock_out' : 'app_clock_in';
             const params = open ? { p_username: currentUser.username, p_password: pin, p_employee_id: emp }
                                 : { p_username: currentUser.username, p_password: pin, p_employee_id: emp, p_location: loc };
-            supabaseClient.rpc(rpc, params).then(({ data, error }) => {
+            const onClockDone = ({ data, error }) => {
                 _clkDone();
                 if (error) { alert('Error: ' + error.message); return; }
                 if (data && data.ok === false) { alert(data.error || 'Could not complete.'); }
                 clockRefreshStatus();
-            });
+            };
+            // Literal RPC names (not a variable) so the pre-deploy manifest checker can see them.
+            if (open) supabaseClient.rpc('app_clock_out', params).then(onClockDone);
+            else supabaseClient.rpc('app_clock_in', params).then(onClockDone);
         });
     }
 
@@ -224,9 +260,11 @@
         const emp = clockSelectedEmp(); if (!emp) return;
         const onBreak = clockState.status && clockState.status.open_punch && clockState.status.open_punch.open_break_start;
         withPin(function(pin){
-            const rpc = onBreak ? 'app_break_end' : 'app_break_start';
-            supabaseClient.rpc(rpc, { p_username: currentUser.username, p_password: pin, p_employee_id: emp })
-            .then(({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } if (data && data.ok === false) { alert(data.error); } clockRefreshStatus(); });
+            const params = { p_username: currentUser.username, p_password: pin, p_employee_id: emp };
+            const onBreakDone = ({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } if (data && data.ok === false) { alert(data.error); } clockRefreshStatus(); };
+            // Literal RPC names (not a variable) so the pre-deploy manifest checker can see them.
+            if (onBreak) supabaseClient.rpc('app_break_end', params).then(onBreakDone);
+            else supabaseClient.rpc('app_break_start', params).then(onBreakDone);
         });
     }
 
@@ -545,8 +583,13 @@
         updatePreviewToggleBtn();
     }
 
+    // TRAP FIX (2026-07-17): this used to log a 'Maintenance'-role user straight out of the app
+    // on Back -- their only exit from a screen that no longer receives real repairs. The board
+    // is now fully retired (see enterAppView()), but this stays defensive in case anything else
+    // still opens maintenanceBoardView (e.g. openVehiclesService()) -- Back should always mean
+    // "go to the menu," never "log me out," for any role.
     function maintBoardBack() {
-        if (currentUser.role === 'Maintenance') { logout(); } else { openMenu(); }
+        openMenu();
     }
 
     function openMaintenanceBoard() {
@@ -983,11 +1026,14 @@
     function reqDecide(type, id, approve) {
         var note='';
         if(!approve){ note=prompt('Optional note to the employee (reason for denial):','')||''; }
-        var fn = type==='swap' ? 'app_swap_decide' : 'app_time_off_decide';
         withPin(function(pin){
-            supabaseClient.rpc(fn,{p_username:currentUser.username,p_password:pin,p_id:id,p_approve:approve,p_note:note}).then(function(res){
+            var args={p_username:currentUser.username,p_password:pin,p_id:id,p_approve:approve,p_note:note};
+            var onDecideDone=function(res){
                 if(res.error){ if(res.error.code==='42501') sessionPin=null; alert('Error: '+res.error.message); return; }
                 loadRequests();
-            }).catch(function(){ alert('Connection error.'); });
+            };
+            // Literal RPC names (not a variable) so the pre-deploy manifest checker can see them.
+            if(type==='swap') supabaseClient.rpc('app_swap_decide',args).then(onDecideDone).catch(function(){ alert('Connection error.'); });
+            else supabaseClient.rpc('app_time_off_decide',args).then(onDecideDone).catch(function(){ alert('Connection error.'); });
         });
     }
