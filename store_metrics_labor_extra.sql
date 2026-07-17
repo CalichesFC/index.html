@@ -23,4 +23,11 @@ begin
   if not (v_role ilike '%manager%' or v_role ilike '%admin%' or v_role ilike '%lead%'
           or v_role ilike '%owner%' or v_role ilike '%VP%' or v_role ilike '%office%') then
     raise exception 'forbidden'; end if;
-  update p
+  update public.store_metrics
+     set mgr_labor=coalesce(p_mgr_labor,mgr_labor),
+         crew_labor=coalesce(p_crew_labor,crew_labor),
+         splh=coalesce(p_splh,splh),
+         updated_at=now()
+   where location=p_location and metric_date=p_date;
+  return jsonb_build_object('ok',true,'location',p_location,'date',p_date);
+end $fn$;

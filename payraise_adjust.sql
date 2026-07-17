@@ -104,4 +104,16 @@ end $fn$;
 
 -- History for a proposal (newest first).
 create or replace function public.app_tg_proposal_adjust_list(
-  p_username text, p_password text
+  p_username text, p_password text, p_proposal_id bigint
+) returns jsonb
+language plpgsql security definer set search_path=public,extensions
+as $fn$
+declare v_uid bigint; v_role text; v_name text;
+begin
+  select uid,urole,uname into v_uid,v_role,v_name from public._pp_auth(p_username,p_password);
+  if v_uid is null then raise exception 'forbidden'; end if;
+  return coalesce((
+    select jsonb_agg(to_jsonb(a) order by a.adjusted_at desc)
+    from public.tg_pay_proposal_adjustments a where a.proposal_id = p_proposal_id
+  ), '[]'::jsonb);
+end $fn$;

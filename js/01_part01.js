@@ -4,7 +4,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.07.14.0801';
+    const APP_VERSION = '2026.07.17.1001';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -716,44 +716,65 @@
     function lmsScormType(n){ n=String(n).toLowerCase(); if(/\.html?$/.test(n))return'text/html'; if(/\.js$/.test(n))return'text/javascript'; if(/\.css$/.test(n))return'text/css'; if(/\.json$/.test(n))return'application/json'; if(/\.xml$/.test(n))return'text/xml'; if(/\.png$/.test(n))return'image/png'; if(/\.jpe?g$/.test(n))return'image/jpeg'; if(/\.gif$/.test(n))return'image/gif'; if(/\.svg$/.test(n))return'image/svg+xml'; if(/\.mp4$/.test(n))return'video/mp4'; if(/\.mp3$/.test(n))return'audio/mpeg'; if(/\.woff2$/.test(n))return'font/woff2'; if(/\.woff$/.test(n))return'font/woff'; return'application/octet-stream'; }
     function lmsUploadScorm(courseId){ if(typeof JSZip==='undefined'){ alert('The unzip tool is still loading — please try again in a few seconds.'); return; } withPin(function(pin){ var inp=document.createElement('input'); inp.type='file'; inp.accept='.zip,application/zip'; inp.onchange=function(){ var f=inp.files&&inp.files[0]; if(f) lmsScormDoUpload(courseId,f,pin); }; inp.click(); }); }
     async function _scSign(courseId,pin,relpath){ var r=await fetch(supabaseUrl+'/functions/v1/scorm-upload',{method:'POST',headers:{apikey:supabaseKey,Authorization:'Bearer '+supabaseKey,'Content-Type':'application/json'},body:JSON.stringify({username:currentUser.username,pin:pin,course_id:courseId,relpath:relpath})}); var d=await r.json(); if(!d||d.error) throw new Error((d&&d.error)||'Could not authorize upload (managers only).'); return d; }
+    /* Shared SCORM .zip -> storage pipeline. Used by BOTH the "My Training" course
+       editor (lmsScormDoUpload below) and the Training Hub requirement builder
+       (trhScormDoUpload in js/22_training_hub.js) -- previously these were two
+       verbatim-duplicated copies of this exact logic that had already started to
+       drift (the Training Hub copy's manifest parsing ignored <organizations>/<item>
+       and could pick the wrong SCO in a multi-SCO package, and it skipped deploying
+       scorm-player.html, so packages attached from Training Hub never actually wired
+       up window.API for real completion tracking). One implementation now, used by
+       both call sites, so a future fix only has to happen once.
+       Reads the .zip, resolves the correct launch file from imsmanifest.xml (falling
+       back to the shortest .html file for non-conformant packages), uploads every
+       file preserving folder structure, deploys a same-origin scorm-player.html
+       alongside it so cross-origin SCOs can still reach window.API/window.API_1484_11,
+       and resolves with the final scorm_url to hand to app_lp_set_scorm.
+       onProgress(text, pct) is called for UI updates; pct is 0-100 or null. */
+    async function scormUploadPackage(courseId,file,pin,onProgress){
+        function tick(t,p){ if(typeof onProgress==='function') onProgress(t,p); }
+        tick('Reading package…',0);
+        var zip=await JSZip.loadAsync(file);
+        var names=Object.keys(zip.files).filter(function(n){return !zip.files[n].dir;});
+        if(!names.length) throw new Error('That .zip appears to be empty.');
+        var manName=names.find(function(n){return /(^|\/)imsmanifest\.xml$/i.test(n);});
+        var launchRel='';
+        if(manName){ var xml=await zip.files[manName].async('string'); var base=manName.replace(/imsmanifest\.xml$/i,''); var doc=new DOMParser().parseFromString(xml,'text/xml');
+            var orgs=doc.getElementsByTagName('organizations')[0]; var defId=orgs&&orgs.getAttribute('default'); var org=null; var olist=doc.getElementsByTagName('organization');
+            for(var oi=0;oi<olist.length;oi++){ if(!org) org=olist[oi]; if(defId&&olist[oi].getAttribute('identifier')===defId) org=olist[oi]; }
+            var ref=''; if(org){ var it=org.getElementsByTagName('item'); for(var ii=0;ii<it.length;ii++){ if(it[ii].getAttribute('identifierref')){ ref=it[ii].getAttribute('identifierref'); break; } } }
+            var rlist=doc.getElementsByTagName('resource'); var href='';
+            for(var ri=0;ri<rlist.length;ri++){ if(ref&&rlist[ri].getAttribute('identifier')===ref){ href=rlist[ri].getAttribute('href'); break; } }
+            if(!href){ for(var ri2=0;ri2<rlist.length;ri2++){ if(rlist[ri2].getAttribute('href')){ href=rlist[ri2].getAttribute('href'); break; } } }
+            if(href) launchRel=base+href;
+        }
+        if(!launchRel){ var htmls=names.filter(function(n){return /\.html?$/i.test(n);}).sort(function(a,b){return a.length-b.length;}); launchRel=htmls[0]||''; }
+        if(!launchRel) throw new Error('Could not find a launch page (no imsmanifest.xml or HTML file). Is this a SCORM package?');
+        var launchClean=launchRel.split('?')[0].replace(/^\.?\//,''); var launchQuery=launchRel.indexOf('?')>=0?launchRel.slice(launchRel.indexOf('?')):'';
+        var launchUrl=''; var scVer='v'+Date.now();
+        for(var k=0;k<names.length;k++){ var name=names[k];
+            tick('Uploading file '+(k+1)+' of '+names.length+'…', 100*k/(names.length+1));
+            var blob=await zip.files[name].async('blob');
+            var d=await _scSign(courseId,pin,scVer+'/'+name);
+            var up=await supabaseClient.storage.from('training-materials').uploadToSignedUrl(d.path,d.token,blob,{contentType:lmsScormType(name)});
+            if(up.error) throw new Error(up.error.message);
+            if(name.replace(/^\.?\//,'')===launchClean) launchUrl=d.url+launchQuery;
+        }
+        tick('Installing the player…', 100*names.length/(names.length+1));
+        var playerTxt=await (await fetch('scorm-player.html',{cache:'no-store'})).text();
+        var pd=await _scSign(courseId,pin,scVer+'/scorm-player.html');
+        var pu=await supabaseClient.storage.from('training-materials').uploadToSignedUrl(pd.path,pd.token,new Blob([playerTxt],{type:'text/html'}),{contentType:'text/html'});
+        if(pu.error) throw new Error(pu.error.message);
+        if(!launchUrl){ var ld=await _scSign(courseId,pin,scVer+'/'+launchClean); launchUrl=ld.url+launchQuery; }
+        tick('Attaching to the course…', 100);
+        return pd.url+'#course='+courseId+'&launch='+encodeURIComponent(launchUrl);
+    }
     async function lmsScormDoUpload(courseId,file,pin){
         var ov=lmsOverlay(); ov.innerHTML=lmsHeader('Upload SCORM','lmsHome()')+'<div style="max-width:560px;margin:0 auto;padding:20px;"><div id="scUpMsg" style="font-size:14px;color:#33303a;">Reading package&hellip;</div><div style="height:8px;background:#eef0f5;border-radius:99px;margin-top:10px;overflow:hidden;"><div id="scUpBar" style="height:100%;width:0;background:linear-gradient(90deg,#185FA5,#1f7a3d);transition:width .2s;"></div></div></div>';
         function msg(t){ var e=document.getElementById('scUpMsg'); if(e) e.textContent=t; }
         function bar(p){ var e=document.getElementById('scUpBar'); if(e) e.style.width=Math.round(p)+'%'; }
         try{
-            var zip=await JSZip.loadAsync(file);
-            var names=Object.keys(zip.files).filter(function(n){return !zip.files[n].dir;});
-            if(!names.length){ msg('That .zip appears to be empty.'); return; }
-            var manName=names.find(function(n){return /(^|\/)imsmanifest\.xml$/i.test(n);});
-            var launchRel='';
-            if(manName){ var xml=await zip.files[manName].async('string'); var base=manName.replace(/imsmanifest\.xml$/i,''); var doc=new DOMParser().parseFromString(xml,'text/xml');
-                var orgs=doc.getElementsByTagName('organizations')[0]; var defId=orgs&&orgs.getAttribute('default'); var org=null; var olist=doc.getElementsByTagName('organization');
-                for(var oi=0;oi<olist.length;oi++){ if(!org) org=olist[oi]; if(defId&&olist[oi].getAttribute('identifier')===defId) org=olist[oi]; }
-                var ref=''; if(org){ var it=org.getElementsByTagName('item'); for(var ii=0;ii<it.length;ii++){ if(it[ii].getAttribute('identifierref')){ ref=it[ii].getAttribute('identifierref'); break; } } }
-                var rlist=doc.getElementsByTagName('resource'); var href='';
-                for(var ri=0;ri<rlist.length;ri++){ if(ref&&rlist[ri].getAttribute('identifier')===ref){ href=rlist[ri].getAttribute('href'); break; } }
-                if(!href){ for(var ri2=0;ri2<rlist.length;ri2++){ if(rlist[ri2].getAttribute('href')){ href=rlist[ri2].getAttribute('href'); break; } } }
-                if(href) launchRel=base+href;
-            }
-            if(!launchRel){ var htmls=names.filter(function(n){return /\.html?$/i.test(n);}).sort(function(a,b){return a.length-b.length;}); launchRel=htmls[0]||''; }
-            if(!launchRel){ msg('Could not find a launch page (no imsmanifest.xml or HTML file). Is this a SCORM package?'); return; }
-            var launchClean=launchRel.split('?')[0].replace(/^\.?\//,''); var launchQuery=launchRel.indexOf('?')>=0?launchRel.slice(launchRel.indexOf('?')):'';
-            var launchUrl=''; var scVer='v'+Date.now();
-            for(var k=0;k<names.length;k++){ var name=names[k];
-                msg('Uploading file '+(k+1)+' of '+names.length+'…'); bar(100*k/(names.length+1));
-                var blob=await zip.files[name].async('blob');
-                var d=await _scSign(courseId,pin,scVer+'/'+name);
-                var up=await supabaseClient.storage.from('training-materials').uploadToSignedUrl(d.path,d.token,blob,{contentType:lmsScormType(name)});
-                if(up.error) throw new Error(up.error.message);
-                if(name.replace(/^\.?\//,'')===launchClean) launchUrl=d.url+launchQuery;
-            }
-            msg('Installing the player…'); bar(100*names.length/(names.length+1));
-            var playerTxt=await (await fetch('scorm-player.html',{cache:'no-store'})).text();
-            var pd=await _scSign(courseId,pin,scVer+'/scorm-player.html');
-            var pu=await supabaseClient.storage.from('training-materials').uploadToSignedUrl(pd.path,pd.token,new Blob([playerTxt],{type:'text/html'}),{contentType:'text/html'});
-            if(pu.error) throw new Error(pu.error.message);
-            if(!launchUrl){ var ld=await _scSign(courseId,pin,scVer+'/'+launchClean); launchUrl=ld.url+launchQuery; }
-            var scormUrl=pd.url+'#course='+courseId+'&launch='+encodeURIComponent(launchUrl);
+            var scormUrl=await scormUploadPackage(courseId,file,pin,function(t,p){ msg(t); if(p!=null) bar(p); });
             await new Promise(function(res,rej){ supabaseClient.rpc('app_lp_set_scorm',{p_username:currentUser.username,p_password:pin,p_course_id:courseId,p_url:scormUrl,p_version:'1.2'}).then(function(r){ if(r.error) rej(new Error(r.error.message)); else res(); }).catch(rej); });
             bar(100); msg('✓ SCORM package uploaded and attached! Learners can launch it now.');
             setTimeout(function(){ if(typeof lmsOpenCourse==='function') lmsOpenCourse(courseId); },1500);

@@ -800,47 +800,17 @@
             inp.click();
         });
     }
-    async function trhScormSign(cid,pin,relpath){
-        var res=await supabaseClient.functions.invoke('scorm-upload',{body:{username:currentUser.username,pin:pin,course_id:cid,relpath:relpath}});
-        var d=(res&&res.data)||{};
-        var err=(res&&res.error&&res.error.message)||d.error;
-        if(err||!d.token) throw new Error(err||'Could not authorize upload (managers only).');
-        return d;
-    }
     async function trhScormDoUpload(cid,file,pin){
+        // Shared with "My Training" (scormUploadPackage, js/01_part01.js) so there's
+        // one zip/manifest/upload implementation instead of two drifting copies. This
+        // also means a Training Hub-attached package now gets the scorm-player.html
+        // companion deployed alongside it (previously skipped here), so a direct
+        // launch actually has a working window.API shim instead of none. Training
+        // Hub's own completion source (sign-off/quiz) is unaffected either way.
         try{
-            trhScormSetMsg('Reading package…');
-            var zip=await JSZip.loadAsync(file);
-            var names=Object.keys(zip.files).filter(function(n){ return !zip.files[n].dir; });
-            if(!names.length){ trhScormSetMsg(''); alert('That .zip appears to be empty.'); return; }
-            // launch page: imsmanifest.xml's first resource href, else the shortest HTML file
-            var launchRel='';
-            var manName=names.filter(function(n){ return /(^|\/)imsmanifest\.xml$/i.test(n); })[0];
-            if(manName){
-                try{
-                    var xml=await zip.files[manName].async('string');
-                    var doc=new DOMParser().parseFromString(xml,'text/xml');
-                    var rlist=doc.getElementsByTagName('resource');
-                    for(var ri=0;ri<rlist.length;ri++){ if(rlist[ri].getAttribute('href')){ launchRel=manName.replace(/imsmanifest\.xml$/i,'')+rlist[ri].getAttribute('href'); break; } }
-                }catch(e){}
-            }
-            if(!launchRel){ var htmls=names.filter(function(n){ return /\.html?$/i.test(n); }).sort(function(a,b){ return a.length-b.length; }); launchRel=htmls[0]||''; }
-            if(!launchRel){ trhScormSetMsg(''); alert('Could not find a launch page (no imsmanifest.xml or HTML file). Is this a SCORM package?'); return; }
-            var launchClean=launchRel.split('?')[0].replace(/^\.?\//,'');
-            var launchQuery=launchRel.indexOf('?')>=0?launchRel.slice(launchRel.indexOf('?')):'';
-            var ver='v'+Date.now(); var launchUrl='';
-            for(var k=0;k<names.length;k++){
-                var name=names[k];
-                trhScormSetMsg('Uploading file '+(k+1)+' of '+names.length+'…');
-                var blob=await zip.files[name].async('blob');
-                var d=await trhScormSign(cid,pin,ver+'/'+name);
-                var up=await supabaseClient.storage.from('training-materials').uploadToSignedUrl(d.path,d.token,blob,{contentType:(typeof lmsScormType==='function'?lmsScormType(name):'application/octet-stream')});
-                if(up.error) throw new Error(up.error.message);
-                if(name.replace(/^\.?\//,'')===launchClean) launchUrl=d.url+launchQuery;
-            }
-            if(!launchUrl){ var ld=await trhScormSign(cid,pin,ver+'/'+launchClean); launchUrl=ld.url+launchQuery; }
+            var scormUrl=await scormUploadPackage(cid,file,pin,function(t){ trhScormSetMsg(t); });
             trhScormSetMsg('Attaching to the course…');
-            await new Promise(function(res,rej){ supabaseClient.rpc('app_lp_set_scorm',{p_username:currentUser.username,p_password:pin,p_course_id:cid,p_url:launchUrl,p_version:'1.2'}).then(function(r){ if(r.error) rej(new Error(r.error.message)); else res(); }).catch(rej); });
+            await new Promise(function(res,rej){ supabaseClient.rpc('app_lp_set_scorm',{p_username:currentUser.username,p_password:pin,p_course_id:cid,p_url:scormUrl,p_version:'1.2'}).then(function(r){ if(r.error) rej(new Error(r.error.message)); else res(); }).catch(rej); });
             trhScormSetMsg('✓ SCORM package attached');
         }catch(e){ trhScormSetMsg(''); alert('Upload failed: '+((e&&e.message)?e.message:e)); }
     }

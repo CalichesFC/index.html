@@ -674,10 +674,13 @@
 
     // ===== four printable report views (print pattern mirrors tgxPrintSheet, js/25) =====
     var TG_CORP_REPORTS={ evals:'Evaluation Compliance', certs:'Training & Certification Status', growth:'Employee Growth — Last 90 Days', recognition:'Recognition Summary' };
+    // Literal map (not string concatenation) so the pre-deploy RPC-manifest checker can
+    // see these four real, already-registered RPC names instead of a truncated dynamic one.
+    var TG_REPORT_RPC={ evals:'app_tg_report_evals', certs:'app_tg_report_certs', growth:'app_tg_report_growth', recognition:'app_tg_report_recognition' };
     function tgCorpReport(kind){
         var title=TG_CORP_REPORTS[kind]||'Report';
         tgModal2Body('<div style="text-align:center;color:#6b7686;padding:30px;">Loading '+escapeHtml(title)+'&hellip;</div>');
-        tgRpc('app_tg_report_'+kind,{p_location:''}, function(rows){
+        tgRpc(TG_REPORT_RPC[kind],{p_location:''}, function(rows){
             _tg.corpReport={kind:kind,data:rows};
             var inner='';
             if(kind==='evals') inner=tgCorpReportEvalsHtml(rows||[]);

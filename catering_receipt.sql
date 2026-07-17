@@ -61,4 +61,8 @@ begin
 
   return jsonb_build_object(
     'id', v_row.id, 'invoice_status', v_row.invoice_status,
-    'paid_at', v_row.paid_at, 'amount_paid', v_row.
+    'paid_at', v_row.paid_at, 'amount_paid', v_row.amount_paid,
+    'payment_method', v_row.payment_method, 'payment_reference', v_row.payment_reference,
+    'invoice_number', v_row.invoice_number
+  );
+end $fn$;

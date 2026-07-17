@@ -417,12 +417,13 @@
     function lmsOverlay(){ var ov=document.getElementById('lmsModal'); if(!ov){ ov=document.createElement('div'); ov.id='lmsModal'; ov.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100000;overflow:auto;'; document.body.appendChild(ov); } ov.style.display='block'; return ov; }
     function lmsClose(){ var ov=document.getElementById('lmsModal'); if(ov) ov.style.display='none'; }
     function lmsHeader(title,back,badge){ return '<div style="background:linear-gradient(120deg,#185FA5,#7d1d4b);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:2;">'+(back?'<button onclick="'+back+'" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;">&#8249; Back</button>':'')+'<b style="flex:1;font-size:16px;">'+title+'</b>'+(badge?'<span style="background:#ffd84d;color:#5b3a00;font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px;">'+badge+'</span>':'')+'<button onclick="lmsClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;">&times;</button></div>'; }
-    function lmsStatusBadge(st){ var m={passed:['#e8f5ec','#1b7a3d','Certified'],in_progress:['#fff4e0','#9a5b00','In progress'],not_started:['#eef0f3','#6b7686','Not started']}; var c=m[st||'not_started']||m.not_started; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:2px 8px;border-radius:99px;white-space:nowrap;">'+c[2]+'</span>'; }
+    function lmsStatusBadge(st){ var m={passed:['#e8f5ec','#1b7a3d','Certified'],in_progress:['#fff4e0','#9a5b00','In progress'],pending_review:['#eaf1fb','#185FA5','Awaiting review'],not_started:['#eef0f3','#6b7686','Not started']}; var c=m[st||'not_started']||m.not_started; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:2px 8px;border-radius:99px;white-space:nowrap;">'+c[2]+'</span>'; }
     // ===== Learning Paths — real, database-backed (catalog + per-employee progress) =====
-    var _lms={catalog:[],my:{passed_course_ids:[],completions:[],enrollments:[]}};
+    var _lms={catalog:[],my:{passed_course_ids:[],completions:[],enrollments:[]},reviews:[]};
     function lmsPassedSet(){ var s={}; (_lms.my.passed_course_ids||[]).forEach(function(id){ s[id]=true; }); return s; }
     function lmsScoreOf(cid){ var c=(_lms.my.completions||[]).filter(function(x){return x.course_id===cid;})[0]; return c?c.score:null; }
-    function lmsCourseStatus(cid){ var passed=lmsPassedSet(); if(passed[cid]) return 'passed'; if(lmsScoreOf(cid)!=null) return 'in_progress'; return 'not_started'; }
+    function lmsPendingReviewOf(cid){ return (_lms.reviews||[]).filter(function(x){return x.course_id===cid&&x.status==='pending';})[0]||null; }
+    function lmsCourseStatus(cid){ var passed=lmsPassedSet(); if(passed[cid]) return 'passed'; if(lmsPendingReviewOf(cid)) return 'pending_review'; if(lmsScoreOf(cid)!=null) return 'in_progress'; return 'not_started'; }
     function openLmsPreview(){ lmsLoad(function(){ lmsHome(); }); }
     function lmsLoad(cb){
         var ov=lmsOverlay(); ov.innerHTML=lmsHeader('My Training','')+'<div style="max-width:640px;margin:0 auto;padding:40px 16px;text-align:center;color:#6b7686;">Loading your training&hellip;</div>';
@@ -431,10 +432,12 @@
                 supabaseClient.rpc('app_lp_catalog',{p_username:currentUser.username,p_password:pin}),
                 supabaseClient.rpc('app_lp_my',{p_username:currentUser.username,p_password:pin}),
                 supabaseClient.rpc('app_lp_gamify',{p_username:currentUser.username,p_password:pin}),
-                supabaseClient.rpc('app_lp_leaderboard',{p_username:currentUser.username,p_password:pin,p_store:''})
+                supabaseClient.rpc('app_lp_leaderboard',{p_username:currentUser.username,p_password:pin,p_store:''}),
+                supabaseClient.rpc('app_lp_my_reviews',{p_username:currentUser.username,p_password:pin}),
+                supabaseClient.rpc('app_lp_video_progress_get',{p_username:currentUser.username,p_password:pin})
             ]).then(function(res){
                 if(res[0].error){ ov.innerHTML=lmsHeader('My Training','')+'<div style="max-width:640px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">Could not load training: '+escapeHtml(res[0].error.message)+'</div>'; return; }
-                _lms.catalog=res[0].data||[]; _lms.my=(res[1]&&res[1].data)?res[1].data:{passed_course_ids:[],completions:[],enrollments:[]}; _lms.gamify=(res[2]&&res[2].data)||null; _lms.board=(res[3]&&res[3].data)||null;
+                _lms.catalog=res[0].data||[]; _lms.my=(res[1]&&res[1].data)?res[1].data:{passed_course_ids:[],completions:[],enrollments:[]}; _lms.gamify=(res[2]&&res[2].data)||null; _lms.board=(res[3]&&res[3].data)||null; _lms.reviews=(res[4]&&res[4].data)||[]; _lms.videoProgress=(res[5]&&res[5].data)||{};
                 if(cb) cb();
             }).catch(function(){ ov.innerHTML=lmsHeader('My Training','')+'<div style="max-width:640px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">Connection error.</div>'; });
         }, function(){ ov.innerHTML=lmsHeader('My Training','')+'<div style="max-width:640px;margin:0 auto;padding:30px 16px;color:#6b7686;text-align:center;">PIN required.</div>'; });
@@ -522,15 +525,32 @@
         if(btn){ btn.disabled=true; btn.style.opacity='.5'; btn.style.cursor='not-allowed'; }
         [].forEach.call(vids,function(el){ var key=el.getAttribute('data-vkey'); var ty=el.getAttribute('data-vtype');
             var w=parseFloat(localStorage.getItem('cvw_w_'+key)||'0'); var d=parseFloat(localStorage.getItem('cvw_d_'+key)||'0');
+            // Seed from the server mirror too -- picks up progress made on another
+            // device/browser instead of always starting a fresh localStorage at 0.
+            var sv=(_lms.videoProgress&&_lms.videoProgress[key])||null;
+            if(sv){ if((sv.watched||0)>w){ w=sv.watched; localStorage.setItem('cvw_w_'+key,String(w)); } if((sv.duration||0)>d){ d=sv.duration; localStorage.setItem('cvw_d_'+key,String(d)); } }
             if(d>0 && w/d>=lmsThr()){ lmsSetBar(key,1); lmsMarkWatched(key); }
             if(ty==='native') lmsWireNative(key); else if(ty==='yt') lmsWireYT(key); else if(ty==='vimeo') lmsWireVimeo(key); else lmsMarkWatched(key);
         });
     }
+    // Best-effort server mirror of video watch progress (Phase 1.5). Throttled so
+    // it's cheap to call from a timeupdate-style handler; never prompts for a PIN
+    // (background sync only fires once one is already cached from loading My
+    // Training) and any failure is silently swallowed -- localStorage tracking,
+    // which this only supplements, remains authoritative on-device either way.
+    var _lmsVProgLast={};
+    function lmsSyncVideoProgress(key,watched,dur,force){
+        if(!sessionPin || !currentUser || !currentUser.username) return;
+        var now=Date.now(); if(!force && (now-(_lmsVProgLast[key]||0))<8000) return;
+        _lmsVProgLast[key]=now;
+        var cur=window._lmsCur; var courseId=cur&&cur.course&&cur.course.id; if(!courseId) return;
+        supabaseClient.rpc('app_lp_video_progress_save',{p_username:currentUser.username,p_password:sessionPin,p_video_key:key,p_course_id:courseId,p_watched:watched||0,p_duration:dur||0}).catch(function(){});
+    }
     function lmsWireNative(key){
         var v=document.getElementById(key+'_if'); if(!v) return; var watched=parseFloat(localStorage.getItem('cvw_w_'+key)||'0');
         v.addEventListener('loadedmetadata',function(){ var d=v.duration||0; if(d){ localStorage.setItem('cvw_d_'+key,String(d)); var pos=parseFloat(localStorage.getItem('cvw_pos_'+key)||'0'); if(pos>1 && pos<d-1){ try{ v.currentTime=pos; }catch(e){} } lmsSetBar(key,Math.min(1,watched/d)); } else { lmsManualConfirm(key); } });
-        v.addEventListener('timeupdate',function(){ var d=v.duration||0; if(!d) return; if(v.currentTime>watched+2.5){ try{ v.currentTime=watched; }catch(e){} return; } watched=Math.max(watched,v.currentTime); localStorage.setItem('cvw_w_'+key,String(watched)); localStorage.setItem('cvw_pos_'+key,String(v.currentTime)); var pct=watched/d; lmsSetBar(key,pct); if(pct>=lmsThr()) lmsMarkWatched(key); });
-        v.addEventListener('ended',function(){ watched=v.duration||watched; localStorage.setItem('cvw_w_'+key,String(watched)); lmsMarkWatched(key); });
+        v.addEventListener('timeupdate',function(){ var d=v.duration||0; if(!d) return; if(v.currentTime>watched+2.5){ try{ v.currentTime=watched; }catch(e){} return; } watched=Math.max(watched,v.currentTime); localStorage.setItem('cvw_w_'+key,String(watched)); localStorage.setItem('cvw_pos_'+key,String(v.currentTime)); var pct=watched/d; lmsSetBar(key,pct); lmsSyncVideoProgress(key,watched,d); if(pct>=lmsThr()) lmsMarkWatched(key); });
+        v.addEventListener('ended',function(){ watched=v.duration||watched; localStorage.setItem('cvw_w_'+key,String(watched)); lmsSyncVideoProgress(key,watched,v.duration||0,true); lmsMarkWatched(key); });
         v.addEventListener('error',function(){ lmsManualConfirm(key); });
     }
     function lmsLoadYT(cb){ if(window.YT&&window.YT.Player){ cb(); return; } if(!window._lmsYTcbs){ window._lmsYTcbs=[]; var t=document.createElement('script'); t.src='https://www.youtube.com/iframe_api'; document.head.appendChild(t); window.onYouTubeIframeAPIReady=function(){ var a=window._lmsYTcbs||[]; window._lmsYTcbs=null; a.forEach(function(f){ try{ f(); }catch(e){} }); }; } if(window._lmsYTcbs) window._lmsYTcbs.push(cb); else cb(); }
@@ -539,7 +559,7 @@
           var watched=parseFloat(localStorage.getItem('cvw_w_'+key)||'0'); var dur=0; var poll=null;
           var p=new YT.Player(key+'_if',{ events:{
             onReady:function(){ try{ dur=p.getDuration()||0; if(dur) localStorage.setItem('cvw_d_'+key,String(dur)); }catch(e){} },
-            onStateChange:function(e){ if(e.data===1){ if(poll) clearInterval(poll); poll=setInterval(function(){ try{ var t=p.getCurrentTime(); if(!dur) dur=p.getDuration()||0; if(t>watched+2.6){ p.seekTo(watched,true); return; } watched=Math.max(watched,t); localStorage.setItem('cvw_w_'+key,String(watched)); if(dur){ var pct=watched/dur; lmsSetBar(key,pct); if(pct>=lmsThr()) lmsMarkWatched(key); } }catch(e){} },800); } else { if(poll){ clearInterval(poll); poll=null; } if(e.data===0) lmsMarkWatched(key); } }
+            onStateChange:function(e){ if(e.data===1){ if(poll) clearInterval(poll); poll=setInterval(function(){ try{ var t=p.getCurrentTime(); if(!dur) dur=p.getDuration()||0; if(t>watched+2.6){ p.seekTo(watched,true); return; } watched=Math.max(watched,t); localStorage.setItem('cvw_w_'+key,String(watched)); if(dur){ var pct=watched/dur; lmsSetBar(key,pct); lmsSyncVideoProgress(key,watched,dur); if(pct>=lmsThr()) lmsMarkWatched(key); } }catch(e){} },800); } else { if(poll){ clearInterval(poll); poll=null; } if(e.data===0){ lmsSyncVideoProgress(key,watched,dur,true); lmsMarkWatched(key); } } }
           }});
         }catch(e){ lmsManualConfirm(key); } });
     }
@@ -547,8 +567,8 @@
     function lmsWireVimeo(key){
         lmsLoadVimeo(function(){ try{ var ifr=document.getElementById(key+'_if'); if(!ifr) return; var pl=new Vimeo.Player(ifr); var watched=parseFloat(localStorage.getItem('cvw_w_'+key)||'0'); var dur=0;
           pl.getDuration().then(function(d){ dur=d||0; if(dur) localStorage.setItem('cvw_d_'+key,String(dur)); });
-          pl.on('timeupdate',function(data){ var t=(data&&data.seconds)||0; if(!dur) dur=(data&&data.duration)||0; if(t>watched+2.6){ pl.setCurrentTime(watched); return; } watched=Math.max(watched,t); localStorage.setItem('cvw_w_'+key,String(watched)); if(dur){ var pct=watched/dur; lmsSetBar(key,pct); if(pct>=lmsThr()) lmsMarkWatched(key); } });
-          pl.on('ended',function(){ lmsMarkWatched(key); });
+          pl.on('timeupdate',function(data){ var t=(data&&data.seconds)||0; if(!dur) dur=(data&&data.duration)||0; if(t>watched+2.6){ pl.setCurrentTime(watched); return; } watched=Math.max(watched,t); localStorage.setItem('cvw_w_'+key,String(watched)); if(dur){ var pct=watched/dur; lmsSetBar(key,pct); lmsSyncVideoProgress(key,watched,dur); if(pct>=lmsThr()) lmsMarkWatched(key); } });
+          pl.on('ended',function(){ lmsSyncVideoProgress(key,watched,dur,true); lmsMarkWatched(key); });
         }catch(e){ lmsManualConfirm(key); } });
     }
     function lmsManualConfirm(key){ var l=document.getElementById(key+'_lbl'); if(l){ l.innerHTML='<button onclick="lmsMarkWatched(\''+key+'\')" style="background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;">&#10003; I finished watching</button>'; } }
@@ -577,9 +597,32 @@
         var cur=window._lmsCur; if(!cur) return; var c=cur.course; var qs=c.quiz||[]; var msg=document.getElementById('lmsQuizMsg'); var correct=0, gradable=0, unanswered=false; var responses=[];
         qs.forEach(function(q,i){ var ty=q.type||'mc'; if(ty==='long'){ var ta=document.getElementById('lq_long_'+i); if(!ta||!ta.value.trim()) unanswered=true; else responses.push({q:q.q,type:'long',answer:ta.value.trim()}); } else if(ty==='short'){ var si=document.getElementById('lq_short_'+i); if(!si||!si.value.trim()){ unanswered=true; } else { responses.push({q:q.q,type:'short',answer:si.value.trim()}); if(q.accept&&String(q.accept).trim()){ gradable++; if(si.value.trim().toLowerCase()===String(q.accept).trim().toLowerCase()) correct++; } } } else { var sel=document.querySelector('input[name="lq'+i+'"]:checked'); if(!sel){ unanswered=true; } else { gradable++; var _ci=parseInt(sel.value,10); if(_ci===q.a) correct++; responses.push({q:q.q,type:'mc',answer:((q.choices||[])[_ci]||''),correct:(_ci===q.a)}); } } });
         if(unanswered){ if(msg){ msg.style.color='#c0264b'; msg.textContent='Please answer every question.'; } return; }
+        if(gradable===0 && qs.length>0){
+            // Entirely long-answer (ungradable) quiz. There's nothing here a script can
+            // grade, so — instead of the old behavior of auto-passing at a fabricated
+            // 100% — this routes to a manager review queue (app_lp_submit_review) and
+            // only records a real completion once a person actually reads the answers.
+            if(msg){ msg.style.color='#5b6472'; msg.textContent='Submitting for review…'; }
+            lmsSubmitForReview(c.id,responses);
+            return;
+        }
         var score=gradable>0?Math.round(100*correct/gradable):100; var total=gradable||(qs.length||1); var pass=score>=(c.pass_pct||(typeof cfgNum==='function'?cfgNum('targets','lms_pass_pct',80):80));
         if(msg){ msg.style.color='#5b6472'; msg.textContent='Saving…'; }
         lmsRecord(c.id,score,pass,correct,total,responses);
+    }
+    function lmsSubmitForReview(courseId,responses){
+        withPin(function(pin){
+            supabaseClient.rpc('app_lp_submit_review',{p_username:currentUser.username,p_password:pin,p_course_id:courseId,p_responses:(responses||[])}).then(function(r){
+                if(r&&r.error){ var msg=document.getElementById('lmsQuizMsg'); if(msg){ msg.style.color='#c0264b'; msg.textContent=r.error.message||'Could not submit.'; } return; }
+                lmsReviewPendingScreen();
+            }).catch(function(){ var msg=document.getElementById('lmsQuizMsg'); if(msg){ msg.style.color='#c0264b'; msg.textContent='Could not submit. Try again.'; } });
+        });
+    }
+    function lmsReviewPendingScreen(){
+        var h=lmsHeader('Submitted','lmsHome()')+'<div style="max-width:640px;margin:0 auto;padding:16px;"><div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:24px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.05);">';
+        h+='<div style="font-size:46px;">&#128221;</div><h2 style="margin:8px 0 4px;color:#185FA5;">Submitted for review</h2><p style="font-size:15px;color:#33303a;">Your written answers were sent to a manager to read over. This lesson will show as complete here once it&rsquo;s graded.</p>';
+        h+='<button onclick="lmsLoad(function(){lmsHome();})" style="margin-top:14px;width:100%;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;">Back to training</button>';
+        h+='</div></div>'; lmsOverlay().innerHTML=h;
     }
     function lmsRecord(courseId,score,pass,correct,total,responses){
         withPin(function(pin){
@@ -611,7 +654,7 @@
         h+='</div></div></div>'; lmsOverlay().innerHTML=h;
     }
     // ===== TEAM DEVELOPMENT — manager view (overview / builder+assign / promotions) =====
-    var _td={team:[],catalog:[],reqs:[],store:'',tab:'team'};
+    var _td={team:[],catalog:[],reqs:[],reviews:[],store:'',tab:'team'};
     function tdOverlay(){ var ov=document.getElementById('teamDevModal'); if(!ov){ ov=document.createElement('div'); ov.id='teamDevModal'; ov.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100000;overflow:auto;'; document.body.appendChild(ov); } ov.style.display='block'; return ov; }
     function tdClose(){ var ov=document.getElementById('teamDevModal'); if(ov) ov.style.display='none'; var m=document.getElementById('tdModal2'); if(m) m.style.display='none'; }
     function tdHeader(title,back){ return '<div style="background:linear-gradient(120deg,#185FA5,#7d1d4b);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;">'+(back?'<button onclick="'+back+'" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;">&#8249; Back</button>':'')+'<b style="flex:1;font-size:16px;">'+title+'</b><button onclick="tdClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;">&times;</button></div>'; }
@@ -623,18 +666,42 @@
                 supabaseClient.rpc('app_lp_team',{p_username:currentUser.username,p_password:pin,p_store:_td.store||''}),
                 supabaseClient.rpc('app_lp_catalog',{p_username:currentUser.username,p_password:pin}),
                 supabaseClient.rpc('app_lp_requirements_list',{p_username:currentUser.username,p_password:pin}),
-                supabaseClient.rpc('app_lp_rule_list',{p_username:currentUser.username,p_password:pin})
+                supabaseClient.rpc('app_lp_rule_list',{p_username:currentUser.username,p_password:pin}),
+                supabaseClient.rpc('app_lp_review_list',{p_username:currentUser.username,p_password:pin})
             ]).then(function(res){
                 if(res[0].error){ ov.innerHTML=tdHeader('Team Development','')+'<div style="max-width:760px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">'+(String(res[0].error.message||'').indexOf('forbidden')>=0?'Managers only.':escapeHtml(res[0].error.message))+'</div>'; return; }
-                _td.team=res[0].data||[]; _td.catalog=(res[1]&&res[1].data)||[]; _td.reqs=(res[2]&&res[2].data)||[]; _td.rules=(res[3]&&res[3].data)||[];
+                _td.team=res[0].data||[]; _td.catalog=(res[1]&&res[1].data)||[]; _td.reqs=(res[2]&&res[2].data)||[]; _td.rules=(res[3]&&res[3].data)||[]; _td.reviews=(res[4]&&res[4].data)||[];
                 if(cb) cb();
             }).catch(function(){ ov.innerHTML=tdHeader('Team Development','')+'<div style="max-width:760px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">Connection error.</div>'; });
         }, function(){ ov.innerHTML=tdHeader('Team Development','')+'<div style="max-width:760px;margin:0 auto;padding:30px 16px;color:#6b7686;text-align:center;">PIN required.</div>'; });
     }
-    function tdTabs(){ var t=_td.tab; function b(id,lbl){ return '<button onclick="tdSetTab(&quot;'+id+'&quot;)" style="flex:1;background:'+(t===id?'#185FA5':'#eef0f3')+';color:'+(t===id?'#fff':'#5b6472')+';border:none;padding:10px;font-size:13px;font-weight:700;cursor:pointer;border-radius:9px;">'+lbl+'</button>'; }
-        return '<div style="display:flex;gap:6px;max-width:760px;margin:14px auto 0;padding:0 16px;">'+b('team','Team')+b('paths','Paths')+b('promos','Promotions')+b('rules','Auto-assign')+'</div>'; }
+    function tdTabs(){ var t=_td.tab; var rc=(_td.reviews||[]).length; function b(id,lbl){ return '<button onclick="tdSetTab(&quot;'+id+'&quot;)" style="flex:1;position:relative;background:'+(t===id?'#185FA5':'#eef0f3')+';color:'+(t===id?'#fff':'#5b6472')+';border:none;padding:10px;font-size:13px;font-weight:700;cursor:pointer;border-radius:9px;">'+lbl+(id==='reviews'&&rc?'<span style="position:absolute;top:-6px;right:-4px;background:#c0264b;color:#fff;font-size:10px;font-weight:800;border-radius:99px;padding:1px 6px;">'+rc+'</span>':'')+'</button>'; }
+        return '<div style="display:flex;gap:6px;max-width:760px;margin:14px auto 0;padding:0 16px;">'+b('team','Team')+b('paths','Paths')+b('reviews','Reviews')+b('promos','Promotions')+b('rules','Auto-assign')+'</div>'; }
     function tdSetTab(t){ _td.tab=t; tdRender(); }
-    function tdRender(){ var ov=tdOverlay(); var body=(_td.tab==='team')?tdTeamHtml():(_td.tab==='paths')?tdPathsHtml():(_td.tab==='rules')?tdRulesHtml():tdPromoHtml(); ov.innerHTML=tdHeader('Team Development','')+tdTabs()+'<div style="max-width:760px;margin:0 auto;padding:14px 16px 40px;">'+body+'</div>'; }
+    function tdRender(){ var ov=tdOverlay(); var body=(_td.tab==='team')?tdTeamHtml():(_td.tab==='paths')?tdPathsHtml():(_td.tab==='reviews')?tdReviewsHtml():(_td.tab==='rules')?tdRulesHtml():tdPromoHtml(); ov.innerHTML=tdHeader('Team Development','')+tdTabs()+'<div style="max-width:760px;margin:0 auto;padding:14px 16px 40px;">'+body+'</div>'; }
+    function tdReviewsHtml(){
+        var revs=_td.reviews||[];
+        if(!revs.length) return '<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:24px;text-align:center;color:#6b6275;">No long-answer quizzes waiting on review right now.</div>';
+        var h='<div style="font-size:12.5px;color:#6b6275;margin-bottom:10px;">These courses are entirely written-response, so they can&rsquo;t be auto-graded &mdash; read each answer and approve or send it back.</div>';
+        revs.forEach(function(r){
+            h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.04);">';
+            h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;"><b style="font-size:14.5px;color:#26242b;">'+escapeHtml(r.employee_name||'')+'</b><span style="font-size:11px;color:#8a8595;">'+(r.submitted_at?new Date(r.submitted_at).toLocaleDateString():'')+'</span></div>';
+            h+='<div style="font-size:12.5px;color:#6b6275;margin-bottom:8px;">'+escapeHtml(r.course_title||'')+(r.path_title?(' &middot; '+escapeHtml(r.path_title)):'')+'</div>';
+            (r.responses||[]).forEach(function(resp){ h+='<div style="background:#faf9fc;border:1px solid #f0eef4;border-radius:9px;padding:9px 11px;margin-bottom:6px;"><div style="font-weight:700;font-size:12.5px;color:#33303a;margin-bottom:3px;">'+escapeHtml(resp.q||'')+'</div><div style="font-size:13px;color:#26242b;white-space:pre-wrap;">'+escapeHtml(resp.answer||'')+'</div></div>'; });
+            h+='<div style="display:flex;gap:8px;margin-top:8px;"><button onclick="tdReviewDecide('+r.id+',true)" style="flex:1;background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;">Approve</button><button onclick="tdReviewDecide('+r.id+',false)" style="flex:1;background:#fff;color:#c0264b;border:1px solid #f0c9d4;border-radius:9px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;">Send back</button></div>';
+            h+='</div>';
+        });
+        return h;
+    }
+    function tdReviewDecide(reviewId,approve){
+        if(!approve && !confirm('Send this back without recording a pass? The employee will need to retake it.')) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_lp_review_decide',{p_username:currentUser.username,p_password:pin,p_review_id:reviewId,p_approve:approve}).then(function(r){
+                if(r&&r.error){ alert(r.error.message||'Could not save decision.'); return; }
+                tdLoad(function(){ tdRender(); });
+            }).catch(function(){ alert('Connection error.'); });
+        });
+    }
     function tdPct(done,total){ return total>0?Math.round(100*done/total):0; }
     function downloadCSV(filename, rows){ try{ var csv=rows.map(function(r){ return r.map(function(c){ c=(c==null?'':String(c)); if(/[",\n]/.test(c)) c='"'+c.replace(/"/g,'""')+'"'; return c; }).join(','); }).join('\r\n'); var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){ URL.revokeObjectURL(url); },1000); }catch(e){ alert('Export failed.'); } }
     function tdExportCSV(){ var rows=[['Name','Role','Store','Training %','Positions cleared','Certifications','Coaching logs']]; (_td.team||[]).forEach(function(e){ var paths=e.paths||[]; var d=0,t=0; paths.forEach(function(p){ d+=(p.done||0); t+=(p.total||0); }); var pct=t>0?Math.round(100*d/t):0; rows.push([e.name||'',e.role||'',e.store||_td.store||'',pct,(e.cleared_positions||0),(e.certs_count||0),(e.coaching_count||0)]); }); downloadCSV('team_development.csv',rows); }
