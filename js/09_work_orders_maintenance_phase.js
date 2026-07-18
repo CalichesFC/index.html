@@ -970,7 +970,10 @@
             if(cw && loc){
                 var shifts=[{k:'open',label:'Opening'},{k:'close',label:'Closing'},{k:'clean',label:'Cleaning'}];
                 Promise.all(shifts.map(function(s){
-                    return supabaseClient.rpc('app_checklist_items',{p_username:currentUser.username,p_password:pin,p_shift:s.k,p_location:loc})
+                    // (audit B1 follow-up, 2026-07-17) DB stores capitalized shift names ('Opening'/'Closing'/'Cleaning'),
+                    // not the short UI key -- same casing mismatch already fixed in js/06 loadChecklist() and
+                    // js/19 shcLoadAll(); this third call site was missed in that pass. Send s.label, not s.k.
+                    return supabaseClient.rpc('app_checklist_items',{p_username:currentUser.username,p_password:pin,p_shift:s.label,p_location:loc})
                         .then(function(r){ return (r.error || !Array.isArray(r.data)) ? null : r.data; })
                         .catch(function(){ return null; });
                 })).then(function(res){
