@@ -13,7 +13,7 @@
     }
     function certExpiryBadge(exp){
         if(!exp) return '<span style="background:#eef0f3;color:#6b7686;font-size:11px;font-weight:700;padding:2px 7px;border-radius:99px;">No expiry</span>';
-        var today=new Date().toISOString().slice(0,10); var soon=new Date(); soon.setDate(soon.getDate()+30); var soonStr=soon.toISOString().slice(0,10);
+        var today=schedFmt(new Date()); var soon=new Date(); soon.setDate(soon.getDate()+30); var soonStr=schedFmt(soon);
         if(exp<today) return '<span style="background:#fdeaea;color:#a01b3e;font-size:11px;font-weight:800;padding:2px 7px;border-radius:99px;" title="Expired '+exp+'">Expired &ndash; Renewal Required</span>';
         if(exp<=soonStr) return '<span style="background:#fff4e0;color:#9a5b00;font-size:11px;font-weight:800;padding:2px 7px;border-radius:99px;">Expires '+exp+'</span>';
         return '<span style="background:#e8f5ec;color:#1b7a3d;font-size:11px;font-weight:700;padding:2px 7px;border-radius:99px;">Valid to '+exp+'</span>';
@@ -116,7 +116,7 @@
         box.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading&hellip;</p>';
         withPin(function(pin){
             var hoursEnd=new Date(), hoursStart=new Date(); hoursStart.setDate(hoursStart.getDate()-6);
-            var hoursEndStr=hoursEnd.toISOString().slice(0,10), hoursStartStr=hoursStart.toISOString().slice(0,10);
+            var hoursEndStr=schedFmt(hoursEnd), hoursStartStr=schedFmt(hoursStart);
             Promise.all([
                 supabaseClient.rpc('app_roster_list',{p_username:currentUser.username,p_password:pin}),
                 supabaseClient.rpc('app_pip_active',{p_username:currentUser.username,p_password:pin}),
@@ -124,21 +124,32 @@
                 supabaseClient.rpc('app_emp_phones',{p_username:currentUser.username,p_password:pin}),
                 supabaseClient.rpc('app_employee_hours_for_roster',{p_username:currentUser.username,p_password:pin,p_start_date:hoursStartStr,p_end_date:hoursEndStr})
             ]).then(function(res){
+                // HIGH-2 FIX (2026-07-18): previously only res[0] (app_roster_list) was
+                // error-checked -- a failed PIP/celebrations/phones/hours call silently
+                // rendered as "no PIP" / blank phone / no celebration / blank hours,
+                // indistinguishable from a legitimately-empty result. A failed phones fetch
+                // also fed straight into openRosterModal's phone field, which Blocker #1
+                // could then silently save as blank. Every result is now checked; any
+                // failure shows a visible warning instead of a silent default.
                 const error=res[0].error;
                 if(error){ if(error.code==='42501') sessionPin=null; box.innerHTML='<p style="color:red;text-align:center;padding:20px;">Error: '+error.message+'</p>'; return; }
                 rosterState.list=res[0].data||[];
-                rosterState.phones=(res[3]&&res[3].data)?res[3].data:{};
+                var _failLabels=['','PIP status','Upcoming celebrations','Phone numbers','Hours (7d)'];
+                var _failed=[];
+                res.forEach(function(r,i){ if(i>0 && r && r.error){ _failed.push(_failLabels[i]); if(r.error.code==='42501') sessionPin=null; } });
+                rosterState.phones=(res[3]&&!res[3].error&&res[3].data)?res[3].data:{};
                 rosterState.pips={};
-                var pips=(res[1] && res[1].data) ? res[1].data : [];
+                var pips=(res[1]&&!res[1].error&&res[1].data)?res[1].data:[];
                 pips.forEach(function(p){ rosterState.pips[p.employee_id]=p; });
                 celebRosterMap={};
-                var celeb=(res[2] && res[2].data) ? res[2].data : [];
+                var celeb=(res[2]&&!res[2].error&&res[2].data)?res[2].data:[];
                 if(celeb && celeb[0] && celeb[0].items) celeb=celeb[0].items;
                 (celeb||[]).forEach(function(c){ var eid=c.employee_id||c.id; if(eid!=null && !celebRosterMap[eid]) celebRosterMap[eid]=(c.kind||'').toLowerCase(); });
                 rosterState.hours={};
-                var hrs=(res[4]&&res[4].data)?res[4].data:[];
+                var hrs=(res[4]&&!res[4].error&&res[4].data)?res[4].data:[];
                 (hrs||[]).forEach(function(h){ rosterState.hours[h.employee_id]=h.hours; });
                 renderRosterTable();
+                if(_failed.length){ box.insertAdjacentHTML('afterbegin','<p style="background:#fff4e0;color:#9a5b00;border:1px solid #f3d9a6;border-radius:9px;padding:9px 12px;font-size:12.5px;font-weight:700;margin-bottom:10px;">&#9888; Could not load: '+_failed.join(', ')+'. Showing the rest of the roster below — reopen this screen to retry.</p>'); }
             }).catch(()=>{ box.innerHTML='<p style="color:red;text-align:center;">Connection error.</p>'; });
         }, function(){ box.innerHTML='<p style="text-align:center;padding:20px;color:#6b7686;">PIN required.</p>'; });
     }
@@ -149,10 +160,17 @@
         var view=document.getElementById('employeeProfileView'); if(view) view.style.display='block';
         var box=document.getElementById('empProfileBody');
         box.innerHTML='<p style="text-align:center;color:#6b7686;padding:40px;">Loading '+escapeHtml(name||'')+'...</p>';
-        supabaseClient.rpc('app_emp_profile',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId}).then(function(r){
-            if(r.error){ box.innerHTML='<p style="color:#c0264b;padding:20px;">'+(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have access to this profile.':('Could not load profile: '+escapeHtml(r.error.message)))+'</p>'; return; }
-            renderEmployeeProfile(r.data);
-        }).catch(function(){ box.innerHTML='<p style="color:#c0264b;padding:20px;">Connection error.</p>'; });
+        // PIN-REPROMPT FIX (2026-07-18): was calling the RPC directly with sessionPin --
+        // once sessionPin got cleared elsewhere (any RPC anywhere returning 42501 nulls it),
+        // this fired with p_password:null, got a forbidden-style error back, and showed a
+        // dead-end "no access" message with no way to re-enter a PIN. withPin() is the app's
+        // normal recovery path (see loadRoster() above) -- it re-prompts when needed instead.
+        withPin(function(pin){
+            supabaseClient.rpc('app_emp_profile',{p_username:currentUser.username,p_password:pin,p_employee_id:empId}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; box.innerHTML='<p style="color:#c0264b;padding:20px;">'+(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have access to this profile.':('Could not load profile: '+escapeHtml(r.error.message)))+'</p>'; return; }
+                renderEmployeeProfile(r.data);
+            }).catch(function(){ box.innerHTML='<p style="color:#c0264b;padding:20px;">Connection error.</p>'; });
+        }, function(){ box.innerHTML='<p style="text-align:center;color:#6b7686;padding:40px;">PIN required to view this profile.</p>'; });
     }
     function renderEmployeeProfile(p){
         var box=document.getElementById('empProfileBody'); if(!p){ box.innerHTML='<p style="padding:20px;">Profile not found.</p>'; return; }
@@ -200,15 +218,20 @@
     }
     function loadEmpEvents(empId){
         var box=document.getElementById('empEventsBox'); if(!box) return;
-        supabaseClient.rpc('app_emp_events',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId}).then(function(r){
-            if(r.error||!r.data||!r.data.length){ box.innerHTML=''; return; }
-            var rows=r.data.map(function(e){
-                var when=e.effective_date?String(e.effective_date).slice(0,10):(e.recorded_at?String(e.recorded_at).slice(0,10):'');
-                var chg=(e.from_value||e.to_value)?((e.from_value?escapeHtml(String(e.from_value)):'&mdash;')+' &rarr; '+(e.to_value?escapeHtml(String(e.to_value)):'&mdash;')):'';
-                return '<div style="padding:7px 0;border-bottom:1px solid #eef0f5;font-size:13px;"><div style="display:flex;justify-content:space-between;"><span style="font-weight:600;color:#1f2a44;">'+escapeHtml(String(e.event_type||'Event'))+'</span><span style="color:#5b6675;">'+escapeHtml(when)+'</span></div>'+(chg?('<div style="color:#6b7686;">'+chg+'</div>'):'')+(e.reason?('<div style="color:#5b6675;font-size:12px;">'+escapeHtml(String(e.reason))+'</div>'):'')+'</div>';
-            }).join('');
-            box.innerHTML='<div style="margin-top:16px;border-top:1px solid #eef0f5;padding-top:14px;"><div style="font-size:11px;font-weight:700;color:#5b6675;text-transform:uppercase;margin-bottom:6px;">Employment history</div>'+rows+'</div>';
-        }).catch(function(){ box.innerHTML=''; });
+        // PIN-REPROMPT FIX (2026-07-18): see openEmployeeProfile() above -- was using
+        // sessionPin directly with no re-prompt path if it had been cleared.
+        withPin(function(pin){
+            supabaseClient.rpc('app_emp_events',{p_username:currentUser.username,p_password:pin,p_employee_id:empId}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; box.innerHTML=''; return; }
+                if(!r.data||!r.data.length){ box.innerHTML=''; return; }
+                var rows=r.data.map(function(e){
+                    var when=e.effective_date?String(e.effective_date).slice(0,10):(e.recorded_at?String(e.recorded_at).slice(0,10):'');
+                    var chg=(e.from_value||e.to_value)?((e.from_value?escapeHtml(String(e.from_value)):'&mdash;')+' &rarr; '+(e.to_value?escapeHtml(String(e.to_value)):'&mdash;')):'';
+                    return '<div style="padding:7px 0;border-bottom:1px solid #eef0f5;font-size:13px;"><div style="display:flex;justify-content:space-between;"><span style="font-weight:600;color:#1f2a44;">'+escapeHtml(String(e.event_type||'Event'))+'</span><span style="color:#5b6675;">'+escapeHtml(when)+'</span></div>'+(chg?('<div style="color:#6b7686;">'+chg+'</div>'):'')+(e.reason?('<div style="color:#5b6675;font-size:12px;">'+escapeHtml(String(e.reason))+'</div>'):'')+'</div>';
+                }).join('');
+                box.innerHTML='<div style="margin-top:16px;border-top:1px solid #eef0f5;padding-top:14px;"><div style="font-size:11px;font-weight:700;color:#5b6675;text-transform:uppercase;margin-bottom:6px;">Employment history</div>'+rows+'</div>';
+            }).catch(function(){ box.innerHTML=''; });
+        }, function(){ box.innerHTML=''; });
     }
     function empPipHtml(p){
         if(!(typeof isDiscAdmin==='function' && isDiscAdmin())) return '';
@@ -233,7 +256,7 @@
         var f=document.getElementById('empPromoteForm'); if(!f) return;
         if(forceHide){ f.style.display='none'; return; }
         var show=f.style.display==='none'; f.style.display=show?'block':'none';
-        if(show){ var d=document.getElementById('empPromoteDate'); if(d&&!d.value){ d.value=new Date().toISOString().slice(0,10); } var m=document.getElementById('empPromoteMsg'); if(m) m.style.display='none'; }
+        if(show){ var d=document.getElementById('empPromoteDate'); if(d&&!d.value){ d.value=schedFmt(new Date()); } var m=document.getElementById('empPromoteMsg'); if(m) m.style.display='none'; }
     }
     function submitEmpPromote(){
         var p=_empProfile; if(!p) return;
@@ -247,12 +270,15 @@
         if(role===(p.role||'')){ show('Choose a different role, or Cancel.'); return; }
         if(!confirm('Change '+(p.name||'this employee')+' from "'+(p.role||'')+'" to "'+role+'" effective '+date+'? This is recorded in their employment history and the audit log.')) return;
         show('Saving&hellip;','#6b7686');
-        supabaseClient.rpc('app_emp_promote',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:p.id,p_new_role:role,p_effective_date:date,p_reason:reason}).then(function(r){
-            if(r.error){ var m=String(r.error.message||''); show(m.indexOf('forbidden')>=0?'You do not have permission to change roles.':(m.indexOf('reason_required')>=0?'A reason is required.':('Could not save: '+escapeHtml(m)))); return; }
-            show('&#10003; Role updated to '+escapeHtml(role)+'. Recorded in history + audit log.','#1f7a3d');
-            if(typeof loadRoster==='function'){ try{ loadRoster(); }catch(e){} }
-            setTimeout(function(){ openEmployeeProfile(p.id, p.name); }, 1000);
-        }).catch(function(){ show('Connection error. Please try again.'); });
+        // PIN-REPROMPT FIX (2026-07-18): see openEmployeeProfile() above.
+        withPin(function(pin){
+            supabaseClient.rpc('app_emp_promote',{p_username:currentUser.username,p_password:pin,p_employee_id:p.id,p_new_role:role,p_effective_date:date,p_reason:reason}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; var m=String(r.error.message||''); show(m.indexOf('forbidden')>=0?'You do not have permission to change roles.':(m.indexOf('reason_required')>=0?'A reason is required.':('Could not save: '+escapeHtml(m)))); return; }
+                show('&#10003; Role updated to '+escapeHtml(role)+'. Recorded in history + audit log.','#1f7a3d');
+                if(typeof loadRoster==='function'){ try{ loadRoster(); }catch(e){} }
+                setTimeout(function(){ openEmployeeProfile(p.id, p.name); }, 1000);
+            }).catch(function(){ show('Connection error. Please try again.'); });
+        }, function(){ show('PIN required to save this change.'); });
     }
 
     // ===== Development Passport (Phase 2) — skills · 5 levels · hours · sign-offs =====
@@ -274,16 +300,19 @@
     function loadPassport(empId){
         var box=document.getElementById('empPassportBox'); if(!box) return;
         box.innerHTML='<div style="margin-top:16px;color:#5b6675;font-size:13px;">Loading development passport&hellip;</div>';
-        Promise.all([
-            supabaseClient.rpc('app_passport_get',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId}),
-            supabaseClient.rpc('app_position_tally',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId}).then(function(r){return r;},function(){return {data:null};}),
-            supabaseClient.rpc('app_passport_extra_get',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId}).then(function(r){return r;},function(){return {data:null};})
-        ]).then(function(res){
-            var pr=res[0]; if(pr.error){ box.innerHTML=''; return; }
-            var tally=(res[1]&&res[1].data)||{};
-            var extra=(res[2]&&res[2].data)||{};
-            renderPassport(empId, pr.data||{}, tally, extra);
-        }).catch(function(){ box.innerHTML=''; });
+        // PIN-REPROMPT FIX (2026-07-18): see openEmployeeProfile() above.
+        withPin(function(pin){
+            Promise.all([
+                supabaseClient.rpc('app_passport_get',{p_username:currentUser.username,p_password:pin,p_employee_id:empId}),
+                supabaseClient.rpc('app_position_tally',{p_username:currentUser.username,p_password:pin,p_employee_id:empId}).then(function(r){return r;},function(){return {data:null};}),
+                supabaseClient.rpc('app_passport_extra_get',{p_username:currentUser.username,p_password:pin,p_employee_id:empId}).then(function(r){return r;},function(){return {data:null};})
+            ]).then(function(res){
+                var pr=res[0]; if(pr.error){ if(pr.error.code==='42501') sessionPin=null; box.innerHTML=''; return; }
+                var tally=(res[1]&&res[1].data)||{};
+                var extra=(res[2]&&res[2].data)||{};
+                renderPassport(empId, pr.data||{}, tally, extra);
+            }).catch(function(){ box.innerHTML=''; });
+        }, function(){ box.innerHTML='<div style="margin-top:16px;color:#5b6675;font-size:13px;">PIN required to load the development passport.</div>'; });
     }
     function passportBadges(positions, certs){
         var b=[];
@@ -356,16 +385,20 @@
         var msg=document.getElementById('pgMsg'); function show(t,c){ if(msg){msg.style.display='block';msg.style.color=c||'#c0264b';msg.innerHTML=t;} }
         if(kind==='goal' && !text){ show('Enter the goal.'); return; } if(kind==='cross_train' && !pos){ show('Pick a station.'); return; }
         show('Saving&hellip;','#6b7686');
-        supabaseClient.rpc('app_dev_goal_add',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId,p_kind:kind,p_position_id:kind==='cross_train'?parseInt(pos,10):null,p_text:kind==='goal'?text:null}).then(function(r){
-            if(r.error){ show(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have permission.':'Could not save.'); return; }
-            closePassportModal('passportGoalModal'); loadPassport(empId);
-        }).catch(function(){ show('Connection error.'); });
+        // PIN-REPROMPT FIX (2026-07-18): see openEmployeeProfile() above.
+        withPin(function(pin){
+            supabaseClient.rpc('app_dev_goal_add',{p_username:currentUser.username,p_password:pin,p_employee_id:empId,p_kind:kind,p_position_id:kind==='cross_train'?parseInt(pos,10):null,p_text:kind==='goal'?text:null}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; show(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have permission.':'Could not save.'); return; }
+                closePassportModal('passportGoalModal'); loadPassport(empId);
+            }).catch(function(){ show('Connection error.'); });
+        }, function(){ show('PIN required to save.'); });
     }
-    function passportGoalDone(goalId,empId){ supabaseClient.rpc('app_dev_goal_done',{p_username:currentUser.username,p_password:sessionPin,p_goal_id:goalId}).then(function(r){ if(!r.error) loadPassport(empId); }).catch(function(){}); }
+    // PIN-REPROMPT FIX (2026-07-18): see openEmployeeProfile() above.
+    function passportGoalDone(goalId,empId){ withPin(function(pin){ supabaseClient.rpc('app_dev_goal_done',{p_username:currentUser.username,p_password:pin,p_goal_id:goalId}).then(function(r){ if(!r.error) loadPassport(empId); else if(r.error.code==='42501') sessionPin=null; }).catch(function(){}); }); }
     function openPassportHours(empId,posId,posName){
         var ex=document.getElementById('passportHoursModal'); if(ex&&ex.parentNode) ex.parentNode.removeChild(ex);
         var posOpts=(window._passportPositions||[]).map(function(p){return '<option value="'+p.position_id+'">'+escapeHtml(p.name||'')+'</option>';}).join('');
-        var today=new Date().toISOString().slice(0,10);
+        var today=schedFmt(new Date());
         var m=document.createElement('div'); m.id='passportHoursModal'; m.style.cssText='position:fixed;inset:0;background:rgba(20,16,30,.55);display:flex;align-items:center;justify-content:center;z-index:99999;padding:18px;';
         m.innerHTML='<div style="background:#fff;border-radius:16px;max-width:380px;width:100%;padding:18px;"><div style="font-size:16px;font-weight:800;color:#1f2a44;">Log hours &mdash; '+escapeHtml(posName)+'</div><div style="font-size:12px;color:#6b7686;margin:4px 0 12px;">Record floor time on this station. Set <b>scheduled</b> if they were planned elsewhere (planned vs actual). Auto-fills from the clock + schedule once those are live.</div><label style="font-size:12px;color:#6b7686;display:block;margin-bottom:3px;">Date</label><input type="date" id="phDate" value="'+today+'" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:14px;margin-bottom:10px;"><label style="font-size:12px;color:#6b7686;display:block;margin-bottom:3px;">Hours</label><input type="number" id="phHours" min="0" step="0.25" value="6" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:14px;margin-bottom:10px;"><label style="font-size:12px;color:#6b7686;display:block;margin-bottom:3px;">Scheduled (planned) station</label><select id="phPlanned" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:14px;margin-bottom:10px;"><option value="">&mdash; same / not set &mdash;</option>'+posOpts+'</select><label style="font-size:12px;color:#6b7686;display:block;margin-bottom:3px;">Status</label><select id="phStatus" style="width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:14px;margin-bottom:10px;"><option value="confirmed">Confirmed</option><option value="unconfirmed">Unconfirmed</option><option value="estimated">Estimated</option></select><div id="phMsg" style="display:none;font-size:13px;margin-top:4px;"></div><div style="display:flex;gap:8px;margin-top:12px;"><button onclick="submitPassportHours('+empId+','+posId+')" style="flex:1;background:linear-gradient(90deg,#ec3e7e,#7b2d8b);color:#fff;font-weight:800;border:none;padding:11px;border-radius:10px;cursor:pointer;font-size:14px;">Save hours</button><button onclick="closePassportModal(\'passportHoursModal\')" style="background:#eef1f5;color:#5b6472;border:none;padding:11px 16px;border-radius:10px;cursor:pointer;font-size:14px;">Cancel</button></div></div>';
         document.body.appendChild(m);
@@ -374,10 +407,13 @@
         var date=(document.getElementById('phDate')||{}).value||null; var hrs=parseFloat((document.getElementById('phHours')||{}).value||'0')||0; var planned=(document.getElementById('phPlanned')||{}).value||null; var status=(document.getElementById('phStatus')||{}).value||'confirmed';
         var msg=document.getElementById('phMsg'); function show(t,c){ if(msg){msg.style.display='block';msg.style.color=c||'#c0264b';msg.innerHTML=t;} }
         show('Saving&hellip;','#6b7686');
-        supabaseClient.rpc('app_passport_hours_log',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId,p_position_id:posId,p_work_date:date,p_planned_position_id:planned?parseInt(planned,10):null,p_hours:hrs,p_status:status,p_note:null}).then(function(r){
-            if(r.error){ show(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have permission.':'Could not save.'); return; }
-            closePassportModal('passportHoursModal'); loadPassport(empId);
-        }).catch(function(){ show('Connection error.'); });
+        // PIN-REPROMPT FIX (2026-07-18): see openEmployeeProfile() above.
+        withPin(function(pin){
+            supabaseClient.rpc('app_passport_hours_log',{p_username:currentUser.username,p_password:pin,p_employee_id:empId,p_position_id:posId,p_work_date:date,p_planned_position_id:planned?parseInt(planned,10):null,p_hours:hrs,p_status:status,p_note:null}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; show(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have permission.':'Could not save.'); return; }
+                closePassportModal('passportHoursModal'); loadPassport(empId);
+            }).catch(function(){ show('Connection error.'); });
+        }, function(){ show('PIN required to save.'); });
     }
 
     function openPassportAdjust(empId,posId,posName,curLevel){
@@ -407,12 +443,15 @@
         function show(t,c){ if(msg){ msg.style.display='block'; msg.style.color=c||'#c0264b'; msg.innerHTML=t; } }
         if(['Qualified','Ace','Coach'].indexOf(level)>=0 && !note){ show('A sign-off note is required for Qualified, Ace or Coach.'); return; }
         show('Saving&hellip;','#6b7686');
-        supabaseClient.rpc('app_passport_set_level',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId,p_position_id:posId,p_level:level,p_note:note}).then(function(r){
-            if(r.error){ var mt=String(r.error.message||'');
-                show(mt.indexOf('forbidden')>=0?'You do not have permission to set that level.':(mt.indexOf('note_required')>=0?'A sign-off note is required.':'Could not save: '+escapeHtml(mt))); return; }
-            show('&#10003; Saved.','#1f7a3d');
-            setTimeout(function(){ closePassportAdjust(); loadPassport(empId); },650);
-        }).catch(function(){ show('Connection error — please try again.'); });
+        // PIN-REPROMPT FIX (2026-07-18): see openEmployeeProfile() above.
+        withPin(function(pin){
+            supabaseClient.rpc('app_passport_set_level',{p_username:currentUser.username,p_password:pin,p_employee_id:empId,p_position_id:posId,p_level:level,p_note:note}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; var mt=String(r.error.message||'');
+                    show(mt.indexOf('forbidden')>=0?'You do not have permission to set that level.':(mt.indexOf('note_required')>=0?'A sign-off note is required.':'Could not save: '+escapeHtml(mt))); return; }
+                show('&#10003; Saved.','#1f7a3d');
+                setTimeout(function(){ closePassportAdjust(); loadPassport(empId); },650);
+            }).catch(function(){ show('Connection error — please try again.'); });
+        }, function(){ show('PIN required to save.'); });
     }
 
 
@@ -460,13 +499,19 @@
     }
     function loadEmpTraining(empId){
         var box=document.getElementById('empTrainBox'); if(!box) return;
-        supabaseClient.rpc('app_position_tally',{p_username:currentUser.username,p_password:sessionPin,p_employee_id:empId}).then(function(r){
-            if(r.error){ box.innerHTML='Training history isn&rsquo;t available for this view.'; return; }
-            var d=r.data||{}; var by=d.days_by_position||{}; var total=d.total_days||0; var keys=Object.keys(by);
-            box.className='';
-            var rows=keys.length?keys.map(function(k){ return '<div class="emp-row"><span>'+escapeHtml(k)+'</span><span>'+by[k]+' day'+(by[k]==1?'':'s')+'</span></div>'; }).join(''):'<div class="emp-empty">No floor time recorded yet.</div>';
-            box.innerHTML=rows+'<div class="emp-row" style="border:none;"><span><b>Total days on the floor</b></span><span><b>'+total+'</b></span></div><p class="emp-note">Lessons &amp; the training library live in the Training Portal. Hours-based experience turns on with the time clock + published schedule.</p>';
-        }).catch(function(){ box.innerHTML='Could not load training.'; });
+        // PIN-REPROMPT FIX (2026-07-18): was calling the RPC directly with sessionPin, and on
+        // any error (including a null PIN) showed "Training history isn't available for this
+        // view" -- a misleading permissions-sounding message for what was often really just a
+        // cleared PIN with no way to re-enter it. See openEmployeeProfile() above.
+        withPin(function(pin){
+            supabaseClient.rpc('app_position_tally',{p_username:currentUser.username,p_password:pin,p_employee_id:empId}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; box.innerHTML='Training history isn&rsquo;t available for this view.'; return; }
+                var d=r.data||{}; var by=d.days_by_position||{}; var total=d.total_days||0; var keys=Object.keys(by);
+                box.className='';
+                var rows=keys.length?keys.map(function(k){ return '<div class="emp-row"><span>'+escapeHtml(k)+'</span><span>'+by[k]+' day'+(by[k]==1?'':'s')+'</span></div>'; }).join(''):'<div class="emp-empty">No floor time recorded yet.</div>';
+                box.innerHTML=rows+'<div class="emp-row" style="border:none;"><span><b>Total days on the floor</b></span><span><b>'+total+'</b></span></div><p class="emp-note">Lessons &amp; the training library live in the Training Portal. Hours-based experience turns on with the time clock + published schedule.</p>';
+            }).catch(function(){ box.innerHTML='Could not load training.'; });
+        }, function(){ box.innerHTML='PIN required to load training history.'; });
     }
 
     /* ===== Employee tiered notes (#98) ===== */
@@ -565,11 +610,43 @@
         document.getElementById('rosterHome').innerHTML='<option value="">&mdash; none &mdash;</option>'+(rosterState.meta.locations||[]).map(l=>'<option>'+rosterEsc(l.name)+'</option>').join('');
         document.getElementById('rosterPos').innerHTML='<option value="">&mdash; none &mdash;</option>'+(rosterState.meta.positions||[]).map(p=>'<option value="'+p.id+'">'+rosterEsc(p.name)+'</option>').join('');
     }
+    // DATA-LOSS FIX (2026-07-18): the Edit modal used to show itself (fully editable, Save
+    // enabled) before its async wage/start-date/birthday fetches resolved; a slow network or
+    // a failed fetch left those fields blank with no indicator, and saveRoster() would then
+    // push that blank straight through as a real null (see saveRoster() below). rosterFieldsLoaded
+    // tracks each async field as false (still pending) / true (loaded ok) / 'error' (failed);
+    // Save stays disabled until neither field is pending, and stays disabled (with a visible
+    // message) if either errored, instead of silently allowing a blank save. _rosterModalToken
+    // guards against a stale fetch from a previously-opened employee landing after the modal
+    // has been reopened for someone else.
+    var rosterFieldsLoaded = {wage:true, dates:true};
+    var _rosterModalToken = 0;
+    function _rosterModalSetSaveEnabled(enabled){
+        var btn=document.querySelector('#rosterModal button[onclick="saveRoster()"]');
+        if(btn){ btn.disabled=!enabled; btn.style.opacity=enabled?'1':'.55'; btn.style.cursor=enabled?'pointer':'not-allowed'; }
+    }
+    function _rosterModalLoadMsg(text, isError){
+        var msg=document.getElementById('rosterModalMsg'); if(!msg) return;
+        if(!text){ msg.style.display='none'; msg.innerHTML=''; return; }
+        msg.style.display='block'; msg.style.color=isError?'#c0264b':'#6b7686'; msg.innerHTML=text;
+    }
+    function _rosterModalCheckReady(){
+        if(rosterFieldsLoaded.wage===false || rosterFieldsLoaded.dates===false) return;
+        if(rosterFieldsLoaded.wage==='error' || rosterFieldsLoaded.dates==='error'){
+            var parts=[]; if(rosterFieldsLoaded.wage==='error') parts.push('wage'); if(rosterFieldsLoaded.dates==='error') parts.push('start date / birthday');
+            _rosterModalLoadMsg('Could not load '+parts.join(' and ')+' for this employee, so Save is disabled (to avoid overwriting it blank). Close and reopen Edit to try again.', true);
+            _rosterModalSetSaveEnabled(false);
+            return;
+        }
+        _rosterModalLoadMsg('');
+        _rosterModalSetSaveEnabled(true);
+    }
     function openRosterModal(id){
         rosterFillSelects();
         const msg=document.getElementById('rosterModalMsg'); msg.style.display='none';
         document.getElementById('rosterStoresWrap').style.display='none';
         document.getElementById('rosterStoresList').innerHTML='';
+        rosterStoresLoaded=false;
         document.getElementById('rosterAddStoresWrap').style.display='none';
         document.getElementById('rosterAddStoresList').innerHTML='';
         document.getElementById('rosterWage').value='';
@@ -577,6 +654,7 @@
         document.getElementById('rosterBdayWrap').style.display=rmAdm?'block':'none';
         document.getElementById('rosterStart').value=''; document.getElementById('rosterBday').value='';
         document.getElementById('rosterStart').disabled=false; document.getElementById('rosterStartLock').style.display='none';
+        var myToken=++_rosterModalToken;
         if(id){
             const e=rosterState.list.find(x=>x.id===id); if(!e) return;
             document.getElementById('rosterModalTitle').innerText='Edit Employee';
@@ -587,10 +665,29 @@
             document.getElementById('rosterPos').value=e.position_id?String(e.position_id):'';
             document.getElementById('rosterActive').checked=!!e.active;
             document.getElementById('rosterActiveWrap').style.display='flex';
+            rosterFieldsLoaded={wage:(e.hourly_wage!=null), dates:false};
+            _rosterModalSetSaveEnabled(false);
+            _rosterModalLoadMsg('Loading wage &amp; dates&hellip;');
             if(e.hourly_wage!=null) document.getElementById('rosterWage').value=e.hourly_wage;
-            else withPin(function(pin){ supabaseClient.rpc('app_emp_wage',{p_username:currentUser.username,p_password:pin,p_employee_id:e.id}).then(function(r){ if(!r.error && r.data!=null) document.getElementById('rosterWage').value=r.data; }); });
+            else withPin(function(pin){
+                supabaseClient.rpc('app_emp_wage',{p_username:currentUser.username,p_password:pin,p_employee_id:e.id}).then(function(r){
+                    if(myToken!==_rosterModalToken) return;
+                    if(r.error){ rosterFieldsLoaded.wage='error'; _rosterModalCheckReady(); return; }
+                    if(r.data!=null) document.getElementById('rosterWage').value=r.data;
+                    rosterFieldsLoaded.wage=true; _rosterModalCheckReady();
+                }).catch(function(){ if(myToken!==_rosterModalToken) return; rosterFieldsLoaded.wage='error'; _rosterModalCheckReady(); });
+            }, function(){ if(myToken!==_rosterModalToken) return; rosterFieldsLoaded.wage='error'; _rosterModalCheckReady(); });
             loadRosterStores(e.id);
-            withPin(function(pin){ supabaseClient.rpc('app_emp_dates_get',{p_username:currentUser.username,p_password:pin,p_employee_id:e.id}).then(function(r){ if(r.error||!r.data) return; var d=r.data; if(d.start_date){ document.getElementById('rosterStart').value=String(d.start_date).slice(0,10); if(!rmAdm){ document.getElementById('rosterStart').disabled=true; document.getElementById('rosterStartLock').style.display='block'; } } if(rmAdm && d.birthday){ document.getElementById('rosterBday').value=String(d.birthday).slice(0,10); } }).catch(function(){}); });
+            withPin(function(pin){
+                supabaseClient.rpc('app_emp_dates_get',{p_username:currentUser.username,p_password:pin,p_employee_id:e.id}).then(function(r){
+                    if(myToken!==_rosterModalToken) return;
+                    if(r.error){ rosterFieldsLoaded.dates='error'; _rosterModalCheckReady(); return; }
+                    var d=r.data||{};
+                    if(d.start_date){ document.getElementById('rosterStart').value=String(d.start_date).slice(0,10); if(!rmAdm){ document.getElementById('rosterStart').disabled=true; document.getElementById('rosterStartLock').style.display='block'; } }
+                    if(rmAdm && d.birthday){ document.getElementById('rosterBday').value=String(d.birthday).slice(0,10); }
+                    rosterFieldsLoaded.dates=true; _rosterModalCheckReady();
+                }).catch(function(){ if(myToken!==_rosterModalToken) return; rosterFieldsLoaded.dates='error'; _rosterModalCheckReady(); });
+            }, function(){ if(myToken!==_rosterModalToken) return; rosterFieldsLoaded.dates='error'; _rosterModalCheckReady(); });
         } else {
             document.getElementById('rosterModalTitle').innerText='Add Employee';
             document.getElementById('rosterEditId').value='';
@@ -601,6 +698,8 @@
             document.getElementById('rosterActive').checked=true;
             document.getElementById('rosterActiveWrap').style.display='none';
             renderRosterAddStores();
+            rosterFieldsLoaded={wage:true, dates:true};
+            _rosterModalSetSaveEnabled(true);
         }
         document.getElementById('rosterModal').style.display='flex';
     }
@@ -615,6 +714,14 @@
     function closeRosterModal(){ document.getElementById('rosterModal').style.display='none'; }
     function saveRoster(){
         const id=document.getElementById('rosterEditId').value;
+        // DATA-LOSS FIX (2026-07-18): guard against Save firing while the async wage/date
+        // GETs in openRosterModal() are still pending or failed -- belt-and-suspenders
+        // alongside the disabled Save button there, so a blank field from an unfinished or
+        // failed load can never be written back as a real null.
+        if(id && (rosterFieldsLoaded.wage===false || rosterFieldsLoaded.dates===false || rosterFieldsLoaded.wage==='error' || rosterFieldsLoaded.dates==='error')){
+            const lmsg=document.getElementById('rosterModalMsg'); lmsg.style.display='block'; lmsg.style.color='#c0264b'; lmsg.innerText='Wage/start date are still loading (or failed to load) — please wait, or close and reopen Edit, before saving.';
+            return;
+        }
         const name=document.getElementById('rosterName').value.trim();
         const home=document.getElementById('rosterHome').value;
         const posV=document.getElementById('rosterPos').value;
@@ -634,37 +741,79 @@
                     var locs=[].slice.call(document.querySelectorAll('.rs-store:checked')).map(function(x){return x.value;});
                     var sm=[].slice.call(document.querySelectorAll('.rs-sm:checked')).map(function(x){return x.value;});
                     var am=[].slice.call(document.querySelectorAll('.rs-am:checked')).map(function(x){return x.value;});
+                    // DATA-LOSS FIX (2026-07-18): only overwrite store/SM/AM assignments when the
+                    // store list actually loaded (rosterStoresLoaded). If loadRosterStores' GET
+                    // failed or never ran, the .rs-* checkboxes are absent, so locs/sm/am would be
+                    // empty -- writing that would silently WIPE existing assignments. Skip the write
+                    // in that case (existing assignments preserved); the other fields still save.
+                    var storesSet = rosterStoresLoaded
+                        ? supabaseClient.rpc('app_emp_admin_set',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_locations:locs,p_sm:sm,p_am:am})
+                        : Promise.resolve({error:null});
                     Promise.all([
-                        supabaseClient.rpc('app_emp_admin_set',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_locations:locs,p_sm:sm,p_am:am}),
+                        storesSet,
                         supabaseClient.rpc('app_emp_set_wage',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_wage:wage}),
                         supabaseClient.rpc('app_emp_set_dates',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_start_date:startD,p_birthday:bdayD}),
                         supabaseClient.rpc('app_emp_set_phone',{p_username:currentUser.username,p_password:pin,p_emp_id:parseInt(id,10),p_phone:document.getElementById('rosterPhone').value})
                     ]).then(function(rs){
-                        var r2=rs[0];
-                        if(r2.error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Saved basics; stores error: '+r2.error.message; return; }
+                        // DATA-LOSS FIX (2026-07-18): previously only rs[0] (store/SM/AM
+                        // assignment) was checked here -- a wage/dates/phone error was
+                        // silently ignored and the modal closed as if everything saved, which
+                        // is how a real wage or start date could get wiped with zero error
+                        // shown. Every result is now checked; the modal only closes when all
+                        // four calls actually succeeded, and every failure is listed (not just
+                        // the first one).
+                        var labels=['Store/role assignment','Wage','Start date / birthday','Phone number'];
+                        var fails=[];
+                        rs.forEach(function(r,i){ if(r&&r.error){ fails.push(labels[i]+': '+r.error.message); if(r.error.code==='42501') sessionPin=null; } });
+                        if(fails.length){
+                            msg.style.display='block'; msg.style.color='#c0264b';
+                            msg.innerHTML='Some changes did NOT save:<br>'+fails.map(function(f){return '&bull; '+escapeHtml(f);}).join('<br>')+'<br>Please try again.';
+                            return;
+                        }
                         closeRosterModal(); loadRoster();
-                    });
+                    }).catch(function(){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Connection error while saving — please check and try again.'; });
                 });
             } else {
                 var locs=[].slice.call(document.querySelectorAll('.ras-store:checked')).map(function(x){return x.value;});
                 supabaseClient.rpc('app_emp_add',{p_username:currentUser.username,p_password:pin,p_name:name,p_wage:wage,p_position_id:pos,p_home:home,p_stores:locs}).then(({data,error})=>{
                     if(error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; }
                     var newId=(typeof data==='number')?data:((data&&data.id)||(data&&data[0]&&data[0].id));
-                    if(newId && (startD||bdayD)){ supabaseClient.rpc('app_emp_set_dates',{p_username:currentUser.username,p_password:pin,p_employee_id:newId,p_start_date:startD,p_birthday:bdayD}).catch(function(){}); }
-                    var _rphone=((document.getElementById('rosterPhone')||{}).value||'').trim(); if(newId && _rphone){ supabaseClient.rpc('app_emp_set_phone',{p_username:currentUser.username,p_password:pin,p_emp_id:newId,p_phone:_rphone}).catch(function(){}); }
+                    // DATA-LOSS FIX (2026-07-18): these were fire-and-forget with an empty
+                    // .catch() -- which only catches network-level rejections, not a normal
+                    // {error} response (e.g. a validation/permission failure) -- so a failed
+                    // date or phone save on a brand-new hire was silently dropped with no
+                    // indication it never saved. Both are now awaited and any failure is
+                    // reported after the fact (the employee record itself already saved by
+                    // this point, so the modal can still close normally).
+                    var postSaves=[];
+                    if(newId && (startD||bdayD)) postSaves.push(supabaseClient.rpc('app_emp_set_dates',{p_username:currentUser.username,p_password:pin,p_employee_id:newId,p_start_date:startD,p_birthday:bdayD}).then(function(r){return {field:'Start date / birthday',error:r&&r.error};},function(){return {field:'Start date / birthday',error:{message:'connection error'}};}));
+                    var _rphone=((document.getElementById('rosterPhone')||{}).value||'').trim();
+                    if(newId && _rphone) postSaves.push(supabaseClient.rpc('app_emp_set_phone',{p_username:currentUser.username,p_password:pin,p_emp_id:newId,p_phone:_rphone}).then(function(r){return {field:'Phone number',error:r&&r.error};},function(){return {field:'Phone number',error:{message:'connection error'}};}));
                     closeRosterModal();
                     var sv=document.getElementById('scheduleBuilderView');
                     if(sv && sv.style.display==='block'){ fetchScheduleWeek(); } else { loadRoster(); }
+                    if(postSaves.length){
+                        Promise.all(postSaves).then(function(results){
+                            var fails=results.filter(function(x){return x.error;});
+                            if(fails.length){ alert('The employee was added, but this did not save:\n'+fails.map(function(x){return '- '+x.field+': '+(x.error.message||'');}).join('\n')+'\n\nOpen Edit for this employee to fix it.'); }
+                        });
+                    }
                 });
             }
         });
     }
     var rosterStoresData=null;
+    // DATA-LOSS FIX (2026-07-18): true only after app_emp_admin_get loads store/SM/AM for the
+    // open employee; saveRoster skips the assignment overwrite when this is false so a failed or
+    // never-run load can't silently wipe existing store & manager assignments (mirrors the
+    // rosterFieldsLoaded gate used for wage/dates above).
+    var rosterStoresLoaded=false;
     function loadRosterStores(empId){
         withPin(function(pin){
             supabaseClient.rpc('app_emp_admin_get',{p_username:currentUser.username,p_password:pin,p_employee_id:empId}).then(function(r){
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; return; }
                 rosterStoresData=r.data||{};
+                rosterStoresLoaded=true;
                 var all=rosterStoresData.all_stores||[], stores=rosterStoresData.stores||[], sm=rosterStoresData.sm||[], am=rosterStoresData.am||[];
                 var h=all.map(function(s){ var esc=rosterEsc(s);
                     return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #f3f3f3;">' +
@@ -892,7 +1041,14 @@
         });
     }
 
-    function isManagerRole(){ return currentUser && (currentUser.role==='Admin Manager' || currentUser.role==='Manager' || currentUser.role==='Vice President/Co-Owner' || currentUser.is_developer===true); }
+    // ROLE-STRING FIX (2026-07-18): added 'Store Manager'. This shared helper is used across
+    // the app (js/18 Daily Store Report's Leadership dashboard + audit history, js/19 Shift
+    // Leader Console, and many others) to decide who counts as a manager, but it omitted
+    // 'Store Manager' even though js/05's own local isManager const (~line 480), the
+    // PERM_ROLES list above, and permDefault() above all already treat 'Store Manager' as a
+    // real management role. That mismatch locked Store Managers out of the Shift Leader
+    // Console, the Leadership Dashboard, and audit history. Additive only -- nobody loses access.
+    function isManagerRole(){ return currentUser && (currentUser.role==='Admin Manager' || currentUser.role==='Manager' || currentUser.role==='Store Manager' || currentUser.role==='Vice President/Co-Owner' || currentUser.is_developer===true); }
     // Broad "management" gate: Shift Lead and above, store/assistant managers, admins, or developer.
     // Used to lock management-only tools (Pop-In, Inventory, HR forms) away from line staff.
     // ROLE-STRING FIX (2026-07-17): added the 'Assistant Manager' role-string check. This

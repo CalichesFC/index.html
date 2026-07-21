@@ -48,7 +48,7 @@
         rqOv().innerHTML=rqHeader('Requests')+'<div style="max-width:760px;margin:0 auto;padding:40px 16px;text-align:center;color:#6b7686;">Loading requests&hellip;</div>';
         rqRpc('rq_config_get',{},function(cfg){ _rq.cfg=cfg||{}; rqLoadMine(function(){ rqRender(); }); },function(e){ rqOv().innerHTML=rqHeader('Requests')+'<div style="max-width:760px;margin:0 auto;padding:30px 16px;text-align:center;color:#c0264b;">'+rqEsc(e.message||'Could not load.')+'</div>'; });
     }
-    function rqLoadMine(cb){ rqRpc('rq_list',{p_scope:'mine'},function(d){ _rq.mine=(d&&d.requests)||[]; if(cb)cb(); },function(){ _rq.mine=[]; if(cb)cb(); }); }
+    function rqLoadMine(cb){ rqRpc('rq_list',{p_scope:'mine'},function(d){ _rq.mine=(d&&d.requests)||[]; if(cb)cb(); },function(e){ _rq.mine=[]; alert('Could not load your requests: '+((e&&e.message)||'Error')+'.'); if(cb)cb(); }); }
     function rqLoadQueue(cb){ rqRpc('rq_list',{p_scope:'queue',p_status:_rq.qStatus||null,p_rtype:_rq.qType||null},function(d){ _rq.queue=(d&&d.requests)||[]; if(cb)cb(); },function(e){ _rq.queue=[]; alert(String(e.message||'').indexOf('forbidden')>=0?'Managers only.':(e.message||'Error')); if(cb)cb(); }); }
     function rqTabs(){ var t=_rq.tab; function b(id,lbl){ return '<button onclick="rqSetTab(\''+id+'\')" style="flex:1;background:'+(t===id?'#185FA5':'#eef0f3')+';color:'+(t===id?'#fff':'#5b6472')+';border:none;padding:10px 6px;font-size:12.5px;font-weight:700;cursor:pointer;border-radius:9px;white-space:nowrap;">'+lbl+'</button>'; }
         var h='<div style="display:flex;gap:6px;max-width:760px;margin:14px auto 0;padding:0 16px;">'+b('hr','🗂️ HR / W-2')+b('pp','🎉 Party Pack')+b('gc','💳 Gift Cards');
@@ -69,7 +69,7 @@
               +'<div style="font-size:11.5px;color:#6b7686;margin-top:4px;">#'+r.id+' • '+rqWhen(r.created_at)
               +(r.status==='fulfilled'&&r.issued_what?(' • Issued: '+rqEsc(r.issued_what)+(r.issued_to?' → '+rqEsc(r.issued_to):'')):'')
               +'</div>'
-              +((r.status==='requested')?'<div style="margin-top:6px;"><button onclick="rqCancelReq('+r.id+')" style="background:#fdecec;color:#c0392b;border:none;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Cancel</button></div>':'')
+              +((r.status==='requested'&&(rqIsMgr()||r.created_by===currentUser.name))?'<div style="margin-top:6px;"><button onclick="rqCancelReq('+r.id+')" style="background:#fdecec;color:#c0392b;border:none;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Cancel</button></div>':'')
               +'</div>'; });
         return h+'</div>'; }
 
@@ -184,7 +184,7 @@
     function rqStart(id){ rqRpc('rq_status_set',{p_id:id,p_status:'in_progress',p_note:null},function(){ rqLoadQueue(function(){ rqRender(); }); }); }
     function rqRetryTask(id){ rqRpc('rq_task_retry',{p_id:id},function(res){ alert((res&&res.ok)?'Task created.':'Still failing: '+((res&&res.task_status)||'?')); rqLoadQueue(function(){ rqRender(); }); }); }
     function rqCancelReq(id){ var note=prompt('Cancel this request? Add a short reason (optional):'); if(note===null) return;
-        rqRpc('rq_cancel',{p_id:id,p_note:note||''},function(){ rqLoadMine(function(){ if(_rq.tab==='queue') rqLoadQueue(function(){ rqRender(); }); else rqRender(); }); }); }
+        rqRpc('rq_cancel',{p_id:id,p_note:note||''},function(){ rqLoadMine(function(){ if(_rq.tab==='queue') rqLoadQueue(function(){ rqRender(); }); else rqRender(); }); },function(e){ alert(String(e.message||'').indexOf('forbidden')>=0?'Only the person who submitted this request (or a manager) can cancel it.':((e&&e.message)||'Could not cancel this request.')); }); }
 
     // fulfill mini-modal (records WHAT was issued and to WHOM/WHERE — audited)
     function rqM2(){ var m=document.getElementById('rqModal2'); if(!m){ m=document.createElement('div'); m.id='rqModal2'; m.style.cssText='position:fixed;inset:0;background:rgba(20,24,32,.55);z-index:100060;display:none;overflow:auto;'; document.body.appendChild(m); } return m; }

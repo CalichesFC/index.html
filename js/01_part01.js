@@ -4,7 +4,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.07.17.1001';
+    const APP_VERSION = '2026.07.21.0111';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -651,8 +651,8 @@
     /* ===================== SCORM RUNTIME + LAUNCHER ===================== */
     var _scorm={cid:null,init:false,err:'0',data:{},done:false};
     function _scStr(){ var d=_scorm.data; return d['cmi.core.lesson_status']||d['cmi.completion_status']||d['cmi.success_status']||''; }
-    function _scScore(){ var d=_scorm.data; var s=(d['cmi.core.score.raw']!=null)?d['cmi.core.score.raw']:d['cmi.score.raw']; var n=parseFloat(s); return isNaN(n)?100:Math.round(n); }
-    function _scMaybeComplete(){ if(_scorm.done) return; var st=String(_scStr()).toLowerCase(); if(st==='passed'||st==='completed'){ _scorm.done=true; var sc=_scScore(); var cid=_scorm.cid; withPin(function(pin){ supabaseClient.rpc('app_lp_complete',{p_username:currentUser.username,p_password:pin,p_course_id:cid,p_score:sc,p_passed:(st==='passed'||sc>=80),p_responses:[{q:'SCORM module',type:'scorm',answer:st,score:sc}]}).catch(function(){}); }); } }
+    function _scScore(){ var d=_scorm.data; var s=(d['cmi.core.score.raw']!=null)?d['cmi.core.score.raw']:d['cmi.score.raw']; var n=parseFloat(s); return isNaN(n)?null:Math.round(n); }
+    function _scMaybeComplete(){ if(_scorm.done) return; var st=String(_scStr()).toLowerCase(); if(st==='passed'||st==='completed'){ _scorm.done=true; var sc=_scScore(); var cid=_scorm.cid; withPin(function(pin){ supabaseClient.rpc('app_lp_complete',{p_username:currentUser.username,p_password:pin,p_course_id:cid,p_score:sc,p_passed:(st==='passed'||(sc!=null&&sc>=80)),p_responses:[{q:'SCORM module',type:'scorm',answer:st,score:sc}]}).catch(function(){}); }); } }
     function _scSet(k,v){ _scorm.data[k]=String(v); _scorm.err='0'; if(k==='cmi.core.lesson_status'||k==='cmi.completion_status'||k==='cmi.success_status') _scMaybeComplete(); return 'true'; }
     function _scGet(k){ _scorm.err='0'; return (_scorm.data[k]!=null)?_scorm.data[k]:''; }
     function _scInit(){ _scorm.init=true; _scorm.err='0'; return 'true'; }

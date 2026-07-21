@@ -89,7 +89,14 @@
     /* ===================== MAINTENANCE BILLING / INVOICES ===================== */
     var _wob={tab:'invoices',list:[],cur:null,rates:[],filter:{}};
     function wobRpc(name,args,cb,onerr){ withPin(function(pin){ var a=Object.assign({p_username:currentUser.username,p_password:pin},args||{}); supabaseClient.rpc(name,a).then(function(r){ if(r.error){ if(onerr) onerr(r.error); else alert(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have access to this.':r.error.message); return; } cb(r.data); }).catch(function(){ if(onerr) onerr({message:'Connection error'}); else alert('Connection error.'); }); }); }
-    function wobMoney(n){ var x=parseFloat(n||0); return '$'+(isNaN(x)?'0.00':x.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})); }
+    // MONEY-FALLBACK FIX (wave2 audit H2): was parseFloat(n||0), so a missing/null total
+    // (backend failed to compute it) silently rendered as a normal-looking "$0.00" -- e.g.
+    // a finance approver could approve a $0 invoice without knowing the real total just
+    // didn't load. Mirrors the null-check pattern scMoney (above) already uses: distinguish
+    // "no value" from "actually zero." Plain-text marker (no HTML tags) so it renders
+    // correctly everywhere this return value is used, including inside a helper that runs it
+    // through escapeHtml().
+    function wobMoney(n){ if(n==null||n===''){ return '⚠ unknown'; } var x=parseFloat(n); return isNaN(x)?'⚠ unknown':('$'+x.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})); }
     function wobOv(){ var o=document.getElementById('wobModal'); if(!o){ o=document.createElement('div'); o.id='wobModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100040;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
     function wobClose(){ var o=document.getElementById('wobModal'); if(o) o.style.display='none'; }
     function wobHead(title,back){ return '<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;">'+(back?'<button onclick="'+back+'" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;">&lsaquo; Back</button>':'')+'<b style="flex:1;font-size:16px;">'+title+'</b><button onclick="wobClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;">&times;</button></div>'; }
@@ -142,7 +149,12 @@
     function fhClose(){ var o=document.getElementById('fundraiserHubModal'); if(o) o.style.display='none'; var m=document.getElementById('fhModal2'); if(m) m.style.display='none'; }
     function fhCanOpen(){ return currentUser && (currentUser.is_developer===true || (typeof isManagerRole==='function'&&isManagerRole())); }
     function fhHeader(title,back){ return '<div style="background:linear-gradient(120deg,#185FA5,#7d1d4b);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:5;">'+(back?'<button onclick="'+back+'" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;">&lsaquo; Back</button>':'')+'<b style="flex:1;font-size:16px;">'+title+'</b><button onclick="fhClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;">&times;</button></div>'; }
-    function fhMoney(n){ var x=parseFloat(n||0); if(isNaN(x)) x=0; return '$'+Math.round(x).toLocaleString(); }
+    // MONEY-FALLBACK FIX (wave2 audit H2): see wobMoney above for rationale. This one matters
+    // most for fhGenReceipt (formal fundraiser receipt) -- a partially-computed reconciliation
+    // used to print a receipt showing "$0" org proceeds/Caliche share as if that were real.
+    // Kept as a plain-text marker (no HTML) because fhRow() below runs values through
+    // escapeHtml() before some callers (fhCardRows/fhFinanceRows/fhGenReceipt) ever see them.
+    function fhMoney(n){ if(n==null||n===''){ return '⚠ unknown'; } var x=parseFloat(n); return isNaN(x)?'⚠ unknown':('$'+Math.round(x).toLocaleString()); }
     function fhDate(d){ if(!d) return ''; try{ return new Date(d).toLocaleDateString(undefined,{month:'short',day:'numeric'}); }catch(e){ return String(d).slice(0,10); } }
     function fhVal(id){ var e=document.getElementById(id); return e?String(e.value).trim():''; }
     function fhRpc(name,args,cb,onerr){ withPin(function(pin){ var a=Object.assign({p_username:currentUser.username,p_password:pin},args||{}); supabaseClient.rpc(name,a).then(function(r){ if(r.error){ if(onerr) onerr(r.error); else alert(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have access to this.':r.error.message); return; } cb(r.data); }).catch(function(){ if(onerr) onerr({message:'Connection error'}); else alert('Connection error.'); }); }); }
@@ -306,7 +318,18 @@
         return '<div style="display:flex;gap:6px;max-width:680px;margin:14px auto 0;padding:0 16px;">'+b('report','Report',true)+b('board','Board',woIsMgr())+b('queue','My Queue',woIsMaint()||woIsMgr())+b('history','Completed',woIsMgr()||woIsMaint())+'</div>'; }
     function woSetTab(t){ _wo.preset=null; _wo.tab=t; try{lsSet('woTab',t);}catch(e){} if(t==='report'){ woRender(); } else { woLoad(function(){ woRender(); }); } }
     function woRender(){ var ov=woOverlay(); var body=_wo.tab==='report'?woReportHtml():(_wo.tab==='history'?woHistoryHtml():woBoardHtml()); ov.innerHTML=woHeader('Work Orders','')+woTabs()+'<div style="max-width:680px;margin:0 auto;padding:14px 16px 40px;">'+body+'</div>'; }
-    function woPriColor(p){ return {critical:'#c0264b',high:'#b8860b',medium:'#185FA5',low:'#6b7686'}[p]||'#6b7686'; }
+    // ENUM MISMATCH FIX (wave2 audit H3): Work Orders auto-created from the Daily Store Report
+    // (daily_store_report.sql dsr_action_create) and Site Inspection (site_inspection.sql
+    // insp_action_create) hardcode legacy priority strings 'Normal'/'Urgent', not the
+    // low/medium/high/critical set this UI's own report form uses. Site Inspection specifically
+    // sets 'Urgent' for CRITICAL-severity failed inspection items -- without this mapping, a
+    // safety-critical auto-created work order fell through to the same gray used for routine
+    // "low" priority items (the opposite of the intended visual escalation). Normalize before
+    // ever coloring or labeling a priority value; unrecognized/missing values default to
+    // 'medium' rather than silently reading as the least-urgent tier.
+    function woNormPri(p){ var s=String(p||'').trim().toLowerCase(); if(s==='urgent') return 'critical'; if(s==='normal') return 'medium'; if(s==='low'||s==='medium'||s==='high'||s==='critical') return s; return 'medium'; }
+    function woPriLabel(p){ var n=woNormPri(p); return n.charAt(0).toUpperCase()+n.slice(1); }
+    function woPriColor(p){ return {critical:'#c0264b',high:'#b8860b',medium:'#185FA5',low:'#6b7686'}[woNormPri(p)]; }
     function woStatusChip(s){ var m={'Reported':['#eef0f3','#5b6472'],'Assigned':['#eef3fb','#185FA5'],'In Progress':['#fff4e0','#9a5b00'],'On Hold':['#fdeee8','#a85217'],'Documented':['#f3eefb','#5b3aa6'],'Verified':['#e8f5ec','#1b7a3d'],'Closed':['#e8f5ec','#1b7a3d'],'Cancelled':['#f0f0f0','#999999']}; var c=m[s]||m['Reported']; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:2px 9px;border-radius:99px;white-space:nowrap;">'+escapeHtml(s||'')+'</span>'; }
     function woField(id,label,val){ return '<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">'+label+'</label><input id="'+id+'" value="'+String(val||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;">'; }
     function woSelect(id,label,opts,sel){ return '<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">'+label+'</label><select id="'+id+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;">'+opts.map(function(o){ var lbl=o===''?'—':o.replace(/_/g,' '); return '<option value="'+o+'"'+(o===sel?' selected':'')+'>'+lbl+'</option>'; }).join('')+'</select>'; }
@@ -397,7 +420,7 @@
         var ov=woOverlay(); var ev=d.events||[];
         var h='<div style="max-width:640px;margin:0 auto;padding:16px;">';
         h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:17px;color:#1f2a44;">'+escapeHtml(d.title||'')+'</b>'+woStatusChip(d.status)+'</div>';
-        h+='<div style="font-size:12px;color:#5b6675;margin-top:3px;">'+escapeHtml(d.wo_number||'')+' &middot; '+escapeHtml(d.location||'')+' &middot; <span style="color:'+woPriColor(d.priority)+';font-weight:700;">'+escapeHtml(d.priority||'')+'</span>'+(d.safety_impact?' &middot; &#9888; safety':'')+'</div>';
+        h+='<div style="font-size:12px;color:#5b6675;margin-top:3px;">'+escapeHtml(d.wo_number||'')+' &middot; '+escapeHtml(d.location||'')+' &middot; <span style="color:'+woPriColor(d.priority)+';font-weight:700;">'+escapeHtml(woPriLabel(d.priority))+'</span>'+(d.safety_impact?' &middot; &#9888; safety':'')+'</div>';
         if(d.description) h+='<div style="font-size:13.5px;color:#33303a;margin-top:8px;">'+escapeHtml(d.description)+'</div>';
         if(d.asset_label) h+='<div style="font-size:12.5px;color:#6b7686;margin-top:6px;">Equipment: '+escapeHtml(d.asset_label)+(d.equipment_use_status?(' ('+escapeHtml(String(d.equipment_use_status).replace(/_/g,' '))+')'):'')+'</div>';
         if(d.work_performed) h+='<div style="margin-top:8px;background:#f3f8ff;border:1px solid #d8e7fb;border-radius:9px;padding:9px;font-size:13px;color:#1f2a44;"><b>Work performed:</b> '+escapeHtml(d.work_performed)+'</div>';
@@ -481,7 +504,11 @@
             }).catch(function(){ document.getElementById('woaMsg').textContent='Could not save.'; });
         });
     }
-    function woMoney(n){ var x=parseFloat(n||0); return '$'+(isNaN(x)?'0.00':x.toFixed(2)); }
+    // MONEY-FALLBACK FIX (wave2 audit H2): see wobMoney above for rationale. Hits the Work
+    // Order "Costs total" and the "Approve costs ($X)" button label itself -- a Finance
+    // Approver acting on that button should never see an unexplained $0.00 stand in for a
+    // total that actually failed to compute.
+    function woMoney(n){ if(n==null||n===''){ return '⚠ unknown'; } var x=parseFloat(n); return isNaN(x)?'⚠ unknown':('$'+x.toFixed(2)); }
     function woLoadCosts(id){
         var box=document.getElementById('woCostBox'); if(!box) return;
         withPin(function(pin){

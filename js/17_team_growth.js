@@ -24,7 +24,7 @@
         ['budget_confirmed','Budget confirmed with corporate / ownership'],
         ['manager_reviewed','Manager has reviewed the configured pay range for this role & location']
     ];
-    var TG_STATUS_COLORS = { 'On Track':'#1f7a3d', 'Review Due':'#9a5b00', 'Review Overdue':'#c0264b', 'Eligible':'#185FA5', 'Concern':'#c0264b', 'Promotion Ready':'#7b2d8b', 'Corporate Review':'#a85217' };
+    var TG_STATUS_COLORS = { 'On Track':'#1f7a3d', 'Review Due Soon':'#9a5b00', 'Review Overdue':'#c0264b', 'Eligible for Pay Proposal':'#185FA5', 'Performance Concern':'#c0264b', 'High Potential':'#185FA5', 'Promotion Ready':'#7b2d8b', 'Corporate Review Needed':'#a85217' };
 
     // ===== role helpers =====
     function tgIsMgr(){ return typeof isManagerRole==='function' && isManagerRole(); }
@@ -188,23 +188,24 @@
         }, function(err){ tgBodySet(tgErrHtml(err&&err.message)); });
     }
     function tgMgrDashHtml(){
-        var d=_tg.mgrData||{}; var summary=d.summary||d.cards||{};
+        var d=_tg.mgrData||{}; var summary=d.summary||{};
         var stores=[''].concat((typeof HUB_STORES!=='undefined'?HUB_STORES:['Roadrunner','Valley','Lenox','Alamogordo','Roswell']));
         var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><span style="font-size:12px;color:#6b6275;">Store</span><select onchange="_tg.store=this.value; tgLoadMgrDash();" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:9px;font-size:13px;">'+stores.map(function(s){return '<option value="'+escapeHtml(s)+'"'+(_tg.store===s?' selected':'')+'>'+escapeHtml(s||'All stores')+'</option>';}).join('')+'</select></div>';
+        var emps=d.team||[];
+        var eligibleCount=emps.filter(function(e){ return (e.labels||[]).indexOf('Eligible for Pay Proposal')>=0; }).length;
+        var promoReadyCount=emps.filter(function(e){ return (e.labels||[]).indexOf('Promotion Ready')>=0; }).length;
         h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">';
-        h+=tgSummaryCard(summary.team_size,'Team','#185FA5');
-        h+=tgSummaryCard(summary.reviews_due,'Reviews due','#9a5b00');
-        h+=tgSummaryCard(summary.eligible,'Eligible','#1f7a3d');
-        h+=tgSummaryCard(summary.concerns,'Concerns','#c0264b');
-        h+=tgSummaryCard(summary.promotion_ready,'Promotion ready','#7b2d8b');
+        h+=tgSummaryCard(emps.length,'Team','#185FA5');
+        h+=tgSummaryCard((summary.reviews_overdue||0)+(summary.reviews_due_soon||0),'Reviews due','#9a5b00');
+        h+=tgSummaryCard(eligibleCount,'Eligible','#1f7a3d');
+        h+=tgSummaryCard(summary.performance_concerns,'Concerns','#c0264b');
+        h+=tgSummaryCard(promoReadyCount,'Promotion ready','#7b2d8b');
         h+='</div>';
-        var emps=d.employees||d.team||[];
-        var labelMap={}; (_tg.statusLabels||[]).forEach(function(l){ labelMap[l.employee_id]=l.label||l.status_label; });
         if(!emps.length) return h+tgEmptyCard('No team members here yet.','Once employees are on the roster for this store, they\'ll show up here.');
         emps.forEach(function(e){
-            var label=e.status_label||labelMap[e.employee_id]||'';
+            var badges=(e.labels||[]).map(tgStatusBadge).join('');
             h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:12px 14px;margin-bottom:9px;box-shadow:0 2px 6px rgba(0,0,0,.04);">';
-            h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><b style="flex:1;font-size:14px;color:#26242b;">'+escapeHtml(e.name||('#'+e.employee_id))+'</b><span style="font-size:11.5px;color:#5b6675;">'+escapeHtml(e.role||'')+'</span>'+tgStatusBadge(label)+'</div>';
+            h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><b style="flex:1;font-size:14px;color:#26242b;">'+escapeHtml(e.name||('#'+e.employee_id))+'</b>'+badges+'</div>';
             h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">';
             h+='<button onclick="tgEvalStartPrep('+e.employee_id+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Start Evaluation</button>';
             h+='<button onclick="tgProposalNewPrep('+e.employee_id+')" style="background:#e8f5ec;color:#1b7a3d;border:none;border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Submit Pay Proposal</button>';
@@ -396,7 +397,11 @@
         if(!p){ alert('Proposal not found — try reloading this tab.'); return; }
         if(p.status==='draft') tgProposalOpenForm(p); else tgProposalOpenView(p);
     }
-    function tgProposalOpenForm(p){ _tg.proposalDraft=Object.assign({checklist:{}},p); if(!_tg.proposalDraft.checklist) _tg.proposalDraft.checklist={}; tgProposalRenderForm(); }
+    function tgProposalOpenForm(p){
+        var checklist=(p&&p.checklist&&typeof p.checklist==='object'&&!Array.isArray(p.checklist))?p.checklist:{};
+        _tg.proposalDraft=Object.assign({},p,{checklist:checklist});
+        tgProposalRenderForm();
+    }
     function tgProposalRenderForm(){
         var p=_tg.proposalDraft; if(!p) return;
         var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><b style="flex:1;font-size:16px;color:#1f2a44;">Pay Proposal &mdash; '+escapeHtml(p.employee_name||('#'+p.employee_id))+'</b><button onclick="tgModal2Close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7686;">&times;</button></div>';
@@ -474,7 +479,11 @@
     function tgProposalDecide(id,decision){
         var notesEl=document.getElementById('tgPropDecNotes'); var notes=notesEl?notesEl.value:'';
         if(!confirm('Confirm: '+decision.replace(/_/g,' ')+' this proposal?')) return;
-        tgRpc('app_tg_proposal_decide',{p_proposal_id:id,p_decision:decision,p_notes:notes}, function(){ tgModal2Close(); alert('Decision recorded.'); tgLoadPayTab(); });
+        // FIX (wave2 finding #1): backend CHECK constraint (team_growth.sql ~862-864)
+        // only accepts past-tense values; buttons pass short verbs, so map them here.
+        var TG_DECISION_DB_VALUE={approve:'approved',deny:'denied',delay:'delayed',needs_info:'needs_info'};
+        var dbDecision=TG_DECISION_DB_VALUE[decision]||decision;
+        tgRpc('app_tg_proposal_decide',{p_proposal_id:id,p_decision:dbDecision,p_notes:notes}, function(){ tgModal2Close(); alert('Decision recorded.'); tgLoadPayTab(); });
     }
     function tgProposalMarkPayroll(id){
         if(!confirm('Mark this proposal as payroll processed?')) return;

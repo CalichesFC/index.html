@@ -37,6 +37,14 @@
             } catch (e) { return (currentUser && currentUser.name) || 'Team Member'; }
         }
 
+        // WAVE 2 FIX (2026-07-18, Finding 6): backend/network failures were indistinguishable
+        // from a genuine "I don't know" reply (both showed the same generic fallback text,
+        // which even got mis-logged as a content gap), and a hung backend left the "..." bubble
+        // stuck forever with no timeout. Fixed by: (1) checking resp.ok and requiring a real
+        // json.reply before treating anything as a legitimate answer — anything else shows a
+        // distinct "something went wrong" message and is never gap-logged; (2) an 18s
+        // AbortController timeout with its own distinct "having trouble connecting" message so
+        // the bubble can no longer hang indefinitely.
         async function sendAIMessage() {
             const input = document.getElementById('aiChatInput');
             if (!input) return;
@@ -47,22 +55,45 @@
             appendAIMessage('bot', '...');
             const msgs = document.getElementById('aiChatMessages');
             const typingEl = msgs ? msgs.lastChild : null;
+            function showAIReply(text) { if (typingEl) typingEl.innerText = text; else appendAIMessage('bot', text); }
+
+            var AI_TIMEOUT_MS = 18000; // 15-20s per wave2 audit Finding 6
+            var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+            var timedOut = false;
+            var timer = controller ? setTimeout(function () { timedOut = true; controller.abort(); }, AI_TIMEOUT_MS) : null;
 
             try {
-                const resp = await fetch(G_URL + '?action=ai&message=' + encodeURIComponent(msg) + '&history=' + encodeURIComponent(JSON.stringify(aiChatHistory)) + '&userName=' + encodeURIComponent(scoopyUserContext()));
+                const resp = await fetch(G_URL + '?action=ai&message=' + encodeURIComponent(msg) + '&history=' + encodeURIComponent(JSON.stringify(aiChatHistory)) + '&userName=' + encodeURIComponent(scoopyUserContext()), controller ? { signal: controller.signal } : undefined);
+                if (timer) clearTimeout(timer);
+                if (!resp.ok) {
+                    // Backend/HTTP-level failure — must read as distinct from a genuine "I don't
+                    // know" reply, and must NOT be logged as a content gap.
+                    showAIReply("Scoopy hit a snag talking to the server (backend error). Please try again in a moment.");
+                    return;
+                }
                 const json = await resp.json();
-                const reply = (json && json.reply) ? json.reply : "I'm not sure about that. Please check with your manager!";
-                if (typingEl) typingEl.innerText = reply;
-                else appendAIMessage('bot', reply);
+                if (!json || !json.reply) {
+                    // 200 OK but no usable reply body — same backend-failure treatment as above,
+                    // not a genuine "I don't know" and not a content gap.
+                    showAIReply("Scoopy hit a snag talking to the server (backend error). Please try again in a moment.");
+                    return;
+                }
+                const reply = json.reply;
+                showAIReply(reply);
                 aiChatHistory.push({ role: 'user', parts: [{ text: msg }] });
                 aiChatHistory.push({ role: 'model', parts: [{ text: reply }] });
                 if (aiChatHistory.length > 20) aiChatHistory = aiChatHistory.slice(-20);
-                // Gap tracking: log unanswered questions
+                // Gap tracking: log unanswered questions (only real model replies reach this point)
                 if (reply && (reply.toLowerCase().includes("not sure") || reply.toLowerCase().includes("check with") || reply.toLowerCase().includes("don't have") || reply.toLowerCase().includes("contact your manager"))) {
                     logScoopyGap(msg);
                 }
             } catch(e) {
-                if (typingEl) typingEl.innerText = "Sorry, I couldn't connect right now. Try again!";
+                if (timer) clearTimeout(timer);
+                if (timedOut || (e && e.name === 'AbortError')) {
+                    showAIReply("Scoopy is having trouble connecting right now. Please try again.");
+                } else {
+                    showAIReply("Sorry, I couldn't connect right now. Try again!");
+                }
             }
         }
 

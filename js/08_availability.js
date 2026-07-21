@@ -15,8 +15,13 @@
     }
     // ----- Phase 3 compliance: readiness + NM teen-hours + cert -----
     function hhmmToMin(t){ var p=String(t||'').split(':'); return (+p[0]||0)*60+(+p[1]||0); }
-    function ageOn(bd, ds){ if(!bd) return null; var b=new Date(bd), d=new Date(ds); if(isNaN(b)||isNaN(d)) return null; var a=d.getFullYear()-b.getFullYear(); var mm=d.getMonth()-b.getMonth(); if(mm<0||(mm===0&&d.getDate()<b.getDate())) a--; return a; }
-    function isSchoolInSession(ds){ var d=new Date(ds); var m=d.getMonth(), day=d.getDate(); if(m===5||m===6) return false; if(m===7) return day>=15; return true; }
+    // DATE FIX (2026-07-18, audit H1): both functions used to parse "YYYY-MM-DD" strings via
+    // new Date(string), which per spec parses as UTC midnight, then read back fields in local
+    // time -- in every US/Mountain timezone that reads back one calendar day earlier (e.g.
+    // isSchoolInSession('2026-08-15') would read as Aug 14). Now split y/m/d and use the local
+    // 3-arg Date(y,m-1,d) constructor, same pattern availDowOf() already uses two lines above.
+    function ageOn(bd, ds){ if(!bd) return null; var pb=String(bd).split('-'), pd=String(ds).split('-'); var b=new Date(Number(pb[0]),Number(pb[1])-1,Number(pb[2])), d=new Date(Number(pd[0]),Number(pd[1])-1,Number(pd[2])); if(isNaN(b)||isNaN(d)) return null; var a=d.getFullYear()-b.getFullYear(); var mm=d.getMonth()-b.getMonth(); if(mm<0||(mm===0&&d.getDate()<b.getDate())) a--; return a; }
+    function isSchoolInSession(ds){ var p=String(ds).split('-'); var d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2])); var m=d.getMonth(), day=d.getDate(); if(m===5||m===6) return false; if(m===7) return day>=15; return true; }
     function isSchoolDay(ds){ var dow=availDowOf(ds); return isSchoolInSession(ds) && dow>=1 && dow<=5; }
     function weekHoursFor(empId){ var t=0; (schedState.data.shifts||[]).forEach(function(s){ if(s.employee_id===empId) t+=schedShiftHours(s); }); return t; }
     function complianceCheck(empId, ds, st, en, posId){

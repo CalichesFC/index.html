@@ -10,13 +10,13 @@
 
     var _dsr = { view:'landing', list:[], filters:{ location:'', date:'', status:'' }, report:null, reportId:null, wtab:'header', lastValidation:null, audit:null, showAudit:false };
 
-    var DSR_DENOMS = [['c_misc','Misc $'],['c_ones','$1s'],['c_fives','$5s'],['c_tens','$10s'],['c_twenties','$20s'],['c_fifties','$50s'],['c_hundreds','$100s'],['checks','Checks'],['change','Change']];
+    var DSR_DENOMS = [['c_misc','Miscellaneous'],['c_ones',"1's"],['c_fives',"5's"],['c_tens',"10's"],['c_twenties',"20's"],['c_fifties',"50's"],['c_hundreds',"100's"],['checks','Checks'],['change','Change']]; // labels/entry match the store count-out sheet: DOLLAR AMOUNT per denomination (e.g. "20's" = total $ of twenties), not a bill count
     var DSR_PAY_CATS = [['mc_visa','MC / Visa'],['donation_gc','Donation GC'],['voids','Voids'],['apple_pay','Apple Pay'],['caliches_gc',"Caliche's GC"],['other','Other']];
     var DSR_RATING_CATS = [['speed','Speed'],['cleanliness','Cleanliness'],['friendliness','Friendliness'],['quality','Quality / Consistency']];
     var DSR_LOG_SECTIONS = [['employee_am','Employee / Scheduling — AM'],['employee_pm','Employee / Scheduling — PM'],['customer_comments','Customer comments'],['building_maint','Building maintenance'],['cleaning','Cleaning items'],['manager_requests','Manager requests'],['delivery_issues','Delivery issues'],['balancing_comments','Balancing comments'],['general_notes','General notes']];
     var DSR_CHECKLIST_DEFAULT = ['Conducted pep talk and uniform check','Changeover manager walk around','Shift manager interaction w/ customers','Temperature checklist done','Food bar and fruit quality check','Custard quality (texture/taste hourly)'];
     var DSR_TABS = [['header','Header'],['five','5:00 Closeout'],['night','Night Closeout'],['combined','Combined Totals'],['logbook','Log Book'],['labor','Labor'],['review','Review & Submit']];
-    var DSR_STATUS_COLORS = { Draft:'#9a5b00', 'In Progress':'#9a5b00', Submitted:'#185FA5', 'Under Review':'#185FA5', Reviewed:'#1f7a3d', Locked:'#5b6472', Correction:'#c0264b', 'Correction Requested':'#c0264b', Reopened:'#7d1d4b' };
+    var DSR_STATUS_COLORS = { draft:'#9a5b00', five_in_progress:'#9a5b00', night_in_progress:'#9a5b00', submitted:'#185FA5', under_review:'#185FA5', reviewed:'#1f7a3d', locked:'#5b6472', correction:'#c0264b', correction_requested:'#c0264b', reopened:'#7d1d4b' };
 
     // ---- RPC wrapper (mirrors scRpc / tgRpc) ----
     function dsrRpc(name,args,cb,onerr){
@@ -46,7 +46,8 @@
     function dsrTotalTile(label,val,color){ return '<div style="flex:1;min-width:120px;background:#fafbfd;border:1px solid #eef0f5;border-radius:10px;padding:9px 11px;"><div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#5b6675;">'+escapeHtml(label)+'</div><div style="font-size:16px;font-weight:800;color:'+(color||'#1f2a44')+';">'+val+'</div></div>'; }
     function dsrTodayIso(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
     function dsrSum(a,b){ if(a==null&&b==null) return null; return (parseFloat(a)||0)+(parseFloat(b)||0); }
-    function dsrStatusColor(s){ return DSR_STATUS_COLORS[s]||'#5b6675'; }
+    function dsrNormStatus(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,'_'); }
+    function dsrStatusColor(s){ return DSR_STATUS_COLORS[dsrNormStatus(s)]||'#5b6675'; }
     function dsrBadge(status){ return '<span style="background:'+dsrStatusColor(status)+';color:#fff;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:800;">'+escapeHtml(status||'Draft')+'</span>'; }
     function dsrWarnChip(label){ return '<span style="background:#fff4e0;color:#9a5b00;padding:2px 8px;border-radius:99px;font-size:10.5px;font-weight:700;margin-right:4px;margin-top:4px;display:inline-block;">&#9888; '+escapeHtml(label)+'</span>'; }
     function dsrIsOffice(){ return !!(currentUser && (isAdminManager() || isDiscAdmin() || currentUser.role==='Finance Approver')); }
@@ -55,7 +56,7 @@
         return ['Front #1','Front #2','Drive-Thru'];
     }
 
-    var DSR_DENOM_MULT = {c_misc:1,c_ones:1,c_fives:5,c_tens:10,c_twenties:20,c_fifties:50,c_hundreds:100,checks:1,change:1};
+    var DSR_DENOM_MULT = {c_misc:1,c_ones:1,c_fives:1,c_tens:1,c_twenties:1,c_fifties:1,c_hundreds:1,checks:1,change:1}; // count-out entered as DOLLAR AMOUNTS to match the store's Excel closeout — live total is a straight sum. The SERVER (dsr_register_save) MUST sum the same way; deploy wave2_sqlfix_dsr_register_dollar_amounts.sql together with this change.
     function dsrNumInLive(id,label,val,type){ return '<div style="margin-bottom:9px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">'+escapeHtml(label)+'</label><input id="'+id+'" type="number" step="any" value="'+escapeHtml(val==null?'':String(val))+'" oninput="dsrRecalcLive(\''+type+'\')" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;"></div>'; }
     function dsrSetTxt(id,txt,color){ var e=document.getElementById(id); if(e){ e.textContent=txt; if(color) e.style.color=color; } }
     function dsrLiveReg(type,idx){ var pre='dsrR_'+type+'_'+idx+'_'; var t=0; DSR_DENOMS.forEach(function(d){ t+=(parseFloat(dsrVal(pre+d[0]))||0)*(DSR_DENOM_MULT[d[0]]||1); }); return t; }
@@ -102,8 +103,8 @@
 
         h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">';
         h+=dsrBtn('Open Today','dsrOpenToday()','primary');
-        h+=dsrBtn('Continue Draft','dsrQuickFilter(&quot;Draft&quot;)');
-        if(typeof isManagerRole==='function' && (isManagerRole()||isAdminManager()||isDiscAdmin())) h+=dsrBtn('Review Submitted','dsrQuickFilter(&quot;Submitted&quot;)');
+        h+=dsrBtn('Continue Draft','dsrQuickFilter(&quot;draft&quot;)');
+        if(typeof isManagerRole==='function' && (isManagerRole()||isAdminManager()||isDiscAdmin())) h+=dsrBtn('Review Submitted','dsrQuickFilter(&quot;submitted&quot;)');
         if(typeof isManagerRole==='function' && (isManagerRole()||isAdminManager()||isDiscAdmin())) h+=dsrBtn('Leadership dashboard','dsrOpenDashboard()');
         h+=dsrBtn('Refresh','dsrLoadList()');
         h+='</div>';
@@ -111,7 +112,7 @@
         h+='<div style="background:#fff;border:1px solid #e6ebf2;border-radius:12px;padding:10px 12px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">';
         h+='<select onchange="_dsr.filters.location=this.value; dsrLoadList();" style="padding:7px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:12.5px;"><option value="">All stores</option>'+stores.map(function(s){return '<option value="'+escapeHtml(s)+'"'+(f.location===s?' selected':'')+'>'+escapeHtml(s)+'</option>';}).join('')+'</select>';
         h+='<input type="date" value="'+escapeHtml(f.date||'')+'" onchange="_dsr.filters.date=this.value; dsrLoadList();" style="padding:7px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:12.5px;">';
-        h+='<select onchange="_dsr.filters.status=this.value; dsrLoadList();" style="padding:7px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:12.5px;"><option value="">Any status</option>'+['Draft','Submitted','Reviewed','Locked','Correction','Reopened'].map(function(s){return '<option value="'+s+'"'+(f.status===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select>';
+        h+='<select onchange="_dsr.filters.status=this.value; dsrLoadList();" style="padding:7px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:12.5px;"><option value="">Any status</option>'+[['draft','Draft'],['submitted','Submitted'],['reviewed','Reviewed'],['locked','Locked'],['correction','Correction'],['reopened','Reopened']].map(function(s){return '<option value="'+s[0]+'"'+(f.status===s[0]?' selected':'')+'>'+s[1]+'</option>';}).join('')+'</select>';
         if(f.location||f.date||f.status) h+=dsrBtn('Clear filters','dsrClearFilters()');
         h+='</div>';
 
@@ -157,8 +158,8 @@
         if(warnings.length) h+='<div style="margin-top:8px;">'+warnings.map(dsrWarnChip).join('')+'</div>';
         h+='<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">';
         h+=dsrBtn('Open','dsrOpenReport('+r.id+')');
-        if(r.status==='Locked') h+=dsrBtn('Create Correction','dsrCreateCorrection('+r.id+')');
-        if(r.status==='Locked' && (isAdminManager()||isDiscAdmin())) h+=dsrBtn('Reopen','dsrReopen('+r.id+')','danger');
+        if(dsrNormStatus(r.status)==='locked') h+=dsrBtn('Create Correction','dsrCreateCorrection('+r.id+')');
+        if(dsrNormStatus(r.status)==='locked' && (isAdminManager()||isDiscAdmin())) h+=dsrBtn('Reopen','dsrReopen('+r.id+')','danger');
         h+='</div></div>';
         return h;
     }
@@ -342,7 +343,7 @@
                 '<div style="flex:1;min-width:130px;">'+dsrNumIn('dsrCR_inSafe','Change in safe ($)',cr.change_in_safe)+'</div>'+
                 '<div style="flex:1;min-width:130px;">'+dsrNumIn('dsrCR_target','Required target ($)',cr.required_target)+'</div>'+
                 '<div style="flex:1;min-width:150px;">'+dsrNumIn('dsrCR_need','Need additional ($)',cr.need_additional)+'</div>'+
-                '</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;">'+DSR_DENOMS.slice(0,7).map(function(d){ return dsrNumIn('dsrCR_'+d[0],d[1],cr[d[0]]); }).join('')+'</div>'+
+                '</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;">'+DSR_DENOMS.slice(0,7).map(function(d){ return dsrNumIn('dsrCR_'+d[0],d[1],(cr.denom||{})[d[0]]); }).join('')+'</div>'+
                 '<div style="margin:8px 0;font-size:12.5px;color:#5b6675;">Server total: <b>'+dsrMoney(cr.total)+'</b> &middot; Over/Short: <b style="color:'+(crOS==null?'#5b6675':(Math.abs(crOS)>0.004?'#c0264b':'#1f7a3d'))+';">'+(crOS==null?'Incomplete':dsrMoney(crOS))+'</b></div>'+
                 dsrBtn('Save change reconciliation','dsrSaveChangeRecon()','primary');
             h+=dsrCard(crBody,'Change reconciliation');
@@ -387,8 +388,8 @@
         dsrRpc('dsr_payment_adj_save',{p_closeout_id:c.id,p_payload:payload},function(){ dsrLoadReport(); });
     }
     function dsrSaveChangeRecon(){
-        var payload={ change_in_safe:dsrValF('dsrCR_inSafe'), required_target:dsrValF('dsrCR_target'), need_additional:dsrValF('dsrCR_need') };
-        DSR_DENOMS.slice(0,7).forEach(function(d){ payload[d[0]]=dsrValF('dsrCR_'+d[0]); });
+        var payload={ change_in_safe:dsrValF('dsrCR_inSafe'), required_target:dsrValF('dsrCR_target'), need_additional:dsrValF('dsrCR_need'), denom:{} };
+        DSR_DENOMS.slice(0,7).forEach(function(d){ payload.denom[d[0]]=dsrValF('dsrCR_'+d[0]); });
         dsrRpc('dsr_change_recon_save',{p_id:_dsr.reportId,p_payload:payload},function(){ dsrLoadReport(); });
     }
     function dsrSavePromo(){
@@ -539,13 +540,15 @@
             '</div>'+dsrBtn('Save labor projection','dsrSaveLabor()','primary');
         h=dsrCard(h,'Labor projection inputs');
 
+        function lv(a,b){ return a!=null?a:b; }
         var pctFmt=function(v){ return v==null?'Incomplete':(parseFloat(v).toFixed(1)+'%'); };
         var costFmt=function(v){ return v==null?'Incomplete':dsrMoney(v); };
-        var dailyPctColor=(l.daily_pct!=null && (l.daily_pct<22 || l.daily_pct>26))?'#c0264b':'#1f7a3d';
+        var dailyPct=lv(l.daily_pct,l.daily_labor_pct);
+        var dailyPctColor=(dailyPct!=null && (dailyPct<22 || dailyPct>26))?'#c0264b':'#1f7a3d';
         h+=dsrCard(
             '<div style="display:flex;flex-wrap:wrap;gap:10px;">'+
-                dsrTotalTile('AM labor cost',costFmt(l.am_cost))+dsrTotalTile('PM labor cost',costFmt(l.pm_cost))+dsrTotalTile('Daily labor cost',costFmt(l.daily_cost))+
-                dsrTotalTile('AM labor %',pctFmt(l.am_pct))+dsrTotalTile('PM labor %',pctFmt(l.pm_pct))+dsrTotalTile('Daily labor %',pctFmt(l.daily_pct),l.daily_pct!=null?dailyPctColor:undefined)+
+                dsrTotalTile('AM labor cost',costFmt(lv(l.am_cost,l.am_labor_cost)))+dsrTotalTile('PM labor cost',costFmt(lv(l.pm_cost,l.pm_labor_cost)))+dsrTotalTile('Daily labor cost',costFmt(lv(l.daily_cost,l.daily_labor_cost)))+
+                dsrTotalTile('AM labor %',pctFmt(lv(l.am_pct,l.am_labor_pct)))+dsrTotalTile('PM labor %',pctFmt(lv(l.pm_pct,l.pm_labor_pct)))+dsrTotalTile('Daily labor %',pctFmt(dailyPct),dailyPct!=null?dailyPctColor:undefined)+
             '</div><div style="font-size:11px;color:#8a91a0;margin-top:8px;">Computed by the server after you save. Shown as "Incomplete" (never a divide-by-zero error) until enough inputs are saved.</div>',
             'Labor cost &amp; % (server-computed)'
         );
@@ -604,7 +607,7 @@
         var rep=dsrRep();
         var h=dsrCard(dsrBtn('Run validation check','dsrValidate()','primary')+'<div id="dsrValRes" style="margin-top:10px;">'+(_dsr.lastValidation?dsrValidationHtml(_dsr.lastValidation):'')+'</div>','Validate');
         var canSubmit=!!(_dsr.lastValidation && _dsr.lastValidation.ok);
-        if(rep.status==='Locked'){
+        if(dsrNormStatus(rep.status)==='locked'){
             h+=dsrCard('<div style="color:#5b6472;font-size:13px;">This report is locked.'+((isAdminManager()||isDiscAdmin())?(' <button onclick="dsrReopen('+rep.id+')" style="margin-left:8px;background:#c0264b;color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;">Reopen</button>'):'')+'</div>','Submit');
         } else {
             h+=dsrCard(dsrBtn('Submit report',canSubmit?'dsrSubmit()':'dsrValidate()','primary')+'<div style="font-size:11.5px;color:#8a91a0;margin-top:6px;">Run validation first &mdash; submit is blocked until there are no blockers.</div>','Submit');

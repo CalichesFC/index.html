@@ -53,12 +53,12 @@
             supabaseClient.rpc('app_discipline_history',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10)}).then(function(r){
                 if(r.error){ box.style.display='none'; if(badge) badge.style.display='none'; return; }
                 var d=r.data||{}; var c=d.counts||{};
-                var total=(c.verbal||0)+(c.written||0)+(c.final||0);
+                var total=(c.verbal||0)+(c.written||0)+(c.final||0)+(c.termination||0);
                 // Suggested next step never escalates to termination (that is a separate admin assessment).
                 var nx=d.next_level; if(nx==='termination') nx='final';
                 var m=discLevelMeta(nx);
                 box.style.display='block';
-                box.innerHTML='On file: '+(c.verbal||0)+' verbal, '+(c.written||0)+' written, '+(c.final||0)+' write-up.'+
+                box.innerHTML='On file: '+(c.verbal||0)+' verbal, '+(c.written||0)+' written, '+(c.final||0)+' write-up'+((c.termination||0)?', '+c.termination+' termination':'')+'.'+
                     ' &nbsp;Suggested next step: <b style="color:'+m.color+';">'+m.label+'</b>'+
                     ' &nbsp;<a href="#" onclick="openDiscHistory('+id+',\''+discSafe((d.employee&&d.employee.name)||'')+'\');return false;" style="color:#0d6eaf;">View full history</a>';
                 if(badge){
@@ -168,7 +168,7 @@
         }
         h+='<label style="'+lab+'">'+(f.term?'Prepared by &amp; signature':'Signatures')+'</label>'+f.sigs.map(discPad).join('');
         var body=document.getElementById('discFormBody'); body.innerHTML=h;
-        try{ document.getElementById('discFDate').value=new Date().toISOString().slice(0,10); }catch(e){}
+        try{ document.getElementById('discFDate').value=schedFmt(new Date()); }catch(e){}
         body.querySelectorAll('canvas.disc-pad').forEach(discInitPad);
     }
     function discCollectSigs(){ var out={}; document.querySelectorAll('#discFormBody canvas.disc-pad').forEach(function(cv){ if(cv._has){ out[cv.getAttribute('data-role')]=cv.toDataURL('image/png'); } }); return out; }
@@ -295,7 +295,7 @@
         document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
         document.getElementById('attendanceView').style.display='block';
         window.scrollTo(0,0);
-        try{ document.getElementById('attDate').value=new Date().toISOString().slice(0,10); }catch(e){}
+        try{ document.getElementById('attDate').value=schedFmt(new Date()); }catch(e){}
         attRenderTypePicker();
         attRenderReasons();
         attInitSig();
@@ -393,7 +393,7 @@
         document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
         document.getElementById('harassReportView').style.display='block';
         window.scrollTo(0,0);
-        try{ document.getElementById('harassDate').value=new Date().toISOString().slice(0,10); }catch(e){}
+        try{ document.getElementById('harassDate').value=schedFmt(new Date()); }catch(e){}
         var locs=(typeof SCHED_LOCATIONS!=='undefined'?SCHED_LOCATIONS:['Roadrunner','Valley','Lenox','Alamogordo','Roswell','Catering & Vending']);
         var cur=(currentUser&&(currentUser.activeStore||currentUser.home_location))||'';
         document.getElementById('harassStore').innerHTML=locs.map(function(l){ return '<option'+(l===cur?' selected':'')+'>'+escapeHtml(l)+'</option>'; }).join('');
@@ -722,7 +722,7 @@
         document.getElementById('salesView').style.display='block';
         window.scrollTo(0,0);
         document.getElementById('salesStoreLabel').innerHTML='&#127970; '+escapeHtml(tempStoreLoc()||'No store set');
-        try{ document.getElementById('salesDate').value=new Date().toISOString().slice(0,10); }catch(e){}
+        try{ document.getElementById('salesDate').value=schedFmt(new Date()); }catch(e){}
         loadSalesRecent();
     }
     function saveSales(){
@@ -856,7 +856,7 @@
     // ============================================================
     var PC_DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
     var pcInvPhotos=[];
-    function pcMonday(){ var d=new Date(); var off=(d.getDay()+6)%7; d.setDate(d.getDate()-off); return d.toISOString().slice(0,10); }
+    function pcMonday(){ var d=new Date(); var off=(d.getDay()+6)%7; d.setDate(d.getDate()-off); return schedFmt(d); }
     function pcNum(id){ var el=document.getElementById(id); var v=el?parseFloat(el.value):NaN; return isNaN(v)?0:v; }
     function pcMoney(n){ return '$'+Math.round(n).toLocaleString(); }
     function openPrimeCost(){

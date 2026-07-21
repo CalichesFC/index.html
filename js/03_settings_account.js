@@ -31,11 +31,10 @@
         msg.style.display = 'none';
         if (!currentPin || !newPin || !confirmPin) { msg.innerText = 'Please fill all fields.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
         if (newPin !== confirmPin) { msg.innerText = 'PINs do not match.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
-        if (newPin.length < 4) { msg.innerText = 'PIN must be at least 4 characters.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
-        supabaseClient.rpc('app_change_pin', { p_username: currentUser.username, p_old_password: currentPin, p_new_password: newPin })
+        if (newPin.length < 8) { msg.innerText = 'PIN must be at least 8 characters.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
+        supabaseClient.rpc('app_set_password', { p_username: currentUser.username, p_current: currentPin, p_new: newPin })
         .then(({ data, error }) => {
             if (error) { msg.innerText = 'Error: ' + error.message; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
-            if (!data) { msg.innerText = 'Current PIN is incorrect.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
             sessionPin = newPin;
             try { if(localStorage.getItem('calichesKeep')!=='0') sessionStorage.setItem('calichesPin', newPin); } catch(e){}
             msg.innerText = 'PIN updated successfully!'; msg.className = 'settings-msg ok'; msg.style.display = 'block';
@@ -507,7 +506,7 @@
         (schedState.elsewhere||[]).forEach(x => { elseEmpSet[x.employee_id]=1; if(x.location) elseStoreSet[x.location]=1; });
         const elseEmpN = Object.keys(elseEmpSet).length, elseStoreN = Object.keys(elseStoreSet).length;
         const photoOf = id => (schedState.photos||{})[id];
-        const avatarHtml = e => { const ph=photoOf(e.id); return ph ? '<span class="hbg-av" style="background-image:url('+ph+');background-size:cover;background-position:center;"></span>' : '<span class="hbg-av" style="background:'+avatarColor(e)+';">'+initialsOf(e.name)+'</span>'; };
+        const avatarHtml = e => { const ph=photoOf(e.id); return ph ? '<span class="hbg-av" style="background-image:url('+escapeHtml(ph)+');background-size:cover;background-position:center;"></span>' : '<span class="hbg-av" style="background:'+avatarColor(e)+';">'+initialsOf(e.name)+'</span>'; };
         const tagOf = e => { const list=(e.stores&&e.stores.length)?e.stores:(e.home_location?[e.home_location]:[]); return list.length?'<span class="hbg-tag">'+list.map(schedAbbr).join('&middot;')+'</span> ':''; };
         const dayStaff = {}; shifts.forEach(s => { if(s.employee_id!=null){ (dayStaff[s.shift_date]=dayStaff[s.shift_date]||{})[s.employee_id]=1; } });
         let weekHrs=0, weekCost=0;

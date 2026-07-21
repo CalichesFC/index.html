@@ -85,14 +85,14 @@
     function openTrainingHub(){ _trh.tab='my'; _trh.my=null; _trh.team=null; _trh.admin=null; _trh.detail=null; _trh.psMine=null; _trh.psTeam=null; _trh.qsMine=null; _trh.qsTeam=null; trhLoadMy(); }
     function trhLoadMy(){ trhLoading('Loading your training&hellip;'); trhRpc('trh_my',{},function(d){ _trh.my=d||{}; trhRender(); trhLoadMyExtras(); },function(e){ trhFail(e.message); }); }
     function trhLoadMyExtras(){
-        trhRpc('trh_prestart_my',{},function(d){ _trh.psMine=d||{rows:[]}; if(_trh.tab==='my'&&!_trh.detail) trhRender(); },function(){ _trh.psMine=_trh.psMine||{rows:[]}; });
-        trhRpc('trh_qs_my',{},function(d){ _trh.qsMine=d||{rows:[]}; if(_trh.tab==='my'&&!_trh.detail) trhRender(); },function(){ _trh.qsMine=_trh.qsMine||{rows:[]}; });
+        trhRpc('trh_prestart_my',{},function(d){ _trh.psMine=d||{rows:[]}; if(_trh.tab==='my'&&!_trh.detail) trhRender(); },function(e){ if(!_trh.psMine) _trh.psMine={rows:[],_err:(e&&e.message)||'Could not load.'}; if(_trh.tab==='my'&&!_trh.detail) trhRender(); });
+        trhRpc('trh_qs_my',{},function(d){ _trh.qsMine=d||{rows:[]}; if(_trh.tab==='my'&&!_trh.detail) trhRender(); },function(e){ if(!_trh.qsMine) _trh.qsMine={rows:[],_err:(e&&e.message)||'Could not load.'}; if(_trh.tab==='my'&&!_trh.detail) trhRender(); });
     }
     function trhLoadTeam(){ trhLoading('Loading team&hellip;'); trhRpc('trh_team',{p_store:_trh.store||''},function(d){ _trh.team=d||{}; trhRender(); trhLoadTeamExtras(); },function(e){ trhFail(String(e.message||'').indexOf('forbidden')>=0?'Managers and leads only.':e.message); }); }
     function trhLoadTeamExtras(){
         if(!trhIsMgr()) return;
-        trhRpc('trh_prestart_team',{},function(d){ _trh.psTeam=d||{rows:[]}; if((_trh.tab==='team'||_trh.tab==='certs')&&!_trh.detail) trhRender(); },function(){ _trh.psTeam=_trh.psTeam||{rows:[]}; });
-        trhRpc('trh_qs_team',{p_store:_trh.store||''},function(d){ _trh.qsTeam=d||{scoops:[],open:[]}; if((_trh.tab==='team'||_trh.tab==='certs')&&!_trh.detail) trhRender(); },function(){ _trh.qsTeam=_trh.qsTeam||{scoops:[],open:[]}; });
+        trhRpc('trh_prestart_team',{},function(d){ _trh.psTeam=d||{rows:[]}; if((_trh.tab==='team'||_trh.tab==='certs')&&!_trh.detail) trhRender(); },function(e){ if(!_trh.psTeam) _trh.psTeam={rows:[],_err:(e&&e.message)||'Could not load.'}; if((_trh.tab==='team'||_trh.tab==='certs')&&!_trh.detail) trhRender(); });
+        trhRpc('trh_qs_team',{p_store:_trh.store||''},function(d){ _trh.qsTeam=d||{scoops:[],open:[]}; if((_trh.tab==='team'||_trh.tab==='certs')&&!_trh.detail) trhRender(); },function(e){ if(!_trh.qsTeam) _trh.qsTeam={scoops:[],open:[],_err:(e&&e.message)||'Could not load.'}; if((_trh.tab==='team'||_trh.tab==='certs')&&!_trh.detail) trhRender(); });
     }
     function trhLoadAdmin(){ trhLoading('Loading path builder&hellip;'); trhRpc('trh_admin_get',{},function(d){ _trh.admin=d||{}; trhRender(); },function(e){ trhFail(String(e.message||'').indexOf('forbidden')>=0?'Managers only.':e.message); }); }
     function trhRender(){
@@ -547,7 +547,8 @@
         return trhChip(escapeHtml(m[0]),m[1]);
     }
     function trhPsMineHtml(){
-        var d=_trh.psMine; if(!d||!(d.rows||[]).length) return '';
+        var d=_trh.psMine; if(!d) return '';
+        if(!(d.rows||[]).length) return d._err?trhCard('<div style="color:#c0264b;font-size:12.5px;">Couldn&rsquo;t load your Ready-to-Start training: '+escapeHtml(d._err)+' <button onclick="trhLoadMyExtras()" style="margin-left:4px;background:#fdeaea;color:#c0264b;border:none;border-radius:7px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Retry</button></div>'):'';
         var cap=d.cap||120; var h='';
         (d.rows||[]).forEach(function(r){
             h+='<div style="border:1px solid #ececf2;border-radius:11px;padding:10px 12px;margin-bottom:8px;">'+
@@ -583,7 +584,7 @@
             '<button onclick="trhPsExport()" style="background:#185FA5;color:#fff;border:none;border-radius:9px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;">⬇ Export payroll CSV'+(d&&d.unexported?' ('+d.unexported+')':'')+'</button></div>';
         if(!d) return trhCard(head+'<div style="color:#6b7686;font-size:12.5px;">Loading&hellip;</div>','Ready-to-Start — paid pre-start');
         var rows=d.rows||[]; var h=head;
-        if(!rows.length) h+='<div style="color:#6b7686;font-size:12.5px;">No pre-start assignments yet. New hires complete paid, timed pre-start training before their first shift, then you approve it to award the entry certificate.</div>';
+        if(!rows.length) h+=(d._err?('<div style="color:#c0264b;font-size:12.5px;">Couldn&rsquo;t load pre-start assignments: '+escapeHtml(d._err)+' <button onclick="trhLoadTeamExtras()" style="margin-left:4px;background:#fdeaea;color:#c0264b;border:none;border-radius:7px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Retry</button></div>'):'<div style="color:#6b7686;font-size:12.5px;">No pre-start assignments yet. New hires complete paid, timed pre-start training before their first shift, then you approve it to award the entry certificate.</div>');
         rows.forEach(function(r){
             h+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f1f2f6;flex-wrap:wrap;">'+
                '<div style="flex:1;min-width:160px;"><b style="font-size:13.5px;color:#26242b;">'+escapeHtml(r.employee||'')+'</b>'+(r.store?' <span style="font-size:11px;color:#8a91a0;">&middot; '+escapeHtml(r.store)+'</span>':'')+
@@ -650,7 +651,8 @@
     // QUICK SCOOPS (refresher / retraining bites)
     // ============================================================
     function trhQsMineHtml(){
-        var d=_trh.qsMine; if(!d||!(d.rows||[]).length) return '';
+        var d=_trh.qsMine; if(!d) return '';
+        if(!(d.rows||[]).length) return d._err?trhCard('<div style="color:#c0264b;font-size:12.5px;">Couldn&rsquo;t load your Quick Scoops: '+escapeHtml(d._err)+' <button onclick="trhLoadMyExtras()" style="margin-left:4px;background:#fdeaea;color:#c0264b;border:none;border-radius:7px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Retry</button></div>'):'';
         var h='';
         (d.rows||[]).forEach(function(r){
             h+='<div style="border:1px solid #ececf2;border-radius:11px;padding:10px 12px;margin-bottom:8px;">'+
@@ -682,7 +684,7 @@
             '<button onclick="trhQsForm(null)" style="background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;">+ New scoop</button></div>';
         if(!d) return trhCard(head+'<div style="color:#6b7686;font-size:12.5px;">Loading&hellip;</div>','Quick Scoops');
         var h=head; var scoops=d.scoops||[]; var open=d.open||[];
-        if(!scoops.length) h+='<div style="color:#6b7686;font-size:12.5px;">No Quick Scoops yet — e.g. “Cup sizes refresher” or “New closing checklist”.</div>';
+        if(!scoops.length) h+=(d._err?('<div style="color:#c0264b;font-size:12.5px;">Couldn&rsquo;t load Quick Scoops: '+escapeHtml(d._err)+' <button onclick="trhLoadTeamExtras()" style="margin-left:4px;background:#fdeaea;color:#c0264b;border:none;border-radius:7px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">Retry</button></div>'):'<div style="color:#6b7686;font-size:12.5px;">No Quick Scoops yet — e.g. “Cup sizes refresher” or “New closing checklist”.</div>');
         scoops.forEach(function(s){
             h+='<div style="border:1px solid #ececf2;border-radius:10px;padding:9px 11px;margin-bottom:7px;'+(s.active?'':'opacity:.55;')+'">'+
                '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;"><b style="flex:1;min-width:140px;font-size:13px;color:#26242b;">🍦 '+escapeHtml(s.title||'')+'</b>'+

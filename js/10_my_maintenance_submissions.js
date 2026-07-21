@@ -90,13 +90,13 @@
                     headers.forEach((h,i) => {
                         if(i>=maxCols) return;
                         let cellData = (row[h]!==null&&row[h]!==undefined)?row[h]:'';
-                        if(cellData.toString().startsWith('http')) { html += '<td><a href="' + cellData + '" target="_blank" style="background:var(--caliches-pink);color:white;padding:5px 10px;border-radius:4px;text-decoration:none;font-weight:bold;display:inline-block;">View PDF</a></td>'; }
-                        else { html += '<td>' + cellData + '</td>'; }
+                        if(cellData.toString().startsWith('http')) { html += '<td><a href="' + escapeHtml(cellData) + '" target="_blank" style="background:var(--caliches-pink);color:white;padding:5px 10px;border-radius:4px;text-decoration:none;font-weight:bold;display:inline-block;">View PDF</a></td>'; }
+                        else { html += '<td>' + escapeHtml(cellData) + '</td>'; }
                     });
                     if(hasPdf) {
                         let pdfVal = row['PDF_Archive'];
-                        if(pdfVal && pdfVal.toString().startsWith('http')) html += '<td><a href="' + pdfVal + '" target="_blank" style="background:var(--caliches-pink);color:white;padding:5px 10px;border-radius:4px;text-decoration:none;font-weight:bold;display:inline-block;">View PDF</a></td>';
-                        else html += '<td>' + (pdfVal||'') + '</td>';
+                        if(pdfVal && pdfVal.toString().startsWith('http')) html += '<td><a href="' + escapeHtml(pdfVal) + '" target="_blank" style="background:var(--caliches-pink);color:white;padding:5px 10px;border-radius:4px;text-decoration:none;font-weight:bold;display:inline-block;">View PDF</a></td>';
+                        else html += '<td>' + escapeHtml(pdfVal||'') + '</td>';
                     }
                     if(tabName==='Maintenance Logs'||tabName==='Damage Reports') {
                         let st = row['Status']||'Pending';
@@ -143,7 +143,7 @@
                         let maintBoardChecked = (u.maint_board_access !== false);
                         checks += '<label style="margin-right:8px;font-size:11px;font-weight:bold;white-space:nowrap;color:var(--maint-orange);"><input type="checkbox" id="mb-' + u.id + '" ' + (maintBoardChecked?'checked':'') + ' style="transform:scale(1.2);vertical-align:middle;"> Maint. Board</label>';
                     }
-                    html += '<tr><td style="font-weight:500;">' + u.name + '</td><td style="color:var(--na-gray);">' + u.username + '</td><td style="color:var(--na-gray);">' + (u.email||'—') + '</td><td><select id="role-select-' + u.id + '" class="role-select"><option value="Blue Apron"' + (u.role==='Blue Apron'?' selected':'') + '>Blue Apron</option><option value="Shift Lead"' + (u.role==='Shift Lead'?' selected':'') + '>Shift Lead</option><option value="Manager"' + (u.role==='Manager'?' selected':'') + '>Manager</option><option value="Maintenance"' + (u.role==='Maintenance'?' selected':'') + '>Maintenance</option><option value="Admin Manager"' + (u.role==='Admin Manager'?' selected':'') + '>Admin Manager</option>' + (u.role==='Vice President/Co-Owner' ? '<option value="Vice President/Co-Owner" selected>Vice President/Co-Owner</option>' : '') + '</select></td><td><div id="perm-' + u.id + '" style="display:flex;flex-wrap:wrap;gap:2px;max-width:260px;">' + checks + '</div></td><td style="white-space:nowrap;"><button class="update-role-btn" onclick="updateRole(' + u.id + ')">Save Role</button><button class="update-action-btn" onclick="updatePermissions(' + u.id + ')" style="margin-left:5px;">Save Forms</button><button class="delete-btn" onclick="deleteUser(' + u.id + ')">Remove Login</button></td></tr>';
+                    html += '<tr><td style="font-weight:500;">' + escapeHtml(u.name) + '</td><td style="color:var(--na-gray);">' + escapeHtml(u.username) + '</td><td style="color:var(--na-gray);">' + escapeHtml(u.email||'—') + '</td><td><select id="role-select-' + u.id + '" class="role-select"><option value="Blue Apron"' + (u.role==='Blue Apron'?' selected':'') + '>Blue Apron</option><option value="Shift Lead"' + (u.role==='Shift Lead'?' selected':'') + '>Shift Lead</option><option value="Manager"' + (u.role==='Manager'?' selected':'') + '>Manager</option><option value="Maintenance"' + (u.role==='Maintenance'?' selected':'') + '>Maintenance</option><option value="Admin Manager"' + (u.role==='Admin Manager'?' selected':'') + '>Admin Manager</option>' + (u.role==='Vice President/Co-Owner' ? '<option value="Vice President/Co-Owner" selected>Vice President/Co-Owner</option>' : '') + '</select></td><td><div id="perm-' + u.id + '" style="display:flex;flex-wrap:wrap;gap:2px;max-width:260px;">' + checks + '</div></td><td style="white-space:nowrap;"><button class="update-role-btn" onclick="updateRole(' + u.id + ')">Save Role</button><button class="update-action-btn" onclick="updatePermissions(' + u.id + ')" style="margin-left:5px;">Save Forms</button><button class="delete-btn" onclick="deleteUser(' + u.id + ')">Remove Login</button></td></tr>';
                 });
                 html += '</tbody></table></div>'; results.innerHTML = html;
             }).catch(() => { results.innerHTML = '<p style="color:red;">Connection Error.</p>'; });
@@ -339,7 +339,15 @@
     function saveToSupabase(tableName, form, pdfUrl, onSuccess, onError) {
         let insertObj = Object.fromEntries(new FormData(form).entries());
         delete insertObj.ReportHTML; delete insertObj.action;
-        insertObj.PDF_Archive = pdfUrl || 'PDF Failed to Generate';
+        // Wave 2 fix (2026-07-18): pop_ins (submitAudit) is the only caller that passes pdfUrl=null
+        // here BEFORE attempting the PDF, so this used to always write the false 'PDF Failed to
+        // Generate' string even when the PDF succeeded. An explicit null now means "not attempted
+        // yet" -> 'Pending' (honest placeholder). The real URL still isn't patched back into the row
+        // afterward -- that needs the inserted row's id from app_form_insert plus a follow-up update,
+        // neither confirmed to exist in this repo; flagged in specs/wave2_fix_10_11.md. Every other
+        // caller still passes pdfUrl AFTER its own PDF fetch resolves, so 'PDF Failed to Generate' on
+        // genuine failure is unchanged for them.
+        insertObj.PDF_Archive = (pdfUrl === null) ? 'Pending' : (pdfUrl || 'PDF Failed to Generate');
         console.log('[Supabase] Inserting into ' + tableName + ':', insertObj);
         supabaseClient.rpc('app_form_insert', { p_table: tableName, p_data: insertObj })
         .then(({ data, error }) => {

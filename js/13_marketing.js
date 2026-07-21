@@ -174,7 +174,7 @@
       var ch=(c.channels||[]); body+=mcPanel('Channels', ch.length?ch.map(function(x){ return '<span style="display:inline-block;background:#eef3fb;color:#185FA5;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:99px;margin:2px;">'+escapeHtml(x)+'</span>'; }).join(''):'<span style="color:#6b6275;font-size:12.5px;">No channels selected.</span>');
       // budgets (leaders only)
       if(a.can_budget){ var bs=(c.budgets||[]); var bh=''; if(!bs.length) bh='<span style="color:#6b6275;font-size:12.5px;">No budget lines.</span>';
-        bs.forEach(function(b){ bh+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f2f2f6;font-size:12.5px;"><b style="flex:1;">'+escapeHtml(b.title||'')+'</b><span style="color:#6b6275;">'+mcMoney(b.est_cost)+'</span>'+mcPill(b.status)+(b.status==='Pending'?'<button onclick="mcBudgetDecide(\''+b.id+'\',\''+c.id+'\')" style="background:#1f7a3d;color:#fff;border:none;border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:700;cursor:pointer;">Decide</button>':'')+'</div>'; });
+        bs.forEach(function(b){ bh+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f2f2f6;font-size:12.5px;"><b style="flex:1;">'+escapeHtml(b.title||'')+'</b><span style="color:#6b6275;">'+mcMoney(b.est_cost)+'</span>'+mcPill(b.status)+(b.status==='Pending'?'<button onclick="mcBudgetGoV2()" style="background:#1f7a3d;color:#fff;border:none;border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:700;cursor:pointer;">Decide in Store Tools &rarr;</button>':'')+'</div>'; });
         body+=mcPanel('Budget lines', bh); }
       // content posts
       var cps=(c.content||[]); var cph=''; if(!cps.length) cph='<span style="color:#6b6275;font-size:12.5px;">No content posts.</span>';
@@ -346,13 +346,13 @@
     function mcRenderBudgets(){
       var list=_mc.budgets||[];
       var h='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:10px;">Budget lines &amp; approvals</div>'
-        +'<div style="font-size:12px;color:#6b6275;margin-bottom:12px;">Separation of duties: you cannot approve a line you requested. Thresholds are configurable in Admin settings.</div>';
+        +'<div style="font-size:12px;color:#6b6275;margin-bottom:12px;">Separation of duties: you cannot approve a line you requested. Approve/decline now happens in &#127978; Store Tools, where tiered dollar limits (Admin settings &rsaquo; mkt_approval_rules) are enforced.</div>';
       if(!list.length) h+='<div style="color:#6b6275;font-size:13px;padding:16px;text-align:center;">No budget lines yet. Add them from a campaign.</div>';
       list.forEach(function(b){
         h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:13px;margin-bottom:9px;"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:13.5px;">'+escapeHtml(b.title||'')+'</b>'+mcPill(b.status)+'</div>'
           +'<div style="font-size:12px;color:#6b6275;margin-top:5px;">'+escapeHtml(b.campaign_name||'—')+(b.category?' &middot; '+escapeHtml(b.category):'')+' &middot; est '+mcMoney(b.est_cost)+(b.approved_amount!=null?' &middot; approved '+mcMoney(b.approved_amount):'')+'</div>'
           +'<div style="font-size:11.5px;color:#8a8594;margin-top:3px;">Requested by '+escapeHtml(b.requested_by_name||'')+(b.approved_by_name?' &middot; decided by '+escapeHtml(b.approved_by_name):'')+'</div>'
-          +(b.status==='Pending'?'<div style="margin-top:8px;"><button onclick="mcBudgetDecide(\''+b.id+'\',\''+(b.campaign_id||'')+'\')" style="background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">Approve / decline</button></div>':'')
+          +(b.status==='Pending'?'<div style="margin-top:8px;"><button onclick="mcBudgetGoV2()" style="background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">Decide in Store Tools &rarr;</button></div>':'')
           +'</div>';
       });
       mcShell(h);
@@ -364,6 +364,27 @@
       mcModal(h);
     }
     function mcBudgetSave(cid){ if(!mcVal('mbg_title')){ alert('Title required'); return; } mktRpc('mkt_budget_save',{p_payload:{ campaign_id:cid, title:mcVal('mbg_title'), category:mcVal('mbg_cat'), est_cost:mcVal('mbg_est'), vendor:mcVal('mbg_vendor'), invoice_url:mcVal('mbg_inv'), notes:mcVal('mbg_notes') }},function(){ mcModalClose(); if(_mc.cur&&_mc.cur.id===cid) mcOpen(cid); else mcLoadBudgets(); }); }
+    // WAVE 2 SECURITY FIX (2026-07-18, audit Finding 1): mkt_budget_decide (called below by
+    // mcBudgetDecide/mcBudgetDecideSave) has NO dollar-amount threshold check server-side —
+    // unlike v2's mkt2_budget_decide, which resolves a tiered ceiling from app_settings
+    // ("mkt_approval_rules": tier1_max/tier2_max/tier3=unlimited, keyed off tier1_roles/
+    // tier2_roles/tier3_roles) and rejects any "Approved" amount over the caller's limit. That
+    // tiered check lives ONLY server-side (marketing_v2.sql) — js/27 itself has no client-side
+    // copy of the logic to mirror (it only shows the limits as read-only text; the RPC does the
+    // real enforcement). Because the thresholds AND the role-to-tier mapping are admin-editable
+    // at runtime (Admin settings), hardcoding a copy of those numbers here would be exactly the
+    // kind of guess the wave2 fix instructions say not to make — it could silently drift out of
+    // sync with whatever's actually configured. So per those instructions, the buttons below no
+    // longer call mcBudgetDecide at all; they call mcBudgetGoV2(), which sends the user to v2
+    // ("Store Tools" -> Approvals) where the real tiered check runs. mcBudgetDecide/
+    // mcBudgetDecideSave are left defined for reference only — nothing calls them anymore. Full
+    // reasoning + an optional server-side patch closing the same gap at the RPC layer are in
+    // specs/wave2_fix_12_13_27.md and specs/wave2_sqlfix_mkt_budget_decide.sql.
+    function mcBudgetGoV2(){
+      alert('Budget decisions now go through 🏛 Store Tools, where tiered approval limits are enforced. Opening it now — use the Approvals tab.');
+      mcClose();
+      if(typeof openMarketingV2==='function') openMarketingV2();
+    }
     function mcBudgetDecide(id,cid){
       var h='<h3 style="margin:0 0 10px;">Budget decision</h3>'+mcSelV('Decision','mbd_dec',['Approved','Declined','Changes Requested'],'Approved')+mcField('Approved amount ($)','mbd_amt','','number')+mcArea('Note','mbd_note','')
         +'<div style="display:flex;gap:8px;margin-top:10px;"><button onclick="mcModalClose()" style="flex:1;background:#eef0f3;border:none;border-radius:9px;padding:10px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="mcBudgetDecideSave(\''+id+'\',\''+(cid||'')+'\')" style="flex:2;background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:10px;font-weight:800;cursor:pointer;">Submit</button></div>';

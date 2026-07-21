@@ -57,7 +57,13 @@
     function inspSevChip(sev){ if(!sev||sev==='ok') return ''; var c=INSP_SEV_COLORS[sev]||'#5b6675'; return '<span style="background:'+c+';color:#fff;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:800;text-transform:uppercase;margin-left:6px;">'+escapeHtml(sev)+'</span>'; }
     function inspTile(label,val,color){ return '<div style="flex:1;min-width:110px;background:#fafbfd;border:1px solid #eef0f5;border-radius:10px;padding:9px 11px;"><div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#5b6675;">'+escapeHtml(label)+'</div><div style="font-size:16px;font-weight:800;color:'+(color||'#1f2a44')+';">'+val+'</div></div>'; }
     function inspStores(){ return (typeof HUB_STORES!=='undefined'&&HUB_STORES&&HUB_STORES.length)?HUB_STORES:['Roadrunner','Valley','Lenox','Alamogordo','Roswell']; }
-    function inspIsMgr(){ try{ return !!(currentUser && ((typeof isManagerRole==='function'&&isManagerRole()) || (typeof isAdminManager==='function'&&isAdminManager()) || (typeof isDiscAdmin==='function'&&isDiscAdmin()))); }catch(e){ return false; } }
+    // WAVE 2 FIX (2026-07-18, audit BL1): was isManagerRole()||isAdminManager()||isDiscAdmin(), which only
+    // recognized literal roles 'Manager'/'Admin Manager'/'Vice President/Co-Owner' -- narrower than the app's
+    // own permission matrix (js/04_employee_roster.js:826), the menu-tile gate
+    // (js/05_admin_tasks_pip_disciplinary.js:539), and the backend's own _insp_is_mgr() (site_inspection.sql:204-209),
+    // all of which also grant Store Manager / Shift Lead / Shift Leader. Now mirrors _insp_is_mgr()'s exact
+    // case-insensitive substring list (manager/admin/lead/owner/vp/president) so frontend and backend agree.
+    function inspIsMgr(){ try{ var r=(currentUser&&currentUser.role)||''; return !!(currentUser && /manager|admin|lead|owner|vp|president/i.test(r)); }catch(e){ return false; } }
     function inspCfgNum(key,fb){ var c=_insp.cfg||{}; var v=parseFloat(c[key]); return isNaN(v)?fb:v; }
 
     // ============================================================

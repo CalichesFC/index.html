@@ -398,7 +398,7 @@ window.openPayTools = function(){
 
 // ── Adjust an APPROVED raise (amend / reverse / supersede) with history ──
 window.tgxAdjustPanel = function(){
-  tgxRpc('app_tg_proposal_list', {}, function(rows){
+  tgxRpc('app_tg_proposal_list', {p_filters:{}}, function(rows){
     rows = rows || [];
     var appr = rows.filter(function(p){
       var st=(p.status||'')+' '+(p.corporate_decision||'');
@@ -440,7 +440,16 @@ window.tgxAdjustOpen = function(id, curRate){
     if(!list||!list.length){ box.innerHTML='<div style="font-size:11px;color:#9aa0ab;">No prior adjustments.</div>'; return; }
     box.innerHTML='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#7b2d8b;margin-bottom:2px;">Adjustment history</div>'
       + list.map(function(x){ return '<div style="font-size:11.5px;color:#3a4352;border-top:1px solid #eef0f3;padding:6px 0;"><b style="text-transform:capitalize;">'+tgxEsc(x.action)+'</b> &middot; '+tgxDate(x.adjusted_at)+(x.new_rate!=null?(' &middot; &rarr; '+tgxMoney(x.new_rate)):'')+(x.reason?('<br><span style="color:#6b7686;">'+tgxEsc(x.reason)+'</span>'):'')+'</div>'; }).join('');
-  }, function(){});
+  }, function(e){
+    // Do NOT swallow this silently: app_tg_proposal_adjust_list is corp-only
+    // (2026-07-17 security fix) but the sibling write RPC app_tg_proposal_adjust
+    // still allows manager/office, so a Store Manager who CAN adjust a raise
+    // may be forbidden from seeing its history. Show that plainly instead of
+    // leaving #tgxAdjHist blank (indistinguishable from "no history").
+    var box=document.getElementById('tgxAdjHist'); if(!box) return;
+    var m=String((e&&e.message)||'');
+    box.innerHTML='<div style="font-size:11px;color:#9a5b00;">'+(m.indexOf('forbidden')>=0?'Adjustment history is restricted to corporate roles.':tgxEsc(m||'Could not load adjustment history.'))+'</div>';
+  });
 };
 window.tgxAdjustSave = function(id){
   var act=tgxVal('tgxAdjAction')||'amend';

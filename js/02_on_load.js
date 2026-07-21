@@ -76,10 +76,11 @@
         var ws=window._gateWeek;
         var note=prompt('What is the conflict with this schedule? Your manager will be notified.'); if(note===null) return; note=(note||'').trim();
         var pin=window._gatePin||sessionPin;
-        supabaseClient.rpc('app_week_flag_conflict',{p_username:currentUser.username,p_password:pin,p_week_start:ws,p_note:note}).then(function(){
+        supabaseClient.rpc('app_week_flag_conflict',{p_username:currentUser.username,p_password:pin,p_week_start:ws,p_note:note}).then(function(r){
+            if(r&&r.error){ alert('Could not send: '+r.error.message); return; }
             var ov=document.getElementById('scheduleGate'); if(ov) ov.style.display='none';
             alert('Thanks - your manager has been notified about the conflict.');
-        }).catch(function(){ var ov=document.getElementById('scheduleGate'); if(ov) ov.style.display='none'; });
+        }).catch(function(){ alert('Could not send right now.'); });
     }
     function confirmScheduleGate(){
         var ws=window._gateWeek; var btn=document.getElementById('scheduleGateBtn');
@@ -101,13 +102,15 @@
             c.innerHTML = '<h2 style="color:var(--fail-red);margin-top:0;">Quote Not Found</h2><p style="color:#666;">This link is invalid or has expired. Please contact Caliche\'s Frozen Custard directly for help.</p>';
             return;
         }
-        let itemsHtml = (quote.line_items || []).map(li =>
-            '<tr><td style="padding:6px 4px;border-bottom:1px solid #eee;">' + escapeHtml(li.desc) + ' &times; ' + li.qty + '</td><td style="padding:6px 4px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap;">$' + Number(li.subtotal).toFixed(2) + '</td></tr>'
-        ).join('');
+        let itemsHtml = (quote.line_items || []).map(li => {
+            var qty = (li.qty!=null?li.qty:(li.quantity!=null?li.quantity:1));
+            var sub = (li.subtotal!=null?li.subtotal:(Number(li.price!=null?li.price:(li.unit_price||0))*Number(qty)));
+            return '<tr><td style="padding:6px 4px;border-bottom:1px solid #eee;">' + escapeHtml(li.desc) + ' &times; ' + qty + '</td><td style="padding:6px 4px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap;">$' + Number(sub).toFixed(2) + '</td></tr>';
+        }).join('');
         let header = '<h2 style="color:var(--caliches-blue);margin-top:0;">Catering Quote #' + escapeHtml(String(quote.order_num)) + '</h2>' +
             '<p style="color:#666;margin:0 0 15px 0;font-size:14px;">For: <strong>' + escapeHtml(quote.contact_name || '') + '</strong>' + (quote.company ? ' (' + escapeHtml(quote.company) + ')' : '') + '<br>Event Date: ' + escapeHtml(quote.event_date || 'TBD') + (quote.event_type ? '<br>Event Type: ' + escapeHtml(quote.event_type) : '') + '</p>' +
             '<table style="width:100%;border-collapse:collapse;margin-bottom:10px;font-size:14px;">' + itemsHtml + '</table>' +
-            '<div style="text-align:right;font-size:14px;color:#444;line-height:1.6;"><div>Subtotal: $' + Number(quote.subtotal).toFixed(2) + '</div><div>Tax: $' + Number(quote.tax).toFixed(2) + '</div><div style="font-weight:900;font-size:20px;color:var(--caliches-blue);margin-top:5px;">Total: $' + Number(quote.total).toFixed(2) + '</div></div>';
+            '<div style="text-align:right;font-size:14px;color:#444;line-height:1.6;"><div>Subtotal: $' + Number(quote.subtotal||0).toFixed(2) + '</div><div>Tax: $' + Number(quote.tax||0).toFixed(2) + '</div><div style="font-weight:900;font-size:20px;color:var(--caliches-blue);margin-top:5px;">Total: $' + Number(quote.total||0).toFixed(2) + '</div></div>';
 
         if (quote.status === 'Accepted') {
             var _sqNote = (quote.invoice_status === 'Paid')
@@ -548,25 +551,22 @@
         let email = document.getElementById('forgotEmail').value.trim();
         let errorEl = document.getElementById('forgotPinError');
         let btn = document.getElementById('forgotPinBtn');
+        errorEl.style.color = 'var(--fail-red)'; // default: real errors show red; the "account found" confirmation flips this to blue below
         if (!username || !email) { errorEl.innerText = 'Please fill in both fields.'; errorEl.style.display = 'block'; return; }
         btn.innerText = 'Sending...'; btn.disabled = true; errorEl.style.display = 'none';
         supabaseClient.rpc('app_forgot_pin', { p_username: username, p_email: email })
         .then(({ data, error }) => {
             if (error) { errorEl.innerText = 'Error: ' + error.message; errorEl.style.display = 'block'; btn.innerText = 'Send My PIN'; btn.disabled = false; return; }
             if (!data || data.length === 0) { errorEl.innerText = 'No account found with that username and email. Contact your manager.'; errorEl.style.display = 'block'; btn.innerText = 'Send My PIN'; btn.disabled = false; return; }
-            let user = data[0];
-            let fd = new FormData();
-            fd.append('forgotPassword', 'true');
-            fd.append('name', user.name);
-            fd.append('email', email);
-            fd.append('pin', user.pin);
-            fetch(G_URL, { method: 'POST', body: fd })
-            .then(res => res.json())
-            .then(() => {
-                closeForgotPin();
-                alert('PIN sent to ' + email + '. Check your inbox (and spam folder).');
-            })
-            .catch(() => { errorEl.innerText = 'Could not send email. Contact your manager.'; errorEl.style.display = 'block'; btn.innerText = 'Send My PIN'; btn.disabled = false; });
+            // Account verified. SECURITY (pre-launch B1): the credential-email block was removed.
+            // app_forgot_pin now returns name + password (a bcrypt HASH) after the login/password
+            // migration, so there is no plaintext `pin` to email and a hash must never be sent over
+            // the public Apps Script mailer (G_URL). We confirm the account exists and route the user
+            // to a manager PIN reset instead. A proper one-time reset-link flow is a backend follow-up.
+            errorEl.style.color = 'var(--caliches-blue)';
+            errorEl.innerText = 'Your account was found. For security, PINs can\'t be emailed — please ask a manager to reset your PIN in the Hub (Admin → Users), or contact your Store Manager.';
+            errorEl.style.display = 'block';
+            btn.innerText = 'Send My PIN'; btn.disabled = false;
         });
     }
 

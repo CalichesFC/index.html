@@ -2,6 +2,7 @@
     // CUSTOMER HISTORY AUTOSUGGEST (Quote tab)
     // ============================================================
     let quoteSuggestTimer = null;
+    let quoteSuggestReqId = 0; // Wave 2 fix (2026-07-18): stale-response guard, see onQuoteContactNameInput
 
     function onQuoteContactNameInput(input) {
         const query = input.value.trim();
@@ -9,8 +10,13 @@
         if (quoteSuggestTimer) clearTimeout(quoteSuggestTimer);
         if (query.length < 2) { box.style.display = 'none'; box.innerHTML = ''; return; }
         quoteSuggestTimer = setTimeout(() => {
+            const myReqId = ++quoteSuggestReqId;
             supabaseClient.rpc('app_quote_search_contacts', { p_query: query })
             .then(({ data, error }) => {
+                // Wave 2 fix (2026-07-18): stale-response guard -- a slower earlier request can
+                // resolve after a newer one; discard it instead of letting it overwrite the current,
+                // correct suggestions/matches (was: whichever response arrived last always won).
+                if (myReqId !== quoteSuggestReqId) return;
                 if (error || !data || data.length === 0) { box.style.display = 'none'; box.innerHTML = ''; return; }
                 // De-duplicate by contact name + company
                 const seen = {}; const matches = [];
@@ -29,7 +35,7 @@
                 window._quoteContactMatches = matches;
                 box.innerHTML = html;
                 box.style.display = 'block';
-            }).catch(() => { box.style.display = 'none'; box.innerHTML = ''; });
+            }).catch(() => { if (myReqId !== quoteSuggestReqId) return; box.style.display = 'none'; box.innerHTML = ''; });
         }, 300);
     }
 
@@ -182,7 +188,7 @@
                 var cargs = { p_order_num: orderNum, p_submitted_by: currentUser.name || null };
                 Object.keys(qfields).forEach(function(k){ cargs[k] = qfields[k]; });
                 supabaseClient.rpc('app_quote_create', cargs).then(({ data, error }) => {
-                    if (error) { console.error('[Quote] Supabase insert error:', error.code, error.message); }
+                    if (error) { console.error('[Quote] Supabase insert error:', error.code, error.message); alert('The PDF was made, but saving the quote failed: ' + error.message); }
                     else { afterSaved(data && data[0] && data[0].accept_token); }
                 }).catch(err => console.error('[Quote] Unexpected Supabase error:', err));
             }
@@ -1043,7 +1049,7 @@
                 let html = '';
                 Object.keys(byCategory).sort().forEach(cat => {
                     html += '<div class="kb-category">';
-                    html += '<div class="kb-category-title"><span class="kb-cat-text">' + cat + '</span><span class="kb-cat-line"></span></div>';
+                    html += '<div class="kb-category-title"><span class="kb-cat-text">' + escapeHtml(cat) + '</span><span class="kb-cat-line"></span></div>';
                     byCategory[cat].forEach(row => {
                         const updated = row.updated_at ? new Date(row.updated_at).toLocaleDateString() : '';
                         html += '<div class="kb-item" id="kb-item-' + row.id + '">';

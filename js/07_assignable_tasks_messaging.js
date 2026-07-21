@@ -888,7 +888,7 @@
                 if(parts.length) h+='<br>By position — '+parts.join(' &middot; ');
                 h+='</div>';
                 if(typeof isManagerRole==='function' ? isManagerRole() : true){
-                    h+='<button onclick="openClearance('+empId+','+JSON.stringify(name||'')+')" style="margin-top:12px;width:100%;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#9881;&#65039; Cleared positions &amp; food-handler card</button>';
+                    h+='<button onclick="openClearance('+empId+',&quot;'+escapeHtml(String(name||'').replace(/&/g,'').replace(/"/g,''))+'&quot;)" style="margin-top:12px;width:100%;background:#eef3fb;color:#185FA5;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#9881;&#65039; Cleared positions &amp; food-handler card</button>';
                 }
                 body.innerHTML=h;
             }).catch(function(){ document.getElementById('posProgressBody').innerHTML='<p style="color:#c0264b;text-align:center;padding:14px;">Could not load progress.</p>'; });

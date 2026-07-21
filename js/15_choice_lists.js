@@ -82,7 +82,7 @@
     function clSeed(group){
       var def=clDef(group); if(!def) return;
       var seen={}, items=def.defaults.map(function(lbl,i){
-        var k=clSlug(lbl)||('item_'+i); var b=k, n=2; while(seen[k]){ k=b+'_'+(n++); } seen[k]=1;
+        var k=group+'__'+(clSlug(lbl)||('item_'+i)); var b=k, n=2; while(seen[k]){ k=b+'_'+(n++); } seen[k]=1;
         return {group:group,key:k,label:lbl,value:'',sort:i};
       });
       acBatchSet(items,function(err){ if(err) alert('Some items could not be saved. Managers only.'); acRenderChoiceLists(); });

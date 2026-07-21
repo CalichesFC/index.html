@@ -76,6 +76,33 @@
         });
     }
 
+    // ---- On-shift gate: workday features require being clocked in ----------
+    // Sourced from Axial via the app_on_shift RPC (see specs/axial_clock_gate.sql).
+    // FAIL-OPEN: any error, missing data, or gate-disabled setting => allowed, so
+    // the team is never locked out if the sync is down or not yet configured.
+    function hubRequireOnShift(cb, opts){
+        opts = opts || {};
+        if(typeof supabaseClient==='undefined' || !currentUser){ cb(); return; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_on_shift',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error || !r.data || r.data.on_shift!==false){ cb(); return; } // allowed / fail-open
+                hubShowClockGate(opts.label);
+            }).catch(function(){ cb(); });
+        }, function(){ cb(); });
+    }
+    function hubShowClockGate(label){
+        var ov=document.getElementById('hubClockGate');
+        if(!ov){ ov=document.createElement('div'); ov.id='hubClockGate'; ov.style.cssText='position:fixed;inset:0;background:rgba(20,25,35,.5);z-index:100050;display:flex;align-items:center;justify-content:center;padding:20px;'; document.body.appendChild(ov); }
+        ov.innerHTML='<div style="background:#fff;border-radius:16px;max-width:360px;width:100%;padding:22px 20px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.25);">'+
+            '<div style="font-size:40px;">&#9200;</div>'+
+            '<h3 style="margin:8px 0 4px;color:#1f2a44;">Clock in to start your shift</h3>'+
+            '<p style="font-size:13px;color:#6b7686;margin:0 0 16px;">'+(label?(escapeHtml(label)+' is a workday feature. '):'')+'Clock in first &mdash; then everything opens up.</p>'+
+            '<button onclick="(function(){var g=document.getElementById(&quot;hubClockGate&quot;);if(g)g.remove();if(typeof openTimeClock===&quot;function&quot;)openTimeClock();})()" style="background:#1f7a3d;color:#fff;border:none;border-radius:10px;padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer;width:100%;">Go to Time Clock</button>'+
+            '<button onclick="var g=document.getElementById(&quot;hubClockGate&quot;);if(g)g.remove();" style="background:none;border:none;color:#8a91a0;font-size:13px;margin-top:10px;cursor:pointer;">Not now</button>'+
+        '</div>';
+        ov.style.display='flex';
+    }
+
     // ---- config (app_settings group shc_config; tolerant, always has fallbacks) ----
     function shcLoadCfg(cb){
         if(_shc.cfg){ cb(); return; }
@@ -128,6 +155,9 @@
     // ============================================================
     function openShiftConsole(){
         if(!shcCanUse()){ alert('The Shift Leader Console is for shift leaders and managers. Ask a manager if you should have access.'); return; }
+        hubRequireOnShift(function(){ openShiftConsoleInner(); }, {label:'The Shift Leader Console'});
+    }
+    function openShiftConsoleInner(){
         var ov=shcOverlay();
         ov.innerHTML=shcHeader('Shift Leader Console','')+'<div style="max-width:760px;margin:0 auto;padding:40px 16px;text-align:center;color:#6b7686;">Loading&hellip;</div>';
         shcLoadCfg(function(){
@@ -204,7 +234,7 @@
             supabaseClient.rpc('app_checklist_windows',U).then(function(r){ if(!r.error){ _shc.data.windows=r.data||[]; shcPatch(); } }).catch(function(){});
             supabaseClient.rpc('app_my_tasks',U).then(function(r){ if(!r.error){ _shc.data.tasks=(r.data&&r.data.tasks)||[]; shcPatch(); } }).catch(function(){});
             supabaseClient.rpc('shc_priorities_get',Object.assign({p_location:loc},U)).then(function(r){ if(!r.error){ _shc.data.priorities=r.data||[]; shcPatch(); } }).catch(function(){});
-            supabaseClient.rpc('dsr_list',Object.assign({p_filters:{location:loc,date:(s.business_date||shcTodayIso()),status:''}},U)).then(function(r){ if(!r.error){ var rows=r.data||[]; _shc.data.dsrRow=rows.length?rows[0]:null; shcPatch(); } }).catch(function(){});
+            supabaseClient.rpc('dsr_list',Object.assign({p_filters:{location:loc,from:(s.business_date||shcTodayIso()),to:(s.business_date||shcTodayIso()),status:''}},U)).then(function(r){ if(!r.error){ var rows=r.data||[]; _shc.data.dsrRow=rows.length?rows[0]:null; shcPatch(); } }).catch(function(){});
             supabaseClient.rpc('app_contacts_list',Object.assign({p_location:loc},U)).then(function(r){ if(!r.error){ _shc.data.contacts=r.data||[]; shcPatch(); } }).catch(function(){});
         });
     }
@@ -318,7 +348,7 @@
             var list=_shc.data.checks[sh]; if(!list || !list.length) return;
             var done=list.filter(function(i){return i.done;}).length;
             if(done>=list.length) return;
-            var w=(_shc.data.windows||[]).find(function(x){ return x && x.active!==false && x.location===loc && String(x.shift_type||'').toLowerCase()===sh; });
+            var w=(_shc.data.windows||[]).find(function(x){ if(!x || x.active===false || x.location!==loc) return false; var wt=String(x.shift_type||'').toLowerCase(); return wt===sh || wt===names[sh].toLowerCase(); }); // match window whether stored short ('open') or capitalized ('Opening') — checklist casing (audit B1)
             var dueM=w&&w.due_time?shcHMtoMin(String(w.due_time).slice(0,5)):null;
             if(dueM==null || nowM>=(dueM-120)){
                 var late=(dueM!=null && nowM>(dueM+(parseInt(w.escalate_after_min||30,10))));
@@ -329,8 +359,9 @@
         var row=_shc.data.dsrRow;
         var ringM=shcHMtoMin(shcCfg('shc_ringout_due')); var closeM=shcHMtoMin(shcCfg('shc_close_due'));
         var dsrStatus=row?row.status:null;
+        var dsrSubmittedLike=!!(row && typeof dsrIsSubmittedStatus==='function' && dsrIsSubmittedStatus(dsrStatus));
         if(row===null){ items.push({html:'📄 Today’s Daily Store Report not started', warn:(ringM!=null&&nowM>=ringM), go:"shcOpenSec('closeout')"}); }
-        else if(row && (dsrStatus==='Draft'||dsrStatus==='In Progress')){
+        else if(row && !dsrSubmittedLike){
             if(ringM!=null && nowM>=ringM) items.push({html:'💰 5:00 ring-out window — report is '+escapeHtml(dsrStatus), warn:false, go:"shcOpenSec('closeout')"});
             if(closeM!=null && nowM>=closeM) items.push({html:'🌙 Nightly closeout due — finish &amp; submit the report', warn:true, go:"shcOpenSec('closeout')"});
         }
@@ -730,7 +761,7 @@
 
         // closeout / report status
         var r=_shc.data.dsrRow; var st=r?(r.status||'Draft'):'not started';
-        var dsrOk=(st==='Submitted'||st==='Reviewed'||st==='Locked'||st==='Under Review');
+        var dsrOk=!!(r && typeof dsrIsSubmittedStatus==='function' && dsrIsSubmittedStatus(r.status));
         if(!dsrOk) unresolved.push('Daily Store Report is '+st+' — finish the closeout and submit it');
         h+=shcCard(shcChip('Report: '+st, dsrOk?'#1f7a3d':'#9a5b00', dsrOk?'#e8f5ec':'#fff4e0')+'<div style="margin-top:6px;">'+shcBtn('Open closeout','shcJumpToDsr()','ghost')+'</div>','💰 Ring-out / closeout');
 
@@ -778,7 +809,7 @@
     }
     function shcRenderDone(){
         var ov=shcOverlay(); var s=shcSess();
-        var dsrOk=(_shc.data.dsrRow && ['Submitted','Reviewed','Locked','Under Review'].indexOf(_shc.data.dsrRow.status)>=0);
+        var dsrOk=!!(_shc.data.dsrRow && typeof dsrIsSubmittedStatus==='function' && dsrIsSubmittedStatus(_shc.data.dsrRow.status));
         var h=shcHeader('Shift ended','');
         h+='<div style="max-width:640px;margin:0 auto;padding:30px 16px 60px;text-align:center;">';
         h+='<div style="font-size:44px;">&#127881;</div>';
@@ -857,3 +888,33 @@
         if(!reason.trim()){ alert('A reason is required.'); return; }
         shcRpc('shc_session_reopen',{p_session_id:id,p_reason:reason.trim()},function(){ alert('Shift reopened.'); shcViewSession(id); });
     }
+
+    // ============================================================
+    // WORKDAY GATE — require clock-in for the operational screens.
+    // Wraps the global open* entry points on load (same monkey-patch pattern the
+    // codebase already uses for openAdminConsole). The gate is FAIL-OPEN and only
+    // enforces when app_settings clock_gate.gate_enforce = '1' (see
+    // specs/axial_clock_gate.sql). To gate more screens, add their function name
+    // + label below. openShiftConsole is already gated inline above.
+    // ============================================================
+    (function(){
+        var LABELS = {
+            openDailyReport:'The Daily Store Report',
+            openTempLogs:'The Temperature Log',
+            openChecklists:'Shift Checklists',
+            openWorkOrders:'Work Orders',
+            openPreshift:'The Pre-Shift'
+        };
+        function wrapWorkdayGates(){
+            Object.keys(LABELS).forEach(function(fn){
+                var orig = window[fn];
+                if(typeof orig==='function' && !orig.__shiftGated && typeof hubRequireOnShift==='function'){
+                    var wrapped = function(){ var a=arguments, self=this; hubRequireOnShift(function(){ orig.apply(self,a); }, {label:LABELS[fn]}); };
+                    wrapped.__shiftGated = true;
+                    window[fn] = wrapped;
+                }
+            });
+        }
+        if(document.readyState==='complete') wrapWorkdayGates();
+        else window.addEventListener('load', wrapWorkdayGates);
+    })();
