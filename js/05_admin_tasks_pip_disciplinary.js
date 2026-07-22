@@ -543,6 +543,7 @@
         var _rrBtn=document.getElementById('btn-requestsRails'); if(_rrBtn) _rrBtn.style.display=permAllow('requests_rails', true)?'block':'none';
         var _ccBtn=document.getElementById('btn-commandCenter'); if(_ccBtn) _ccBtn.style.display=permAllow('command_center', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Office'].indexOf(role)>=0))?'block':'none';
         var _macBtn=document.getElementById('btn-managerActionCenter'); if(_macBtn) _macBtn.style.display=permAllow('manager_action_center', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
+        var _shsBtn=document.getElementById('btn-storeHealth'); if(_shsBtn) _shsBtn.style.display=permAllow('store_health_scorecard', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Assistant Manager'].indexOf(role)>=0))?'block':'none';
         var _ptBtn=document.getElementById('btn-payTools'); if(_ptBtn) _ptBtn.style.display=permAllow('pay_tools', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Office'].indexOf(role)>=0))?'block':'none';
         /* btn-marketingV2 tile retired 2026-07-13 — folded into btn-marketingHub (openMarketingHub router). */
         var _smBtn=document.getElementById('btn-storeManager'); if(_smBtn) _smBtn.style.display=permAllow('store_manager', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
