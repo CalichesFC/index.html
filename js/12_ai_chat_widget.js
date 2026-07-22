@@ -37,6 +37,18 @@
             } catch (e) { return (currentUser && currentUser.name) || 'Team Member'; }
         }
 
+        // AI Governance Phase 1: resolve the logged-in user's PIN for the audited AI gateway
+        // so identity + permissions are validated server-side. Safe no-op if the gateway is
+        // off; resolves '' after a short wait so a missed/cancelled PIN can't hang the chat.
+        function scoopyPin(){
+            return new Promise(function(resolve){
+                var done=false; function fin(p){ if(!done){ done=true; resolve(p||''); } }
+                try { if (typeof withPin==='function'){ withPin(function(pin){ fin(pin); }); } else fin(''); }
+                catch(e){ fin(''); }
+                setTimeout(function(){ fin(''); }, 12000);
+            });
+        }
+
         // WAVE 2 FIX (2026-07-18, Finding 6): backend/network failures were indistinguishable
         // from a genuine "I don't know" reply (both showed the same generic fallback text,
         // which even got mis-logged as a content gap), and a hung backend left the "..." bubble
@@ -63,7 +75,24 @@
             var timer = controller ? setTimeout(function () { timedOut = true; controller.abort(); }, AI_TIMEOUT_MS) : null;
 
             try {
-                const resp = await fetch(G_URL + '?action=ai&message=' + encodeURIComponent(msg) + '&history=' + encodeURIComponent(JSON.stringify(aiChatHistory)) + '&userName=' + encodeURIComponent(scoopyUserContext()), controller ? { signal: controller.signal } : undefined);
+                // AI Governance Phase 1 (G1/G2): if an audited gateway URL is configured,
+                // route Scoopy through it with the user's PIN so identity, permission-filtered
+                // retrieval, and audit logging all happen server-side. Blank config (default) =
+                // unchanged legacy behavior, so this is safe to ship dormant.
+                var _gw=''; try { _gw = (typeof cfg==='function') ? (cfg('ai_config','ai_gateway_url','')||'') : ''; } catch(_e){ _gw=''; }
+                var resp;
+                if (_gw) {
+                    var _pin = await scoopyPin();
+                    var _store = (typeof activeStoreLoc==='function' && activeStoreLoc()) || (currentUser && currentUser.home_location) || null;
+                    resp = await fetch(_gw, {
+                        method:'POST',
+                        headers:{ 'Content-Type':'application/json' },
+                        body: JSON.stringify({ username:(currentUser&&currentUser.username)||'', pin:_pin, message:msg, history:aiChatHistory, store:_store, userName:scoopyUserContext() }),
+                        signal: controller ? controller.signal : undefined
+                    });
+                } else {
+                    resp = await fetch(G_URL + '?action=ai&message=' + encodeURIComponent(msg) + '&history=' + encodeURIComponent(JSON.stringify(aiChatHistory)) + '&userName=' + encodeURIComponent(scoopyUserContext()), controller ? { signal: controller.signal } : undefined);
+                }
                 if (timer) clearTimeout(timer);
                 if (!resp.ok) {
                     // Backend/HTTP-level failure — must read as distinct from a genuine "I don't
