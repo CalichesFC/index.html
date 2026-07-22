@@ -531,6 +531,8 @@
             +'<button onclick="if(typeof clearQuoteEdit===\'function\')clearQuoteEdit();openForm(\'quotesView\');if(typeof hubLoadTaxRates===\'function\')hubLoadTaxRates();" style="flex:1;background:#7b2d8b;color:#fff;border:none;border-radius:11px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">&#128221; Quote Builder</button>'
             +'<button onclick="openSalesPipeline()" style="flex:1;background:#26242b;color:#fff;border:none;border-radius:11px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">&#128202; Quotes &amp; Invoices</button>'
             +'</div>';
+        // v1.1: operational side — the C&V Command Center (Event Console lives here).
+        html+='<button onclick="cvOpenDashboard()" style="width:100%;background:#0f766e;color:#fff;border:none;border-radius:11px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;margin-bottom:14px;">&#128666; C&amp;V Command Center (operational dashboard)</button>';
         if(!catList.length){ html+='<p style="text-align:center;color:#8a8594;padding:26px 10px;font-size:13.5px;">Nothing here yet. Website inquiries land in this pipeline automatically, or add a phone/walk-in event above.</p>'; box.innerHTML=html; return; }
         var order=CAT_STAGES.concat(['lost']);
         for(var s=0;s<order.length;s++){
@@ -653,8 +655,214 @@
         var id=catCur.id;
         catRpc('app_catering_advance',{p_id:id,p_to:to,p_note:note,p_extra:extra},function(d){
             if(d&&d.warning) alert(d.warning);
-            catOpenDetail(id);
+            // Booked -> spawn the operational C&V Event (idempotent) + shared-engine
+            // follow-up tasks, then reopen the sales record (SPEC §5 Table 17 / FR-04).
+            if(to==='booked'){ cvSpawnFor(id, function(){ catOpenDetail(id); }); }
+            else { catOpenDetail(id); }
         });
+    }
+    // ============================================================
+    // C&V COMMAND CENTER — OPERATIONAL EVENT CONSOLE (v1.1)
+    // Surfaces the operational cv_event that a Booked pipeline job spawns:
+    // Run-Event lifecycle, RED/YELLOW/GREEN safety gate, official checklist /
+    // loadout, crew roster, and money/closeout reconciliation. Renders inside the
+    // existing cateringView (catBody) — no new nav/screen. All cv_* RPCs are
+    // manager-gated server-side. (SPEC_Catering_Vending_v1_1.md §4-§8.)
+    // ============================================================
+    var cvCur=null;
+    var CV_OPS=['planning','staffing_prep','ready_to_depart','in_progress','returned','closeout_pending','complete'];
+    var CV_OP_LABELS={planning:'Planning',staffing_prep:'Staffing & Prep',ready_to_depart:'Ready to Depart',in_progress:'In Progress',returned:'Returned',closeout_pending:'Closeout Pending',complete:'Complete',cancelled:'Cancelled'};
+    var CV_SAFETY={red:{c:'#c0264b',l:'RED — hard stop'},yellow:{c:'#f59e0b',l:'YELLOW — exception'},green:{c:'#10b981',l:'GREEN — ready'}};
+    function cvBtn(label,onclk,bg){ return '<button onclick="'+onclk+'" style="background:'+(bg||'#eef0f3')+';color:'+(bg?'#fff':'#3a4353')+';border:none;border-radius:8px;padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer;">'+label+'</button>'; }
+    function cvSafetyPill(s){ var m=CV_SAFETY[s]||{c:'#9ca3af',l:String(s||'').toUpperCase()}; return '<span style="display:inline-block;background:'+m.c+';color:#fff;border-radius:999px;padding:3px 11px;font-size:11px;font-weight:800;letter-spacing:.02em;">'+escapeHtml(m.l)+'</span>'; }
+    function cvOpProgressHtml(st){ var idx=CV_OPS.indexOf(st); var html='<div style="display:flex;flex-wrap:wrap;gap:3px;align-items:center;margin:4px 0;">'; for(var i=0;i<CV_OPS.length;i++){ var on=(i===idx),done=(i<idx); var style=on?'background:#10b981;color:#fff;':(done?'background:#e6e9ef;color:#3a4353;':'background:#f3f4f7;color:#a7adba;'); html+='<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:999px;'+style+'">'+escapeHtml(CV_OP_LABELS[CV_OPS[i]])+'</span>'; if(i<CV_OPS.length-1) html+='<span style="color:#c3c8d4;font-size:9px;">&rsaquo;</span>'; } return html+'</div>'; }
+
+    // Booked-time spawn (idempotent server-side). cb() runs on success.
+    function cvSpawnFor(cateringId, cb){
+        catRpc('cv_event_spawn',{p_catering_event_id:cateringId},function(){ if(cb) cb(); },
+            function(err){ try{console.warn('cv_event_spawn deferred:', err&&err.message);}catch(e){} if(cb) cb(); });
+    }
+    // From a catering record: open its operational Event Console (spawn if missing).
+    function cvOpenForCatering(cateringId){
+        var box=document.getElementById('catBody'); if(box) box.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Opening Event Console&hellip;</p>';
+        catRpc('cv_event_list',{p_market:null,p_status:null},function(list){
+            var ev=null; list=list||[];
+            for(var i=0;i<list.length;i++){ if(String(list[i].catering_event_id)===String(cateringId)){ ev=list[i]; break; } }
+            if(ev){ cvOpenConsole(ev.id); }
+            else { catRpc('cv_event_spawn',{p_catering_event_id:cateringId},function(d){ if(d&&d.id) cvOpenConsole(d.id); else catOpenDetail(cateringId); },
+                     function(err){ alert(err.message||'Could not create the operational event.'); catOpenDetail(cateringId); }); }
+        },function(err){ if(box) box.innerHTML='<p style="text-align:center;color:#c0264b;padding:20px;">'+escapeHtml(err.message||'Could not load.')+'</p>'; });
+    }
+    function cvOpenConsole(evId){
+        var box=document.getElementById('catBody'); if(box) box.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading Event Console&hellip;</p>';
+        catRpc('cv_event_detail',{p_id:evId},function(d){ cvCur=d; cvRenderConsole(); },
+            function(err){ if(box) box.innerHTML='<p style="text-align:center;color:#c0264b;padding:20px;">'+escapeHtml(err.message||'Could not load.')+'</p><p style="text-align:center;"><button onclick="catLoad()" style="background:#eef0f3;border:none;border-radius:9px;padding:9px 16px;font-weight:700;cursor:pointer;">&larr; Pipeline</button></p>'; });
+    }
+    function cvRenderConsole(){
+        var box=document.getElementById('catBody'); if(!box||!cvCur) return; var d=cvCur;
+        var back=d.catering_event_id?('catOpenDetail(\''+escapeHtml(String(d.catering_event_id))+'\')'):'catLoad()';
+        var html='<button onclick="'+back+'" style="background:none;border:none;color:#0d6eaf;font-size:13px;font-weight:700;cursor:pointer;padding:0;margin-bottom:10px;">&larr; Back</button>';
+        html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:10px;"><div style="min-width:0;"><div style="font-size:18px;font-weight:800;color:#26242b;">'+escapeHtml(d.title||'Operational Event')+'</div><div style="font-size:12px;color:#6b7686;">'+escapeHtml((d.market||'')+(d.operating_unit?(' · '+d.operating_unit):'')+(d.event_date?(' · '+catDateFmt(d.event_date)):''))+'</div></div><div style="flex-shrink:0;">'+cvSafetyPill(d.safety_status)+'</div></div>';
+        html+=catSec('Run Event',cvAdvanceHtml(d));
+        html+=catSec('Safety gate (RED / YELLOW / GREEN)',cvSafetyHtml(d));
+        html+=catSec('Checklist &amp; loadout',cvItemsHtml(d));
+        html+=catSec('Crew / roster',cvRosterHtml(d));
+        html+=catSec('Money &amp; closeout',cvMoneyHtml(d));
+        box.innerHTML=html; window.scrollTo(0,0);
+    }
+    function cvAdvanceHtml(d){
+        var idx=CV_OPS.indexOf(d.op_status), html=cvOpProgressHtml(d.op_status);
+        if(d.op_status==='cancelled') return html+'<p style="color:#8a8594;font-size:12.5px;margin:4px 0 0;">This event was cancelled.</p>';
+        if(d.op_status==='complete') return html+'<p style="color:#10b981;font-weight:700;font-size:13px;margin:4px 0 0;">Event complete.</p>';
+        if(idx<0) return html;
+        var nxt=CV_OPS[idx+1]; if(!nxt) return html;
+        var gate=(nxt==='ready_to_depart'||nxt==='in_progress')&&d.safety_status!=='green';
+        html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">';
+        html+='<button onclick="cvAdvance(\'next\')"'+(gate?' title="Safety must be GREEN first"':'')+' style="background:'+(gate?'#c0264b':'#10b981')+';color:#fff;border:none;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:800;cursor:pointer;">'+(gate?'&#128274; ':'')+'Advance to '+escapeHtml(CV_OP_LABELS[nxt])+'</button>';
+        html+='<button onclick="cvAdvance(\'cancel\')" style="background:#8a8594;color:#fff;border:none;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:800;cursor:pointer;">Cancel event</button></div>';
+        if(gate) html+='<p style="color:#c0264b;font-size:12px;margin:6px 0 0;">&#9888; Safety gate: resolve every RED check to GREEN before departure/service.</p>';
+        return html;
+    }
+    function cvAdvance(action){
+        if(!cvCur) return; var id=cvCur.id;
+        if(action==='cancel'&&!confirm('Cancel this operational event?')) return;
+        catRpc('cv_event_advance',{p_id:id,p_action:action},function(){ cvOpenConsole(id); },
+            function(err){ alert(err.message||'Could not advance.'); });   // server SAFETY GATE message surfaces here
+    }
+    function cvSafetyHtml(d){
+        var s=d.safety_checks||[]; var html='<div style="margin-bottom:8px;font-size:12.5px;">Overall: '+cvSafetyPill(d.safety_status)+'</div>';
+        if(!s.length) html+='<p style="color:#8a8594;font-size:12.5px;">No safety checks recorded.</p>';
+        for(var i=0;i<s.length;i++){ var c=s[i]; var col=(CV_SAFETY[c.classification]||{}).c||'#9ca3af';
+            html+='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f3f4f7;font-size:13px;">';
+            html+='<div style="min-width:0;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+col+';margin-right:6px;vertical-align:middle;"></span>'+escapeHtml(c.label||c.check_key)+' <span style="color:#8a8594;font-size:11px;">('+escapeHtml(c.classification)+' / '+escapeHtml(c.check_state)+')</span></div>';
+            var btns='';
+            if(c.check_state!=='resolved') btns+=cvBtn('Resolve','cvSafetySet(\''+escapeHtml(c.check_key)+'\',\''+escapeHtml(c.classification)+'\',\'resolved\')','#10b981');
+            if(c.classification==='yellow'&&c.check_state==='open') btns+=' '+cvBtn('Accept','cvSafetySet(\''+escapeHtml(c.check_key)+'\',\'yellow\',\'accepted\')','#f59e0b');
+            html+='<div style="display:flex;gap:6px;flex-shrink:0;">'+btns+'</div></div>';
+        }
+        html+='<div style="margin-top:8px;">'+cvBtn('+ Add safety check','cvAddSafety()')+'</div>';
+        return html;
+    }
+    function cvSafetySet(key,cls,state){
+        if(!cvCur) return; var id=cvCur.id; var note=null;
+        if(state==='accepted'){ note=prompt('Acknowledgement note (required to accept a YELLOW exception):'); if(note===null||!note.trim()){ alert('A note is required to accept a YELLOW exception.'); return; } note=note.trim(); }
+        var pl={check_key:key,classification:cls,check_state:state}; if(note) pl.note=note;
+        catRpc('cv_safety_check_set',{p_id:id,p_payload:pl},function(d){ cvCur=d; cvRenderConsole(); });
+    }
+    function cvAddSafety(){
+        if(!cvCur) return; var k=prompt('Safety check name (e.g. hitch, propane, food_temp):'); if(k===null||!k.trim()) return;
+        var cls=prompt('Classification — red / yellow / green:','red'); if(cls===null) return; cls=(cls||'red').trim().toLowerCase();
+        if(['red','yellow','green'].indexOf(cls)<0){ alert('Classification must be red, yellow or green.'); return; }
+        catRpc('cv_safety_check_set',{p_id:cvCur.id,p_payload:{check_key:k.trim().replace(/\s+/g,'_'),label:k.trim(),classification:cls,check_state:'open'}},function(d){ cvCur=d; cvRenderConsole(); });
+    }
+    function cvItemsHtml(d){
+        var it=d.items||[]; if(!it.length) return '<p style="color:#8a8594;font-size:12.5px;">No checklist items.</p>';
+        var stcol={pending:'#9ca3af',packed:'#3b82f6',done:'#10b981',exception:'#c0264b',na:'#9ca3af'};
+        var html='';
+        for(var i=0;i<it.length;i++){ var x=it[i];
+            var crit=x.is_critical?' <span style="color:#c0264b;font-weight:800;font-size:9.5px;">CRITICAL</span>':'';
+            var qty=(x.packed_qty!=null||x.uom)?(' <span style="color:#8a8594;font-size:11px;">'+escapeHtml((x.packed_qty!=null?x.packed_qty:'?')+(x.uom?(' '+x.uom):''))+'</span>'):'';
+            html+='<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #f3f4f7;font-size:13px;">';
+            html+='<div style="min-width:0;"><b>'+escapeHtml(x.label)+'</b>'+crit+(x.category?(' <span style="color:#8a8594;font-size:11px;">'+escapeHtml(x.category)+'</span>'):'')+qty+'</div>';
+            html+='<div style="display:flex;gap:5px;align-items:center;flex-shrink:0;"><span style="color:'+(stcol[x.status]||'#9ca3af')+';font-weight:700;font-size:10px;text-transform:uppercase;">'+escapeHtml(x.status)+'</span>'
+                +cvBtn('Pack','cvItemStatus('+x.id+',\'packed\')','#3b82f6')+cvBtn('Done','cvItemStatus('+x.id+',\'done\')','#10b981')+cvBtn('!','cvItemException('+x.id+')','#c0264b')+'</div></div>';
+        }
+        html+='<div style="margin-top:8px;">'+cvBtn('+ Add item','cvAddItem()')+'</div>';
+        return html;
+    }
+    function cvItemStatus(itemId,st){
+        if(!cvCur) return; var id=cvCur.id; var pl={item_id:itemId,status:st};
+        if(st==='packed'){ var pq=prompt('Packed quantity (optional):'); if(pq!==null&&pq!==''){ var n=parseFloat(pq); if(!isNaN(n)) pl.packed_qty=n; } }
+        catRpc('cv_item_set',{p_id:id,p_payload:pl},function(d){ cvCur=d; cvRenderConsole(); });
+    }
+    function cvItemException(itemId){
+        if(!cvCur) return; var n=prompt('Exception reason (substitution / shortage / issue):'); if(n===null||!n.trim()) return;
+        catRpc('cv_item_set',{p_id:cvCur.id,p_payload:{item_id:itemId,status:'exception',exception_note:n.trim()}},function(d){ cvCur=d; cvRenderConsole(); });
+    }
+    function cvAddItem(){
+        if(!cvCur) return; var l=prompt('New checklist / loadout item:'); if(l===null||!l.trim()) return;
+        catRpc('cv_item_set',{p_id:cvCur.id,p_payload:{label:l.trim()}},function(d){ cvCur=d; cvRenderConsole(); });
+    }
+    function cvRosterHtml(d){
+        var r=d.roster||[]; var html='';
+        if(!r.length) html+='<p style="color:#8a8594;font-size:12.5px;">No crew assigned yet — name an Event Lead of Record.</p>';
+        for(var i=0;i<r.length;i++){ var a=r[i];
+            html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f3f4f7;font-size:13px;"><div><b>'+escapeHtml(a.person_name||'(unnamed)')+'</b> <span style="color:#8a8594;font-size:11.5px;">'+escapeHtml(a.event_role||'crew')+'</span></div><div>'+(a.acknowledged?'<span style="color:#10b981;font-weight:800;font-size:11px;">ACK</span>':cvBtn('Ack','cvAck('+a.id+')','#0d6eaf'))+'</div></div>';
+        }
+        html+='<div style="margin-top:8px;">'+cvBtn('+ Add crew','cvAddCrew()')+'</div>';
+        return html;
+    }
+    function cvAddCrew(){
+        if(!cvCur) return; var nm=prompt('Crew member name:'); if(nm===null||!nm.trim()) return;
+        var role=prompt('Event role — lead / driver / cashier / count_out / runner / setup / breakdown / custard_prep:','lead'); if(role===null) return;
+        catRpc('cv_assign_set',{p_id:cvCur.id,p_payload:{person_name:nm.trim(),event_role:(role||'crew').trim()}},function(d){ cvCur=d; cvRenderConsole(); });
+    }
+    function cvAck(aid){ if(!cvCur) return; catRpc('cv_assign_set',{p_id:cvCur.id,p_payload:{assign_id:aid,acknowledged:true}},function(d){ cvCur=d; cvRenderConsole(); }); }
+    function cvMoneyHtml(d){
+        var r=d.reconcile||{};
+        function row(k,v,strong){ return '<div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0;'+(strong?'font-weight:800;border-top:1px solid #eef0f5;margin-top:4px;padding-top:6px;':'')+'"><span style="color:#6b7686;">'+k+'</span><span>'+v+'</span></div>'; }
+        var os=Number(r.over_short||0);
+        var html='<div style="background:#fafbfc;border-radius:8px;padding:10px;margin-bottom:10px;">';
+        html+=row('Reported sales (card + cash)',catMoney(r.reported_sales),true);
+        html+=row('&nbsp;&nbsp;Card / Square',catMoney(r.gross_card_sales));
+        html+=row('&nbsp;&nbsp;Cash',catMoney(r.gross_cash_sales));
+        html+=row('Starting bank',catMoney(r.starting_bank));
+        html+=row('Authorized payouts (e.g. Mr. Campos)','&minus; '+catMoney(r.authorized_payouts));
+        html+=row('Drawer retained','&minus; '+catMoney(r.drawer_retained));
+        html+=row('Expected deposit',catMoney(r.expected_deposit),true);
+        html+=row('Actual deposit',catMoney(r.deposit));
+        html+=row('Over / short','<span style="color:'+(Math.abs(os)<0.005?'#10b981':'#c0264b')+';font-weight:800;">'+catMoney(os)+'</span>',true);
+        html+='<div style="font-size:10.5px;color:#8a8594;margin-top:6px;line-height:1.4;">A payout reduces the <b>deposit</b>, never reported sales. AmEx expenses (bananas/fuel/ice) never reduce the deposit.</div></div>';
+        html+='<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">'+cvBtn('+ AmEx expense','cvAddExpense()','#b45309')+cvBtn('+ Mr. Campos payout','cvAddPayout()','#7b2d8b')+'</div>';
+        var ex=d.expenses||[]; if(ex.length){ html+='<div style="font-size:10.5px;font-weight:800;color:#8a8594;margin:4px 0;">EXPENSES</div>'; for(var i=0;i<ex.length;i++){ html+='<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;"><span>'+escapeHtml(ex[i].category||'expense')+'</span><span>'+catMoney(ex[i].amount)+(ex[i].review_status==='flagged'?' <span style="color:#c0264b;font-weight:700;">flagged</span>':'')+'</span></div>'; } }
+        var po=d.payouts||[]; if(po.length){ html+='<div style="font-size:10.5px;font-weight:800;color:#8a8594;margin:4px 0;">PAYOUTS</div>'; for(var j=0;j<po.length;j++){ html+='<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;"><span>'+escapeHtml(po[j].payee||'payout')+'</span><span>'+catMoney(po[j].amount)+(po[j].review_status==='flagged'?' <span style="color:#c0264b;font-weight:700;">flagged</span>':'')+'</span></div>'; } }
+        html+=cvCloseoutFormHtml((d.closeout&&typeof d.closeout==='object')?d.closeout:{});
+        return html;
+    }
+    function cvCloseoutFormHtml(c){
+        function fld(key,label){ var v=(c&&c[key]!=null)?String(c[key]):''; return '<label style="flex:1;min-width:92px;font-size:11px;font-weight:700;color:#3a4353;">'+label+'<input id="cvc_'+key+'" type="number" step="0.01" value="'+escapeHtml(v)+'" style="width:100%;box-sizing:border-box;margin-top:2px;padding:7px;border:1px solid #dfe3ea;border-radius:7px;font-size:13px;"></label>'; }
+        var html='<div style="margin-top:10px;border-top:1px solid #eef0f5;padding-top:8px;"><div style="font-size:10.5px;font-weight:800;color:#8a8594;margin-bottom:6px;">CLOSEOUT ENTRY</div>';
+        html+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">'+fld('gross_card_sales','Card $')+fld('gross_cash_sales','Cash $')+fld('starting_bank','Bank $')+'</div>';
+        html+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">'+fld('drawer_retained','Retained $')+fld('deposit','Deposit $')+fld('txn_count','Txns')+'</div>';
+        html+='<button onclick="cvCloseoutSave()" style="background:#3b82f6;color:#fff;border:none;border-radius:9px;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;">Save closeout</button></div>';
+        return html;
+    }
+    function cvCloseoutSave(){
+        if(!cvCur) return; var id=cvCur.id, pl={};
+        ['gross_card_sales','gross_cash_sales','starting_bank','drawer_retained','deposit','txn_count'].forEach(function(k){ var el=document.getElementById('cvc_'+k); if(el&&el.value!=='') pl[k]=el.value; });
+        catRpc('cv_closeout_set',{p_id:id,p_payload:pl},function(d){ cvCur=d; cvRenderConsole(); });
+    }
+    function cvAddExpense(){
+        if(!cvCur) return; var cat=prompt('Expense category — banana / fuel / ice / supply / other:','ice'); if(cat===null) return;
+        var amt=prompt('Amount ($):'); if(amt===null) return; var a=parseFloat(amt); if(isNaN(a)||a<0){ alert('Enter a valid amount.'); return; }
+        catRpc('cv_expense_add',{p_id:cvCur.id,p_payload:{category:(cat||'other').trim(),amount:a}},function(d){ cvCur=d; cvRenderConsole(); });
+    }
+    function cvAddPayout(){
+        if(!cvCur) return; var amt=prompt('Mr. Campos payout ($ — standard fee is set in Business Settings; off-standard routes a review):'); if(amt===null) return;
+        var a=parseFloat(amt); if(isNaN(a)||a<0){ alert('Enter a valid amount.'); return; }
+        catRpc('cv_payout_add',{p_id:cvCur.id,p_payload:{amount:a}},function(d){ cvCur=d; cvRenderConsole(); });
+    }
+    // C&V Command Center dashboard (today / next 7 / staffing gaps / safety blocks / overdue closeouts).
+    function cvOpenDashboard(){
+        var box=document.getElementById('catBody'); if(box) box.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading C&amp;V Command Center&hellip;</p>';
+        catRpc('app_cv_dashboard',{p_market:null},function(d){ cvRenderDashboard(d); },
+            function(err){ if(box) box.innerHTML='<p style="text-align:center;color:#c0264b;padding:20px;">'+escapeHtml(err.message||'Could not load.')+'</p><p style="text-align:center;"><button onclick="catLoad()" style="background:#eef0f3;border:none;border-radius:9px;padding:9px 16px;font-weight:700;cursor:pointer;">&larr; Pipeline</button></p>'; });
+    }
+    function cvRenderDashboard(d){
+        var box=document.getElementById('catBody'); if(!box) return; d=d||{};
+        function list(title,arr){ arr=arr||[]; var h='<div style="font-size:11px;font-weight:800;color:#8a8594;margin:12px 0 4px;text-transform:uppercase;">'+title+' ('+arr.length+')</div>'; if(!arr.length){ h+='<p style="color:#8a8594;font-size:12.5px;margin:0;">None.</p>'; return h; } for(var i=0;i<arr.length;i++){ var e=arr[i]; h+='<div onclick="cvOpenConsole('+e.id+')" style="cursor:pointer;background:#fff;border:1px solid #eef0f5;border-radius:9px;padding:8px 10px;margin-bottom:5px;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,.04);"><b>'+escapeHtml(e.title||'Event')+'</b> <span style="color:#8a8594;font-size:11px;">'+escapeHtml(CV_OP_LABELS[e.op_status]||e.op_status||'')+(e.safety_status?(' · '+e.safety_status):'')+(e.event_date?(' · '+catDateFmt(e.event_date)):'')+'</span></div>'; } return h; }
+        var html='<button onclick="catLoad()" style="background:none;border:none;color:#0d6eaf;font-size:13px;font-weight:700;cursor:pointer;padding:0;margin-bottom:10px;">&larr; Back to pipeline</button>';
+        html+='<div style="font-size:18px;font-weight:800;color:#26242b;margin-bottom:2px;">C&amp;V Command Center</div><div style="font-size:12px;color:#6b7686;margin-bottom:10px;">'+escapeHtml(d.market||'All Markets')+'</div>';
+        html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">';
+        html+='<div style="flex:1;min-width:96px;background:#fafbfc;border-radius:9px;padding:10px;text-align:center;"><div style="font-size:22px;font-weight:800;color:'+((d.open_red_checks||0)>0?'#c0264b':'#26242b')+';">'+(d.open_red_checks||0)+'</div><div style="font-size:10.5px;color:#8a8594;">Open RED checks</div></div>';
+        html+='<div style="flex:1;min-width:96px;background:#fafbfc;border-radius:9px;padding:10px;text-align:center;"><div style="font-size:22px;font-weight:800;color:#26242b;">'+(d.open_critical_items||0)+'</div><div style="font-size:10.5px;color:#8a8594;">Open critical items</div></div>';
+        html+='</div>';
+        html+=list('Today',d.today);
+        html+=list('Next 7 days',d.next7);
+        html+=list('Safety / readiness blocks',d.safety_blocks);
+        html+=list('Staffing gaps (no Event Lead)',d.staffing_gaps);
+        html+=list('Overdue closeouts',d.overdue_closeouts);
+        box.innerHTML=html; window.scrollTo(0,0);
     }
     function catAddNote(){
         if(!catCur) return;
@@ -720,6 +928,11 @@
         if(d.assigned_manager) mo+=catKV('Manager',escapeHtml(d.assigned_manager));
         html+=catSec('Money',mo);
         html+=catSec('Actions',catActionsHtml(d.status));
+        if(['booked','completed','paid'].indexOf(d.status)>=0){
+            html+=catSec('C&amp;V Command Center',
+                '<p style="font-size:12.5px;color:#6b7686;margin:0 0 8px;">This booked job has an operational Event: official checklist &amp; loadout, RED/YELLOW/GREEN safety gate, crew roster, and money/closeout reconciliation.</p>'
+                +'<button onclick="cvOpenForCatering(\''+escapeHtml(String(d.id))+'\')" style="background:#7b2d8b;color:#fff;border:none;border-radius:9px;padding:10px 16px;font-size:13px;font-weight:800;cursor:pointer;">&#128666; Run Event / Command Center</button>');
+        }
         html+=catSec('Notes &amp; history','<button onclick="catAddNote()" style="background:#eef0f3;border:none;border-radius:9px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:6px;">&#128172; Add note</button>'+catHistoryHtml());
         box.innerHTML=html;
         catQuoteRecalc();

@@ -414,6 +414,11 @@
             <button id="btn-catering" class="menu-btn" style="display:none;" onclick="openCatering()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#127846;</span><b>Catering Pipeline</b><small>Inquiries, quotes, bookings &amp; run sheets</small></button>
             <button id="developerBtn" class="menu-btn" style="display:none;" onclick="openTrainingPortal()"><span class="rchip admin">Dev</span><span class="tile-ic">&#128187;</span><b>Training Portal</b><small>Developer tools</small></button>
             <button id="previewToggleBtn" class="menu-btn" style="display:none;" onclick="togglePreviewMode()"><span class="rchip admin">Dev</span><span class="tile-ic">&#128065;</span><b>Preview as Staff</b><small>Hide dev tabs</small></button>
+            <!-- "View as" role preview (leadership / owner / dev only). Read-only UI preview:
+                 renders the menu & tiles as the chosen role would see them. Never changes any
+                 real permission — every server action still authorizes the user as themselves.
+                 Visibility is gated IN CODE by canUseViewAs() (real role), not just this markup. -->
+            <div id="viewAsControl" class="menu-btn" style="display:none;position:relative;cursor:default;"><span class="rchip admin">Preview</span><span class="tile-ic">&#128100;</span><b>View as role</b><small>See the app as a role sees it &mdash; UI preview only, your real access is unchanged.</small><select id="viewAsSelect" onchange="onViewAsSelectChange(this.value)" style="margin-top:9px;width:100%;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:14px;background:#fff;color:#23303a;"></select></div>
             <button id="installBtn" class="menu-btn" style="display:none;" onclick="installApp()"><span class="tile-ic">&#128242;</span><b>Install App on Phone</b><small>Add to home screen</small></button>
             <div id="futureIntegrations" style="display:none;">
                 <button class="menu-btn" onclick="window.open('https://www.jotform.com','_blank')"><span class="tile-ic">&#128221;</span><b>JotForm</b><small>External forms</small></button>

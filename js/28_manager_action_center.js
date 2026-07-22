@@ -22,22 +22,24 @@
     //   (cross_dept is a CLIENT pseudo-view rendered from by_source, filtered to
     //    cross-department source modules per §6/§7 — no separate RPC.)
     //
-    // ONE live write action: app_task_nudge(p_username,p_password,p_task_id) —
-    //   manifest-registered, non-destructive owner reminder (§11.3 reminder).
-    //
-    // DOCUMENTED GAP (next phase — see report): the interactive §11 actions that
-    // mutate the task lifecycle with proper closure/proof/audit (open full
-    // detail w/ comments+audit, close-with-template, update/reassign/mark-waiting,
-    // comment, reopen) are backed by app_task_detail / app_task_update /
-    // app_task_close / app_task_reopen / app_task_comment_add / app_task_comment_list.
-    // Those are defined + granted in specs/task_engine_te_a.sql but are NOT in
-    // rpc_manifest.json, so they cannot be called yet without failing the
-    // pre-deploy RPC check. The detail drawer below surfaces each item's data +
-    // its closure requirements + escalation tier as READ-ONLY guidance so the
-    // wiring is a small, localized change once those 6 names are registered.
+    // WRITE ACTIONS (all manifest-registered + deployed in GO_LIVE_2; called with
+    // withPin credentials, manager-gated in the UI AND re-checked server-side):
+    //   app_task_nudge(...,p_task_id) — non-destructive owner reminder (§11.3).
+    //   app_task_detail(...,p_task_id) -> { task, is_overdue, comments[], audit[] };
+    //     full permission-checked detail, loaded when the drawer opens.
+    //   app_task_update(...,p_task_id,p_payload) — status / priority / owner_role /
+    //     due / blocked_reason (Waiting/Blocked/Cancelled require a reason).
+    //   app_task_close(...,p_task_id,p_payload) — template-driven closure; payload
+    //     keys: closure_template_id / closure_notes / photo_url / cost / verified_note.
+    //   app_task_reopen(...,p_task_id,p_reason) — audited reopen of closed/cancelled.
+    //   app_task_comment_add(...,p_task_id,p_body,p_internal) +
+    //     app_task_comment_list(...,p_task_id) — thread w/ internal (managers-only) notes.
+    // The closure form's required-field markers mirror task_closure_templates
+    // (GO_LIVE_2 §7); the backend is the real gate — the client only guides.
     // ============================================================
     var _mac = { store:'', view:'today', health:null, feed:null, synced:null,
-                 q:'', pri:'', src:'', own:'', snapOpen:false, allToday:false };
+                 q:'', pri:'', src:'', own:'', snapOpen:false, allToday:false,
+                 detailId:null, detail:null, detailMode:'view' };
 
     // Spec §6 / §13.1 views, grouped into work-queues and organize/rollups.
     var MAC_WORK_VIEWS = [
@@ -269,44 +271,254 @@
     // Search: re-render only the list container (preserves input focus).
     function macSearch(v){ _mac.q=v; var el=document.getElementById('macList'); if(el) el.innerHTML=macListHtml(); }
 
-    // ---- Details drawer (§5.2 / §8.1) — read-rich; surfaces closure + escalation.
-    function macDetailClose(){ var o=document.getElementById('macDetailModal'); if(o) o.style.display='none'; }
+    // ---- Seeded closure templates (mirror of task_closure_templates seeded in
+    // GO_LIVE_2 §7) — the authoritative requirement set the backend enforces on
+    // app_task_close. Used to drive the closure form's required-field markers.
+    var MAC_CLOSURE_TEMPLATES = {
+        generic:{label:'Generic Task',note:1,photo:0,cost:0,verify:0,appr:''},
+        maintenance_repair:{label:'Maintenance Repair',note:1,photo:1,cost:0,verify:1,appr:''},
+        preventive_maintenance:{label:'Preventive Maintenance',note:1,photo:1,cost:0,verify:0,appr:''},
+        supply_request:{label:'Supply Request',note:1,photo:0,cost:0,verify:0,appr:''},
+        temperature_discrepancy:{label:'Temperature Discrepancy',note:1,photo:1,cost:0,verify:1,appr:''},
+        dsr_review:{label:'Daily Store Report Review',note:1,photo:0,cost:0,verify:0,appr:'manager'},
+        cash_over_short:{label:'Cash / Over-Short',note:1,photo:1,cost:0,verify:1,appr:'manager'},
+        attendance_call_in:{label:'Attendance / Call-In',note:1,photo:0,cost:0,verify:0,appr:'manager'},
+        employee_note:{label:'Employee Note',note:1,photo:0,cost:0,verify:0,appr:'manager'},
+        disciplinary_action:{label:'Disciplinary Action',note:1,photo:0,cost:0,verify:1,appr:'admin'},
+        training_follow_up:{label:'Training Follow-Up',note:1,photo:0,cost:0,verify:0,appr:''},
+        your_voice_follow_up:{label:'Your Voice Follow-Up',note:1,photo:0,cost:0,verify:1,appr:'manager'},
+        marketing_campaign:{label:'Marketing Campaign Task',note:1,photo:0,cost:0,verify:0,appr:''},
+        monthly_ops_action:{label:'Monthly Ops Action Item',note:1,photo:0,cost:0,verify:0,appr:''},
+        announcement_ack:{label:'Announcement Acknowledgement',note:0,photo:0,cost:0,verify:0,appr:''}
+    };
+    // Map a source_module to the closure template it was seeded under — used only
+    // as a fallback when a task carries no closure_template_id of its own.
+    function macTemplateIdForSource(src){ var s=String(src||'').toLowerCase();
+        if(/maint|repair|work.?order|\bwo\b|wo_/.test(s)) return 'maintenance_repair';
+        if(/preventive|\bpm\b|pm_/.test(s))               return 'preventive_maintenance';
+        if(/supply|inventory|shortage|warehouse/.test(s)) return 'supply_request';
+        if(/temp|temperature/.test(s))                    return 'temperature_discrepancy';
+        if(/dsr|daily.?store|close.?out|closeout/.test(s))return 'dsr_review';
+        if(/cash|over.?short|over_short|drawer|ring.?out/.test(s)) return 'cash_over_short';
+        if(/attend|call.?in|no.?show/.test(s))            return 'attendance_call_in';
+        if(/discipl|write.?up|warning|\bpip\b|terminat/.test(s)) return 'disciplinary_action';
+        if(/employee.?note|emp_note|coaching/.test(s))    return 'employee_note';
+        if(/train|sign.?off|signoff|eval|passport|apron/.test(s)) return 'training_follow_up';
+        if(/voice|concern|harass/.test(s))                return 'your_voice_follow_up';
+        if(/market|mkt|campaign|signage/.test(s))         return 'marketing_campaign';
+        if(/ops.?meet|monthly|opm/.test(s))               return 'monthly_ops_action';
+        if(/announce/.test(s))                            return 'announcement_ack';
+        return 'generic'; }  // fundraiser / catering / inspection have no seeded template
+    // Resolve the effective closure template for a task: prefer the task's own
+    // closure_template_id (incl. the 'generic' default) so the form never demands
+    // more proof than the backend will; fall back to the source-derived default
+    // only when the task has none. Returns {id, req, custom}.
+    function macResolveTemplate(task){ task=task||{};
+        var tid=String(task.closure_template_id||'').trim();
+        if(tid && MAC_CLOSURE_TEMPLATES[tid]) return {id:tid, req:MAC_CLOSURE_TEMPLATES[tid], custom:false};
+        if(tid && tid!=='generic')            return {id:tid, req:null, custom:true};   // custom template — backend decides
+        var did=macTemplateIdForSource(task.source_module);
+        return {id:did, req:(MAC_CLOSURE_TEMPLATES[did]||MAC_CLOSURE_TEMPLATES.generic), custom:false}; }
+
+    // Statuses a manager can set from the drawer (excludes computed 'overdue',
+    // 'closed' [use Close], and draft/suggested/archived).
+    var MAC_UPDATE_STATUSES = [
+        ['open','Open'],['assigned','Assigned'],['in_progress','In progress'],
+        ['needs_review','Needs review'],['waiting_on_store','Waiting on store'],
+        ['waiting_on_support','Waiting on support'],['waiting_on_approval','Waiting on approval'],
+        ['blocked','Blocked'],['cancelled','Cancelled']
+    ];
+    function macStatusNeedsReason(s){ return ['blocked','waiting_on_store','waiting_on_support','waiting_on_approval','cancelled'].indexOf(String(s||''))>=0; }
+    var MAC_INP='width:100%;box-sizing:border-box;border:1px solid #d6deea;border-radius:8px;padding:8px;font-size:13px;background:#fff;';
+    function macField(label,control){ return '<div style="margin-bottom:9px;"><div style="font-size:11px;font-weight:800;color:#6b7280;margin-bottom:3px;">'+label+'</div>'+control+'</div>'; }
+    function macIdNum(id){ return isNaN(+id)?id:+id; }
+    function macProofCount(proof){ try{ var a=(typeof proof==='string')?JSON.parse(proof):(proof||[]); return (a&&a.length)||0; }catch(e){ return 0; } }
+    function macDetailMsg(html,kind){ var s=document.getElementById('macDetailMsg'); if(!s) return; s.style.color=(kind==='ok'?'#1b7a3d':(kind==='err'?'#a01b3e':'#6b7686')); s.innerHTML=html; }
+    // Friendly, non-technical wording for the backend's error codes (never leak raw SQL).
+    function macCleanReqList(s){ var map={closure_notes:'a closure note',photo:'a photo / proof',cost:'a cost / invoice',verified_note:'a manager verification note'};
+        return String(s||'').trim().split(/\s+/).filter(Boolean).map(function(k){ return map[k]||macClean(k); }).join(', ')||'the required proof'; }
+    function macFriendlyErr(e){ var raw=String((e&&e.message)||''); var m=raw.toLowerCase();
+        if(m.indexOf('forbidden')>=0) return 'You do not have permission for that action.';
+        if(m.indexOf('reason_required')>=0) return 'Please add a reason for a Waiting, Blocked, or Cancelled status.';
+        if(m.indexOf('closure_requirements')>=0) return 'Before closing, please provide: '+macCleanReqList(raw.split(':')[1])+'.';
+        if(m.indexOf('approval_role_required')>=0){ var r=(raw.split(':')[1]||'').trim(); return 'This task needs '+(r?macClean(r):'higher')+' approval to close.'; }
+        if(m.indexOf('already_closed')>=0) return 'This task is already closed.';
+        if(m.indexOf('not_closed')>=0) return 'This task is not closed, so it cannot be reopened.';
+        if(m.indexOf('use_app_task_close')>=0) return 'Use Close to finish this task — closure proof is required.';
+        if(m.indexOf('use_app_task_reopen')>=0) return 'This task is closed — use Reopen to work it again.';
+        if(m.indexOf('bad_status')>=0) return 'That status is not allowed.';
+        if(m.indexOf('bad_priority')>=0) return 'That priority is not allowed.';
+        if(m.indexOf('overdue_is_computed')>=0) return 'Overdue is automatic and cannot be set by hand.';
+        if(m.indexOf('empty_comment')>=0) return 'Please type a comment first.';
+        if(m.indexOf('not_found')>=0) return 'This task could not be found — it may have changed. Try reopening the list.';
+        if(m.indexOf('closure_template_missing')>=0) return 'Closure settings are unavailable right now. Please try again later.';
+        if(m.indexOf('connection')>=0) return 'Connection problem. Please try again.';
+        return raw?raw:'Something went wrong. Please try again.'; }
+    // Quietly refresh the health tiles + underlying feed after an action, without
+    // disturbing the detail drawer that sits on top.
+    function macRefreshBg(){ macRpc('app_task_store_health',{p_store:_mac.store||null},function(h){ if(h) _mac.health=h; _mac.synced=new Date();
+            var filt={}; if(_mac.pri) filt.priority=_mac.pri; if(_mac.src) filt.source_module=_mac.src; if(_mac.own) filt.owner_role=_mac.own;
+            macRpc('app_task_feed',{p_store:_mac.store||null,p_view:macServerView(_mac.view),p_filters:filt},function(d){ if(d) _mac.feed=d; var ov=document.getElementById('macModal'); if(ov&&ov.style.display!=='none') macRender(); },function(){}); },function(){}); }
+    function macDetailShell(title,inner){ return '<div style="max-width:580px;margin:22px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.28);">'+
+        '<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:13px 15px;display:flex;align-items:center;gap:10px;position:sticky;top:0;"><b style="flex:1;font-size:14.5px;">'+escapeHtml(String(title||'Item details'))+'</b><button onclick="macDetailClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:5px 9px;font-size:14px;cursor:pointer;">&times;</button></div>'+
+        '<div style="padding:15px 16px 18px;">'+inner+'</div></div>'; }
+
+    // ---- Details drawer (§5.2 / §8.1 / §11) — full detail (task + comments +
+    // audit) via app_task_detail, plus the interactive lifecycle actions.
+    function macDetailClose(){ var o=document.getElementById('macDetailModal'); if(o) o.style.display='none'; _mac.detailId=null; _mac.detail=null; _mac.detailMode='view'; }
     function macFindItem(id){ var items=(_mac.feed&&_mac.feed.items)||[]; for(var i=0;i<items.length;i++){ if(String(items[i].id)===String(id)) return items[i]; } return null; }
-    function macOpenDetail(el){ if(!el) return; var id=el.getAttribute('data-id'); if(!id) return; var it=macFindItem(id); if(!it) return;
+    function macOpenDetail(el){ if(!el) return; var id=el.getAttribute('data-id'); if(!id) return;
+        _mac.detailId=id; _mac.detail=null; _mac.detailMode='view';
         var o=document.getElementById('macDetailModal'); if(!o){ o=document.createElement('div'); o.id='macDetailModal'; o.style.cssText='position:fixed;inset:0;background:rgba(20,26,40,.45);z-index:100060;overflow:auto;'; document.body.appendChild(o); } o.style.display='block';
-        var overdue=(it.is_overdue===true); var age=overdue?macOverdueAge(it.due_date):0;
-        var cp=macClosureProfile(it.source_module); var reqs=[];
-        if(cp.note) reqs.push('a closure note'); if(cp.photo) reqs.push('a photo / proof upload'); if(cp.cost) reqs.push('cost or invoice'); if(cp.verify) reqs.push('manager verification');
-        if(cp.appr==='manager') reqs.push('Store Manager sign-off'); if(cp.appr==='admin') reqs.push('Admin / Leadership approval');
-        var reqHtml=reqs.length?('To close <b>'+escapeHtml(cp.label)+'</b> you&rsquo;ll need: '+reqs.join(', ')+'.'):('<b>'+escapeHtml(cp.label)+'</b> has no mandatory proof to close.');
-        var wait=macWaitingOn(it.status);
-        function row(lbl,val){ return val?('<div style="display:flex;gap:10px;padding:6px 0;border-top:1px solid #f2f4f8;font-size:12.5px;"><span style="width:104px;color:#8a93a3;flex-shrink:0;">'+lbl+'</span><span style="flex:1;color:#2b3242;font-weight:600;">'+val+'</span></div>'):''; }
-        var body='<div style="max-width:560px;margin:22px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.28);">'+
-            '<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:13px 15px;display:flex;align-items:center;gap:10px;"><b style="flex:1;font-size:14.5px;">Item details</b><button onclick="macDetailClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:5px 9px;font-size:14px;cursor:pointer;">&times;</button></div>'+
-            '<div style="padding:15px 16px 18px;">'+
-            '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:4px;"><b style="flex:1;font-size:16px;color:#20242c;line-height:1.3;">'+escapeHtml(String(it.title||'(untitled)'))+'</b>'+macPriPill(it.priority)+'</div>'+
-            (overdue?'<div style="color:#a01b3e;font-size:12px;font-weight:800;margin-bottom:6px;">&#9888; Overdue'+(age?(' by '+age+' day'+(age===1?'':'s')):'')+'</div>':'')+
-            row('Source', it.source_module?escapeHtml(macTitleCase(it.source_module)):'&mdash;')+
-            row('Status', it.status?escapeHtml(macClean(it.status)):'&mdash;')+
-            row('Owner / role', it.owner_role?escapeHtml(String(it.owner_role)):'&mdash;')+
-            row('Store', it.location?(macEmoji(it.location)+' '+escapeHtml(String(it.location))):'&mdash;')+
-            row('Due', it.due_date?escapeHtml(macDate(it.due_date)):'&mdash;')+
-            row('Waiting on', wait?escapeHtml(wait):'')+
-            '<div style="margin-top:12px;background:#f4f8fd;border:1px solid #e2ecf8;border-radius:11px;padding:11px 12px;">'+
-                '<div style="font-size:10.5px;font-weight:800;text-transform:uppercase;color:#185FA5;letter-spacing:.3px;margin-bottom:4px;">Closure requirements (§11.2)</div>'+
-                '<div style="font-size:12.5px;color:#3a4454;line-height:1.5;">'+reqHtml+'</div></div>'+
-            '<div style="margin-top:9px;background:#fff8ef;border:1px solid #f4e3c6;border-radius:11px;padding:11px 12px;">'+
-                '<div style="font-size:10.5px;font-weight:800;text-transform:uppercase;color:#9a5b00;letter-spacing:.3px;margin-bottom:4px;">Escalation (§11.3)</div>'+
-                '<div style="font-size:12.5px;color:#4a4032;line-height:1.5;">'+macEscalationText(it.priority)+'</div></div>'+
-            // one live, non-destructive action (§11.3 reminder) + honest note on the rest
-            '<div style="margin-top:12px;">'+
-                '<button data-id="'+escapeHtml(String(it.id))+'" onclick="macNudge(this)" style="width:100%;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">&#128276; Send reminder to owner</button>'+
-                '<div id="macDetailMsg" style="font-size:11.5px;text-align:center;margin-top:7px;color:#6b7686;min-height:14px;"></div>'+
-                '<div style="font-size:11px;color:#9aa3b0;line-height:1.5;margin-top:4px;">Review, comment, reassign, mark-waiting, approve/recommend, close-with-proof and reopen open here once the Task Engine action RPCs are registered (see build notes). To act now, open the source module record.</div>'+
-            '</div>'+
-            '</div></div>';
-        o.innerHTML=body;
+        o.innerHTML=macDetailShell('Item details', macLoadingHtml('Loading task details&hellip;'));
+        macDetailLoad(id,'view'); }
+
+    // Load the full, permission-checked detail (task + comments + audit).
+    function macDetailLoad(id,mode){ id=id||_mac.detailId; if(!id) return;
+        macRpc('app_task_detail',{p_task_id:macIdNum(id)}, function(d){ _mac.detail=d||{}; _mac.detailId=id; if(mode) _mac.detailMode=mode; macDetailRender(); }, function(e){ macDetailErrView(e); }); }
+
+    function macDetailErrView(e){ var o=document.getElementById('macDetailModal'); if(!o) return;
+        var it=macFindItem(_mac.detailId); var basic=it?('<div style="font-size:12.5px;color:#6b6275;margin-top:8px;">'+escapeHtml(String(it.title||''))+'</div>'):'';
+        o.innerHTML=macDetailShell('Item details',
+            '<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:22px;text-align:center;color:#a01b3e;">'+escapeHtml(macFriendlyErr(e))+basic+
+            '<div style="margin-top:12px;"><button onclick="macDetailLoad()" style="background:#185FA5;color:#fff;border:none;border-radius:9px;padding:8px 14px;font-size:12.5px;font-weight:800;cursor:pointer;">Try again</button></div></div>'); }
+
+    function macDetailRender(){ var o=document.getElementById('macDetailModal'); if(!o) return;
+        var D=_mac.detail||{}; var t=D.task||{}; var overdue=(D.is_overdue===true); var age=overdue?macOverdueAge(t.due_date):0;
+        var isClosed=['closed','cancelled','archived'].indexOf(String(t.status||'').toLowerCase())>=0;
+        var canAct=macCanSee();
+        var tpl=macResolveTemplate(t); var rq=tpl.req; var reqs=[];
+        if(rq){ if(rq.note) reqs.push('a closure note'); if(rq.photo) reqs.push('a photo / proof'); if(rq.cost) reqs.push('a cost / invoice'); if(rq.verify) reqs.push('a manager verification note');
+            if(rq.appr==='manager') reqs.push('Store Manager sign-off'); if(rq.appr==='admin') reqs.push('Admin / Leadership approval'); }
+        var reqHtml=tpl.custom?('Closure requirements for <b>'+escapeHtml(tpl.id)+'</b> are enforced when you save.')
+            :(reqs.length?('To close <b>'+escapeHtml((rq&&rq.label)||tpl.id)+'</b> you&rsquo;ll need: '+reqs.join(', ')+'.'):('<b>'+escapeHtml((rq&&rq.label)||tpl.id)+'</b> has no mandatory proof to close.'));
+        var wait=macWaitingOn(t.status);
+        var row=function(lbl,val){ return val?('<div style="display:flex;gap:10px;padding:6px 0;border-top:1px solid #f2f4f8;font-size:12.5px;"><span style="width:104px;color:#8a93a3;flex-shrink:0;">'+lbl+'</span><span style="flex:1;color:#2b3242;font-weight:600;">'+val+'</span></div>'):''; };
+        var inner='<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:4px;"><b style="flex:1;font-size:16px;color:#20242c;line-height:1.3;">'+escapeHtml(String(t.title||'(untitled)'))+'</b>'+macPriPill(t.priority)+'</div>';
+        if(overdue) inner+='<div style="color:#a01b3e;font-size:12px;font-weight:800;margin-bottom:6px;">&#9888; Overdue'+(age?(' by '+age+' day'+(age===1?'':'s')):'')+'</div>';
+        inner+=row('Source', t.source_module?escapeHtml(macTitleCase(t.source_module)):'&mdash;')
+            +row('Status', t.status?escapeHtml(macClean(t.status)):'&mdash;')
+            +row('Owner / role', t.owner_role?escapeHtml(String(t.owner_role)):'&mdash;')
+            +row('Store', t.location?(macEmoji(t.location)+' '+escapeHtml(String(t.location))):'&mdash;')
+            +row('Due', t.due_date?escapeHtml(macDate(t.due_date)):'&mdash;')
+            +row('Waiting on', wait?escapeHtml(wait):'')
+            +row('Details', t.details?escapeHtml(String(t.details)):'')
+            +row('Reason', (!isClosed&&t.blocked_reason)?escapeHtml(String(t.blocked_reason)):'');
+        if(isClosed){ inner+=row('Closed by', t.closed_by?escapeHtml(String(t.closed_by)):'')
+            +row('Closed', t.closed_at?escapeHtml(macDate(t.closed_at)):'')
+            +row('Closure note', t.closure_notes?escapeHtml(String(t.closure_notes)):''); }
+        inner+=macProofHtml(t.closure_proof);
+        inner+='<div style="margin-top:12px;background:#f4f8fd;border:1px solid #e2ecf8;border-radius:11px;padding:11px 12px;"><div style="font-size:10.5px;font-weight:800;text-transform:uppercase;color:#185FA5;letter-spacing:.3px;margin-bottom:4px;">Closure requirements (§11.2)</div><div style="font-size:12.5px;color:#3a4454;line-height:1.5;">'+reqHtml+'</div></div>';
+        inner+='<div style="margin-top:9px;background:#fff8ef;border:1px solid #f4e3c6;border-radius:11px;padding:11px 12px;"><div style="font-size:10.5px;font-weight:800;text-transform:uppercase;color:#9a5b00;letter-spacing:.3px;margin-bottom:4px;">Escalation (§11.3)</div><div style="font-size:12.5px;color:#4a4032;line-height:1.5;">'+macEscalationText(t.priority)+'</div></div>';
+        inner+=macCommentsHtml(D.comments);
+        inner+=macAuditHtml(D.audit);
+        if(canAct) inner+=macActionPanel(t,isClosed);
+        else inner+='<div style="margin-top:12px;font-size:11.5px;color:#9aa3b0;text-align:center;">Read-only view &mdash; store management can act on this item.</div>';
+        o.innerHTML=macDetailShell('Item details', inner);
+        if((_mac.detailMode||'view')==='comment') macCommentListLoad(_mac.detailId);
     }
+
+    function macProofHtml(proof){ var arr=[]; try{ arr=(typeof proof==='string')?JSON.parse(proof):(proof||[]); }catch(e){ arr=[]; } if(!arr||!arr.length) return '';
+        return '<div style="margin-top:10px;"><div style="font-size:10.5px;font-weight:800;text-transform:uppercase;color:#8a93a3;letter-spacing:.3px;margin-bottom:5px;">Proof on file</div>'+
+            arr.map(function(p){ p=p||{}; var url=String(p.url||''); var by=p.by?(' &middot; '+escapeHtml(String(p.by))):''; var when=p.at?(' &middot; '+escapeHtml(macDate(p.at))):''; var cost=p.cost?(' &middot; $'+escapeHtml(String(p.cost))):'';
+                return '<div style="font-size:12px;color:#3a4454;padding:5px 0;border-top:1px solid #f2f4f8;">'+(url?('<a href="'+escapeHtml(url)+'" target="_blank" rel="noopener" style="color:#185FA5;font-weight:700;">Proof / photo</a>'):'Proof recorded')+by+when+cost+(p.verified_note?('<div style="color:#6b6275;">'+escapeHtml(String(p.verified_note))+'</div>'):'')+'</div>'; }).join('')+'</div>'; }
+
+    function macCommentsInner(arr){ arr=arr||[]; if(!arr.length) return '<div style="font-size:12px;color:#9aa3b0;padding:6px 0;">No comments yet.</div>';
+        return arr.map(function(c){ c=c||{}; var internal=(c.internal_only===true);
+            return '<div style="padding:8px 0;border-top:1px solid #f2f4f8;"><div style="display:flex;gap:8px;align-items:center;font-size:11px;color:#8a93a3;margin-bottom:2px;"><b style="color:#4a5568;">'+escapeHtml(String(c.author_name||'Someone'))+'</b>'+(internal?'<span style="background:#fdeaf2;color:#c02063;font-size:9px;font-weight:800;padding:1px 6px;border-radius:99px;">internal</span>':'')+'<span style="margin-left:auto;">'+escapeHtml(macDate(c.created_at))+'</span></div><div style="font-size:12.5px;color:#2b3242;line-height:1.45;white-space:pre-wrap;">'+escapeHtml(String(c.body||''))+'</div></div>'; }).join(''); }
+    function macCommentsHtml(comments){ return '<div style="margin-top:12px;"><div style="font-size:10.5px;font-weight:800;text-transform:uppercase;color:#8a93a3;letter-spacing:.3px;margin-bottom:2px;">Comments</div><div id="macCList">'+macCommentsInner(comments)+'</div></div>'; }
+    function macAuditHtml(audit){ var arr=audit||[]; if(!arr.length) return '';
+        return '<div style="margin-top:12px;"><div style="font-size:10.5px;font-weight:800;text-transform:uppercase;color:#8a93a3;letter-spacing:.3px;margin-bottom:2px;">History</div>'+
+            arr.map(function(a){ a=a||{}; return '<div style="font-size:11.5px;color:#6b6275;padding:4px 0;border-top:1px solid #f2f4f8;"><b style="color:#4a5568;text-transform:capitalize;">'+escapeHtml(macClean(a.action||''))+'</b>'+(a.detail?(' &middot; '+escapeHtml(String(a.detail))):'')+' <span style="color:#9aa3b0;">'+(a.by?('&middot; '+escapeHtml(String(a.by))+' '):'')+(a.at?escapeHtml(macDate(a.at)):'')+'</span></div>'; }).join('')+'</div>'; }
+
+    // Load / refresh the comment thread via app_task_comment_list (keeps the
+    // thread current without a full detail reload; also updates cached state).
+    function macCommentListLoad(id){ id=id||_mac.detailId; if(!id) return;
+        macRpc('app_task_comment_list',{p_task_id:macIdNum(id)}, function(arr){ arr=arr||[]; if(_mac.detail) _mac.detail.comments=arr; var box=document.getElementById('macCList'); if(box) box.innerHTML=macCommentsInner(arr); }, function(){}); }
+
+    // ---- action panel (store-management only; backend re-checks every call) ----
+    function macActionPanel(t,isClosed){ var mode=_mac.detailMode||'view';
+        var btn=function(m,label,bg){ var on=(mode===m); return '<button onclick="macDetailSetMode(\''+m+'\')" style="flex:1;min-width:80px;background:'+(on?bg:'#eef0f3')+';color:'+(on?'#fff':'#4a5568')+';border:none;border-radius:9px;padding:9px 8px;font-size:12px;font-weight:800;cursor:pointer;">'+label+'</button>'; };
+        var bar='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:14px;">'+btn('comment','&#128172; Comment','#185FA5');
+        if(!isClosed) bar+=btn('update','&#9998; Update','#185FA5')+btn('close','&#9989; Close','#1f7a3d');
+        if(isClosed) bar+=btn('reopen','&#8635; Reopen','#9a5b00');
+        bar+='</div>';
+        var nudge=(!isClosed)?('<div style="margin-top:10px;"><button data-id="'+escapeHtml(String(t.id))+'" onclick="macNudge(this)" style="width:100%;background:#eef3fb;color:#185FA5;border:1px solid #d6e4f6;border-radius:10px;padding:9px;font-size:12.5px;font-weight:800;cursor:pointer;">&#128276; Send reminder to owner</button></div>'):'';
+        return bar+'<div style="margin-top:10px;">'+macModePanel(t,mode,isClosed)+'</div>'+nudge+'<div id="macDetailMsg" style="font-size:12px;text-align:center;margin-top:9px;color:#6b7686;min-height:15px;"></div>'; }
+
+    function macModePanel(t,mode,isClosed){ var id=escapeHtml(String(t.id));
+        if(mode==='comment'){ return '<div style="background:#f7f9fc;border:1px solid #e6ecf4;border-radius:11px;padding:11px 12px;">'+
+            '<textarea id="macCBody" rows="3" placeholder="Add a note or update&hellip;" style="'+MAC_INP+'resize:vertical;"></textarea>'+
+            '<label style="display:flex;align-items:center;gap:7px;font-size:12px;color:#5b6472;margin:8px 0;"><input type="checkbox" id="macCInternal"> Internal note (managers only)</label>'+
+            '<button onclick="macCommentSubmit(\''+id+'\')" style="width:100%;background:#185FA5;color:#fff;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;">Post comment</button></div>'; }
+        if(mode==='update'&&!isClosed){ var so='<option value="">(no status change)</option>'+MAC_UPDATE_STATUSES.map(function(s){ return '<option value="'+s[0]+'"'+(String(t.status)===s[0]?' selected':'')+'>'+s[1]+'</option>'; }).join('');
+            var po='<option value="">(no priority change)</option>'+[['critical','Critical'],['high','High'],['normal','Normal'],['low','Low']].map(function(p){ return '<option value="'+p[0]+'"'+(String(t.priority)===p[0]?' selected':'')+'>'+p[1]+'</option>'; }).join('');
+            return '<div style="background:#f7f9fc;border:1px solid #e6ecf4;border-radius:11px;padding:11px 12px;">'+
+                macField('Status','<select id="macUStatus" style="'+MAC_INP+'">'+so+'</select>')+
+                macField('Priority','<select id="macUPriority" style="'+MAC_INP+'">'+po+'</select>')+
+                macField('Owner / role','<input id="macUOwner" value="'+escapeHtml(String(t.owner_role||''))+'" placeholder="e.g. Shift Leader" style="'+MAC_INP+'">')+
+                macField('Due date','<input id="macUDue" type="date" value="'+escapeHtml(String(t.due_date||'').slice(0,10))+'" style="'+MAC_INP+'">')+
+                macField('Reason <span style="color:#9aa3b0;font-weight:600;">(required for Waiting / Blocked / Cancelled)</span>','<input id="macUReason" value="'+escapeHtml(String(t.blocked_reason||''))+'" placeholder="Why waiting / blocked / cancelled" style="'+MAC_INP+'">')+
+                '<button onclick="macUpdateSubmit(\''+id+'\')" style="width:100%;background:#185FA5;color:#fff;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;margin-top:4px;">Save changes</button></div>'; }
+        if(mode==='close'&&!isClosed){ var tpl=macResolveTemplate(t); var rq=tpl.req; var cst=tpl.custom;
+            var mk=function(f){ return cst?' <span style="color:#9aa3b0;font-weight:600;">(enforced on save)</span>':(f?' <span style="color:#a01b3e;font-weight:800;">*required</span>':' <span style="color:#9aa3b0;font-weight:600;">(optional)</span>'); };
+            var appr=(rq&&rq.appr)?('<div style="font-size:11px;color:#9a5b00;margin-bottom:8px;">Needs '+(rq.appr==='admin'?'Admin / Leadership':'Store Manager')+' authority to close.</div>'):'';
+            return '<div style="background:#f2f9f4;border:1px solid #cfe8d6;border-radius:11px;padding:11px 12px;">'+
+                '<div style="font-size:11.5px;color:#3a4454;margin-bottom:8px;">Closing as <b>'+escapeHtml((rq&&rq.label)||tpl.id)+'</b>. Required fields are enforced on save.</div>'+appr+
+                macField('Closure note'+mk(rq&&rq.note),'<textarea id="macXNote" rows="2" placeholder="What was done / resolved" style="'+MAC_INP+'resize:vertical;"></textarea>')+
+                macField('Photo / proof URL'+mk(rq&&rq.photo),'<input id="macXPhoto" placeholder="Link to a photo or document" style="'+MAC_INP+'">')+
+                macField('Cost / invoice'+mk(rq&&rq.cost),'<input id="macXCost" placeholder="e.g. 125.00" style="'+MAC_INP+'">')+
+                macField('Manager verification'+mk(rq&&rq.verify),'<input id="macXVerify" placeholder="Verified by / note" style="'+MAC_INP+'">')+
+                '<button onclick="macCloseSubmit(\''+id+'\')" style="width:100%;background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;margin-top:4px;">Close task with proof</button></div>'; }
+        if(mode==='reopen'&&isClosed){ return '<div style="background:#fff8ef;border:1px solid #f4e3c6;border-radius:11px;padding:11px 12px;">'+
+            macField('Reason for reopening','<textarea id="macRReason" rows="2" placeholder="Why is this being reopened?" style="'+MAC_INP+'resize:vertical;"></textarea>')+
+            '<button onclick="macReopenSubmit(\''+id+'\')" style="width:100%;background:#9a5b00;color:#fff;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;">Reopen task</button></div>'; }
+        return ''; }
+
+    function macDetailSetMode(m){ _mac.detailMode=(_mac.detailMode===m?'view':m); macDetailRender(); }
+
+    // ---- action submitters (withPin credentials via macRpc; graceful on error) ----
+    function macCommentSubmit(id){ var body=String((document.getElementById('macCBody')||{}).value||'').trim(); var internal=!!((document.getElementById('macCInternal')||{}).checked);
+        if(!body){ macDetailMsg('Please type a comment first.','err'); return; }
+        macDetailMsg('Posting&hellip;','info');
+        macRpc('app_task_comment_add',{p_task_id:macIdNum(id), p_body:body, p_internal:internal}, function(){ macDetailMsg('&#10003; Comment posted.','ok'); var b=document.getElementById('macCBody'); if(b) b.value=''; macCommentListLoad(id); macRefreshBg(); }, function(e){ macDetailMsg(macFriendlyErr(e),'err'); }); }
+
+    function macUpdateSubmit(id){ var t=(_mac.detail&&_mac.detail.task)||{};
+        var status=String((document.getElementById('macUStatus')||{}).value||'');
+        var pri=String((document.getElementById('macUPriority')||{}).value||'');
+        var owner=String((document.getElementById('macUOwner')||{}).value||'').trim();
+        var due=String((document.getElementById('macUDue')||{}).value||'');
+        var reason=String((document.getElementById('macUReason')||{}).value||'').trim();
+        var payload={};
+        if(status && status!==String(t.status||'')) payload.status=status;
+        if(pri && pri!==String(t.priority||'')) payload.priority=pri;
+        if(owner && owner!==String(t.owner_role||'')) payload.owner_role=owner;
+        if(due && due!==String(t.due_date||'').slice(0,10)) payload.due=due;
+        if(reason) payload.blocked_reason=reason;
+        if(payload.status && macStatusNeedsReason(payload.status) && !reason && !String(t.blocked_reason||'').trim()){ macDetailMsg('Please add a reason for a Waiting, Blocked, or Cancelled status.','err'); return; }
+        if(!Object.keys(payload).length){ macDetailMsg('Nothing to change yet.','info'); return; }
+        macDetailMsg('Saving&hellip;','info');
+        macRpc('app_task_update',{p_task_id:macIdNum(id), p_payload:payload}, function(){ macDetailMsg('&#10003; Task updated.','ok'); macDetailLoad(id,'view'); macRefreshBg(); }, function(e){ macDetailMsg(macFriendlyErr(e),'err'); }); }
+
+    function macCloseSubmit(id){ var t=(_mac.detail&&_mac.detail.task)||{}; var tpl=macResolveTemplate(t); var rq=tpl.req;
+        var note=String((document.getElementById('macXNote')||{}).value||'').trim();
+        var photo=String((document.getElementById('macXPhoto')||{}).value||'').trim();
+        var cost=String((document.getElementById('macXCost')||{}).value||'').trim();
+        var verify=String((document.getElementById('macXVerify')||{}).value||'').trim();
+        if(rq && !tpl.custom){ var miss=[];
+            if(rq.note && !note && !String(t.closure_notes||'').trim()) miss.push('a closure note');
+            if(rq.photo && !photo && !macProofCount(t.closure_proof)) miss.push('a photo / proof');
+            if(rq.cost && !cost) miss.push('a cost / invoice');
+            if(rq.verify && !verify) miss.push('a manager verification note');
+            if(miss.length){ macDetailMsg('Before closing, please provide: '+miss.join(', ')+'.','err'); return; } }
+        var payload={closure_template_id:tpl.id};
+        if(note) payload.closure_notes=note; if(photo) payload.photo_url=photo; if(cost) payload.cost=cost; if(verify) payload.verified_note=verify;
+        macDetailMsg('Closing&hellip;','info');
+        macRpc('app_task_close',{p_task_id:macIdNum(id), p_payload:payload}, function(){ macDetailMsg('&#10003; Task closed.','ok'); macDetailLoad(id,'view'); macRefreshBg(); }, function(e){ macDetailMsg(macFriendlyErr(e),'err'); }); }
+
+    function macReopenSubmit(id){ var reason=String((document.getElementById('macRReason')||{}).value||'').trim();
+        macDetailMsg('Reopening&hellip;','info');
+        macRpc('app_task_reopen',{p_task_id:macIdNum(id), p_reason:(reason||'Reopened from Manager Action Center')}, function(){ macDetailMsg('&#10003; Task reopened.','ok'); macDetailLoad(id,'view'); macRefreshBg(); }, function(e){ macDetailMsg(macFriendlyErr(e),'err'); }); }
     function macNudge(el){ if(!el) return; var id=el.getAttribute('data-id'); if(!id) return; el.disabled=true; var old=el.innerHTML; el.innerHTML='Sending&hellip;';
         macRpc('app_task_nudge',{p_task_id:(isNaN(+id)?id:+id)}, function(){ var s=document.getElementById('macDetailMsg'); if(s){ s.style.color='#1b7a3d'; s.innerHTML='&#10003; Reminder sent to the owner.'; } el.innerHTML='&#10003; Reminder sent'; },
             function(){ var s=document.getElementById('macDetailMsg'); if(s){ s.style.color='#a01b3e'; s.innerHTML='Could not send a reminder for this item.'; } el.disabled=false; el.innerHTML=old; }); }

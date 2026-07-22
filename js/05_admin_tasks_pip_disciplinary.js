@@ -475,11 +475,16 @@
     // ROLE-BASED UI / MAINTENANCE BOARD
     // ============================================================
     function applyRoleUI() {
-        let role = currentUser.role;
+        // READ PATH ONLY: effectiveRole() === currentUser.role unless a real
+        // leader/owner/dev has an active "View as" preview. The real role is never
+        // changed here, so with no override this is byte-for-byte the old behavior.
+        let role = (typeof effectiveRole === 'function') ? effectiveRole() : currentUser.role;
         if (role === 'Vice President/Co-Owner') role = 'Admin Manager';
         const isManager = (role === 'Admin Manager' || role === 'Manager' || role === 'Store Manager' || role === 'Vice President/Co-Owner');
         const maintBoardAllowed = (currentUser.maint_board_access !== false);
-        const devOverride = currentUser.is_developer === true && !isPreviewMode();
+        // Dev "show everything" override is suppressed while previewing a role, so a
+        // developer's "View as Crew" honestly shows what Crew sees (not everything).
+        const devOverride = currentUser.is_developer === true && !isPreviewMode() && !window._viewAsRole;
 
         // ── Show/hide Management tab for managers ──
         const mgmtTab = document.getElementById('tab-management');
@@ -508,7 +513,7 @@
         const preshiftBtn = document.getElementById('btn-preshift');
         if (preshiftBtn) preshiftBtn.style.display = permAllow('preshift', (devOverride || isManager || role === 'Shift Lead')) ? 'block' : 'none';
         const crewTrainerBtn = document.getElementById('btn-crewtrainer');
-        if (crewTrainerBtn) crewTrainerBtn.style.display = permAllow('crew_trainer', (devOverride || isManager || role === 'Shift Lead' || /trainer/i.test(currentUser.role||''))) ? 'block' : 'none';
+        if (crewTrainerBtn) crewTrainerBtn.style.display = permAllow('crew_trainer', (devOverride || isManager || role === 'Shift Lead' || /trainer/i.test(role||''))) ? 'block' : 'none';
         const availApprBtn = document.getElementById('btn-availApprovals');
         if (availApprBtn) availApprBtn.style.display = permAllow('avail_approvals', (devOverride || isManager || role === 'Shift Lead')) ? 'block' : 'none';
         // ── Pop-In & Inventory: management only (Shift Lead and above / store managers) ──
@@ -583,6 +588,10 @@
         if (sectionsAdminCard) sectionsAdminCard.style.display = (devOverride || isManager) ? 'block' : 'none';
         updateBioToggleBtn();
         updatePreviewToggleBtn();
+        // Keep the "View as" role-preview control + banner in sync (gated to real
+        // leadership/owner/dev via canUseViewAs(); no-ops for everyone else).
+        try{ if(typeof syncViewAsControl==='function') syncViewAsControl(); }catch(e){}
+        try{ if(typeof renderViewAsBanner==='function') renderViewAsBanner(); }catch(e){}
     }
 
     // TRAP FIX (2026-07-17): this used to log a 'Maintenance'-role user straight out of the app

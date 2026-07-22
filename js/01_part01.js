@@ -4,7 +4,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.07.22.0255';
+    const APP_VERSION = '2026.07.22.0955';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -73,6 +73,90 @@
     try{ document.body.classList.add('newlook'); applyNightPref(); }catch(e){}
 
     function isPreviewMode() { return localStorage.getItem('calichesPreviewMode') === 'on'; }
+
+    // ============================================================
+    // "VIEW AS" ROLE PREVIEW (leadership / owner / dev — read-only UI preview)
+    // ------------------------------------------------------------
+    // Lets a real leadership/owner/dev account preview the menu & tiles exactly
+    // as a chosen employee role would see them — WITHOUT logging out and WITHOUT
+    // changing any real permission. This is purely a UI read-path override:
+    // effectiveRole() is what applyRoleUI()/permAllow() read; the REAL role
+    // (currentUser.role) is never mutated, so every server RPC still authorizes
+    // the user as themselves. When no override is set, effectiveRole() ===
+    // currentUser.role, so behavior is byte-for-byte identical to before for
+    // everyone. The gate (who may preview) is computed from the REAL role only.
+    // ============================================================
+    window._viewAsRole = window._viewAsRole || null;
+    // Canonical roles the app already recognizes (mirrors the Roles & Permissions
+    // matrix list plus the extra gating strings applyRoleUI keys on): protected
+    // roles first, then the ladder down to line staff.
+    var VIEW_AS_ROLES = ['Vice President/Co-Owner','Admin Manager','Store Manager','Assistant Manager','Manager','Office','Finance Approver','Maintenance Lead','Shift Lead','Shift Leader','Crew Trainer','Maintenance','Blue Apron','Crew Member'];
+    function _vaEsc(s){ try{ return (typeof escapeHtml==='function') ? escapeHtml(String(s==null?'':s)) : String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }catch(e){ return ''; } }
+    // Who may EVER use "View as" — from the REAL role only, never the previewed
+    // one, so a leader previewing as Crew can still exit and a real non-leader can
+    // never turn it on. Mirrors the app's leadership set (isManagerRole): VP/Co-Owner,
+    // Admin Manager, Store Manager, Manager, or developer.
+    function canUseViewAs(){
+        try{
+            if(currentUser && currentUser.is_developer===true) return true;
+            var r=(currentUser && currentUser.role)||'';
+            return ['Vice President/Co-Owner','Admin Manager','Store Manager','Manager'].indexOf(r)>=0;
+        }catch(e){ return false; }
+    }
+    // The role the UI should render for. Real role unless a real leader has an
+    // active preview override. Double-guarded with canUseViewAs() so a stray
+    // window._viewAsRole (e.g. typed into the console by a non-leader) is ignored
+    // — the guard is in code, not just the UI.
+    function effectiveRole(){
+        try{ if(window._viewAsRole && canUseViewAs()) return window._viewAsRole; }catch(e){}
+        return (currentUser && currentUser.role)||'';
+    }
+    function setViewAsRole(r){
+        // Hard gate: only a real leadership/owner/dev account may set an override.
+        if(!canUseViewAs()){ window._viewAsRole=null; }
+        else { window._viewAsRole = (r && r!==((currentUser&&currentUser.role)||'')) ? r : null; }
+        try{ if(typeof applyRoleUI==='function') applyRoleUI(); }catch(e){}
+        try{ if(typeof applyFormPermissions==='function') applyFormPermissions(); }catch(e){}
+        try{ renderViewAsBanner(); }catch(e){}
+        try{ syncViewAsControl(); }catch(e){}
+        // Land on Home so the preview shows a stable, role-appropriate menu (the
+        // Admin tab that holds this control hides its own tab button for line roles).
+        try{ if(window._viewAsRole && typeof switchMenuTab==='function') switchMenuTab('home'); }catch(e){}
+    }
+    function onViewAsSelectChange(v){ setViewAsRole(v||null); }
+    // Persistent banner shown whenever a preview is active — Exit returns to the
+    // real role. Injected into <body> so it is reachable from any screen.
+    function renderViewAsBanner(){
+        var b=document.getElementById('viewAsBanner');
+        var active=!!window._viewAsRole && canUseViewAs();
+        if(!active){ if(b) b.style.display='none'; return; }
+        if(!b){
+            b=document.createElement('div');
+            b.id='viewAsBanner';
+            b.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:100060;background:#9a5b00;color:#fff;padding:9px 14px;display:flex;align-items:center;gap:10px;font-size:13px;box-shadow:0 -3px 14px rgba(0,0,0,.22);';
+            document.body.appendChild(b);
+        }
+        b.innerHTML='<span style="font-size:16px;line-height:1;">&#128065;</span>'
+            +'<div style="flex:1;min-width:0;line-height:1.3;"><b>Viewing as: '+_vaEsc(window._viewAsRole)+'</b>'
+            +'<small style="display:block;opacity:.9;font-size:11px;">UI preview only &mdash; your real access is unchanged.</small></div>'
+            +'<button onclick="setViewAsRole(null)" style="background:rgba(255,255,255,.22);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Exit preview</button>';
+        b.style.display='flex';
+    }
+    // Show the "View as" control only for gated users; keep the dropdown in sync.
+    function syncViewAsControl(){
+        var wrap=document.getElementById('viewAsControl');
+        if(!wrap) return;
+        if(!canUseViewAs()){ wrap.style.display='none'; return; }
+        wrap.style.display='block';
+        var sel=document.getElementById('viewAsSelect'); if(!sel) return;
+        var real=(currentUser&&currentUser.role)||'';
+        if(sel.getAttribute('data-built-for')!==real){
+            var html='<option value="">My real role'+(real?(' ('+_vaEsc(real)+')'):'')+'</option>';
+            VIEW_AS_ROLES.forEach(function(rr){ if(rr===real) return; html+='<option value="'+_vaEsc(rr)+'">'+_vaEsc(rr)+'</option>'; });
+            sel.innerHTML=html; sel.setAttribute('data-built-for', real);
+        }
+        sel.value=window._viewAsRole||'';
+    }
 
     function togglePreviewMode() {
         localStorage.setItem('calichesPreviewMode', isPreviewMode() ? 'off' : 'on');

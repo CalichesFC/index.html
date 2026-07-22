@@ -946,8 +946,11 @@
     // ladder but had no row here, so an Admin Manager had no way to configure its tool access at all.
     var PERM_ROLES=['Manager','Store Manager','Assistant Manager','Finance Approver','Maintenance Lead','Shift Lead','Crew Trainer','Maintenance','Blue Apron','Crew Member'];
     function permAllow(fid, def){
-        try{ if(currentUser && currentUser.is_developer===true && (typeof isPreviewMode!=='function'||!isPreviewMode())) return true; }catch(e){}
-        var role=(currentUser&&currentUser.role)||'';
+        // Dev "allow everything" is suppressed while a "View as" preview is active, so
+        // previewing as a lower role honestly reflects that role. Read path uses
+        // effectiveRole(); with no override it equals currentUser.role (unchanged).
+        try{ if(currentUser && currentUser.is_developer===true && (typeof isPreviewMode!=='function'||!isPreviewMode()) && !window._viewAsRole) return true; }catch(e){}
+        var role=(typeof effectiveRole==='function' ? effectiveRole() : ((currentUser&&currentUser.role)||''));
         if(PERM_PROTECTED_ROLES.indexOf(role)>=0) return true;
         var o=PERM_OVR[role];
         if(o && Object.prototype.hasOwnProperty.call(o,fid)) return (o[fid]===1||o[fid]===true);

@@ -366,18 +366,25 @@
         ov.innerHTML=h;
     }
 
+    // V1.1: full corrective-action status set + colors, and open-state test
+    function inspActStatusColor(s){ return ({open:'#9a5b00',in_progress:'#9a5b00',waiting_on_vendor:'#c05a00',completed:'#185FA5',pending_manual:'#c0264b',verified:'#1f7a3d',closed:'#1f7a3d',done:'#1f7a3d',cancelled:'#8a91a0'})[s]||'#9a5b00'; }
+    function inspActOpen(s){ return ['verified','closed','cancelled','done'].indexOf(s)<0; }
     function inspActionsHtml(d){
         var acts=d.actions||[];
         if(!acts.length) return inspEmpty('No corrective actions yet.');
         var h='';
         acts.forEach(function(a){
-            var sc=a.status==='done'?'#1f7a3d':(a.status==='pending_manual'?'#c0264b':(a.status==='cancelled'?'#8a91a0':'#9a5b00'));
+            var sc=inspActStatusColor(a.status);
+            var canAct=(d.status==='submitted'&&inspActOpen(a.status));
             h+='<div style="border-top:1px solid #f0f1f6;padding:8px 0;font-size:12px;">'
                 +'<b>'+escapeHtml(a.title||a.kind)+'</b>'+inspSevChip(a.severity)
-                +' <span style="background:'+sc+';color:#fff;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:800;">'+escapeHtml(a.status)+'</span>'
+                +' <span style="background:'+sc+';color:#fff;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:800;">'+escapeHtml(String(a.status||'').replace(/_/g,' '))+'</span>'
+                +(a.priority?(' <span style="background:#eef0f5;color:#5b6675;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:800;text-transform:uppercase;">'+escapeHtml(a.priority)+'</span>'):'')
                 +'<div style="color:#6b7686;margin-top:2px;">'+escapeHtml(a.kind)+(a.target_table?(' &rarr; '+escapeHtml(a.target_table)+' #'+escapeHtml(String(a.target_id||''))):'')+(a.due_date?(' &middot; due '+escapeHtml(String(a.due_date))):'')+(a.owner_name?(' &middot; '+escapeHtml(a.owner_name)):'')+(a.auto_created?' &middot; auto':'')+'</div>'
                 +(a.notes?('<div style="color:#5b6675;margin-top:2px;">'+escapeHtml(a.notes)+'</div>'):'')
-                +((d.status==='submitted'&&a.status!=='done'&&a.status!=='cancelled')?('<div style="margin-top:4px;"><button onclick="inspActionDone('+a.id+')" style="background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">Mark done</button> <button onclick="inspActionProof('+a.id+')" style="background:#fff;border:1px solid #185FA5;color:#185FA5;border-radius:8px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;">&#128247; Proof photo</button></div>'):'')
+                +(a.completion_note?('<div style="color:#1f7a3d;margin-top:2px;">&#10003; '+escapeHtml(a.completion_note)+'</div>'):'')
+                +(a.verified_by?('<div style="color:#1f7a3d;margin-top:2px;font-size:11px;font-weight:700;">&#9989; Verified by '+escapeHtml(a.verified_by)+(a.verified_at?(' &middot; '+escapeHtml(String(a.verified_at).slice(0,10))):'')+(a.verified_note?(' &mdash; '+escapeHtml(a.verified_note)):'')+'</div>'):'')
+                +(canAct?('<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;"><button onclick="inspActionDone('+a.id+')" style="background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">Mark done</button><button onclick="inspActionVerify('+a.id+')" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">&#9989; Verify</button><button onclick="inspActionProof('+a.id+')" style="background:#fff;border:1px solid #185FA5;color:#185FA5;border-radius:8px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;">&#128247; Proof photo</button></div>'):'')
                 +'</div>';
         });
         return h;
@@ -428,6 +435,17 @@
         var note=prompt('Completion note (what was corrected)?','');
         if(note===null) return;
         inspRpc('insp_action_update',{p_action_id:actionId,p_payload:{status:'done',completion_note:note}},function(){
+            var d=_insp.cur||{};
+            inspRpc('insp_get',{p_id:d.id},function(nd){ _insp.cur=nd; if(nd.status==='draft') inspRenderReview(); else inspRenderDetail(); });
+        });
+    }
+    // V1.1: leadership verification step — sets status='verified' + records verified_by/at/note.
+    // Closing the linked Task Engine task also back-closes the action to verified (TE-B); this is
+    // the direct-from-inspection path for the same closed-loop verification trail.
+    function inspActionVerify(actionId){
+        var note=prompt('Verification note (leadership confirms the fix is complete and correct):','');
+        if(note===null) return;
+        inspRpc('insp_action_update',{p_action_id:actionId,p_payload:{status:'verified',verified_note:note}},function(){
             var d=_insp.cur||{};
             inspRpc('insp_get',{p_id:d.id},function(nd){ _insp.cur=nd; if(nd.status==='draft') inspRenderReview(); else inspRenderDetail(); });
         });
@@ -509,6 +527,9 @@
         ov.innerHTML=inspHeader('Inspection dashboard','inspLoadList()')+'<div style="max-width:900px;margin:0 auto;padding:40px 16px;text-align:center;color:#6b7686;">Loading&hellip;</div>';
         inspRpc('insp_dashboard',{p_filters:{}},function(d){ _insp.dash=d||{}; inspRenderDash(); });
     }
+    // V1.1: strict 8-status vocabulary chip (server-computed status_code/label)
+    function inspStatusColor(code){ return ({excellent:'#1f7a3d',good:'#4c9a2a',due_soon:'#185FA5',needs_improvement:'#9a5b00',followup_required:'#c05a00',inspection_overdue:'#b23a48',critical:'#c0264b',no_inspection:'#8a91a0'})[code]||'#5b6675'; }
+    function inspStatusChip(code,label){ if(!label) return ''; var c=inspStatusColor(code); return '<span style="background:'+c+';color:#fff;padding:2px 9px;border-radius:99px;font-size:10.5px;font-weight:800;white-space:nowrap;">'+escapeHtml(label)+'</span>'; }
     function inspRenderDash(){
         var ov=inspOverlay(); var d=_insp.dash||{}; var s=d.summary||{};
         var h=inspHeader('Inspection dashboard','inspLoadList()');
@@ -520,22 +541,31 @@
             +inspTile('Follow-ups recommended',String(s.followups_recommended||0))
             +'</div>';
         h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">'+inspBtn('&#128276; Reminders','inspRunReminders()')+'<span style="font-size:11px;color:#8a91a0;">Nudges stores about draft follow-up inspections due within 3 days or overdue.</span></div>';
+        if(d.data_context) h+='<div style="font-size:11px;color:#6b7686;background:#f7f9fc;border:1px solid #eef0f5;border-radius:8px;padding:7px 10px;margin-bottom:12px;">&#9432; '+escapeHtml(d.data_context)+'</div>';
         var locs=d.locations||[];
         var lb='';
         if(!locs.length) lb=inspEmpty('No inspections yet — location status appears after the first submitted inspection.');
         else locs.forEach(function(L){
             var delta='';
             if(L.last_pct!=null&&L.prev_pct!=null){ var df=Math.round(10*(L.last_pct-L.prev_pct))/10; delta=' <span style="font-size:11px;font-weight:800;color:'+(df>=0?'#1f7a3d':'#c0264b')+';">'+(df>=0?'&#9650; +':'&#9660; ')+df+'</span>'; }
+            // V1.1: strict status vocabulary + verification-trail counts (server-computed)
+            var det=[];
+            if(L.open_critical) det.push('<span style="color:#c0264b;font-weight:800;">'+L.open_critical+' critical</span>');
+            if(L.overdue_actions) det.push('<span style="color:#b23a48;font-weight:800;">'+L.overdue_actions+' action'+(L.overdue_actions>1?'s':'')+' overdue</span>');
+            var openOnly=(L.open_actions||0)-(L.overdue_actions||0);
+            if(openOnly>0) det.push('<span style="color:#9a5b00;font-weight:700;">'+openOnly+' open action'+(openOnly>1?'s':'')+'</span>');
+            if(L.awaiting_verify) det.push('<span style="color:#185FA5;font-weight:700;">'+L.awaiting_verify+' to verify</span>');
+            if(L.repeat_open) det.push('<span style="color:#9a5b00;font-weight:800;">repeat issue</span>');
+            if(!det.length) det.push(L.all_clear?'<span style="color:#1f7a3d;font-weight:700;">all clear</span>':'<span style="color:#6b7686;">&mdash;</span>');
             lb+='<div style="border-top:1px solid #f0f1f6;padding:9px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
-                +'<div style="flex:1;min-width:160px;"><b style="font-size:13px;">'+escapeHtml(L.location)+'</b>'
-                +'<div style="font-size:11px;color:#6b7686;">Last: '+(L.last_date?escapeHtml(String(L.last_date)):'never')+' &middot; Next due: '+(L.next_due?escapeHtml(String(L.next_due)):'—')+(L.overdue?' <span style="color:#c0264b;font-weight:800;">OVERDUE</span>':'')+'</div></div>'
+                +'<div style="flex:1;min-width:180px;"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;"><b style="font-size:13px;">'+escapeHtml(L.location)+'</b>'+inspStatusChip(L.status_code,L.status_label)+'</div>'
+                +'<div style="font-size:11px;color:#6b7686;">Last: '+(L.last_date?escapeHtml(String(L.last_date)):'never')+(L.last_type?(' ('+escapeHtml(L.last_type)+')'):'')+' &middot; Next due: '+(L.next_due?escapeHtml(String(L.next_due)):'—')+(L.overdue?' <span style="color:#c0264b;font-weight:800;">OVERDUE</span>':(L.due_soon?' <span style="color:#185FA5;font-weight:800;">due soon</span>':''))+'</div></div>'
                 +'<div style="text-align:right;font-size:13px;">'+inspPct(L.last_pct)+delta
-                +'<div style="font-size:11px;margin-top:2px;">'+(L.open_actions?('<span style="color:#9a5b00;font-weight:700;">'+L.open_actions+' open</span>'):'<span style="color:#1f7a3d;">all clear</span>')
-                +(L.open_critical?(' &middot; <span style="color:#c0264b;font-weight:800;">'+L.open_critical+' critical</span>'):'')+'</div></div>'
+                +'<div style="font-size:11px;margin-top:2px;">'+det.join(' &middot; ')+'</div></div>'
                 +(L.last_id?('<button onclick="inspOpen('+L.last_id+')" style="background:#fff;border:1px solid #185FA5;color:#185FA5;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;">View</button>'):'')
                 +'</div>';
         });
-        h+=inspCard(lb,'Location status (cadence: every '+inspCfgNum('cadence_days',90)+' days)');
+        h+=inspCard(lb,'Location status — All Clear needs '+inspCfgNum('all_clear_pct',90)+'% + clear (cadence every '+inspCfgNum('cadence_days',90)+' days)');
         var crit=d.criticals||[];
         var cb='';
         if(!crit.length) cb=inspEmpty('No open critical findings. Keep it that way.');
@@ -548,9 +578,11 @@
         var rb='';
         if(!rep.length) rb=inspEmpty('No repeat issues detected yet.');
         else rep.forEach(function(r){
-            rb+='<div style="border-top:1px solid #f0f1f6;padding:7px 0;font-size:12px;display:flex;gap:8px;align-items:center;"><span style="flex:1;">'+escapeHtml(r.label||r.item_key)+'</span><span style="font-weight:800;color:#c0264b;">'+r.fail_count+'&times;</span><span style="font-size:11px;color:#6b7686;">'+r.locations+' location(s)</span></div>';
+            var att=(r.kind==='attention'); var c=att?'#9a5b00':'#c0264b';
+            var tag='<span style="background:'+c+';color:#fff;padding:1px 7px;border-radius:99px;font-size:9.5px;font-weight:800;text-transform:uppercase;">repeat '+(att?'attention':'failure')+'</span>';
+            rb+='<div style="border-top:1px solid #f0f1f6;padding:7px 0;font-size:12px;display:flex;gap:8px;align-items:center;"><span style="flex:1;">'+escapeHtml(r.label||r.item_key)+' '+tag+'</span><span style="font-weight:800;color:'+c+';">'+(r.count||r.fail_count)+'&times;</span><span style="font-size:11px;color:#6b7686;">'+r.locations+' location(s)</span></div>';
         });
-        h+=inspCard(rb,'Repeat issues (failed 2+ times, last 12 months)');
+        h+=inspCard(rb,'Repeat issues (same item flagged '+inspCfgNum('repeat_min_count',2)+'+ times in '+inspCfgNum('repeat_window_days',90)+' days)');
         var sa=d.section_avgs||[];
         var sab='';
         if(!sa.length) sab=inspEmpty('Section averages appear after inspections are submitted.');
@@ -592,7 +624,7 @@
         var h='<p style="font-size:11px;color:#8a91a0;margin:0 0 4px;">Each low-score finding paired with its corrective action&rsquo;s proof of completion.</p>';
         pairs.forEach(function(p){
             var it=p.it,a=p.a;
-            var sc=a.status==='done'?'#1f7a3d':(a.status==='pending_manual'?'#c0264b':'#9a5b00');
+            var sc=inspActStatusColor(a.status);
             h+='<div style="border-top:1px solid #f0f1f6;padding:9px 0;">'
                 +'<div style="font-size:12.5px;"><b>'+escapeHtml(it.label||it.key)+'</b>'+inspSevChip(it.severity)
                 +' <span style="background:'+sc+';color:#fff;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:800;">'+escapeHtml(a.status)+'</span></div>'
