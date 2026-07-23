@@ -114,7 +114,11 @@
                 if (aiChatHistory.length > 20) aiChatHistory = aiChatHistory.slice(-20);
                 // Gap tracking: log unanswered questions (only real model replies reach this point)
                 if (reply && (reply.toLowerCase().includes("not sure") || reply.toLowerCase().includes("check with") || reply.toLowerCase().includes("don't have") || reply.toLowerCase().includes("contact your manager"))) {
-                    logScoopyGap(msg);
+                    // AI Governance G2: on the audited gateway path the Edge Function already
+                    // records gaps to the hardened, RLS-gated ai_gap_log (truncated + hashed).
+                    // Only fall back to the legacy raw-text learning queue when the gateway is OFF,
+                    // so raw user text is never double-written into the broad admin queue.
+                    if (!_gw) { logScoopyGap(msg); }
                 }
             } catch(e) {
                 if (timer) clearTimeout(timer);

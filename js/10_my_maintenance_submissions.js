@@ -210,19 +210,41 @@
     // ============================================================
     // WEEKLY ROTATING LEADERSHIP QUOTES (changes every Monday)
     // ============================================================
+    // Growth- & development-themed pool. Rotates DAILY (see applyWeeklyQuotes below).
+    // Kept intentionally large so the board stays fresh for a month+ without repeats.
     const LEADERSHIP_QUOTES = [
         { text: "Quality is not an act, it is a habit.", author: "Aristotle" },
         { text: "The way to get started is to quit talking and begin doing.", author: "Walt Disney" },
         { text: "Great things in business are never done by one person. They're done by a team of people.", author: "Steve Jobs" },
-        { text: "It is not the employer who pays the wages. Employers only handle the money. It is the customer who pays the wages.", author: "Henry Ford" },
         { text: "Take care of your employees and they will take care of your customers.", author: "Richard Branson" },
         { text: "The customer's perception is your reality.", author: "Kate Zabriskie" },
         { text: "Whether you think you can or think you can't, you're right.", author: "Henry Ford" },
         { text: "Excellence is not a skill, it's an attitude.", author: "Ralph Marston" },
         { text: "Coming together is a beginning, staying together is progress, and working together is success.", author: "Henry Ford" },
-        { text: "People will forget what you said, people will forget what you did, but people will never forget how you made them feel.", author: "Maya Angelou" },
+        { text: "People will forget what you said and did, but never how you made them feel.", author: "Maya Angelou" },
         { text: "Do what you do so well that people can't resist telling others about you.", author: "Walt Disney" },
-        { text: "Leadership is not about being in charge. It's about taking care of those in your charge.", author: "Simon Sinek" }
+        { text: "Leadership is not about being in charge. It's about taking care of those in your charge.", author: "Simon Sinek" },
+        { text: "Growth is never by mere chance; it is the result of forces working together.", author: "James Cash Penney" },
+        { text: "Success is the sum of small efforts repeated day in and day out.", author: "Robert Collier" },
+        { text: "Continuous improvement is better than delayed perfection.", author: "Mark Twain" },
+        { text: "A little progress each day adds up to big results.", author: "Satya Nani" },
+        { text: "The expert in anything was once a beginner.", author: "Helen Hayes" },
+        { text: "Small daily improvements are the key to staggering long-term results.", author: "Anonymous" },
+        { text: "Feedback is the breakfast of champions.", author: "Ken Blanchard" },
+        { text: "What got you here won't get you there — keep learning.", author: "Marshall Goldsmith" },
+        { text: "Consistency is what transforms average into excellence.", author: "Anonymous" },
+        { text: "Make each day your masterpiece.", author: "John Wooden" },
+        { text: "Strive for progress, not perfection.", author: "Anonymous" },
+        { text: "Don't watch the clock; do what it does — keep going.", author: "Sam Levenson" },
+        { text: "Be so good they can't ignore you.", author: "Steve Martin" },
+        { text: "Every accomplishment starts with the decision to try.", author: "John F. Kennedy" },
+        { text: "Great service isn't a department — it's an attitude.", author: "Anonymous" },
+        { text: "Teamwork makes the dream work.", author: "John C. Maxwell" },
+        { text: "The best way to predict the future is to create it.", author: "Peter Drucker" },
+        { text: "Show up, do your best, and take pride in the work.", author: "Anonymous" },
+        { text: "Learn as if you'll live forever; work as if today is the day.", author: "Mahatma Gandhi" },
+        { text: "Hustle beats talent when talent doesn't hustle.", author: "Ross Simmonds" },
+        { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" }
     ];
 
     function getISOWeekNumber(d) {
@@ -233,17 +255,42 @@
         return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
     }
 
+    // Billboard render. DAILY-rotating growth/development quotes, plus an optional
+    // manager-set "This Week's Focus" (e.g. a sanitized theme pulled from the logbook
+    // or a coaching point). Governance-safe: the focus is shown ONLY when a manager
+    // has set it in config — never raw logbook/discipline text — and whenever nothing
+    // is set, the board auto-fills with growth & development quotes. (Name kept for the
+    // js/02 call site; behavior is now daily, not weekly.)
     function applyWeeklyQuotes() {
-        const week = getISOWeekNumber(new Date());
+        const now = new Date();
+        // day-of-year → rotates every day, cycles the whole pool over a month+
+        const doy = Math.floor((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+                    - Date.UTC(now.getFullYear(), 0, 0)) / 86400000);
         const total = LEADERSHIP_QUOTES.length;
+
+        let focusText = '', focusUntil = '';
+        try {
+            if (typeof cfg === 'function') {
+                focusText  = (cfg('billboard', 'focus_text', '')  || '').trim();
+                focusUntil = (cfg('billboard', 'focus_until', '') || '').trim();
+            }
+        } catch (e) {}
+        const today = now.toISOString().slice(0, 10);
+        const focusActive = !!focusText && (!focusUntil || focusUntil >= today);
+
         for (let i = 0; i < 3; i++) {
-            const q = LEADERSHIP_QUOTES[(week * 3 + i) % total];
             const slide = document.getElementById('quote-slide-' + (i + 1));
             if (!slide) continue;
             const textEl = slide.querySelector('.quote-text');
             const authorEl = slide.querySelector('.quote-author');
-            if (textEl) textEl.innerHTML = '“' + escapeHtml(q.text) + '”';
-            if (authorEl) authorEl.innerHTML = '— ' + escapeHtml(q.author);
+            if (i === 0 && focusActive) {
+                if (textEl) textEl.innerHTML = escapeHtml(focusText);
+                if (authorEl) authorEl.innerHTML = '🎯 This Week’s Focus';
+            } else {
+                const q = LEADERSHIP_QUOTES[((doy * 3) + i) % total];
+                if (textEl) textEl.innerHTML = '“' + escapeHtml(q.text) + '”';
+                if (authorEl) authorEl.innerHTML = '— ' + escapeHtml(q.author);
+            }
         }
     }
 

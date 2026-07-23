@@ -4,7 +4,7 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.07.22.1613';
+    const APP_VERSION = '2026.07.22.1840';
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
@@ -164,7 +164,11 @@
         applyFormPermissions();
     }
 
-    // ── MENU TAB SWITCHER ─────────────────────────────────────────
+    // ── MENU TAB SWITCHER (low-level panel show/hide) ─────────────
+    // Shows exactly one .menu-tab-content panel and syncs the bottom nav. Called by
+    // hubNav() — the single public navigation entry point — and on load. The top
+    // .menu-tab-bar buttons it also toggles are intentionally hidden via CSS (the
+    // fixed bottom nav is the primary chrome) but kept in the DOM for search/role code.
     function switchMenuTab(tab) {
         document.querySelectorAll('.menu-tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.menu-tab-content').forEach(c => c.classList.remove('tab-visible'));
@@ -466,11 +470,24 @@
         var m = document.getElementById('main-menu');
         if (m) m.style.display = 'block';
     }
+    // ── ONE coherent navigation model ──────────────────────────────
+    // Primary chrome = the fixed bottom bar (#hubBottomNav): Home / Schedule /
+    // Tasks / More. "More" opens the All-Sections hub (#tab-content-sections),
+    // which routes to the three section panels. hubNav() is the SINGLE public
+    // entry point for all top-level navigation so the model stays coherent;
+    // switchMenuTab() stays the low-level panel switcher it delegates to.
+    //   'work' → operations panel · 'team' → teamhr panel · 'admin' → management panel.
+    // These three are ADDITIVE aliases to the existing panels (added for the declutter);
+    // they change NO permission — every tile inside still obeys applyRoleUI(), and the
+    // Admin entry (#sectionsAdminCard) stays manager-gated in code, not just here.
     function hubNav(dest) {
         if (dest === 'home') { ensureMenuVisible(); switchMenuTab('home'); window.scrollTo(0,0); }
         else if (dest === 'schedule') { ensureMenuVisible(); switchMenuTab('scheduling'); window.scrollTo(0,0); }
         else if (dest === 'tasks') { openTasks(); }
         else if (dest === 'more') { ensureMenuVisible(); switchMenuTab('sections'); window.scrollTo(0,0); }
+        else if (dest === 'work') { ensureMenuVisible(); switchMenuTab('operations'); window.scrollTo(0,0); }
+        else if (dest === 'team') { ensureMenuVisible(); switchMenuTab('teamhr'); window.scrollTo(0,0); }
+        else if (dest === 'admin') { ensureMenuVisible(); switchMenuTab('management'); window.scrollTo(0,0); }
     }
 
     /* Phase-3: small inline "couldn't load" card with a retry button (replaces silent catches) */
