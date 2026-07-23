@@ -337,7 +337,12 @@
         grid.innerHTML = '<p style="text-align:center;padding:30px;color:#6b7686;">Loading&hellip;</p>';
         const ws = schedFmt(schedState.weekStart);
         const loc = schedState.location;
+        // Events row (additive, FAIL-SAFE): clear any prior week's events so the row
+        // starts blank, then (re)fetch them in parallel below. These NEVER block or
+        // reject the core schedule load — on any failure the row simply stays empty.
+        schedState.calEvents = []; schedState.cvEvents = []; schedState._weekLoaded = false;
         withPin(function(pin){
+            try { schedFetchWeekEvents(pin, ws, loc); } catch(e) {}
             Promise.all([
                 supabaseClient.rpc('app_sched_week_context', { p_username: currentUser.username, p_password: pin, p_location: loc, p_week_start: ws }),
                 supabaseClient.rpc('app_emp_photos', { p_username: currentUser.username, p_password: pin, p_location: loc }),
@@ -361,9 +366,75 @@
                 schedState.avail = (res[4] && res[4].data) || {};
                 schedState.compliance = (res[5] && !res[5].error && res[5].data) || {};
                 if (!schedState.selectedDay) schedState.selectedDay = 0;
+                schedState._weekLoaded = true;
                 renderScheduleGrid();
             }).catch(() => { grid.innerHTML = '<p style="color:red;text-align:center;">Connection error.</p>'; });
         }, function(){ grid.innerHTML = '<p style="text-align:center;padding:20px;color:#6b7686;">PIN required.</p>'; });
+    }
+    // ---- Events row data (additive, FAIL-SAFE) --------------------------------
+    // Fetches, in PARALLEL with the core schedule load (same cached PIN, no extra
+    // prompt), two independent event sources for the shown week: company-calendar
+    // events (cal_event_list, role/store filtered) and catering/vending events
+    // (cv_events_range, company-wide). Every path is wrapped so a failure/timeout
+    // can only ever leave that source's array empty — the schedule still renders.
+    function schedFetchWeekEvents(pin, ws, loc){
+        var to = ws;
+        try { var p=String(ws).split('-'); var d=new Date(+p[0],(+p[1]||1)-1,+p[2]); d.setDate(d.getDate()+6); to=schedFmt(d); } catch(e){ to=ws; }
+        var token = ws+'|'+loc; schedState._evToken = token;
+        // 1) Company-calendar events for the week + store.
+        try {
+            supabaseClient.rpc('cal_event_list', { p_username: currentUser.username, p_password: pin, p_from: ws, p_to: to, p_store: loc })
+                .then(function(r){ if(schedState._evToken!==token) return; schedState.calEvents = (r && !r.error && r.data && r.data.events) || []; schedMaybeRenderEvents(token); })
+                .catch(function(){ /* fail-safe: leave calEvents = [] */ });
+        } catch(e){}
+        // 2) Catering/Vending events for the week (company-wide, no store filter).
+        try {
+            supabaseClient.rpc('cv_events_range', { p_username: currentUser.username, p_password: pin, p_from: ws, p_to: to })
+                .then(function(r){ if(schedState._evToken!==token) return; schedState.cvEvents = (r && !r.error && Array.isArray(r.data)) ? r.data : []; schedMaybeRenderEvents(token); })
+                .catch(function(){ /* fail-safe: leave cvEvents = [] */ });
+        } catch(e){}
+    }
+    // Repaint ONLY once the core week has already rendered its grid, and only if
+    // this response still matches the current week/store (guards against a slow
+    // response from a previous week/store painting over a newer one).
+    function schedMaybeRenderEvents(token){
+        if(schedState._evToken !== token) return;
+        if(!schedState._weekLoaded) return;   // core load will include events when it paints
+        try { renderScheduleGrid(); } catch(e){}
+    }
+    // Only allow simple hex colors into style attributes (defensive vs injection).
+    function schedSafeColor(c, fb){ c=String(c==null?'':c).trim(); return /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : (fb||'#106AB3'); }
+    // Map events onto each 'YYYY-MM-DD' of the shown week -> [{label,kind,color}].
+    // Calendar events honor their event_date..end_date span (within the week);
+    // catering/vending events are single-day and cancelled ones are hidden.
+    function schedEventsByDay(days){
+        var map={}; (days||[]).forEach(function(d){ map[schedFmt(d)]=[]; });
+        try {
+            (schedState.calEvents||[]).forEach(function(e){
+                if(!e) return;
+                var start=String(e.event_date==null?'':e.event_date).slice(0,10); if(!start) return;
+                var end=String(e.end_date==null?'':e.end_date).slice(0,10); if(!end||end<start) end=start;
+                var col=schedSafeColor(e.color,'#106AB3'), label=String(e.title==null?'Event':e.title);
+                (days||[]).forEach(function(d){ var ds=schedFmt(d); if(ds>=start && ds<=end && (ds in map)) map[ds].push({label:label,kind:'cal',color:col}); });
+            });
+        } catch(e){}
+        try {
+            (schedState.cvEvents||[]).forEach(function(e){
+                if(!e) return;
+                if(String(e.op_status==null?'':e.op_status).toLowerCase()==='cancelled') return;
+                var ds=String(e.event_date==null?'':e.event_date).slice(0,10); if(!ds || !(ds in map)) return;
+                map[ds].push({label:String(e.title==null?'Catering event':e.title),kind:'cv',color:'#EC3E7E'});
+            });
+        } catch(e){}
+        return map;
+    }
+    // Compact colored chip; calendar = blue 📅, catering/vending = pink 🍦.
+    function schedEventChip(ev){
+        if(!ev) return '';
+        var emo=(ev.kind==='cv')?'&#127846;':'&#128197;';
+        var col=schedSafeColor(ev.color,(ev.kind==='cv')?'#EC3E7E':'#106AB3');
+        var lbl=escapeHtml(String(ev.label==null?'':ev.label));
+        return '<span class="hbg-evchip" title="'+lbl+'" style="display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;line-height:1.5;font-weight:700;color:#fff;background:'+col+';border-radius:6px;padding:1px 6px;margin:2px 0;">'+emo+' '+lbl+'</span>';
     }
     var SCHED_STORE_ABBR = { 'Roadrunner':'RR','Valley':'V','Lenox':'L','Alamogordo':'A','Roswell':'R','Catering & Vending':'C&V' };
     function schedAbbr(name){ return SCHED_STORE_ABBR[name] || (name||'').slice(0,2).toUpperCase(); }
@@ -454,6 +525,8 @@
         const ws = schedState.weekStart;
         const days = []; for (let i=0;i<7;i++) days.push(schedAddDays(ws,i));
         const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+        // Events row map (additive, fail-safe): a bad payload can only yield {}.
+        var eventsByDay = {}; try { eventsByDay = schedEventsByDay(days); } catch(e) { eventsByDay = {}; }
         const lbl = document.getElementById('schedWeekLabel');
         if (lbl) lbl.innerText = (ws.getMonth()+1)+'/'+ws.getDate()+' – '+(days[6].getMonth()+1)+'/'+days[6].getDate()+', '+ws.getFullYear();
         const shifts = schedState.data.shifts || [];
@@ -525,6 +598,8 @@
             html += '<div class="sp-daypick">'+days.map((d,i)=>'<button class="'+(i===di?'on':'')+'" onclick="schedPickDay('+i+')">'+dayNames[i]+'<br><b>'+d.getDate()+'</b></button>').join('')+'</div>';
             html += '<div style="padding:7px 12px;font-size:12px;color:#5b6472;background:#f6f8fb;display:flex;justify-content:space-between;border-bottom:1px solid #eef1f5;"><span>'+longNames[di]+', '+(dd.getMonth()+1)+'/'+dd.getDate()+'</span><span>'+(dayStaff[ds]?Object.keys(dayStaff[ds]).length:0)+' scheduled &middot; '+(dayHrs[ds]||0).toFixed(1)+'h</span></div>';
             const oc = byKey['null|'+ds]||[];
+            // Events row (ABOVE Open shifts) — selected day only; hidden if none. Fail-safe.
+            try { var _mev = eventsByDay[ds]||[]; if(_mev.length){ html += '<div class="sp-mrow" style="background:#eef5ff;"><div style="flex:1;font-weight:700;color:#106AB3;font-size:12px;">&#128197; Events</div><div style="text-align:right;max-width:60%;">'+_mev.map(schedEventChip).join('')+'</div></div>'; } } catch(_e){}
             if(oc.length){ html += '<div class="sp-mrow" style="background:#faf7ff;"><div style="flex:1;font-weight:700;color:#5b3fb8;font-size:12px;">&#10753; Open shifts</div><div style="text-align:right;">'; oc.forEach(s=>{ html+=blockHtml(s,false); }); html+='</div></div>'; }
             if(!shownEmps.length) html += '<div style="text-align:center;padding:24px;color:#6b7686;font-size:13px;">'+(emps.length?'No team members match your search.':'No employees yet — add one from the menu.')+'</div>';
             shownEmps.forEach(e=>{
@@ -542,6 +617,14 @@
             days.forEach((d,i) => { html += '<th>'+dayNames[i]+'<br><span style="font-weight:400;color:#5b6675;">'+(d.getMonth()+1)+'/'+d.getDate()+'</span></th>'; });
             html += '<th>Hrs &middot; $</th></tr></thead><tbody>';
             let openN=0, openH=0; days.forEach(d=>{ const oc=byKey['null|'+schedFmt(d)]||[]; oc.forEach(s=>{ openN++; openH+=schedShiftHours(s); }); });
+            // Events row — ABOVE Open shifts. One cell per day (blank if none). Fail-safe:
+            // a bad payload is swallowed and the rest of the grid renders normally.
+            try {
+                var _evTotal=0; days.forEach(function(d){ _evTotal += (eventsByDay[schedFmt(d)]||[]).length; });
+                html += '<tr class="hbg-band"><td class="hbg-e">&#128197; Events ('+_evTotal+')</td>';
+                days.forEach(function(d){ var _ds=schedFmt(d); var _evs=eventsByDay[_ds]||[]; html += '<td>'+(_evs.length?_evs.map(schedEventChip).join(''):'')+'</td>'; });
+                html += '<td></td></tr>';
+            } catch(_e){}
             html += '<tr class="hbg-band"><td class="hbg-e">&#10753; Open shifts ('+openN+') <span style="font-weight:400;color:#5b6675;">'+openH.toFixed(1)+'h</span></td>';
             days.forEach(d => { const ds=schedFmt(d); const oc=byKey['null|'+ds]||[]; html+='<td class="hbg-cell" data-emp="null" data-date="'+ds+'" onclick="schedOpenModal(null,\''+ds+'\',null)" oncontextmenu="schedCtx(event,null,\''+ds+'\','+(oc[0]?oc[0].id:'null')+')">'; oc.forEach(s=>{html+=blockHtml(s,false);}); if(!oc.length)html+='<div class="hbg-add">+</div>'; html+='</td>'; });
             html += '<td></td></tr>';
