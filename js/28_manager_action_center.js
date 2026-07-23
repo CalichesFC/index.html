@@ -39,7 +39,8 @@
     // ============================================================
     var _mac = { store:'', view:'today', health:null, feed:null, synced:null,
                  q:'', pri:'', src:'', own:'', snapOpen:false, allToday:false,
-                 detailId:null, detail:null, detailMode:'view' };
+                 detailId:null, detail:null, detailMode:'view',
+                 formReqs:null, formReqsErr:null };
 
     // Spec §6 / §13.1 views, grouped into work-queues and organize/rollups.
     var MAC_WORK_VIEWS = [
@@ -147,7 +148,7 @@
     function macLoadFeed(){ var filt={}; if(_mac.pri) filt.priority=_mac.pri; if(_mac.src) filt.source_module=_mac.src; if(_mac.own) filt.owner_role=_mac.own;
         macRpc('app_task_feed',{p_store:_mac.store||null,p_view:macServerView(_mac.view),p_filters:filt},function(d){ _mac.feed=d||{}; macRender(); },macErr); }
     function macSetStore(s){ _mac.store=s||''; _mac.feed=null; _mac.src=''; _mac.own=''; macLoad(); }
-    function macSetView(v){ _mac.view=v; _mac.feed=null; _mac.allToday=false; _mac.src=''; _mac.own=''; macRender(); macLoadFeed(); }
+    function macSetView(v){ _mac.view=v; _mac.feed=null; _mac.allToday=false; _mac.src=''; _mac.own=''; if(v==='approvals') macLoadFormReqs(); macRender(); macLoadFeed(); }
     function macTile(go,pri){ _mac.view=go; _mac.pri=pri||''; _mac.src=''; _mac.own=''; _mac.feed=null; _mac.allToday=false; macRender(); macLoadFeed(); }
     function macSetPri(p){ _mac.pri=p||''; _mac.feed=null; macLoadFeed(); }
     function macToggleSnap(){ _mac.snapOpen=!_mac.snapOpen; macRender(); }
@@ -204,13 +205,48 @@
         // ---- row views ----
         var rowsR=items.slice();
         if(q) rowsR=rowsR.filter(function(it){ return [it.title,it.source_module,it.owner_role,it.status,it.location].join(' ').toLowerCase().indexOf(q)>=0; });
+        // GO-LIVE 13: Form & document access requests surface at the top of Approvals.
+        var apr=(_mac.view==='approvals')?macFormReqBlock():'';
         var headR='<div style="font-size:11.5px;color:#6b7686;margin:0 2px 8px;">'+rowsR.length+' '+(rowsR.length===1?'item':'items')+' &middot; '+escapeHtml(macViewLabel(_mac.view))+' &middot; '+scopeTxt+drillTxt+'</div>';
         if(_mac.view==='today') headR='<div style="font-size:11.5px;color:#6b6275;margin:0 2px 9px;">Today&rsquo;s Priorities &mdash; the top items needing attention, ordered by criticality, then due date, then owner (§6.1).</div>'+headR;
-        if(!rowsR.length) return headR+'<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:34px 18px;text-align:center;color:#6b6275;"><div style="font-size:26px;margin-bottom:6px;">&#9989;</div>No action items need your attention right now.</div>';
+        if(!rowsR.length) return apr+headR+'<div style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:34px 18px;text-align:center;color:#6b6275;"><div style="font-size:26px;margin-bottom:6px;">&#9989;</div>No action items need your attention right now.</div>';
         // §6.1 curation: cap Today to the top 8 with a "show all" affordance.
         var extra='';
         if(_mac.view==='today' && !_mac.allToday && rowsR.length>8){ extra='<button onclick="macShowAllToday()" style="width:100%;background:#eef3fb;color:#185FA5;border:1px solid #d6e4f6;border-radius:10px;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;margin-top:2px;">Show all '+rowsR.length+' open items &darr;</button>'; rowsR=rowsR.slice(0,8); }
-        return headR+rowsR.map(macCard).join('')+extra; }
+        return apr+headR+rowsR.map(macCard).join('')+extra; }
+
+    // ============================================================
+    // FORM & DOCUMENT ACCESS REQUESTS (GO-LIVE 13) — shown in the Approvals view.
+    // Reads app_form_requests_list; each request offers Approve once (one_time),
+    // Approve until removed (persistent), or Deny -> app_form_request_decide.
+    // These RPCs are Store-Manager-and-up only server-side; a bare Manager viewing
+    // MAC gets 'forbidden' here, which we treat as "hide the block" (no error noise).
+    // ============================================================
+    function macLoadFormReqs(){ _mac.formReqs=null; _mac.formReqsErr=null; var box=document.getElementById('macFormReqBox'); if(box) box.innerHTML=macFormReqInner();
+        macRpc('app_form_requests_list',{},function(d){ _mac.formReqs=(d&&d.requests)||[]; _mac.formReqsErr=null; var b=document.getElementById('macFormReqBox'); if(b) b.innerHTML=macFormReqInner(); },
+        function(e){ _mac.formReqs=[]; _mac.formReqsErr=(e&&e.message)||'error'; var b=document.getElementById('macFormReqBox'); if(b){ var blk=document.getElementById('macFormReqBlock'); if(blk && String(_mac.formReqsErr).indexOf('forbidden')>=0){ blk.style.display='none'; } else { b.innerHTML=macFormReqInner(); } } }); }
+    function macFormReqInner(){
+        if(_mac.formReqsErr){ return String(_mac.formReqsErr).indexOf('forbidden')>=0 ? '' : '<div style="font-size:12px;color:#a01b3e;">Could not load form access requests.</div>'; }
+        if(_mac.formReqs==null) return '<div style="font-size:12px;color:#6b7686;">Loading form access requests&hellip;</div>';
+        if(!_mac.formReqs.length) return '<div style="font-size:12.5px;color:#6b6275;">No form access requests right now.</div>';
+        return _mac.formReqs.map(function(r){ r=r||{};
+            var note=r.note?('<div style="font-size:12px;color:#6b6275;margin-top:3px;">&ldquo;'+escapeHtml(String(r.note))+'&rdquo;</div>'):'';
+            var rid=Number(r.id);
+            return '<div style="background:#fff;border:1px solid #ececf2;border-left:4px solid #185FA5;border-radius:11px;padding:11px 13px;margin-bottom:8px;">'+
+                '<div style="font-size:13.5px;color:#26242b;"><b>'+escapeHtml(String(r.user_name||'Someone'))+'</b> requested <b>'+escapeHtml(String(r.form_label||r.form_key))+'</b></div>'+note+
+                '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;">'+
+                    '<button onclick="macFormDecide('+rid+',\'one_time\')" style="flex:1;min-width:108px;background:#eef3fb;color:#185FA5;border:1px solid #d6e4f6;border-radius:8px;padding:8px;font-size:12px;font-weight:800;cursor:pointer;">Approve once</button>'+
+                    '<button onclick="macFormDecide('+rid+',\'persistent\')" style="flex:1;min-width:130px;background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:8px;font-size:12px;font-weight:800;cursor:pointer;">Approve until removed</button>'+
+                    '<button onclick="macFormDecide('+rid+',\'deny\')" style="flex:1;min-width:70px;background:#fdeaea;color:#a01b3e;border:1px solid #f3c9d1;border-radius:8px;padding:8px;font-size:12px;font-weight:800;cursor:pointer;">Deny</button>'+
+                '</div></div>';
+        }).join(''); }
+    function macFormReqBlock(){ if(_mac.formReqsErr && String(_mac.formReqsErr).indexOf('forbidden')>=0) return '';
+        return '<div id="macFormReqBlock" style="background:#f7f9fc;border:1px solid #e6ecf4;border-radius:12px;padding:12px 13px;margin-bottom:12px;">'+
+            '<div style="font-size:12.5px;font-weight:800;color:#1f2a44;margin-bottom:8px;">&#128196; Form access requests</div>'+
+            '<div id="macFormReqBox">'+macFormReqInner()+'</div></div>'; }
+    function macFormDecide(id,decision){ var note='';
+        if(decision==='deny'){ note=prompt('Optional note to the requester (why it was denied):')||''; }
+        macRpc('app_form_request_decide',{p_request_id:id,p_decision:decision,p_note:note}, function(){ macLoadFormReqs(); macRefreshBg(); }, function(e){ alert(typeof macFriendlyErr==='function'?macFriendlyErr(e):((e&&e.message)||'Error')); }); }
 
     function macRender(){ var h=_mac.health||{};
         var out='<div style="max-width:860px;margin:0 auto;padding:14px 16px 50px;">';

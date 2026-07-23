@@ -172,7 +172,7 @@
         <form id="loginForm">
             <h2 style="color:var(--caliches-blue);margin-top:0;font-size:24px;text-transform:uppercase;">Staff Login</h2>
             <input type="hidden" name="action" value="login">
-            <input type="text" name="username" placeholder="Username" style="margin-bottom:15px;width:100%;padding:15px;border:2px solid #eee;border-radius:8px;font-size:16px;background:#fafafa;box-sizing:border-box;" required>
+            <input type="text" name="username" placeholder="Username" autocapitalize="none" autocorrect="off" autocomplete="username" spellcheck="false" style="margin-bottom:15px;width:100%;padding:15px;border:2px solid #eee;border-radius:8px;font-size:16px;background:#fafafa;box-sizing:border-box;" required>
             <input type="password" name="password" placeholder="PIN / Password" style="margin-bottom:20px;width:100%;padding:15px;border:2px solid #eee;border-radius:8px;font-size:16px;background:#fafafa;box-sizing:border-box;" required>
             <label style="display:flex;align-items:center;gap:8px;margin:-4px 0 18px;font-size:14px;color:#555;cursor:pointer;user-select:none;"><input type="checkbox" id="keepLoggedIn" checked style="width:18px;height:18px;accent-color:var(--caliches-blue);"> Keep me logged in on this device</label>
             <button type="button" id="loginBtn" class="save-btn blue-btn" style="margin-bottom:0;padding:18px;" onclick="attemptLogin()">ENTER HUB</button>
@@ -187,7 +187,7 @@
             <h2 style="color:var(--caliches-pink);margin-top:0;font-size:24px;text-transform:uppercase;">Create Account</h2>
             <input type="hidden" name="action" value="register">
             <input type="text" name="name" placeholder="First &amp; Last Name" style="margin-bottom:12px;width:100%;padding:15px;border:2px solid #eee;border-radius:8px;font-size:16px;background:#fafafa;box-sizing:border-box;" required>
-            <input type="text" name="username" placeholder="Choose Username" style="margin-bottom:12px;width:100%;padding:15px;border:2px solid #eee;border-radius:8px;font-size:16px;background:#fafafa;box-sizing:border-box;" required>
+            <input type="text" name="username" placeholder="Choose Username" autocapitalize="none" autocorrect="off" autocomplete="username" spellcheck="false" style="margin-bottom:12px;width:100%;padding:15px;border:2px solid #eee;border-radius:8px;font-size:16px;background:#fafafa;box-sizing:border-box;" required>
             <input type="email" name="email" placeholder="Your Email Address" style="margin-bottom:12px;width:100%;padding:15px;border:2px solid #eee;border-radius:8px;font-size:16px;background:#fafafa;box-sizing:border-box;" required>
             <input type="password" name="password" placeholder="Create a 4-Digit PIN" style="margin-bottom:20px;width:100%;padding:15px;border:2px solid #eee;border-radius:8px;font-size:16px;background:#fafafa;box-sizing:border-box;" required>
             <button type="button" id="registerBtn" class="save-btn pink" style="margin-bottom:0;padding:18px;" onclick="attemptRegister()">CREATE ACCOUNT</button>
@@ -2160,46 +2160,51 @@
         <p style="font-size:12px;margin:6px 0 0 0;opacity:0.8;">Company forms, paperwork &amp; resources</p>
     </div>
     <div class="container" style="max-width:700px;">
-        <div style="margin-bottom:22px;">
+        <!-- GO-LIVE 13: access-controlled. openFormsLinks() -> formsApplyAccess()
+             (js/11) calls app_forms_list and shows/hides each [data-form-key] row.
+             Managers see all; staff see only granted items + a request picker.
+             FAIL-OPEN: if the RPC errors, every row is revealed (legacy behavior). -->
+        <div id="formsDynamicHeader" style="display:none;"></div>
+        <div class="fl-section" style="margin-bottom:22px;">
             <p style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#6b7686;font-weight:800;margin:0 0 10px;">&#128203; Staff Forms</p>
-            <a class="fl-link" href="https://form.jotform.com/260414972022046" target="_blank" rel="noopener"><span style="font-size:22px;">&#128197;</span><span><strong>Weekly Schedule Submission</strong></span></a>
-            <a class="fl-link" href="https://form.jotform.com/251735389265063" target="_blank" rel="noopener"><span style="font-size:22px;">&#127968;</span><span><strong>Change of Address Request</strong></span></a>
-            <a class="fl-link" href="https://eform.pandadoc.com/?eform=7ca8f30e-7e48-43ac-9f58-d136b84364cb" target="_blank" rel="noopener"><span style="font-size:22px;">&#128209;</span><span><strong>W-4 &amp; I-9 Form</strong></span></a>
-            <a class="fl-link" href="https://eform.pandadoc.com/?eform=b3a5f317-9f29-43c4-b194-048b1f075db6" target="_blank" rel="noopener"><span style="font-size:22px;">&#127974;</span><span><strong>Direct Deposit Form</strong></span></a>
+            <a class="fl-link" data-form-key="weekly_schedule_submission" href="https://form.jotform.com/260414972022046" target="_blank" rel="noopener"><span style="font-size:22px;">&#128197;</span><span><strong>Weekly Schedule Submission</strong></span></a>
+            <a class="fl-link" data-form-key="change_of_address" href="https://form.jotform.com/251735389265063" target="_blank" rel="noopener"><span style="font-size:22px;">&#127968;</span><span><strong>Change of Address Request</strong></span></a>
+            <a class="fl-link" data-form-key="w4_i9_form" href="https://eform.pandadoc.com/?eform=7ca8f30e-7e48-43ac-9f58-d136b84364cb" target="_blank" rel="noopener"><span style="font-size:22px;">&#128209;</span><span><strong>W-4 &amp; I-9 Form</strong></span></a>
+            <a class="fl-link" data-form-key="direct_deposit_form" href="https://eform.pandadoc.com/?eform=b3a5f317-9f29-43c4-b194-048b1f075db6" target="_blank" rel="noopener"><span style="font-size:22px;">&#127974;</span><span><strong>Direct Deposit Form</strong></span></a>
         </div>
-        <div style="margin-bottom:22px;">
+        <div class="fl-section" style="margin-bottom:22px;">
             <p style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#6b7686;font-weight:800;margin:0 0 10px;">&#128188; Hiring &amp; Onboarding</p>
-            <a class="fl-link" href="https://eform.pandadoc.com/?eform=75ea6f12-ebc0-4abb-afc7-70c5ecd9625c" target="_blank" rel="noopener"><span style="font-size:22px;">&#128221;</span><span><strong>Employee Application</strong></span></a>
-            <a class="fl-link" href="https://form.jotform.com/AdriG2012/new-employee-info-form" target="_blank" rel="noopener"><span style="font-size:22px;">&#128100;</span><span><strong>New Employee Info Form</strong></span></a>
-            <a class="fl-link" href="https://www.dropbox.com/scl/fo/5ya5cth5sgqa3u4y5nuxf/AFoe2C1L0ixmjdzpaGpEuYw?rlkey=1wmyej3zpmpka1skk83bzog3n&amp;st=hc6xuda8&amp;dl=0" target="_blank" rel="noopener"><span style="font-size:22px;">&#128193;</span><span><strong>Onboarding Paperwork</strong></span></a>
-            <a class="fl-link" href="https://u.pcloud.link/publink/show?code=kZUH7w5Z9NsH6rvcouXeDFltNB6mxLU8TGW7" target="_blank" rel="noopener"><span style="font-size:22px;">&#128228;</span><span><strong>Hiring Paperwork Uploads</strong></span></a>
-            <a class="fl-link" href="https://www.onpointlc.com/employee/" target="_blank" rel="noopener"><span style="font-size:22px;">&#128231;</span><span><strong>New Manager Email Request</strong></span></a>
+            <a class="fl-link" data-form-key="employee_application" href="https://eform.pandadoc.com/?eform=75ea6f12-ebc0-4abb-afc7-70c5ecd9625c" target="_blank" rel="noopener"><span style="font-size:22px;">&#128221;</span><span><strong>Employee Application</strong></span></a>
+            <a class="fl-link" data-form-key="new_employee_info" href="https://form.jotform.com/AdriG2012/new-employee-info-form" target="_blank" rel="noopener"><span style="font-size:22px;">&#128100;</span><span><strong>New Employee Info Form</strong></span></a>
+            <a class="fl-link" data-form-key="onboarding_paperwork" href="https://www.dropbox.com/scl/fo/5ya5cth5sgqa3u4y5nuxf/AFoe2C1L0ixmjdzpaGpEuYw?rlkey=1wmyej3zpmpka1skk83bzog3n&amp;st=hc6xuda8&amp;dl=0" target="_blank" rel="noopener"><span style="font-size:22px;">&#128193;</span><span><strong>Onboarding Paperwork</strong></span></a>
+            <a class="fl-link" data-form-key="hiring_paperwork_uploads" href="https://u.pcloud.link/publink/show?code=kZUH7w5Z9NsH6rvcouXeDFltNB6mxLU8TGW7" target="_blank" rel="noopener"><span style="font-size:22px;">&#128228;</span><span><strong>Hiring Paperwork Uploads</strong></span></a>
+            <a class="fl-link" data-form-key="new_manager_email_request" href="https://www.onpointlc.com/employee/" target="_blank" rel="noopener"><span style="font-size:22px;">&#128231;</span><span><strong>New Manager Email Request</strong></span></a>
         </div>
-        <div class="forms-mgr-only" style="margin-bottom:22px;">
-            <p style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#6b7686;font-weight:800;margin:0 0 10px;">&#128181; Payroll &amp; HR <span style="color:#6b7686;font-weight:600;text-transform:none;letter-spacing:0;">(manager/admin)</span></p>
-            <a class="fl-link" href="https://form.jotform.com/261164512799060" target="_blank" rel="noopener"><span style="font-size:22px;">&#129534;</span><span><strong>Payroll Report</strong></span></a>
-            <a class="fl-link" href="https://form.jotform.com/253527494743062" target="_blank" rel="noopener"><span style="font-size:22px;">&#9989;</span><span><strong>Raise Eligibility Checklist</strong></span></a>
-            <a class="fl-link" href="https://www.jotform.com/sign/261595768194070/invite/01ktpvs3tk085d6d5bd7f9bbf6" target="_blank" rel="noopener"><span style="font-size:22px;">&#128179;</span><span><strong>Company Credit Card Policy</strong></span></a>
-            <a class="fl-link" href="https://form.jotform.com/team/261194595828067/caliches-admin-assistant-" target="_blank" rel="noopener"><span style="font-size:22px;">&#128188;</span><span><strong>Admin Assistant Internal Application</strong></span></a>
-            <a class="fl-link" href="https://eform.pandadoc.com/?eform=30862498-ff17-4ecb-9d99-342540a3442" target="_blank" rel="noopener"><span style="font-size:22px;">&#128196;</span><span><strong>PandaDoc Form</strong><br><small style="color:#c00;font-weight:400;">(needs a label / confirm link)</small></span></a>
+        <div class="fl-section" style="margin-bottom:22px;">
+            <p style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#6b7686;font-weight:800;margin:0 0 10px;">&#128181; Payroll &amp; HR</p>
+            <a class="fl-link" data-form-key="payroll_report" href="https://form.jotform.com/261164512799060" target="_blank" rel="noopener"><span style="font-size:22px;">&#129534;</span><span><strong>Payroll Report</strong></span></a>
+            <a class="fl-link" data-form-key="raise_eligibility_checklist" href="https://form.jotform.com/253527494743062" target="_blank" rel="noopener"><span style="font-size:22px;">&#9989;</span><span><strong>Raise Eligibility Checklist</strong></span></a>
+            <a class="fl-link" data-form-key="company_credit_card_policy" href="https://www.jotform.com/sign/261595768194070/invite/01ktpvs3tk085d6d5bd7f9bbf6" target="_blank" rel="noopener"><span style="font-size:22px;">&#128179;</span><span><strong>Company Credit Card Policy</strong></span></a>
+            <a class="fl-link" data-form-key="admin_assistant_application" href="https://form.jotform.com/team/261194595828067/caliches-admin-assistant-" target="_blank" rel="noopener"><span style="font-size:22px;">&#128188;</span><span><strong>Admin Assistant Internal Application</strong></span></a>
+            <a class="fl-link" data-form-key="pandadoc_form" href="https://eform.pandadoc.com/?eform=30862498-ff17-4ecb-9d99-342540a3442" target="_blank" rel="noopener"><span style="font-size:22px;">&#128196;</span><span><strong>PandaDoc Form</strong><br><small style="color:#c00;font-weight:400;">(needs a label / confirm link)</small></span></a>
         </div>
-        <div class="forms-mgr-only" style="margin-bottom:22px;">
+        <div class="fl-section" style="margin-bottom:22px;">
             <p style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#6b7686;font-weight:800;margin:0 0 10px;">&#128200; Reports &amp; Leadership</p>
-            <a class="fl-link" href="https://form.jotform.com/260295680006051" target="_blank" rel="noopener"><span style="font-size:22px;">&#9888;</span><span><strong>Internal Incident Report</strong><br><small style="color:#6b7686;font-weight:400;">Corporate submission</small></span></a>
-            <a class="fl-link" href="https://form.jotform.com/260656597350061" target="_blank" rel="noopener"><span style="font-size:22px;">&#127919;</span><span><strong>Leadership Role Alignment &amp; Growth Reflection</strong></span></a>
+            <a class="fl-link" data-form-key="internal_incident_report" href="https://form.jotform.com/260295680006051" target="_blank" rel="noopener"><span style="font-size:22px;">&#9888;</span><span><strong>Internal Incident Report</strong><br><small style="color:#6b7686;font-weight:400;">Corporate submission</small></span></a>
+            <a class="fl-link" data-form-key="leadership_role_alignment" href="https://form.jotform.com/260656597350061" target="_blank" rel="noopener"><span style="font-size:22px;">&#127919;</span><span><strong>Leadership Role Alignment &amp; Growth Reflection</strong></span></a>
         </div>
-        <div style="margin-bottom:22px;">
+        <div class="fl-section" style="margin-bottom:22px;">
             <p style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#6b7686;font-weight:800;margin:0 0 10px;">&#127881; Fundraisers &amp; Orders</p>
-            <div class="forms-mgr-only"><a class="fl-link" href="javascript:void(0)" onclick="openFundraiserHub()" style="background:linear-gradient(120deg,#185FA5,#7d1d4b);color:#fff;"><span style="font-size:22px;">&#128203;</span><span><strong>Open Fundraiser Hub</strong><br><small style="color:#e7d9e4;font-weight:400;">Inquiries, cards, returns, reconciliation &amp; reports</small></span></a></div>
-            <a class="fl-link" href="https://eform.pandadoc.com/?eform=70de608e-5fcc-4f87-9a6b-c74ba82526d8" target="_blank" rel="noopener"><span style="font-size:22px;">&#129351;</span><span><strong>Fundraiser Program Info &amp; Application</strong></span></a>
-            <a class="fl-link" href="https://form.pandadoc.com/form/uMwsPqzT9sUGveRcmRfQKm" target="_blank" rel="noopener"><span style="font-size:22px;">&#129534;</span><span><strong>Fundraiser Receipt</strong></span></a>
-            <a class="fl-link" href="https://www.jotform.com/sign/261585890534063/invite/01ktm9zpb5ede557e6373abaae" target="_blank" rel="noopener"><span style="font-size:22px;">&#128230;</span><span><strong>AFP Order Form</strong></span></a>
+            <a class="fl-link" data-form-key="fundraiser_hub" href="javascript:void(0)" onclick="openFundraiserHub()" style="background:linear-gradient(120deg,#185FA5,#7d1d4b);color:#fff;"><span style="font-size:22px;">&#128203;</span><span><strong>Open Fundraiser Hub</strong><br><small style="color:#e7d9e4;font-weight:400;">Inquiries, cards, returns, reconciliation &amp; reports</small></span></a>
+            <a class="fl-link" data-form-key="fundraiser_program_info" href="https://eform.pandadoc.com/?eform=70de608e-5fcc-4f87-9a6b-c74ba82526d8" target="_blank" rel="noopener"><span style="font-size:22px;">&#129351;</span><span><strong>Fundraiser Program Info &amp; Application</strong></span></a>
+            <a class="fl-link" data-form-key="fundraiser_receipt" href="https://form.pandadoc.com/form/uMwsPqzT9sUGveRcmRfQKm" target="_blank" rel="noopener"><span style="font-size:22px;">&#129534;</span><span><strong>Fundraiser Receipt</strong></span></a>
+            <a class="fl-link" data-form-key="afp_order_form" href="https://www.jotform.com/sign/261585890534063/invite/01ktm9zpb5ede557e6373abaae" target="_blank" rel="noopener"><span style="font-size:22px;">&#128230;</span><span><strong>AFP Order Form</strong></span></a>
         </div>
-        <div style="margin-bottom:22px;">
+        <div class="fl-section" style="margin-bottom:22px;">
             <p style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#6b7686;font-weight:800;margin:0 0 10px;">&#128295; Tools &amp; Resources</p>
-            <a class="fl-link" href="https://drive.google.com" target="_blank" rel="noopener"><span style="font-size:22px;">&#128190;</span><span><strong>Google Drive (PDFs)</strong></span></a>
-            <a class="fl-link" href="https://www.dropbox.com" target="_blank" rel="noopener"><span style="font-size:22px;">&#128451;</span><span><strong>Dropbox</strong></span></a>
-            <a class="fl-link" href="https://caliches.com" target="_blank" rel="noopener"><span style="font-size:22px;">&#127849;</span><span><strong>Caliche's Website</strong></span></a>
+            <a class="fl-link" data-form-key="google_drive_pdfs" href="https://drive.google.com" target="_blank" rel="noopener"><span style="font-size:22px;">&#128190;</span><span><strong>Google Drive (PDFs)</strong></span></a>
+            <a class="fl-link" data-form-key="dropbox" href="https://www.dropbox.com" target="_blank" rel="noopener"><span style="font-size:22px;">&#128451;</span><span><strong>Dropbox</strong></span></a>
+            <a class="fl-link" data-form-key="caliches_website" href="https://caliches.com" target="_blank" rel="noopener"><span style="font-size:22px;">&#127849;</span><span><strong>Caliche's Website</strong></span></a>
         </div>
     </div>
 </div>
@@ -2248,6 +2253,13 @@
 <script src="js/29_store_health_scorecard.js"></script>
 <script src="js/30_company_calendar.js"></script>
 <script src="js/31_home_today.js"></script>
+<script src="js/32_overdue_ack.js"></script>
+<script src="js/33_scorecard_depth.js"></script>
+<script src="js/34_store_priorities.js"></script>
+<script src="js/35_calendar_auto.js"></script>
+<script src="js/36_task_engine_ext.js"></script>
+<script src="js/37_cv_assets.js"></script>
+<script src="js/38_ops_utilities.js"></script>
 
 <!-- AI KNOWLEDGE BASE VIEW -->
 <div id="kbView" class="app-view">

@@ -449,12 +449,186 @@
         });
     }
 
+    // ============================================================
+    // FORMS & DOCUMENTS ACCESS  (GO-LIVE 13 frontend)
+    // Backend: GO_LIVE_13_FORMS_DOCS_ACCESS.sql. Default access = "Store Manager
+    // and up" (VP/Co-Owner, Admin Manager, Store Manager) — enforced server-side by
+    // _form_is_manager / forms_manager_roles. Everyone else sees ONLY the forms a
+    // manager assigned them or approved on request, and can request the rest.
+    // The 23 keys below MUST match the form_catalog seed AND the data-form-key=""
+    // tags on the rows in #formsLinksView (index.html).
+    // ============================================================
+    var FORMS_DOC_CATALOG = [
+        { key:'weekly_schedule_submission', label:'Weekly Schedule Submission', category:'Staff Forms' },
+        { key:'change_of_address', label:'Change of Address Request', category:'Staff Forms' },
+        { key:'w4_i9_form', label:'W-4 & I-9 Form', category:'Staff Forms' },
+        { key:'direct_deposit_form', label:'Direct Deposit Form', category:'Staff Forms' },
+        { key:'employee_application', label:'Employee Application', category:'Hiring & Onboarding' },
+        { key:'new_employee_info', label:'New Employee Info Form', category:'Hiring & Onboarding' },
+        { key:'onboarding_paperwork', label:'Onboarding Paperwork', category:'Hiring & Onboarding' },
+        { key:'hiring_paperwork_uploads', label:'Hiring Paperwork Uploads', category:'Hiring & Onboarding' },
+        { key:'new_manager_email_request', label:'New Manager Email Request', category:'Hiring & Onboarding' },
+        { key:'payroll_report', label:'Payroll Report', category:'Payroll & HR' },
+        { key:'raise_eligibility_checklist', label:'Raise Eligibility Checklist', category:'Payroll & HR' },
+        { key:'company_credit_card_policy', label:'Company Credit Card Policy', category:'Payroll & HR' },
+        { key:'admin_assistant_application', label:'Admin Assistant Internal Application', category:'Payroll & HR' },
+        { key:'pandadoc_form', label:'PandaDoc Form', category:'Payroll & HR' },
+        { key:'internal_incident_report', label:'Internal Incident Report', category:'Reports & Leadership' },
+        { key:'leadership_role_alignment', label:'Leadership Role Alignment & Growth Reflection', category:'Reports & Leadership' },
+        { key:'fundraiser_hub', label:'Open Fundraiser Hub', category:'Fundraisers & Orders' },
+        { key:'fundraiser_program_info', label:'Fundraiser Program Info & Application', category:'Fundraisers & Orders' },
+        { key:'fundraiser_receipt', label:'Fundraiser Receipt', category:'Fundraisers & Orders' },
+        { key:'afp_order_form', label:'AFP Order Form', category:'Fundraisers & Orders' },
+        { key:'google_drive_pdfs', label:'Google Drive (PDFs)', category:'Tools & Resources' },
+        { key:'dropbox', label:'Dropbox', category:'Tools & Resources' },
+        { key:'caliches_website', label:"Caliche's Website", category:'Tools & Resources' }
+    ];
+    // Session memory of what this user already requested (so the picker can show a
+    // pending state without another round-trip).
+    var _formsRequested = {};
+
     function openFormsLinks() {
-        const isMgr = currentUser && (currentUser.role === 'Manager' || currentUser.role === 'Admin Manager' || currentUser.role === 'Vice President/Co-Owner' || currentUser.is_developer === true);
-        document.querySelectorAll('.forms-mgr-only').forEach(el => { el.style.display = isMgr ? 'block' : 'none'; });
         triggerTransition(() => {
             document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
             document.getElementById('formsLinksView').style.display = 'block';
+        });
+        formsApplyAccess();
+    }
+
+    // Determine + apply access. Blank the rows first (no flash of locked items),
+    // then ask app_forms_list. Any ERROR path FAILS OPEN (reveals everything) so a
+    // not-yet-deployed backend never locks anyone out; only a SUCCESS applies gating.
+    function formsApplyAccess() {
+        document.querySelectorAll('#formsLinksView [data-form-key]').forEach(function (el) { el.style.display = 'none'; el.removeAttribute('data-onetime'); });
+        document.querySelectorAll('#formsLinksView .fl-section').forEach(function (el) { el.style.display = 'none'; });
+        var hdr = document.getElementById('formsDynamicHeader');
+        if (hdr) { hdr.style.display = 'block'; hdr.innerHTML = '<div style="text-align:center;color:#6b7686;padding:24px;font-size:13px;">Loading your forms &amp; documents&hellip;</div>'; }
+        withPin(function (pin) {
+            supabaseClient.rpc('app_forms_list', { p_username: currentUser.username, p_password: pin })
+            .then(function (res) {
+                if (res && res.error) { if (res.error.code === '42501') sessionPin = null; formsFailOpen(); return; }
+                if (!res || res.data == null) { formsFailOpen(); return; }   // no data object -> treat as not-deployed -> fail open
+                try { formsRenderGated(res.data); } catch (e) { formsFailOpen(); }
+            })
+            .catch(function () { formsFailOpen(); });
+        }, function () { formsPinNeeded(); });
+    }
+
+    // FAIL-OPEN: reveal every row + section exactly like the old static page.
+    function formsFailOpen() {
+        document.querySelectorAll('#formsLinksView [data-form-key]').forEach(function (el) { el.style.display = ''; el.removeAttribute('data-onetime'); });
+        document.querySelectorAll('#formsLinksView .fl-section').forEach(function (el) { el.style.display = ''; });
+        var hdr = document.getElementById('formsDynamicHeader'); if (hdr) { hdr.innerHTML = ''; hdr.style.display = 'none'; }
+    }
+
+    // PIN cancelled: don't reveal locked items and don't hard-lock — offer a retry.
+    function formsPinNeeded() {
+        var hdr = document.getElementById('formsDynamicHeader'); if (!hdr) return; hdr.style.display = 'block';
+        hdr.innerHTML = '<div style="background:#fff8ef;border:1px solid #f4e3c6;border-radius:11px;padding:16px;text-align:center;color:#4a4032;font-size:13px;">Your forms &amp; documents are protected.<button onclick="formsApplyAccess()" style="margin-top:10px;display:block;width:100%;background:var(--caliches-blue);color:#fff;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;">Enter PIN to view</button></div>';
+    }
+
+    // SUCCESS: managers see all; staff see only granted rows. Empty sections hide.
+    function formsRenderGated(data) {
+        var isMgr = (data.is_manager === true);
+        var forms = data.forms || [];
+        var allowed = {}, gtype = {};
+        forms.forEach(function (f) { if (f && f.form_key) { allowed[f.form_key] = true; gtype[f.form_key] = f.grant_type || null; } });
+        document.querySelectorAll('#formsLinksView [data-form-key]').forEach(function (el) {
+            var k = el.getAttribute('data-form-key');
+            var show = isMgr || !!allowed[k];
+            el.style.display = show ? '' : 'none';
+            el.removeAttribute('data-onetime');
+            // A non-manager's one-time grant: intercept the open so it is consumed once.
+            var href = el.getAttribute('href') || '';
+            if (show && !isMgr && gtype[k] === 'one_time' && href && href.indexOf('javascript') !== 0) el.setAttribute('data-onetime', '1');
+        });
+        document.querySelectorAll('#formsLinksView .fl-section').forEach(function (sec) {
+            var vis = false; sec.querySelectorAll('[data-form-key]').forEach(function (el) { if (el.style.display !== 'none') vis = true; });
+            sec.style.display = vis ? '' : 'none';
+        });
+        formsBindOneTime();
+        formsRenderHeader(isMgr, allowed);
+    }
+
+    function formsRenderHeader(isMgr, allowed) {
+        var hdr = document.getElementById('formsDynamicHeader'); if (!hdr) return; hdr.style.display = 'block';
+        if (isMgr) {
+            hdr.innerHTML = '<div style="background:#eef3fb;border:1px solid #d6e4f6;border-radius:11px;padding:11px 13px;margin-bottom:16px;font-size:12.5px;color:#2b3242;">'
+                + '&#128273; You have full access to every form &amp; document. Staff see only what you assign or approve &mdash; manage per-person access in <b>Admin &rarr; Users &rarr; Form Access</b>, and approve requests in the <b>Manager Action Center &rarr; Approvals</b>.</div>';
+            return;
+        }
+        var grantedCount = 0; for (var gk in allowed) { if (allowed[gk]) grantedCount++; }
+        var opts = '';
+        FORMS_DOC_CATALOG.forEach(function (c) {
+            if (allowed[c.key]) return;                              // already has access
+            var pend = _formsRequested[c.key] ? ' — requested' : '';
+            opts += '<option value="' + escapeHtml(c.key) + '"' + (_formsRequested[c.key] ? ' disabled' : '') + '>' + escapeHtml(c.category + ' · ' + c.label + pend) + '</option>';
+        });
+        var empty = grantedCount === 0
+            ? '<div style="background:#fff8ef;border:1px solid #f4e3c6;border-radius:11px;padding:12px 13px;margin-bottom:12px;font-size:12.5px;color:#4a4032;">You don&rsquo;t have access to any forms or documents yet. Request what you need below &mdash; a manager will approve it.</div>'
+            : '';
+        hdr.innerHTML = empty
+            + '<div style="background:#fff;border:1px solid #e6ecf4;border-radius:12px;padding:13px 14px;margin-bottom:18px;">'
+            + '<div style="font-size:13px;font-weight:800;color:#1f2a44;margin-bottom:8px;">&#128196; Request access to a form</div>'
+            + '<select id="formsReqSelect" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:13px;background:#fff;margin-bottom:8px;"><option value="">Choose a form or document&hellip;</option>' + opts + '</select>'
+            + '<input id="formsReqNote" placeholder="Reason (optional) — e.g. new hire paperwork" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:13px;margin-bottom:8px;">'
+            + '<button onclick="formsRequestAccess()" style="width:100%;background:var(--caliches-blue);color:#fff;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;">Send request</button>'
+            + '<div id="formsReqMsg" style="font-size:12px;text-align:center;margin-top:8px;min-height:15px;color:#6b7686;"></div></div>';
+    }
+
+    function formsRequestAccess() {
+        var sel = document.getElementById('formsReqSelect'); var key = sel ? sel.value : '';
+        var msg = document.getElementById('formsReqMsg');
+        if (!key) { if (msg) { msg.style.color = '#a01b3e'; msg.innerHTML = 'Pick a form first.'; } return; }
+        var note = (document.getElementById('formsReqNote') || {}).value || '';
+        if (msg) { msg.style.color = '#6b7686'; msg.innerHTML = 'Sending&hellip;'; }
+        withPin(function (pin) {
+            supabaseClient.rpc('app_form_request_access', { p_username: currentUser.username, p_password: pin, p_form_key: key, p_note: note })
+            .then(function (res) {
+                if (res && res.error) { if (res.error.code === '42501') sessionPin = null; if (msg) { msg.style.color = '#a01b3e'; msg.innerHTML = 'Could not send: ' + escapeHtml(res.error.message || 'error'); } return; }
+                var d = (res && res.data) || {};
+                _formsRequested[key] = true;
+                if (msg) {
+                    msg.style.color = '#1b7a3d';
+                    if (d.already_granted) msg.innerHTML = '&#10003; You already have access to that one — reopen Forms &amp; Documents to see it.';
+                    else if (d.deduped) msg.innerHTML = '&#10003; You already requested that — it&rsquo;s pending a manager.';
+                    else msg.innerHTML = '&#10003; Request sent. A manager will review it.';
+                }
+                var opt = sel ? sel.querySelector('option[value="' + key + '"]') : null; if (opt) { opt.disabled = true; opt.text = opt.text.replace(/ — requested$/, '') + ' — requested'; } if (sel) sel.value = '';
+            })
+            .catch(function () { if (msg) { msg.style.color = '#a01b3e'; msg.innerHTML = 'Connection error. Please try again.'; } });
+        }, function () { if (msg) { msg.style.color = '#6b7686'; msg.innerHTML = 'PIN needed to send a request.'; } });
+    }
+
+    // One-time open interception (staff): consume the single-use grant via
+    // app_form_can_open, then open. window.open('') is called synchronously in the
+    // click so the browser doesn't block the popup while the RPC resolves. Bound
+    // once (delegated) on #formsLinksView.
+    var _formsOneTimeBound = false;
+    function formsBindOneTime() {
+        if (_formsOneTimeBound) return; var root = document.getElementById('formsLinksView'); if (!root) return; _formsOneTimeBound = true;
+        root.addEventListener('click', function (e) {
+            var a = e.target && e.target.closest ? e.target.closest('[data-form-key]') : null;
+            if (!a || a.getAttribute('data-onetime') !== '1') return;
+            e.preventDefault();
+            var key = a.getAttribute('data-form-key'); var href = a.getAttribute('href') || '';
+            var w = (href && href.indexOf('javascript') !== 0) ? window.open('', '_blank') : null;
+            withPin(function (pin) {
+                supabaseClient.rpc('app_form_can_open', { p_username: currentUser.username, p_password: pin, p_form_key: key })
+                .then(function (res) {
+                    if (res && res.error) { if (res.error.code === '42501') sessionPin = null; if (w) w.close(); alert('Could not open: ' + (res.error.message || 'error')); return; }
+                    var d = (res && res.data) || {};
+                    if (d.allowed) {
+                        if (w) w.location.href = href; else window.open(href, '_blank');
+                        if (d.consumed) { a.setAttribute('data-onetime', '0'); a.style.display = 'none'; }   // one-time used up
+                    } else {
+                        if (w) w.close();
+                        alert('That was one-time access and it has already been used. Please request access again.');
+                        a.setAttribute('data-onetime', '0'); a.style.display = 'none';
+                    }
+                })
+                .catch(function () { if (w) w.close(); alert('Connection error. Please try again.'); });
+            }, function () { if (w) w.close(); });
         });
     }
 

@@ -558,8 +558,10 @@
         var _mdBtn=document.getElementById('btn-maintDash'); if(_mdBtn) _mdBtn.style.display=permAllow('maint_dash', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Finance Approver','Maintenance Lead'].indexOf(role)>=0))?'block':'none';
         /* Merged Dashboards tile: visible when ANY of the five legacy dashboard tiles is allowed (they stay the role truth). */
         var _dashBtn=document.getElementById('btn-dashboards'); if(_dashBtn) _dashBtn.style.display=(typeof dashAnyAllowed==='function'&&dashAnyAllowed())?'block':'none';
-        const formsLinksBtn = document.getElementById('formsLinksBtn');
-        if (formsLinksBtn) formsLinksBtn.style.display = permAllow('forms_links', (devOverride || isManager)) ? 'block' : 'none';
+        /* Forms & Documents (btn-formsDocs) stays visible to everyone; access is now
+           enforced INSIDE the view by app_forms_list (GO-LIVE 13, js/11 formsApplyAccess).
+           The old formsLinksBtn gate here targeted a non-existent element (dead code) and
+           has been removed. */
         /* quotesBtn + salesPipelineBtn tiles retired 2026-07-13 — merged into the Catering
            Pipeline board (btn-catering), which carries the manager gate. */
         document.getElementById('developerBtn').style.display = (currentUser.is_developer === true) ? 'block' : 'none';

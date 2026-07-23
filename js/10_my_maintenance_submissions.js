@@ -136,14 +136,16 @@
                     results.innerHTML = '<p style="color:red;">Error: ' + (error?error.message:'no data') + '</p>'; return;
                 }
                 let html = '<div class="table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Forms Allowed</th><th>Action</th></tr></thead><tbody>';
+                window._ufaUsers = {};   // id -> name, for the per-user Form & document access panel (GO-LIVE 13)
                 data.forEach(u => {
+                    window._ufaUsers[u.id] = u.name;
                     let perms = u.permissions || FORM_KEYS.map(f=>f.key);
                     let checks = FORM_KEYS.map(f => '<label style="margin-right:8px;font-size:11px;font-weight:bold;white-space:nowrap;"><input type="checkbox" data-key="' + f.key + '" ' + (perms.indexOf(f.key)!==-1?'checked':'') + ' style="transform:scale(1.2);vertical-align:middle;"> ' + f.label + '</label>').join('');
                     if (u.role === 'Manager' || u.role === 'Admin Manager') {
                         let maintBoardChecked = (u.maint_board_access !== false);
                         checks += '<label style="margin-right:8px;font-size:11px;font-weight:bold;white-space:nowrap;color:var(--maint-orange);"><input type="checkbox" id="mb-' + u.id + '" ' + (maintBoardChecked?'checked':'') + ' style="transform:scale(1.2);vertical-align:middle;"> Maint. Board</label>';
                     }
-                    html += '<tr><td style="font-weight:500;">' + escapeHtml(u.name) + '</td><td style="color:var(--na-gray);">' + escapeHtml(u.username) + '</td><td style="color:var(--na-gray);">' + escapeHtml(u.email||'—') + '</td><td><select id="role-select-' + u.id + '" class="role-select"><option value="Blue Apron"' + (u.role==='Blue Apron'?' selected':'') + '>Blue Apron</option><option value="Shift Lead"' + (u.role==='Shift Lead'?' selected':'') + '>Shift Lead</option><option value="Manager"' + (u.role==='Manager'?' selected':'') + '>Manager</option><option value="Maintenance"' + (u.role==='Maintenance'?' selected':'') + '>Maintenance</option><option value="Admin Manager"' + (u.role==='Admin Manager'?' selected':'') + '>Admin Manager</option>' + (u.role==='Vice President/Co-Owner' ? '<option value="Vice President/Co-Owner" selected>Vice President/Co-Owner</option>' : '') + '</select></td><td><div id="perm-' + u.id + '" style="display:flex;flex-wrap:wrap;gap:2px;max-width:260px;">' + checks + '</div></td><td style="white-space:nowrap;"><button class="update-role-btn" onclick="updateRole(' + u.id + ')">Save Role</button><button class="update-action-btn" onclick="updatePermissions(' + u.id + ')" style="margin-left:5px;">Save Forms</button><button class="delete-btn" onclick="deleteUser(' + u.id + ')">Remove Login</button></td></tr>';
+                    html += '<tr><td style="font-weight:500;">' + escapeHtml(u.name) + '</td><td style="color:var(--na-gray);">' + escapeHtml(u.username) + '</td><td style="color:var(--na-gray);">' + escapeHtml(u.email||'—') + '</td><td><select id="role-select-' + u.id + '" class="role-select"><option value="Blue Apron"' + (u.role==='Blue Apron'?' selected':'') + '>Blue Apron</option><option value="Shift Lead"' + (u.role==='Shift Lead'?' selected':'') + '>Shift Lead</option><option value="Manager"' + (u.role==='Manager'?' selected':'') + '>Manager</option><option value="Maintenance"' + (u.role==='Maintenance'?' selected':'') + '>Maintenance</option><option value="Admin Manager"' + (u.role==='Admin Manager'?' selected':'') + '>Admin Manager</option>' + (u.role==='Vice President/Co-Owner' ? '<option value="Vice President/Co-Owner" selected>Vice President/Co-Owner</option>' : '') + '</select></td><td><div id="perm-' + u.id + '" style="display:flex;flex-wrap:wrap;gap:2px;max-width:260px;">' + checks + '</div></td><td style="white-space:nowrap;"><button class="update-role-btn" onclick="updateRole(' + u.id + ')">Save Role</button><button class="update-action-btn" onclick="updatePermissions(' + u.id + ')" style="margin-left:5px;">Save Forms</button><button class="update-action-btn" onclick="openUserFormAccess(' + u.id + ')" style="margin-left:5px;background:#185FA5;">Form Access</button><button class="delete-btn" onclick="deleteUser(' + u.id + ')">Remove Login</button></td></tr>';
                 });
                 html += '</tbody></table></div>'; results.innerHTML = html;
             }).catch(() => { results.innerHTML = '<p style="color:red;">Connection Error.</p>'; });
@@ -198,6 +200,52 @@
             });
         });
     }
+
+    // ============================================================
+    // PER-USER FORM & DOCUMENT ACCESS  (GO-LIVE 13)
+    // For a selected staff member: list their active grants, assign a form, or
+    // revoke one. Backend (Store-Manager-and-up gated server-side):
+    //   app_form_grants_list / app_form_assign / app_form_revoke.
+    // Catalog labels come from the shared FORMS_DOC_CATALOG (js/11) — the same 23
+    // keys the GO_LIVE_13 migration seeds.
+    // ============================================================
+    var _ufa = { uid:null, name:'', grants:null, err:null };
+    function ufaRpc(name,args,cb,onerr){ withPin(function(pin){ supabaseClient.rpc(name,Object.assign({p_username:currentUser.username,p_password:pin},args||{})).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; if(onerr) onerr(r.error); else alert(r.error.message||'Error'); return; } cb(r.data); }).catch(function(){ if(onerr) onerr({message:'Connection error'}); else alert('Connection error.'); }); }, function(){ if(onerr) onerr({message:'cancelled'}); }); }
+    function ufaOv(){ var o=document.getElementById('ufaModal'); if(!o){ o=document.createElement('div'); o.id='ufaModal'; o.style.cssText='position:fixed;inset:0;background:rgba(20,26,40,.5);z-index:100070;overflow:auto;'; o.addEventListener('click',function(e){ if(e.target===o) ufaClose(); }); document.body.appendChild(o); } o.style.display='block'; return o; }
+    function ufaClose(){ var o=document.getElementById('ufaModal'); if(o) o.style.display='none'; }
+    function openUserFormAccess(uid,name){ _ufa.uid=uid; _ufa.name=name||((window._ufaUsers||{})[uid])||('User #'+uid); _ufa.grants=null; _ufa.err=null; ufaOv().innerHTML=ufaShell('<div style="text-align:center;color:#6b7686;padding:26px;">Loading&hellip;</div>'); ufaLoad(); }
+    function ufaLoad(){ ufaRpc('app_form_grants_list',{p_user_id:_ufa.uid}, function(d){ _ufa.grants=(d&&d.grants)||[]; _ufa.err=null; ufaRender(); }, function(e){ _ufa.err=(e&&e.message)||'error'; _ufa.grants=[]; ufaRender(); }); }
+    function ufaShell(inner){ return '<div style="max-width:520px;margin:26px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.28);">'+
+        '<div style="background:linear-gradient(120deg,#185FA5,#0d4a8a);color:#fff;padding:13px 15px;display:flex;align-items:center;gap:10px;"><b style="flex:1;font-size:14.5px;">&#128196; Form &amp; document access &mdash; '+escapeHtml(String(_ufa.name))+'</b><button onclick="ufaClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:5px 9px;font-size:14px;cursor:pointer;">&times;</button></div>'+
+        '<div style="padding:15px 16px 18px;">'+inner+'</div></div>'; }
+    function ufaRender(){ var o=document.getElementById('ufaModal'); if(!o) return;
+        var cat=(typeof FORMS_DOC_CATALOG!=='undefined')?FORMS_DOC_CATALOG:[];
+        var held={}; (_ufa.grants||[]).forEach(function(g){ if(g.grant_type==='assigned'||g.grant_type==='persistent') held[g.form_key]=true; });
+        var opts=''; cat.forEach(function(c){ if(held[c.key]) return; opts+='<option value="'+escapeHtml(c.key)+'">'+escapeHtml(c.category+' · '+c.label)+'</option>'; });
+        var assign='<div style="background:#f7f9fc;border:1px solid #e6ecf4;border-radius:11px;padding:11px 12px;margin-bottom:14px;">'+
+            '<div style="font-size:12.5px;font-weight:800;color:#1f2a44;margin-bottom:7px;">Assign a form / document</div>'+
+            '<select id="ufaAssignSel" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:13px;background:#fff;margin-bottom:8px;"><option value="">Choose&hellip;</option>'+opts+'</select>'+
+            '<button onclick="ufaAssign()" style="width:100%;background:#1f7a3d;color:#fff;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;">Assign (until removed)</button></div>';
+        var list;
+        if(_ufa.err){ list='<div style="font-size:12.5px;color:#a01b3e;padding:6px 0;">'+(String(_ufa.err).indexOf('forbidden')>=0?'Only Store Managers and up can manage form access.':('Could not load grants: '+escapeHtml(String(_ufa.err))))+'</div>'; }
+        else if(!(_ufa.grants||[]).length){ list='<div style="font-size:12.5px;color:#6b6275;padding:6px 0;">No active grants. This person sees nothing in Forms &amp; Documents unless it&rsquo;s assigned here or approved on request.</div>'; }
+        else { list=(_ufa.grants||[]).map(function(g){ g=g||{};
+            var tag=g.grant_type==='one_time'?'one-time':(g.grant_type==='assigned'?'assigned':(g.grant_type==='persistent'?'until removed':String(g.grant_type||'')));
+            var src=g.source==='request'?'from request':'assigned';
+            return '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid #f2f4f8;">'+
+                '<div style="flex:1;"><div style="font-size:13px;color:#26242b;font-weight:600;">'+escapeHtml(String(g.form_label||g.form_key))+'</div>'+
+                '<div style="font-size:11px;color:#8a93a3;">'+escapeHtml(tag)+' &middot; '+escapeHtml(src)+(g.granted_by_name?(' &middot; by '+escapeHtml(String(g.granted_by_name))):'')+'</div></div>'+
+                '<button onclick="ufaRevoke('+Number(g.id)+')" style="background:#fdeaea;color:#a01b3e;border:1px solid #f3c9d1;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:800;cursor:pointer;">Revoke</button></div>';
+        }).join(''); }
+        var body=assign+'<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#9aa3b0;letter-spacing:.3px;margin:2px 0 4px;">Active access</div>'+list+
+            '<div id="ufaMsg" style="font-size:12px;text-align:center;margin-top:10px;min-height:15px;color:#6b7686;"></div>';
+        o.innerHTML=ufaShell(body);
+    }
+    function ufaMsg(html,kind){ var s=document.getElementById('ufaMsg'); if(!s) return; s.style.color=(kind==='ok'?'#1b7a3d':(kind==='err'?'#a01b3e':'#6b7686')); s.innerHTML=html; }
+    function ufaAssign(){ var sel=document.getElementById('ufaAssignSel'); var key=sel?sel.value:''; if(!key){ ufaMsg('Pick a form first.','err'); return; } ufaMsg('Assigning&hellip;','info');
+        ufaRpc('app_form_assign',{p_user_id:_ufa.uid,p_form_key:key}, function(){ ufaMsg('&#10003; Assigned.','ok'); ufaLoad(); }, function(e){ ufaMsg('Could not assign: '+escapeHtml((e&&e.message)||'error'),'err'); }); }
+    function ufaRevoke(gid){ if(!confirm('Remove this access?')) return; ufaMsg('Removing&hellip;','info');
+        ufaRpc('app_form_revoke',{p_grant_id:gid}, function(){ ufaMsg('&#10003; Removed.','ok'); ufaLoad(); }, function(e){ ufaMsg('Could not remove: '+escapeHtml((e&&e.message)||'error'),'err'); }); }
 
     // ============================================================
     // SLIDER
