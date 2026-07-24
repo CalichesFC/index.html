@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Caliche's Training Module</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;}
+  #scoFrame{position:fixed;inset:0;border:0;width:100%;height:100%;}
+  #scoStatus{position:fixed;top:8px;left:8px;font:12px -apple-system,Segoe UI,sans-serif;color:#cfd6df;background:rgba(0,0,0,.55);padding:4px 10px;border-radius:7px;z-index:5;}
+</style>
+</head>
+<body>
+<div id="scoStatus">Loading&hellip;</div>
+<iframe id="scoFrame" allow="autoplay; fullscreen" allowfullscreen></iframe>
+<script>
+/*
+  Caliche's SCORM player wrapper.  (STAB-004, 2026-07-23 — no credentials in the URL.)
+
+  This page provides window.API / window.API_1484_11 so a SCORM course (SCO) opened here
+  doesn't error, and it renders the launch file. It reads ONLY:
+      #course=<id>&launch=<url-encoded launch file>
+
+  It deliberately does NOT read a username or PIN from the URL and never transmits a
+  credential. The old design accepted "#...&u=<username>&k=<pin>" and posted the PIN to an
+  RPC — that put a password in the web address (browser history / shareable link), so it
+  has been removed. Course completion inside the Caliche's Hub is recorded by the Hub's own
+  in-app SCORM runtime (app_lp_complete, authenticated by the logged-in session) — not by
+  this page. A course launched directly through this wrapper still runs; the Hub simply
+  records the result from its own authenticated session, where the credential never leaves
+  the app.
+*/
+(function(){
+  function hashParams(){ var h={}; (location.hash.replace(/^#/,'')).split('&').forEach(function(p){ var i=p.indexOf('='); if(i>0) h[decodeURIComponent(p.slice(0,i))]=decodeURIComponent(p.slice(i+1)); }); return h; }
+  var P=hashParams();
+  var launch=P.launch||'';
+  var data={}, err='0';
+  function statusVal(){ return data['cmi.core.lesson_status']||data['cmi.completion_status']||data['cmi.success_status']||''; }
+  function setS(t){ var e=document.getElementById('scoStatus'); if(e) e.textContent=t; }
+  function noteDone(){ var st=String(statusVal()).toLowerCase(); if(st==='passed'||st==='completed'){ setS('✓ Module complete — you can close this'); } }
+  function I(){ err='0'; return 'true'; }
+  function fin(){ err='0'; noteDone(); return 'true'; }
+  function gv(k){ err='0'; return data[k]!=null?data[k]:''; }
+  function sv(k,v){ data[k]=String(v); err='0'; if(k==='cmi.core.lesson_status'||k==='cmi.completion_status'||k==='cmi.success_status') noteDone(); return 'true'; }
+  function cm(){ err='0'; noteDone(); return 'true'; }
+  window.API={ LMSInitialize:I, LMSFinish:fin, LMSGetValue:gv, LMSSetValue:sv, LMSCommit:cm, LMSGetLastError:function(){return err;}, LMSGetErrorString:function(){return '';}, LMSGetDiagnostic:function(){return '';} };
+  window.API_1484_11={ Initialize:I, Terminate:fin, GetValue:gv, SetValue:sv, Commit:cm, GetLastError:function(){return err;}, GetErrorString:function(){return '';}, GetDiagnostic:function(){return '';} };
+  if(launch){ document.getElementById('scoFrame').src=launch; setS('Training module'); }
+  else { setS('No launch file specified for this module.'); }
+})();
+</script>
+</body>
+</html>
