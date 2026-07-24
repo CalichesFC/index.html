@@ -113,6 +113,7 @@
             anchor:  'emergencyList',
             fields: [
                 {key:'manager_on_call', label:'Manager on call',            hint:'Shown on every emergency procedure'},
+                {key:'police',          label:'Police (non-emergency)',     hint:'For 911, crew are told to call 911 first'},
                 {key:'utility',         label:'Electric utility',           hint:''},
                 {key:'water_utility',   label:'Water utility',              hint:''},
                 {key:'internet',        label:'Internet provider',          hint:''},
@@ -121,7 +122,7 @@
         }
     };
 
-    var S = { open:{}, values:{}, saving:{}, msg:{}, perm:null, permRole:null, permMsg:'' };
+    var S = { open:{}, values:{}, saving:{}, flash:{}, msg:{}, perm:null, permRole:null, permMsg:'' };
 
     // ---------- mount a page's gear tab ----------
     function mountPage(pageKey){
@@ -160,16 +161,29 @@
                     for(var i=0;i<cfg.fields.length;i++){
                         var f=cfg.fields[i], v=vals[f.key]==null?'':vals[f.key];
                         if(v==='Not set') v='';
-                        inner += rowWrap(
+                        // per-field state so the result of pressing Save is unmissable
+                        var st = S.flash[pageKey+'|'+f.key];   // 'saving' | 'saved' | 'failed'
+                        var btn;
+                        if(st==='saving'){
+                            btn = '<button disabled style="background:#eef0f5;color:'+GREY+';border:1px solid #dde3ec;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:800;min-width:78px;">Saving…</button>';
+                        } else if(st==='saved'){
+                            btn = '<button disabled style="background:'+GREEN+';color:#fff;border:1px solid '+GREEN+';border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:800;min-width:78px;">&#10003; Saved</button>';
+                        } else if(st==='failed'){
+                            btn = '<button onclick="ast.save('+q(pageKey)+','+q(f.key)+','+q(f.label)+')" style="background:#fdeaea;color:#c0264b;border:1px solid #f3c2c2;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:800;min-width:78px;cursor:pointer;">Retry</button>';
+                        } else {
+                            btn = '<button onclick="ast.save('+q(pageKey)+','+q(f.key)+','+q(f.label)+')" style="background:#eef4fb;color:'+BLUE+';border:1px solid #cfe0f2;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:800;min-width:78px;cursor:pointer;">Save</button>';
+                        }
+                        var rowStyle = (st==='saved') ? 'background:#f0f9f3;border-radius:8px;' : '';
+                        var fieldHtml =
                             '<div style="flex:1;min-width:0;">'
                           +   '<div style="font-size:13px;color:#26242b;">'+esc(f.label)+'</div>'
                           +   (f.hint? '<div style="font-size:11px;color:'+GREY+';margin-top:1px;">'+esc(f.hint)+'</div>':'')
                           + '</div>'
                           + '<input id="ast-f-'+esc(pageKey)+'-'+esc(f.key)+'" value="'+esc(v)+'" placeholder="Not set" '
-                          +   'style="width:180px;padding:7px 10px;border:1px solid #d7dbe2;border-radius:8px;font-size:13px;">'
-                          + '<button onclick="ast.save('+q(pageKey)+','+q(f.key)+','+q(f.label)+')" '
-                          +   'style="background:#eef4fb;color:'+BLUE+';border:1px solid #cfe0f2;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:800;cursor:pointer;">Save</button>'
-                        , i===0);
+                          +   'style="width:180px;padding:7px 10px;border:1px solid '+(st==='saved'?GREEN:'#d7dbe2')+';border-radius:8px;font-size:13px;">'
+                          + btn;
+                        inner += '<div style="display:flex;align-items:center;gap:10px;padding:9px 6px;'+(i===0?'':'border-top:1px solid #e6edf6;')+rowStyle+'">'+fieldHtml+'</div>';
+                        continue;
                     }
                     if(S.msg[pageKey]) inner += note(S.msg[pageKey].text, S.msg[pageKey].ok?GREEN:'#c0264b');
                     inner += note('Everyone below Admin Manager never sees this tab — the page looks normal to them.');
@@ -204,21 +218,29 @@
             var val = gv('ast-f-'+pageKey+'-'+key);
             var sort = 0;
             for(var i=0;i<cfg.fields.length;i++){ if(cfg.fields[i].key===key) sort=(i+1)*10; }
-            S.saving[pageKey+'|'+key]=true;
+            var fkey = pageKey+'|'+key;
+            S.saving[fkey]=true;
+            S.flash[fkey]='saving'; S.msg[pageKey]=null; renderPage(pageKey);
             rpc('app_settings_set', {p_key:key, p_group:cfg.group, p_label:label, p_value:(val==null?'':String(val)), p_sort:sort}, function(){
                 try{
-                    S.saving[pageKey+'|'+key]=false;
+                    S.saving[fkey]=false;
                     if(!S.values[pageKey]) S.values[pageKey]={};
                     S.values[pageKey][key]=val;
-                    S.msg[pageKey]={ok:true, text:label+' saved.'};
+                    S.flash[fkey]='saved';
+                    S.msg[pageKey]={ok:true, text:label+' saved to the database.'};
                     // keep the app's own settings cache in step so the page reflects it now
                     try{ if(typeof HUB_CFG!=='undefined' && HUB_CFG){ if(!HUB_CFG[cfg.group]) HUB_CFG[cfg.group]={}; HUB_CFG[cfg.group][key]={label:label,value:val,sort:sort}; } }catch(e){}
                     renderPage(pageKey);
+                    // clear the green confirmation after a few seconds
+                    try{ setTimeout(function(){ try{ if(S.flash[fkey]==='saved'){ S.flash[fkey]=null; renderPage(pageKey); } }catch(e){} }, 3000); }catch(e){}
                 }catch(e){}
             }, function(err){
-                S.saving[pageKey+'|'+key]=false;
+                S.saving[fkey]=false;
+                S.flash[fkey]='failed';
                 var m=(err&&err.message)||'';
-                S.msg[pageKey]={ok:false, text: /admin/i.test(m)? 'Admins only — the server refused this change.' : 'Could not save. Try again.'};
+                S.msg[pageKey]={ok:false, text: /admin/i.test(m)? 'Not saved — admins only. The server refused this change.'
+                                          : /nocreds/i.test(m)? 'Not saved — please sign in again.'
+                                          : 'Not saved — connection problem. Press Retry.'};
                 renderPage(pageKey);
             });
         }catch(e){}
