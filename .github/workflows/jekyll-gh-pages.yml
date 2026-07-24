@@ -1,44 +1,82 @@
-# Sample workflow for building and deploying a Jekyll site to GitHub Pages
-name: Deploy Jekyll with GitHub Pages dependencies preinstalled
+# Deploy Caliche's Hub to GitHub Pages — ALLOW-LISTED PUBLIC FILES ONLY.
+#
+# STAB-003 (2026-07-23): the old workflow published the ENTIRE repository, which
+# served internal SQL, specs, and docs to the public. This version copies ONLY the
+# app's real public files into the artifact, so internal files can never be served
+# even though they still live in the repo. A tripwire fails the deploy if anything
+# internal (*.sql, *.md, rpc_manifest.json, scripts) ever slips into the build.
+name: Deploy Caliche's Hub (public allow-list)
 
 on:
-  # Runs on pushes targeting the default branch
   push:
     branches: ["main"]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
-  # Build job
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
-      - name: Build with Jekyll
-        uses: actions/jekyll-build-pages@v1
-        with:
-          source: ./
-          destination: ./_site
+
+      - name: Assemble public site (ALLOW-LIST ONLY)
+        run: |
+          set -euo pipefail
+          rm -rf _site && mkdir -p _site
+
+          # --- core app shell (required; fail loudly if any are missing) ---
+          for f in index.html styles.css sw.js manifest.json; do
+            if [ -f "$f" ]; then cp "$f" _site/; else echo "MISSING required file: $f" >&2; exit 1; fi
+          done
+
+          # --- all application JavaScript ---
+          cp -r js _site/js
+
+          # --- additional public routes (customer catering form + training player) ---
+          for f in caliches-catering-request.html scorm-player.html; do
+            [ -f "$f" ] && cp "$f" _site/ || true
+          done
+
+          # --- app image assets (mascots, logos, PWA icons). The CI checkout contains
+          #     ONLY tracked files, and every tracked image is app artwork. ---
+          shopt -s nullglob nocaseglob
+          for img in *.png; do cp "$img" _site/; done
+          shopt -u nocaseglob nullglob
+
+          # --- optional web niceties, if present ---
+          for f in favicon.ico robots.txt; do [ -f "$f" ] && cp "$f" _site/ || true; done
+
+          echo "----- Published (allow-listed) files -----"
+          find _site -type f | sort
+          echo "------------------------------------------"
+
+          # --- tripwire: never let anything internal reach the public artifact ---
+          if find _site -type f \( \
+                -name '*.sql' -o -name '*.md' -o -name '*.docx' -o -name '*.xlsx' \
+                -o -name '*.ts' -o -name '*.bat' -o -name '*.ps1' -o -name '*.cred' \
+                -o -name 'rpc_manifest.json' -o -name 'predeploy_check.js' \
+             \) | grep . ; then
+            echo "ERROR: an internal file was staged for publish — aborting deploy." >&2
+            exit 1
+          fi
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
 
-  # Deployment job
   deploy:
     environment:
       name: github-pages
@@ -48,4 +86,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@v4
