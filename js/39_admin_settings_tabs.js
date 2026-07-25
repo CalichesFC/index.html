@@ -422,12 +422,37 @@
     // ============================================================
     var P = { uid:null, data:null, msg:null, busy:{} };
 
+    // TESTER FIX (2026-07-24): the profile carries a schedule_employees id, but
+    // the capability RPCs take a public.users id — different id spaces, so every
+    // Allow/Deny used to come back "no such user". Resolve the real user account
+    // from the profile's linked_username (falling back to the display name).
+    // Cached per profile so we ask the server once.
+    var PROF_UID = {};   // employeeId -> users.id | 'none' | undefined
+
+    function profileEmp(){
+        try{ return (typeof _empProfile!=='undefined' && _empProfile) ? _empProfile : (window._empProfile||null); }
+        catch(e){ return null; }
+    }
     function profileEmpId(){
+        var p = profileEmp(); if(!p) return null;
+        return p.id || p.employee_id || null;
+    }
+    // cb(userId or null)
+    function resolveProfileUser(cb){
         try{
-            var p = (typeof _empProfile!=='undefined' && _empProfile) ? _empProfile : (window._empProfile||null);
-            if(!p) return null;
-            return p.id || p.employee_id || null;
-        }catch(e){ return null; }
+            var p = profileEmp(); var eid = profileEmpId();
+            if(!p || !eid){ cb(null); return; }
+            if(PROF_UID[eid] === 'none'){ cb(null); return; }
+            if(PROF_UID[eid]){ cb(PROF_UID[eid]); return; }
+            var needle = p.linked_username || p.username || p.name || '';
+            if(!needle){ PROF_UID[eid]='none'; cb(null); return; }
+            rpc('app_user_id_for_profile', {p_needle:String(needle)}, function(d){
+                try{
+                    if(d){ PROF_UID[eid]=d; cb(d); }
+                    else { PROF_UID[eid]='none'; cb(null); }
+                }catch(e){ cb(null); }
+            }, function(){ cb(null); });
+        }catch(e){ cb(null); }
     }
 
     // the profile body is filled after an RPC, so wait for it before injecting
@@ -435,26 +460,44 @@
         try{
             var view=byId('employeeProfileView');
             if(!view || !view.style || view.style.display!=='block') return;
-            var body=byId('empProfileBody'), uid=profileEmpId();
-            if((!body || !uid) && (tries||0) < 30){ setTimeout(function(){ mountProfileAccess((tries||0)+1); }, 250); return; }
-            if(!body || !uid) return;
+            var body=byId('empProfileBody'), eid=profileEmpId();
+            if((!body || !eid) && (tries||0) < 30){ setTimeout(function(){ mountProfileAccess((tries||0)+1); }, 250); return; }
+            if(!body || !eid) return;
 
             capCheck('edit_permissions', function(ok){
                 try{
                     var old=byId('ast-prof-host');
                     if(!ok){ if(old && old.parentNode) old.parentNode.removeChild(old); return; }
-                    if(P.uid !== uid){ P.uid=uid; P.data=null; P.msg=null; }
                     var host=byId('ast-prof-host');
                     if(!host || host.parentNode!==body){
                         host=document.createElement('div'); host.id='ast-prof-host'; host.style.cssText='margin-top:14px;';
                         body.appendChild(host);
                     }
-                    if(!P.data){
-                        host.innerHTML='<div style="font-size:12px;color:'+GREY+';">Loading access…</div>';
-                        rpc('app_user_caps_get', {p_user_id:uid}, function(d){
-                            try{ P.data=d; renderProfileAccess(); }catch(e){}
-                        }, function(){ try{ if(host.parentNode) host.parentNode.removeChild(host); }catch(e){} });
-                    } else renderProfileAccess();
+                    host.innerHTML='<div style="font-size:12px;color:'+GREY+';">Loading access…</div>';
+
+                    resolveProfileUser(function(uid){
+                        try{
+                            var h=byId('ast-prof-host'); if(!h) return;
+                            if(!uid){
+                                // honest, not a silent failure: this person has no Hub login,
+                                // so there is no account to grant anything to.
+                                h.innerHTML =
+                                    '<div style="background:#fff;border:1px solid #e6ebf2;border-radius:16px;padding:12px 14px;">'
+                                  + '<b style="font-size:13.5px;color:#1F2A44;">&#128274; Access for this person</b>'
+                                  + '<div style="font-size:12.5px;color:'+GREY+';margin-top:6px;line-height:1.5;">'
+                                  + 'This employee doesn’t have a Hub login yet, so there’s no account to set access on. '
+                                  + 'Once they create an account (or one is linked to them), their access controls appear here.'
+                                  + '</div></div>';
+                                return;
+                            }
+                            if(P.uid !== uid){ P.uid=uid; P.data=null; P.msg=null; }
+                            if(!P.data){
+                                rpc('app_user_caps_get', {p_user_id:uid}, function(d){
+                                    try{ P.data=d; renderProfileAccess(); }catch(e){}
+                                }, function(){ try{ var hh=byId('ast-prof-host'); if(hh) hh.innerHTML='<div style="font-size:12.5px;color:#c0264b;">Could not load this person’s access right now.</div>'; }catch(e){} });
+                            } else renderProfileAccess();
+                        }catch(e){}
+                    });
                 }catch(e){}
             });
         }catch(e){}
