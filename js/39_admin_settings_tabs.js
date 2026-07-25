@@ -259,20 +259,35 @@
                     if(!ok){ if(old && old.parentNode) old.parentNode.removeChild(old); return; }
                     var host=old;
                     if(!host){ host=document.createElement('div'); host.id='ast-perm-host'; host.style.cssText='margin:12px 0;'; view.appendChild(host); }
-                    if(!S.perm){
-                        host.innerHTML = '<div style="font-size:12px;color:'+GREY+';">Loading access &amp; permissions…</div>';
-                        rpc('app_perm_v2_get', {}, function(d){
-                            try{
-                                if(!d || !d.roles){ if(host.parentNode) host.parentNode.removeChild(host); return; }
-                                S.perm=d;
-                                if(!S.permRole){
-                                    for(var i=0;i<d.roles.length;i++){ if(!d.roles[i].admin){ S.permRole=d.roles[i].key; break; } }
-                                    if(!S.permRole && d.roles.length) S.permRole=d.roles[0].key;
-                                }
-                                renderPerm();
-                            }catch(e){}
-                        }, function(){ try{ if(host.parentNode) host.parentNode.removeChild(host); }catch(e){} });
-                    } else renderPerm();
+                    loadPerm();
+                }catch(e){}
+            });
+        }catch(e){}
+    }
+
+    // load the matrix once, then render into whichever #ast-perm-host exists
+    // (the Admin Console panel, or the modal opened from the old tile)
+    function loadPerm(){
+        try{
+            var host=byId('ast-perm-host'); if(!host) return;
+            if(S.perm){ renderPerm(); return; }
+            host.innerHTML='<div style="font-size:12px;color:'+GREY+';">Loading access &amp; permissions…</div>';
+            rpc('app_perm_v2_get', {}, function(d){
+                try{
+                    if(!d || !d.roles){ host.innerHTML='<div style="font-size:12.5px;color:#c0264b;">Could not load permissions.</div>'; return; }
+                    S.perm=d;
+                    if(!S.permRole){
+                        for(var i=0;i<d.roles.length;i++){ if(!d.roles[i].admin){ S.permRole=d.roles[i].key; break; } }
+                        if(!S.permRole && d.roles.length) S.permRole=d.roles[0].key;
+                    }
+                    renderPerm();
+                }catch(e){}
+            }, function(err){
+                try{
+                    var m=(err&&err.message)||'';
+                    host.innerHTML='<div style="font-size:12.5px;color:#c0264b;">'
+                        + (/forbidden/i.test(m) ? 'Roles &amp; permissions is for Admin Managers.' : 'Could not load permissions right now.')
+                        + '</div>';
                 }catch(e){}
             });
         }catch(e){}
@@ -352,6 +367,52 @@
                 renderPerm();
             });
         }catch(e){}
+    }
+
+    // ============================================================
+    // RETIRE THE TWO OLD, NON-ENFORCING PERMISSION SCREENS
+    //
+    // Before this module the Hub had two "permissions" UIs and NEITHER changed
+    // a live gate:
+    //   - js/04 openPermMatrix()  — the Admin tile "Roles & Permissions /
+    //     Control what each role can see". Its toggles only hid tiles.
+    //   - js/38 advisory matrix   — its own header says "Advisory only; never
+    //     changes a live gate."
+    // Leaving them next to the real editor is dangerous: an admin could switch
+    // someone "off", watch it save, and believe access was removed when the
+    // server would still answer. So the old tile now opens the REAL editor.
+    // Append-only: js/04 and js/38 are not modified.
+    // ============================================================
+    function openRealPermEditor(){
+        try{
+            var ov=byId('astPermModal');
+            if(!ov){
+                ov=document.createElement('div'); ov.id='astPermModal';
+                ov.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100050;overflow:auto;';
+                document.body.appendChild(ov);
+            }
+            ov.style.display='block';
+            ov.innerHTML='<div style="background:'+BLUE+';color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;">'
+                       +   '<b style="flex:1;font-size:16px;">Access &amp; permissions</b>'
+                       +   '<button onclick="ast.closePerm()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;font-size:15px;">&times;</button>'
+                       + '</div><div style="max-width:660px;margin:0 auto;padding:16px 16px 60px;"><div id="ast-perm-host"></div></div>';
+            loadPerm();
+        }catch(e){}
+    }
+    function closeRealPermEditor(){ try{ var o=byId('astPermModal'); if(o) o.style.display='none'; }catch(e){} }
+
+    // replace the old tile's handler once the app has defined it
+    function retireOldPermUI(tries){
+        try{
+            if(typeof window.openPermMatrix === 'function' && !window.openPermMatrix.__astReplaced){
+                var repl = function(){ openRealPermEditor(); };
+                repl.__astReplaced = true;
+                window.openPermMatrix = repl;
+                return;
+            }
+            if(typeof window.openPermMatrix === 'function') return;   // already ours
+        }catch(e){}
+        if((tries||0) < 40){ try{ setTimeout(function(){ retireOldPermUI((tries||0)+1); }, 250); }catch(e){} }
     }
 
     // ============================================================
@@ -474,7 +535,10 @@
             permRole: function(r){ S.permRole=r||null; S.permMsg=null; renderPerm(); },
             permToggle: permToggle,
             profSet: profSet,
+            openPerm: openRealPermEditor,
+            closePerm: closeRealPermEditor,
             _mountPage: mountPage, _mountPerm: mountPerm, _mountProfile: mountProfileAccess,
+            _retireOldPermUI: retireOldPermUI,
             _pages: PAGES
         };
     }catch(e){}
@@ -500,6 +564,7 @@
     }catch(e){}
     try{ hookOpen('openAdminConsole', mountPerm, 0); }catch(e){}
     try{ hookOpen('openEmployeeProfile', function(){ mountProfileAccess(0); }, 0); }catch(e){}
+    try{ retireOldPermUI(0); }catch(e){}
 
     // ---------- safety nets: mount now if a target screen is already visible ----------
     try{
