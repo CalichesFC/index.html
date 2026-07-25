@@ -354,6 +354,118 @@
         }catch(e){}
     }
 
+    // ============================================================
+    // PER-PERSON ACCESS  — on the employee profile
+    // Grant or deny one capability for ONE person, on top of their role.
+    // Backed by app_user_caps_get / app_user_cap_set (migration 0003).
+    // ============================================================
+    var P = { uid:null, data:null, msg:null, busy:{} };
+
+    function profileEmpId(){
+        try{
+            var p = (typeof _empProfile!=='undefined' && _empProfile) ? _empProfile : (window._empProfile||null);
+            if(!p) return null;
+            return p.id || p.employee_id || null;
+        }catch(e){ return null; }
+    }
+
+    // the profile body is filled after an RPC, so wait for it before injecting
+    function mountProfileAccess(tries){
+        try{
+            var view=byId('employeeProfileView');
+            if(!view || !view.style || view.style.display!=='block') return;
+            var body=byId('empProfileBody'), uid=profileEmpId();
+            if((!body || !uid) && (tries||0) < 30){ setTimeout(function(){ mountProfileAccess((tries||0)+1); }, 250); return; }
+            if(!body || !uid) return;
+
+            capCheck('edit_permissions', function(ok){
+                try{
+                    var old=byId('ast-prof-host');
+                    if(!ok){ if(old && old.parentNode) old.parentNode.removeChild(old); return; }
+                    if(P.uid !== uid){ P.uid=uid; P.data=null; P.msg=null; }
+                    var host=byId('ast-prof-host');
+                    if(!host || host.parentNode!==body){
+                        host=document.createElement('div'); host.id='ast-prof-host'; host.style.cssText='margin-top:14px;';
+                        body.appendChild(host);
+                    }
+                    if(!P.data){
+                        host.innerHTML='<div style="font-size:12px;color:'+GREY+';">Loading access…</div>';
+                        rpc('app_user_caps_get', {p_user_id:uid}, function(d){
+                            try{ P.data=d; renderProfileAccess(); }catch(e){}
+                        }, function(){ try{ if(host.parentNode) host.parentNode.removeChild(host); }catch(e){} });
+                    } else renderProfileAccess();
+                }catch(e){}
+            });
+        }catch(e){}
+    }
+
+    function renderProfileAccess(){
+        try{
+            var host=byId('ast-prof-host'); if(!host||!P.data) return;
+            var caps=P.data.capabilities||[];
+            var rows='';
+            for(var i=0;i<caps.length;i++){
+                var c=caps[i];
+                var ov = c.override;                       // true / false / null(follow role)
+                var eff = c.effective===true;
+                var state = (ov===true)?'allow':(ov===false)?'deny':'role';
+                var pill = (state==='role')
+                    ? '<span style="font-size:10.5px;color:'+GREY+';">follows role ('+(c.from_role?'on':'off')+')</span>'
+                    : (state==='allow'
+                        ? '<span style="font-size:10.5px;font-weight:800;color:'+GREEN+';">ALWAYS ALLOW</span>'
+                        : '<span style="font-size:10.5px;font-weight:800;color:#c0264b;">ALWAYS DENY</span>');
+                function btn(val,label,active,col){
+                    return '<button onclick="ast.profSet('+q(c.key)+','+val+')" style="background:'+(active?col:'#fff')+';color:'+(active?'#fff':GREY)+';border:1px solid '+(active?col:'#d7dbe2')+';border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:800;cursor:pointer;">'+label+'</button>';
+                }
+                rows += '<div style="display:flex;align-items:center;gap:8px;padding:9px 4px;'+(i?'border-top:1px solid #f0f2f6;':'')+'">'
+                      +   '<div style="flex:1;min-width:0;">'
+                      +     '<div style="font-size:13px;color:#26242b;">'+esc(c.label)+' '+pill+'</div>'
+                      +     (c.descr? '<div style="font-size:11px;color:'+GREY+';">'+esc(c.descr)+'</div>':'')
+                      +   '</div>'
+                      +   '<span style="font-size:11px;color:'+(eff?GREEN:GREY)+';font-weight:800;min-width:34px;text-align:right;">'+(eff?'CAN':'no')+'</span>'
+                      +   btn('null','Role', state==='role', '#5b6675')
+                      +   btn('true','Allow', state==='allow', GREEN)
+                      +   btn('false','Deny', state==='deny', '#c0264b')
+                      + '</div>';
+            }
+            host.innerHTML =
+                '<div style="background:#fff;border:1px solid #e6ebf2;border-radius:16px;overflow:hidden;">'
+              + '<div style="background:'+BLUE+';color:#fff;padding:10px 14px;display:flex;align-items:center;gap:8px;">'
+              +   '<b style="flex:1;font-size:14px;">&#128274; Access for this person</b>'
+              +   '<span style="font-size:10.5px;opacity:.85;">admins only &middot; logged</span></div>'
+              + '<div style="padding:10px 14px;">'
+              +   '<p style="font-size:12px;color:'+GREY+';margin:0 0 8px;line-height:1.5;">Their role decides this by default. Use <b>Allow</b> or <b>Deny</b> to change it for this one person only — everyone else with the same role is unaffected.</p>'
+              +   rows
+              +   (P.msg? note(P.msg.text, P.msg.ok?GREEN:'#c0264b') : '')
+              + '</div></div>';
+        }catch(e){}
+    }
+
+    function profSet(capKey, val){
+        try{
+            if(!P.uid || P.busy[capKey]) return;
+            P.busy[capKey]=true; P.msg=null;
+            rpc('app_user_cap_set', {p_user_id:P.uid, p_cap:capKey, p_allowed:val}, function(){
+                try{
+                    P.busy[capKey]=false;
+                    var caps=(P.data&&P.data.capabilities)||[];
+                    for(var i=0;i<caps.length;i++){ if(caps[i].key===capKey){
+                        caps[i].override = val;
+                        caps[i].effective = (val===null||val===undefined) ? (caps[i].from_role===true) : (val===true);
+                    } }
+                    P.msg={ok:true, text:'Saved for this person.'};
+                    CAP = {};   // their change may affect what WE can see
+                    renderProfileAccess();
+                }catch(e){}
+            }, function(err){
+                P.busy[capKey]=false;
+                var m=(err&&err.message)||'';
+                P.msg={ok:false, text: /forbidden/i.test(m)? 'Not saved — the server refused this change.' : 'Not saved — try again.'};
+                renderProfileAccess();
+            });
+        }catch(e){}
+    }
+
     // ---------- public surface (inline on* handlers) ----------
     try{
         window.ast = {
@@ -361,7 +473,8 @@
             save: save,
             permRole: function(r){ S.permRole=r||null; S.permMsg=null; renderPerm(); },
             permToggle: permToggle,
-            _mountPage: mountPage, _mountPerm: mountPerm,
+            profSet: profSet,
+            _mountPage: mountPage, _mountPerm: mountPerm, _mountProfile: mountProfileAccess,
             _pages: PAGES
         };
     }catch(e){}
@@ -386,6 +499,7 @@
         } }
     }catch(e){}
     try{ hookOpen('openAdminConsole', mountPerm, 0); }catch(e){}
+    try{ hookOpen('openEmployeeProfile', function(){ mountProfileAccess(0); }, 0); }catch(e){}
 
     // ---------- safety nets: mount now if a target screen is already visible ----------
     try{
