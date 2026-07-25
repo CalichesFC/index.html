@@ -4,7 +4,12 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrZ2JpaHdrcWhzZmFobnN3ZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTkxODYsImV4cCI6MjA5Njc3NTE4Nn0.tWnk67bgCWfMmR5WYWnk23BOhlZ4KbRSNWO5SMH3JhI';
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
-    const APP_VERSION = '2026.07.25.0029';
+    const APP_VERSION = '2026.07.25.1044';
+    // Which database migration level this code expects. Stamped by stamp.ps1
+    // from the highest file in migrations/. Lets you tell, from the running
+    // app, which database state it was built against -- not just which code.
+    const DB_MIGRATION = '0009';
+    try { window.APP_VERSION = APP_VERSION; window.DB_MIGRATION = DB_MIGRATION; } catch(e) {}
     let swReloadPending = false;
     let swRefreshing = false;
     // Views that hold unsaved user input — never reload out from under them.
