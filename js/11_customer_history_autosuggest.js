@@ -98,7 +98,50 @@
         document.getElementById('quoteTotal').innerText = '$' + total.toFixed(2);
     }
 
+    // R-10 FIX (2026-07-24): the customer-facing "Order #" used to be invented in
+    // the browser with Math.random(), and app_quote_create stored whatever it was
+    // handed -- so two customers could receive quotes bearing the SAME number and
+    // a reissued quote got an unrelated one. Numbers now come from a real server
+    // sequence (migrations/0004_quote_order_numbers.sql) BEFORE the PDF is built,
+    // so the printed number and the stored number are always the same one.
+    // Editing an existing quote keeps its original number.
+    function withQuoteOrderNum(editing, cb) {
+        try {
+            if (editing && editing.order_num) { cb(editing.order_num); return; }
+            withPin(function (pin) {
+                supabaseClient.rpc('app_quote_next_order_num', {
+                    p_username: currentUser.username, p_password: pin
+                }).then(function (r) {
+                    if (r.error || !r.data) {
+                        if (r.error && r.error.code === '42501') sessionPin = null;
+                        alert('Could not get a quote number from the server. Nothing was saved — please try again.');
+                        cb(null); return;
+                    }
+                    cb(r.data);
+                }).catch(function () {
+                    alert('Connection error while getting a quote number. Nothing was saved — please try again.');
+                    cb(null);
+                });
+            }, function () { cb(null); });
+        } catch (e) { cb(null); }
+    }
+
     function submitQuote() {
+        const _btn0 = document.getElementById('submitQuoteBtn');
+        const _form0 = document.getElementById('quoteForm');
+        if (!_form0) return;
+        const _name0 = (_form0.querySelector('input[name="ContactName"]').value || '').trim();
+        const _date0 = _form0.querySelector('input[name="EventDate"]').value;
+        if (!_name0 || !_date0) { return alert('Please enter the contact name and event date!'); }
+        if (_btn0) { _btn0.innerText = 'Getting quote number...'; _btn0.disabled = true; }
+        withQuoteOrderNum(window._editingQuote || null, function (num) {
+            if (!num) { if (_btn0) { _btn0.innerText = 'Send Quote'; _btn0.disabled = false; } return; }
+            window.__quoteOrderNum = num;
+            _submitQuoteWithNumber();
+        });
+    }
+
+    function _submitQuoteWithNumber() {
         const btn = document.getElementById('submitQuoteBtn');
         const form = document.getElementById('quoteForm');
         const contactName = form.querySelector('input[name="ContactName"]').value.trim();
@@ -114,7 +157,8 @@
         const eventType = form.querySelector('input[name="EventType"]').value;
         const notes = form.querySelector('textarea[name="Notes"]').value;
         const editing = window._editingQuote || null;
-        const orderNum = (editing && editing.order_num) ? editing.order_num : Math.floor(1000 + Math.random() * 9000);
+        // server-allocated (see withQuoteOrderNum above) — never random
+        const orderNum = (editing && editing.order_num) ? editing.order_num : window.__quoteOrderNum;
         const eventDateStr = new Date(eventDate + 'T00:00:00').toLocaleDateString();
 
         let pdfHtml = getBrandHeader('Catering Quote', '#7b2d8b');
