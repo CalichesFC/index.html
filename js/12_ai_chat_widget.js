@@ -523,6 +523,7 @@
     }
     function catSetFilter(f){ catFilter=f; catLoad(); }
     function catLoad(){
+        cvInline=false;
         var box=document.getElementById('catBody'); if(!box) return;
         box.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading catering pipeline&hellip;</p>';
         catRpc('app_catering_list',{p_filter:catFilter},function(d){ catList=d||[]; catRenderBoard(); },
@@ -565,7 +566,7 @@
             +'<button onclick="openSalesPipeline()" style="flex:1;background:#26242b;color:#fff;border:none;border-radius:11px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">&#128202; Quotes &amp; Invoices</button>'
             +'</div>';
         // v1.1: operational side — the C&V Command Center (Event Console lives here).
-        html+='<button onclick="cvOpenDashboard()" style="width:100%;background:#0f766e;color:#fff;border:none;border-radius:11px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;margin-bottom:14px;">&#128666; C&amp;V Command Center (operational dashboard)</button>';
+        // v1.2: standalone "C&V Command Center" button removed from the board — the run sheet now lives on each event (one door). cvOpenDashboard() kept for deep links.
         if(!catList.length){ html+='<p style="text-align:center;color:#8a8594;padding:26px 10px;font-size:13.5px;">Nothing here yet. Website inquiries land in this pipeline automatically, or add a phone/walk-in event above.</p>'; box.innerHTML=html; return; }
         var order=CAT_STAGES.concat(['lost']);
         for(var s=0;s<order.length;s++){
@@ -703,6 +704,7 @@
     // manager-gated server-side. (SPEC_Catering_Vending_v1_1.md §4-§8.)
     // ============================================================
     var cvCur=null;
+    var cvInline=false; // v1.2: when true, the run sheet renders woven INTO the event detail (#catRunSheet) instead of taking over the board
     var CV_OPS=['planning','staffing_prep','ready_to_depart','in_progress','returned','closeout_pending','complete'];
     var CV_OP_LABELS={planning:'Planning',staffing_prep:'Staffing & Prep',ready_to_depart:'Ready to Depart',in_progress:'In Progress',returned:'Returned',closeout_pending:'Closeout Pending',complete:'Complete',cancelled:'Cancelled'};
     var CV_SAFETY={red:{c:'#c0264b',l:'RED — hard stop'},yellow:{c:'#f59e0b',l:'YELLOW — exception'},green:{c:'#10b981',l:'GREEN — ready'}};
@@ -717,6 +719,7 @@
     }
     // From a catering record: open its operational Event Console (spawn if missing).
     function cvOpenForCatering(cateringId){
+        cvInline=false;
         var box=document.getElementById('catBody'); if(box) box.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Opening Event Console&hellip;</p>';
         catRpc('cv_event_list',{p_market:null,p_status:null},function(list){
             var ev=null; list=list||[];
@@ -727,11 +730,13 @@
         },function(err){ if(box) box.innerHTML='<p style="text-align:center;color:#c0264b;padding:20px;">'+escapeHtml(err.message||'Could not load.')+'</p>'; });
     }
     function cvOpenConsole(evId){
+        if(cvInline){ return catRunSheetLoad(evId); }
         var box=document.getElementById('catBody'); if(box) box.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading Event Console&hellip;</p>';
         catRpc('cv_event_detail',{p_id:evId},function(d){ cvCur=d; cvRenderConsole(); },
             function(err){ if(box) box.innerHTML='<p style="text-align:center;color:#c0264b;padding:20px;">'+escapeHtml(err.message||'Could not load.')+'</p><p style="text-align:center;"><button onclick="catLoad()" style="background:#eef0f3;border:none;border-radius:9px;padding:9px 16px;font-weight:700;cursor:pointer;">&larr; Pipeline</button></p>'; });
     }
     function cvRenderConsole(){
+        if(cvInline){ return catRunSheetRender(); }
         var box=document.getElementById('catBody'); if(!box||!cvCur) return; var d=cvCur;
         var back=d.catering_event_id?('catOpenDetail(\''+escapeHtml(String(d.catering_event_id))+'\')'):'catLoad()';
         var html='<button onclick="'+back+'" style="background:none;border:none;color:#0d6eaf;font-size:13px;font-weight:700;cursor:pointer;padding:0;margin-bottom:10px;">&larr; Back</button>';
@@ -742,6 +747,36 @@
         html+=catSec('Crew / roster',cvRosterHtml(d));
         html+=catSec('Money &amp; closeout',cvMoneyHtml(d));
         box.innerHTML=html; window.scrollTo(0,0);
+    }
+    // v1.2: load + render the operational run sheet INLINE, inside the sales event detail (#catRunSheet).
+    function catLoadRunSheet(cateringId){
+        cvInline=true;
+        var host=document.getElementById('catRunSheet'); if(!host) return;
+        catRpc('cv_event_list',{p_market:null,p_status:null},function(list){
+            var ev=null; list=list||[];
+            for(var i=0;i<list.length;i++){ if(String(list[i].catering_event_id)===String(cateringId)){ ev=list[i]; break; } }
+            if(ev){ catRunSheetLoad(ev.id); }
+            else { catRpc('cv_event_spawn',{p_catering_event_id:cateringId},function(d){ if(d&&d.id){ catRunSheetLoad(d.id); } else { var h=document.getElementById('catRunSheet'); if(h) h.innerHTML=cvRunSheetMsg('The run sheet appears here once the event is booked.'); } },
+                     function(err){ var h=document.getElementById('catRunSheet'); if(h) h.innerHTML=cvRunSheetMsg((err&&err.message)||'Could not open the run sheet.'); }); }
+        },function(err){ var h=document.getElementById('catRunSheet'); if(h) h.innerHTML=cvRunSheetMsg((err&&err.message)||'Could not load the run sheet.'); });
+    }
+    function catRunSheetLoad(evId){
+        cvInline=true;
+        var host=document.getElementById('catRunSheet'); if(!host) return;
+        catRpc('cv_event_detail',{p_id:evId},function(d){ cvCur=d; catRunSheetRender(); },
+            function(err){ var h=document.getElementById('catRunSheet'); if(h) h.innerHTML=cvRunSheetMsg((err&&err.message)||'Could not load the run sheet.'); });
+    }
+    function cvRunSheetMsg(m){ return '<p style="color:#8a8594;font-size:12.5px;padding:6px 2px;">'+escapeHtml(m)+'</p>'; }
+    function catRunSheetRender(){
+        var host=document.getElementById('catRunSheet'); if(!host||!cvCur) return; var d=cvCur;
+        var html='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:2px 2px 8px;"><div style="font-size:11px;font-weight:800;letter-spacing:.06em;color:#0f766e;text-transform:uppercase;">&#128666; Run sheet &mdash; Catering &amp; Vending</div>'+cvSafetyPill(d.safety_status)+'</div>';
+        html+='<div style="font-size:11.5px;color:#8a8594;margin:0 2px 8px;">'+escapeHtml((d.operating_unit||'')+(d.assigned_lead?(' \u00b7 Lead: '+d.assigned_lead):'')+(d.op_status?(' \u00b7 '+(CV_OP_LABELS[d.op_status]||d.op_status)):''))+'</div>';
+        html+=catSec('Run event',cvAdvanceHtml(d));
+        html+=catSec('Safety gate (RED / YELLOW / GREEN)',cvSafetyHtml(d));
+        html+=catSec('Checklist &amp; loadout',cvItemsHtml(d));
+        html+=catSec('Crew / roster',cvRosterHtml(d));
+        html+=catSec('Money &amp; closeout',cvMoneyHtml(d));
+        host.innerHTML=html;
     }
     function cvAdvanceHtml(d){
         var idx=CV_OPS.indexOf(d.op_status), html=cvOpProgressHtml(d.op_status);
@@ -877,6 +912,7 @@
     }
     // C&V Command Center dashboard (today / next 7 / staffing gaps / safety blocks / overdue closeouts).
     function cvOpenDashboard(){
+        cvInline=false;
         var box=document.getElementById('catBody'); if(box) box.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading C&amp;V Command Center&hellip;</p>';
         catRpc('app_cv_dashboard',{p_market:null},function(d){ cvRenderDashboard(d); },
             function(err){ if(box) box.innerHTML='<p style="text-align:center;color:#c0264b;padding:20px;">'+escapeHtml(err.message||'Could not load.')+'</p><p style="text-align:center;"><button onclick="catLoad()" style="background:#eef0f3;border:none;border-radius:9px;padding:9px 16px;font-weight:700;cursor:pointer;">&larr; Pipeline</button></p>'; });
@@ -962,12 +998,13 @@
         html+=catSec('Money',mo);
         html+=catSec('Actions',catActionsHtml(d.status));
         if(['booked','completed','paid'].indexOf(d.status)>=0){
-            html+=catSec('C&amp;V Command Center',
-                '<p style="font-size:12.5px;color:#6b7686;margin:0 0 8px;">This booked job has an operational Event: official checklist &amp; loadout, RED/YELLOW/GREEN safety gate, crew roster, and money/closeout reconciliation.</p>'
-                +'<button onclick="cvOpenForCatering(\''+escapeHtml(String(d.id))+'\')" style="background:#7b2d8b;color:#fff;border:none;border-radius:9px;padding:10px 16px;font-size:13px;font-weight:800;cursor:pointer;">&#128666; Run Event / Command Center</button>');
+            // v1.2: the operational run sheet is woven INTO this event (one door),
+            // not a separate Command Center screen. It loads in place, right here.
+            html+='<div id="catRunSheet"><p style="text-align:center;color:#6b7686;font-size:12.5px;padding:14px;">Loading run sheet&hellip;</p></div>';
         }
         html+=catSec('Notes &amp; history','<button onclick="catAddNote()" style="background:#eef0f3;border:none;border-radius:9px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:6px;">&#128172; Add note</button>'+catHistoryHtml());
         box.innerHTML=html;
+        if(['booked','completed','paid'].indexOf(d.status)>=0){ catLoadRunSheet(d.id); } else { cvInline=false; }
         catQuoteRecalc();
         window.scrollTo(0,0);
     }
