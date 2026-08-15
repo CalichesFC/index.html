@@ -495,7 +495,7 @@
     var CAT_PRICING = { CART_THRESHOLD:500, CART_BASE_FEE:200.00, CART_INCLUDED_HOURS:1, TRAILER_BASE_FEE:500.00, TRAILER_INCLUDED_HOURS:2, TRAILER_FOOTPRINT_NOTE:'requires a 28-foot footprint for parking, spacing, and setup clearance', ADDITIONAL_HOUR_RATE:50.00, SCOOP_PRICE:{single:2.00,double:3.00}, INCLUDED_TOPPINGS:4, EXTRA_TOPPING_RATE:25.00, TRAVEL_FEE:75.00 };
     function catQuoteCalc(inp){ var P=CAT_PRICING; var r2=function(x){return Math.round(x*100)/100;}; var scoopType=String(inp.scoopType==null?'':inp.scoopType).toLowerCase(); if(!Object.prototype.hasOwnProperty.call(P.SCOOP_PRICE,scoopType)){ throw new Error("scoopType must be 'single' or 'double'"); } var headcount=inp.headcount; var hours=inp.hours; var toppingsRequested=(inp.toppingsRequested===undefined)?null:inp.toppingsRequested; var travelFee=!!inp.travelFee; if(!(headcount>0)) throw new Error('headcount must be positive'); if(!(hours>0)) throw new Error('hours must be positive'); if(toppingsRequested!==null&&toppingsRequested<0) throw new Error('toppings cannot be negative'); var equipment,baseFee,includedHours,footprintNote; if(headcount<P.CART_THRESHOLD){ equipment='Sundae Cart'; baseFee=P.CART_BASE_FEE; includedHours=P.CART_INCLUDED_HOURS; footprintNote=null; } else { equipment='Treat Trailer'; baseFee=P.TRAILER_BASE_FEE; includedHours=P.TRAILER_INCLUDED_HOURS; footprintNote=P.TRAILER_FOOTPRINT_NOTE; } var billableHours=Math.ceil(hours); var extraHours=Math.max(0,billableHours-includedHours); var extraHoursCost=extraHours*P.ADDITIONAL_HOUR_RATE; var scoopPrice=P.SCOOP_PRICE[scoopType]; var servingCost=headcount*scoopPrice; var extraToppings=0; var extraToppingsCost=0.0; if(toppingsRequested!==null&&toppingsRequested>P.INCLUDED_TOPPINGS){ extraToppings=toppingsRequested-P.INCLUDED_TOPPINGS; extraToppingsCost=extraToppings*P.EXTRA_TOPPING_RATE; } var travelFeeCost=travelFee?P.TRAVEL_FEE:0.0; var subtotal=baseFee+extraHoursCost+servingCost+extraToppingsCost+travelFeeCost; var lineItems=[{label:equipment+' base setup ('+includedHours+' hr'+(includedHours>1?'s':'')+' included)',amount:r2(baseFee)}]; if(extraHours>0){ lineItems.push({label:'Additional hours ('+extraHours+' hr @ $'+P.ADDITIONAL_HOUR_RATE.toFixed(2)+'/hr)',amount:r2(extraHoursCost)}); } lineItems.push({label:'Custard servings ('+headcount+' '+scoopType+' scoops @ $'+scoopPrice.toFixed(2)+'/ea)',amount:r2(servingCost)}); if(extraToppings>0){ lineItems.push({label:'Extra toppings ('+extraToppings+' over the '+P.INCLUDED_TOPPINGS+' included @ $'+P.EXTRA_TOPPING_RATE.toFixed(2)+'/ea)',amount:r2(extraToppingsCost)}); } if(travelFeeCost>0){ lineItems.push({label:'Travel fee (outside immediate Las Cruces)',amount:r2(travelFeeCost)}); } return { equipment:equipment, footprintNote:footprintNote, lineItems:lineItems, subtotal:r2(subtotal), travelFee:r2(travelFeeCost), total:r2(subtotal), includedHours:includedHours, billableHours:billableHours, extraHours:extraHours }; }
 
-    var catList=[],catCur=null,catFilter='active';
+    var catList=[],catCur=null,catFilter='__active';
     var CAT_STAGES=['inquiry','quoted','approved','booked','completed','paid'];
     var CAT_NEXT={inquiry:['quoted','lost'],quoted:['approved','lost'],approved:['booked','lost'],booked:['completed','lost'],completed:['paid'],lost:['inquiry']};
     var CAT_COLORS={inquiry:'#f59e0b',quoted:'#3b82f6',approved:'#8b5cf6',booked:'#10b981',completed:'#6b7280',paid:'#065f46',lost:'#9ca3af'};
@@ -521,65 +521,88 @@
         window.scrollTo(0,0);
         catLoad();
     }
-    function catSetFilter(f){ catFilter=f; catLoad(); }
+    function catSetFilter(f){ catFilter=f; catRenderBoard(); }
+    // --- Real-quotes workflow: derive a stage for each quote (auto now, hand-movable next) ---
+    var CATQ_STAGES=['Inquiry','Quoted','Approved','Booked','Completed','Paid','Lost'];
+    var CATQ_COLOR={Inquiry:'#8b5cf6',Quoted:'#e67e22',Approved:'#0ea5e9',Booked:'#2563eb',Completed:'#14b8a6',Paid:'#0f7a3d',Lost:'#9ca3af'};
+    var CATQ_ACTIVE=['Inquiry','Quoted','Approved','Booked'];
+    function catTodayIso(){ var t=new Date(); return t.getFullYear()+'-'+('0'+(t.getMonth()+1)).slice(-2)+'-'+('0'+t.getDate()).slice(-2); }
+    function catStageOf(q){
+        var s=String(q&&q.status||'').toLowerCase(), inv=(q&&q.invoice_status)||'', d=String(q&&q.event_date||'').slice(0,10);
+        var past=(d && d<catTodayIso());
+        if(s==='declined'||s==='expired'||s==='lost'||s==='cancelled') return 'Lost';
+        if(inv==='Paid') return 'Paid';
+        if(s==='accepted'){ if(past) return 'Completed'; if(inv==='PayLinkReady'||inv==='Invoiced') return 'Booked'; return 'Approved'; }
+        if(past) return 'Lost';
+        if(Number(q&&q.total)>0) return 'Quoted';
+        return 'Inquiry';
+    }
+    function catVisibleQuotes(){
+        var arr=catList.slice();
+        if(catFilter==='__all'){}
+        else if(catFilter==='__active'){ arr=arr.filter(function(q){ return CATQ_ACTIVE.indexOf(catStageOf(q))>=0; }); }
+        else { arr=arr.filter(function(q){ return catStageOf(q)===catFilter; }); }
+        arr.sort(function(a,b){ var da=String(a.event_date||'').slice(0,10), db=String(b.event_date||'').slice(0,10); return da<db?-1:(da>db?1:0); });
+        return arr;
+    }
     function catLoad(){
         cvInline=false;
         var box=document.getElementById('catBody'); if(!box) return;
-        box.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading catering pipeline&hellip;</p>';
-        catRpc('app_catering_list',{p_filter:catFilter},function(d){ catList=d||[]; catRenderBoard(); },
-            function(err){ box.innerHTML='<p style="text-align:center;padding:30px;color:#c0264b;">'+escapeHtml(err.message||'Could not load.')+'</p>'; });
+        box.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading catering&hellip;</p>';
+        if(typeof withPin!=='function'||typeof supabaseClient==='undefined'||!currentUser){ box.innerHTML='<p style="text-align:center;padding:30px;color:#c0264b;">Please sign in first.</p>'; return; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_quote_admin_list',{p_admin_username:currentUser.username,p_admin_password:pin}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; box.innerHTML='<p style="text-align:center;padding:30px;color:#c0264b;">'+escapeHtml(r.error.message||'Could not load.')+'</p>'; return; }
+                catList=(r.data||[]).filter(function(q){ return q; });
+                try{ window._pipelineQuotes=catList; }catch(_e){}
+                catRenderBoard();
+            }).catch(function(){ box.innerHTML='<p style="text-align:center;padding:30px;color:#c0264b;">Connection error. Please try again.</p>'; });
+        }, function(){ box.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">PIN required to load catering.</p>'; });
     }
     function catChipsHtml(){
-        var counts={}; for(var i=0;i<catList.length;i++){ var s=catList[i].status; counts[s]=(counts[s]||0)+1; }
-        function chip(val,label,count){ var on=(catFilter===val); return '<button onclick="catSetFilter(\''+val+'\')" style="border:none;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;'+(on?'background:#26242b;color:#fff;':'background:#eef0f3;color:#3a4353;')+'">'+label+(count?' ('+count+')':'')+'</button>'; }
-        var html='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">';
-        html+=chip('active','All active',(catFilter==='active'||catFilter==='all')?catList.length:0);
-        html+=chip('all','All',0);
-        var order=CAT_STAGES.concat(['lost']);
-        for(var j=0;j<order.length;j++){ html+=chip(order[j],CAT_LABELS[order[j]],counts[order[j]]||0); }
-        html+='</div>'; return html;
+        var counts={}; for(var ci=0;ci<CATQ_STAGES.length;ci++){ counts[CATQ_STAGES[ci]]=0; }
+        for(var i=0;i<catList.length;i++){ counts[catStageOf(catList[i])]++; }
+        var active=0; for(var ai=0;ai<CATQ_ACTIVE.length;ai++){ active+=counts[CATQ_ACTIVE[ai]]; }
+        function tab(key,label,n){ var on=(catFilter===key); return '<button onclick="catSetFilter(\''+key+'\')" style="border:none;border-radius:999px;padding:7px 12px;font-size:12.5px;font-weight:800;cursor:pointer;'+(on?'background:#26242b;color:#fff;':'background:#eef0f3;color:#3a4353;')+'">'+label+' <span style="background:rgba('+(on?'255,255,255,.25':'0,0,0,.12')+');border-radius:999px;font-size:10.5px;padding:1px 7px;">'+n+'</span></button>'; }
+        var h='<div style="background:#fff;border:1px solid #eef0f5;border-radius:14px;padding:11px 12px;margin:6px 0 12px;box-shadow:0 2px 8px rgba(0,0,0,.05);">';
+        h+='<div style="font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a8594;margin:0 2px 8px;">Workflow &mdash; tap a stage to see what&rsquo;s in it</div>';
+        h+='<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">';
+        h+=tab('__active','All active',active)+tab('__all','All',catList.length)+'<span style="width:1px;height:20px;background:#e5e8ee;margin:0 3px;"></span>';
+        for(var j=0;j<CATQ_STAGES.length;j++){ var s2=CATQ_STAGES[j];
+            if(s2==='Lost'){ h+='<span style="width:1px;height:20px;background:#e5e8ee;margin:0 3px;"></span>'; }
+            else if(j>0){ h+='<span style="color:#c3c8d2;font-weight:800;">&rarr;</span>'; }
+            h+=tab(s2,s2,counts[s2]);
+        }
+        h+='</div></div>'; return h;
     }
-    function catCardHtml(r){
-        var right='<div style="font-weight:800;color:#26242b;">'+escapeHtml(catDateFmt(r.event_date))+(r.start_time?(' &middot; '+escapeHtml(catTimeFmt(r.start_time))):'')+'</div>';
-        var bits=[];
-        if(r.guest_count!=null&&r.guest_count!=='') bits.push(escapeHtml(String(r.guest_count))+' guests');
-        var eq=catEquipShort(r.equipment); if(eq) bits.push(escapeHtml(eq));
-        if(r.quote_subtotal!=null&&r.quote_subtotal!=='') bits.push(catMoney(r.quote_subtotal));
-        if(bits.length) right+='<div style="color:#6b7686;margin-top:2px;">'+bits.join(' &middot; ')+'</div>';
-        if(r.conflict) right+='<div style="color:#c0264b;font-weight:800;margin-top:2px;">&#9888; date clash</div>';
-        var srcChip=(String(r.source||'').toLowerCase()==='website')?' <span style="background:#c0264b;color:#fff;border-radius:6px;font-size:9.5px;font-weight:800;padding:2px 6px;vertical-align:middle;">WEBSITE</span>':'';
-        var sub=[]; if(r.occasion) sub.push(r.occasion); if(r.location) sub.push(r.location);
-        return '<div onclick="catOpenDetail(\''+r.id+'\')" style="display:flex;justify-content:space-between;gap:10px;background:#fff;border:1px solid #eef0f5;border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.04);">'
-            +'<div style="flex:1;min-width:0;"><div style="font-weight:800;color:#26242b;">'+escapeHtml(r.customer_name||'(no name)')+srcChip+'</div>'
-            +(sub.length?('<div style="font-size:12px;color:#6b7686;margin-top:2px;">'+escapeHtml(sub.join(' — '))+'</div>'):'')
-            +'</div><div style="text-align:right;font-size:12px;flex-shrink:0;">'+right+'</div></div>';
+    function catCardHtml(q){
+        var st=catStageOf(q);
+        var sub=[]; if(q.company) sub.push(escapeHtml(q.company)); sub.push(escapeHtml(catDateFmt(q.event_date))); if(q.event_type) sub.push(escapeHtml(q.event_type));
+        return '<div onclick="if(typeof editQuote===\'function\')editQuote('+q.id+')" style="display:flex;justify-content:space-between;gap:10px;align-items:center;background:#fff;border:1px solid #eef0f5;border-radius:11px;padding:11px 13px;margin-bottom:7px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.04);">'
+            +'<div style="flex:1;min-width:0;"><div style="font-weight:800;color:#26242b;font-size:13.5px;">'+escapeHtml(q.contact_name||('#'+q.order_num))+'</div>'
+            +'<div style="font-size:11.5px;color:#6b7686;margin-top:2px;">'+sub.join(' &middot; ')+'</div></div>'
+            +'<div style="text-align:right;flex-shrink:0;"><div style="font-weight:800;color:#106ab3;font-size:13px;">'+catMoney(q.total)+'</div>'
+            +'<span style="display:inline-block;margin-top:3px;background:'+(CATQ_COLOR[st]||'#9ca3af')+';color:#fff;border-radius:999px;font-size:10px;font-weight:800;padding:2px 9px;">'+escapeHtml(st)+'</span></div></div>';
     }
     function catRenderBoard(){
         var box=document.getElementById('catBody'); if(!box) return;
-        var html=catChipsHtml();
-        html+='<button onclick="catNewForm()" style="width:100%;background:var(--caliches-pink,#c0264b);color:#fff;border:none;border-radius:11px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:8px;">+ New event (phone/walk-in)</button>';
-        // Merged 2026-07-13: the formal quote builder + quotes/invoices pipeline (the proven
-        // quotes-table engine w/ Square pay links) now live INSIDE this board instead of two
-        // separate menu tiles. Same functions, one door.
-        html+='<div style="display:flex;gap:8px;margin-bottom:14px;">'
-            +'<button onclick="if(typeof clearQuoteEdit===\'function\')clearQuoteEdit();openForm(\'quotesView\');if(typeof hubLoadTaxRates===\'function\')hubLoadTaxRates();" style="flex:1;background:#7b2d8b;color:#fff;border:none;border-radius:11px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">&#128221; Quote Builder</button>'
-            +'<button onclick="openSalesPipeline()" style="flex:1;background:#26242b;color:#fff;border:none;border-radius:11px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;">&#128202; Quotes &amp; Invoices</button>'
+        var html='';
+        html+='<div style="display:flex;gap:8px;margin-bottom:10px;">'
+            +'<button onclick="if(typeof clearQuoteEdit===\'function\')clearQuoteEdit();openForm(\'quotesView\');if(typeof hubLoadTaxRates===\'function\')hubLoadTaxRates();" style="flex:1;background:#7b2d8b;color:#fff;border:none;border-radius:11px;padding:12px;font-size:13px;font-weight:800;cursor:pointer;">&#128221; Quote Builder</button>'
+            +'<button onclick="openSalesPipeline()" style="flex:1;background:#26242b;color:#fff;border:none;border-radius:11px;padding:12px;font-size:13px;font-weight:800;cursor:pointer;">&#128202; Quotes &amp; Invoices</button>'
             +'</div>';
-        // Catering Calendar (js/43) — month/week/day + upcoming, over the real quotes engine.
-        html+='<button onclick="if(typeof openCateringCalendar===\'function\')openCateringCalendar();" style="width:100%;background:#106ab3;color:#fff;border:none;border-radius:11px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;margin-bottom:14px;">&#128197; Catering Calendar &mdash; month, week &amp; upcoming</button>';
-        html+='<button onclick="if(typeof openCateringCarts===\'function\')openCateringCarts();" style="width:100%;background:#e67e22;color:#fff;border:none;border-radius:11px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;margin-bottom:14px;">&#128666; Carts &amp; Trailers &mdash; assignments &amp; double-booking guard</button>';
-        html+='<button onclick="if(typeof openCateringCrew===\'function\')openCateringCrew();" style="width:100%;background:#4f46e5;color:#fff;border:none;border-radius:11px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;margin-bottom:14px;">&#128101; Crew Schedule &mdash; draft &amp; approve staffing</button>';
-        // v1.1: operational side — the C&V Command Center (Event Console lives here).
-        // v1.2: standalone "C&V Command Center" button removed from the board — the run sheet now lives on each event (one door). cvOpenDashboard() kept for deep links.
-        if(!catList.length){ html+='<p style="text-align:center;color:#8a8594;padding:26px 10px;font-size:13.5px;">Nothing here yet. Website inquiries land in this pipeline automatically, or add a phone/walk-in event above.</p>'; box.innerHTML=html; return; }
-        var order=CAT_STAGES.concat(['lost']);
-        for(var s=0;s<order.length;s++){
-            var st=order[s], rows=[];
-            for(var i=0;i<catList.length;i++){ if(catList[i].status===st) rows.push(catList[i]); }
-            if(!rows.length) continue;
-            html+='<div style="display:flex;align-items:center;gap:8px;margin:16px 0 8px;">'+catPill(st)+'<span style="font-size:12px;color:#8a8594;font-weight:700;">'+rows.length+'</span></div>';
-            for(var k=0;k<rows.length;k++){ html+=catCardHtml(rows[k]); }
-        }
+        html+='<button onclick="if(typeof clearQuoteEdit===\'function\')clearQuoteEdit();openForm(\'quotesView\');if(typeof hubLoadTaxRates===\'function\')hubLoadTaxRates();" style="width:100%;background:#c0264b;color:#fff;border:none;border-radius:11px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;margin-bottom:12px;">+ New event (phone/walk-in)</button>';
+        html+='<button onclick="if(typeof openCateringCalendar===\'function\')openCateringCalendar();" style="width:100%;background:#106ab3;color:#fff;border:none;border-radius:11px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;margin-bottom:10px;">&#128197; Catering Calendar</button>';
+        html+='<div style="display:flex;gap:8px;margin-bottom:6px;">'
+            +'<button onclick="if(typeof openCateringCarts===\'function\')openCateringCarts();" style="flex:1;background:#e67e22;color:#fff;border:none;border-radius:11px;padding:11px;font-size:12.5px;font-weight:800;cursor:pointer;">&#128666; Carts &amp; Trailers</button>'
+            +'<button onclick="if(typeof openCateringCrew===\'function\')openCateringCrew();" style="flex:1;background:#4f46e5;color:#fff;border:none;border-radius:11px;padding:11px;font-size:12.5px;font-weight:800;cursor:pointer;">&#128101; Crew Schedule</button>'
+            +'</div>';
+        html+=catChipsHtml();
+        var vis=catVisibleQuotes();
+        var label=(catFilter==='__all')?'All bookings':(catFilter==='__active'?'Active work':catFilter);
+        html+='<div style="font-size:13px;font-weight:800;color:#26242b;margin:4px 2px 8px;">'+escapeHtml(label)+' <span style="color:#8a8594;font-weight:600;">&middot; '+vis.length+(vis.length===1?' event':' events')+'</span></div>';
+        if(!vis.length){ html+='<p style="text-align:center;color:#8a8594;padding:22px;font-size:13px;">Nothing in this stage right now.</p>'; }
+        else { for(var i=0;i<vis.length;i++){ html+=catCardHtml(vis[i]); } }
         box.innerHTML=html;
     }
     function catOpenDetail(id){
