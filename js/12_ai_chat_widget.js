@@ -530,9 +530,10 @@
     function catStageOf(q){
         var s=String(q&&q.status||'').toLowerCase(), inv=(q&&q.invoice_status)||'', d=String(q&&q.event_date||'').slice(0,10);
         var past=(d && d<catTodayIso());
+        var paid=(inv==='Paid' || (q&&q.payment_source));
         if(s==='declined'||s==='expired'||s==='lost'||s==='cancelled') return 'Lost';
-        if(inv==='Paid') return 'Paid';
-        if(s==='accepted'){ if(past) return 'Completed'; if(inv==='PayLinkReady'||inv==='Invoiced') return 'Booked'; return 'Approved'; }
+        if(paid) return 'Paid';
+        if(s==='accepted'){ if(past) return 'Completed'; if(inv==='PayLinkReady'||inv==='Invoiced'||(q&&q.square_payment_url)) return 'Booked'; return 'Approved'; }
         if(past) return 'Lost';
         if(Number(q&&q.total)>0) return 'Quoted';
         return 'Inquiry';
@@ -553,9 +554,14 @@
         withPin(function(pin){
             supabaseClient.rpc('app_quote_admin_list',{p_admin_username:currentUser.username,p_admin_password:pin}).then(function(r){
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; box.innerHTML='<p style="text-align:center;padding:30px;color:#c0264b;">'+escapeHtml(r.error.message||'Could not load.')+'</p>'; return; }
-                catList=(r.data||[]).filter(function(q){ return q; });
-                try{ window._pipelineQuotes=catList; }catch(_e){}
-                catRenderBoard();
+                var quotes=(r.data||[]).filter(function(q){ return q; });
+                // Merge payment state so stages read Paid (incl. cash/check) & Booked correctly.
+                supabaseClient.rpc('app_quote_payment_admin_list',{p_admin_username:currentUser.username,p_admin_password:pin}).then(function(r2){
+                    var pm={}; if(r2&&!r2.error){ (r2.data||[]).forEach(function(p){ if(p&&p.id!=null) pm[p.id]=p; }); }
+                    for(var qi=0;qi<quotes.length;qi++){ var q=quotes[qi], p=pm[q.id]; if(p){ q.invoice_status=p.invoice_status; q.paid_at=p.paid_at; q.payment_source=p.payment_source; q.square_payment_url=p.square_payment_url; if(p.invoice_number) q.invoice_number=p.invoice_number; } }
+                    catList=quotes; try{ window._pipelineQuotes=catList; }catch(_e){}
+                    catRenderBoard();
+                }).catch(function(){ catList=quotes; try{ window._pipelineQuotes=catList; }catch(_e){} catRenderBoard(); });
             }).catch(function(){ box.innerHTML='<p style="text-align:center;padding:30px;color:#c0264b;">Connection error. Please try again.</p>'; });
         }, function(){ box.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">PIN required to load catering.</p>'; });
     }
