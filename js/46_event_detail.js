@@ -145,15 +145,8 @@
             +edKV('Crew', edCrewSummary()+' &nbsp; <a href="#" onclick="edClose();if(typeof openCateringCrew===\'function\')openCateringCrew();return false;" style="color:#106ab3;font-weight:700;">Edit</a>');
         if(q.notes){ rs+=edKV('Notes','<span style="white-space:pre-wrap;">'+edEsc(q.notes)+'</span>'); }
         rs+='</div>';
-        // loadout checklist (read-only)
-        if(tpl&&tpl.items&&tpl.items.length){
-            rs+='<div style="margin-top:12px;background:#f8fafc;border:1px solid #eef0f5;border-radius:11px;padding:11px 12px;">'
-              +'<div style="font-weight:800;font-size:12.5px;color:#26242b;margin-bottom:7px;">&#128203; '+edEsc(tpl.label||'Loadout')+' <span style="color:#8a8594;font-weight:600;">· run sheet</span></div>';
-            for(var ci=0;ci<tpl.items.length;ci++){ var item=tpl.items[ci];
-                rs+='<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12.5px;color:#3a4353;"><span style="width:13px;height:13px;border:1.5px solid #c3c8d2;border-radius:3px;display:inline-block;flex-shrink:0;"></span><span>'+edEsc(item.label||'')+(item.is_critical?' <span style="color:#c0264b;font-weight:800;font-size:10px;">CRITICAL</span>':'')+'</span></div>';
-            }
-            rs+='<div style="font-size:11px;color:#8a8594;margin-top:6px;">Check-off tracking is coming next — for now this is your pull list.</div></div>';
-        } else if(_ed.cart){ rs+='<div style="margin-top:10px;font-size:12px;color:#8a8594;">No loadout checklist found for this asset yet.</div>'; }
+        // loadout checklist (checkable, saved per event)
+        rs+='<div id="edChecklist" style="margin-top:12px;">'+edChecklistHtml()+'</div>';
         wrap+=edCard(rs);
 
         // ZONE 4 — contact
@@ -191,3 +184,29 @@
         var appr=true; for(var i=0;i<c.length;i++){ if(c[i].status!=='approved'){ appr=false; break; } }
         return c.length+' '+(c.length===1?'person':'people')+' · '+(appr?'<span style="color:#0f7a3d;font-weight:700;">Approved</span>':'<span style="color:#e67e22;font-weight:700;">Draft — needs approval</span>');
     }
+    function edChecklistDone(){ var d=_ed.q&&_ed.q.checklist_done; if(typeof d==='string'){ try{d=JSON.parse(d);}catch(e){d=[];} } return d||[]; }
+    function edChecklistHtml(){
+        if(!_ed.q||!_ed.cart) return '';
+        var tpl=edTemplateFor(edAssetKind(_ed.cart));
+        if(!tpl||!tpl.items||!tpl.items.length) return '<div style="font-size:12px;color:#8a8594;">No loadout checklist for this asset yet.</div>';
+        _ed.tplItems=tpl.items;
+        var done=edChecklistDone(), ct=0;
+        for(var d=0;d<tpl.items.length;d++){ if(done.indexOf(tpl.items[d].label)>=0) ct++; }
+        var h='<div style="background:#f8fafc;border:1px solid #eef0f5;border-radius:11px;padding:11px 12px;">'
+            +'<div style="font-weight:800;font-size:12.5px;color:#26242b;margin-bottom:7px;">&#128203; '+edEsc(tpl.label||'Loadout')+' <span style="color:#8a8594;font-weight:600;">· run sheet · '+ct+'/'+tpl.items.length+' packed</span></div>';
+        for(var i=0;i<tpl.items.length;i++){ var it=tpl.items[i], on=done.indexOf(it.label)>=0;
+            h+='<label style="display:flex;align-items:center;gap:9px;padding:4px 0;font-size:12.5px;color:'+(on?'#8a8594':'#3a4353')+';cursor:pointer;"><input type="checkbox" onchange="edToggleCheck('+i+',this.checked)" '+(on?'checked':'')+' style="width:16px;height:16px;flex-shrink:0;cursor:pointer;"><span style="'+(on?'text-decoration:line-through;':'')+'">'+edEsc(it.label||'')+(it.is_critical?' <span style="color:#c0264b;font-weight:800;font-size:10px;">CRITICAL</span>':'')+'</span></label>';
+        }
+        h+='<div style="font-size:11px;color:#8a8594;margin-top:6px;">Tap to check off as you pack — saved automatically.</div></div>';
+        return h;
+    }
+    function edToggleCheck(i, checked){
+        if(!_ed.q||!_ed.tplItems||!_ed.tplItems[i]) return;
+        var label=_ed.tplItems[i].label, done=edChecklistDone().slice(), idx=done.indexOf(label);
+        if(checked&&idx<0) done.push(label);
+        if(!checked&&idx>=0) done.splice(idx,1);
+        _ed.q.checklist_done=done;
+        var el=document.getElementById('edChecklist'); if(el) el.innerHTML=edChecklistHtml();
+        withPin(function(pin){ supabaseClient.rpc('app_quote_details_set',{p_admin_username:currentUser.username,p_admin_password:pin,p_id:_ed.id,p_payload:{checklist_done:done}}).then(function(){}).catch(function(){}); });
+    }
+    window.edToggleCheck=edToggleCheck;
