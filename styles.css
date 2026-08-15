@@ -121,6 +121,8 @@
         .appbar-who #greetingName { color:#fff !important; font-weight:800; font-size:14px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .appbar-who #greetingRole { color:rgba(255,255,255,.9) !important; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin:2px 0 0; white-space:nowrap; }
         .appbar-right { display:flex; align-items:center; gap:9px; flex:0 0 auto; }
+        .appbar-brand, .appbar-who, .appbar-right { position:relative; }
+        .appbar .icon-circle-btn svg, .appbar .notif-bell svg { display:block; }
         .appbar .icon-circle-btn, .appbar .notif-bell { background:rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.4); color:#fff; }
         .appbar .logout-btn { background:rgba(255,255,255,0.16); color:#fff; border:1px solid rgba(255,255,255,0.5); }
         @media(max-width:600px){
@@ -409,7 +411,8 @@
         .hub-bottom-nav::before{ content:"Caliche's Hub"; display:block; font-weight:800; font-size:13px; letter-spacing:.5px; color:var(--caliches-blue); padding:0 22px 14px; opacity:.85; }
         .hbn-item{ flex:0 0 auto; flex-direction:row; gap:13px; justify-content:flex-start; align-items:center; padding:13px 22px; font-size:14px; border-radius:0; }
         .hbn-item .hbn-ic{ font-size:20px; }
-        .hbn-item.active{ background:rgba(16,106,179,0.08); box-shadow:inset 4px 0 0 var(--caliches-pink); }
+        .hbn-item.active{ background:rgba(236,62,126,0.09); box-shadow:inset 4px 0 0 var(--caliches-pink); }
+        .hbn-item.active .hbn-ic{ background:transparent; padding:0; }
         /* Personal Home + segmented Scheduling read best as a centered column; card lists fill the width */
         #tab-content-home.tab-visible{ max-width:720px; margin-left:auto; margin-right:auto; }
         #tab-content-scheduling.tab-visible{ max-width:760px; margin-left:auto; margin-right:auto; }

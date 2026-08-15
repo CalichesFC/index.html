@@ -199,7 +199,13 @@
 
 <!-- MAIN MENU -->
 <div id="main-menu" class="app-view">
-    <div class="user-profile-bar appbar">
+    <div class="user-profile-bar appbar" style="position:relative;overflow:hidden;">
+        <div aria-hidden="true" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;">
+            <div style="position:absolute;left:1%;top:-14px;width:84px;height:84px;opacity:.16;transform:rotate(-16deg);background:#fff;-webkit-mask:url(scoopy-wave.png) center/contain no-repeat;mask:url(scoopy-wave.png) center/contain no-repeat;"></div>
+            <div style="position:absolute;left:33%;top:-10px;width:62px;height:62px;opacity:.12;transform:rotate(14deg);background:#fff;-webkit-mask:url(poochie-wave2.png) center/contain no-repeat;mask:url(poochie-wave2.png) center/contain no-repeat;"></div>
+            <div style="position:absolute;left:57%;top:4px;width:44px;height:44px;opacity:.11;transform:rotate(10deg);background:#fff;-webkit-mask:url(caliches-cone.png) center/contain no-repeat;mask:url(caliches-cone.png) center/contain no-repeat;"></div>
+            <div style="position:absolute;left:78%;top:-10px;width:58px;height:58px;opacity:.12;transform:rotate(18deg);background:#fff;-webkit-mask:url(scoopy-point.png) center/contain no-repeat;mask:url(scoopy-point.png) center/contain no-repeat;"></div>
+        </div>
         <div class="appbar-brand">
             <img src="scoopy-hero.png" alt="Mr. Scoopy" onerror="this.style.display='none'">
             <span class="appbar-title">Caliche's Hub<small>Creating Memories Since 1996</small></span>
@@ -207,17 +213,17 @@
         <div class="appbar-who"><p class="user-greeting" id="greetingName">Hello, Staff</p><p class="user-role" id="greetingRole">Role: Unknown</p></div>
         <div class="appbar-right">
             <div class="notif-bell-wrap" id="notifBellWrap" style="display:none;">
-                <button class="notif-bell" onclick="toggleNotifPanel()" title="Notifications">🔔<span class="notif-badge" id="notifBadge" style="display:none;">0</span></button>
+                <button class="notif-bell" onclick="toggleNotifPanel()" title="Notifications"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="notif-badge" id="notifBadge" style="display:none;">0</span></button>
                 <div class="notif-panel" id="notifPanel">
                     <div class="notif-panel-header">Notifications</div>
                     <div class="notif-loading">Loading...</div>
                 </div>
             </div>
-            <button id="announceBtn" class="icon-circle-btn" onclick="openAnnouncementEditor()" title="Announcement" style="display:none;">&#128227;</button>
-            <button id="topSearchBtn" class="icon-circle-btn" onclick="openHubSearchOverlay()" title="Find anything">&#128269;</button>
-            <button id="topMessagesBtn" class="icon-circle-btn" onclick="openMessages()" title="Messages">&#128172;</button>
-            <button id="nightToggle" class="icon-circle-btn" onclick="toggleNight()" title="Day / Night view">&#127769;</button>
-            <button id="settingsBtn" class="icon-circle-btn" onclick="openSettings()" title="Settings">&#9881;&#65039;</button>
+            <button id="announceBtn" class="icon-circle-btn" onclick="openAnnouncementEditor()" title="Announcement" style="display:none;"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10v4h3l5 4V6L6 10H3z"/><path d="M15 8a4 4 0 0 1 0 8"/></svg></button>
+            <button id="topSearchBtn" class="icon-circle-btn" onclick="openHubSearchOverlay()" title="Find anything"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg></button>
+            <button id="topMessagesBtn" class="icon-circle-btn" onclick="openMessages()" title="Messages"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
+            <button id="nightToggle" class="icon-circle-btn" onclick="toggleNight()" title="Day / Night view"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+            <button id="settingsBtn" class="icon-circle-btn" onclick="openSettings()" title="Settings"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1L14.5 3h-5l-.3 2.6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L2.9 11a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 2.6h5l.3-2.6a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6a7 7 0 0 0 .1-1z"/></svg></button>
             <button class="logout-btn" onclick="logout()">Logout</button>
         </div>
     </div>
@@ -479,10 +485,10 @@
 
     <!-- ── APP BOTTOM NAV ── -->
     <nav class="hub-bottom-nav" id="hubBottomNav">
-        <button class="hbn-item active" id="hbn-home" onclick="hubNav('home')"><span class="hbn-ic">&#127968;</span>Home</button>
-        <button class="hbn-item" id="hbn-schedule" onclick="hubNav('schedule')"><span class="hbn-ic">&#128197;</span>Schedule</button>
-        <button class="hbn-item" id="hbn-tasks" onclick="hubNav('tasks')"><span class="hbn-ic">&#9989;</span>Tasks</button>
-        <button class="hbn-item" id="hbn-more" onclick="hubNav('more')"><span class="hbn-ic">&#9776;</span>More</button>
+        <button class="hbn-item active" id="hbn-home" onclick="hubNav('home')"><span class="hbn-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></span>Home</button>
+        <button class="hbn-item" id="hbn-schedule" onclick="hubNav('schedule')"><span class="hbn-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></span>Schedule</button>
+        <button class="hbn-item" id="hbn-tasks" onclick="hubNav('tasks')"><span class="hbn-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12l3 3 5-6"/></svg></span>Tasks</button>
+        <button class="hbn-item" id="hbn-more" onclick="hubNav('more')"><span class="hbn-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg></span>More</button>
     </nav>
 </div>
 
@@ -492,9 +498,10 @@
     .home-clock-btn{width:100%;margin-top:14px;background:var(--pass-green);color:#fff;border:none;border-radius:14px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 6px rgba(0,0,0,0.07);}
     .home-clock-btn:active{transform:scale(0.99);}
     .hub-bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:9000;display:flex;background:#fff;border-top:1px solid #e7e9f0;box-shadow:0 -2px 10px rgba(0,0,0,0.06);padding-bottom:env(safe-area-inset-bottom,0px);}
-    .hbn-item{flex:1;border:none;background:transparent;padding:8px 0 7px;cursor:pointer;color:#5b6675;font-size:11px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit;}
-    .hbn-item .hbn-ic{font-size:20px;line-height:1;}
-    .hbn-item.active{color:var(--caliches-blue);}
+    .hbn-item{flex:1;border:none;background:transparent;padding:7px 0 6px;cursor:pointer;color:#8a93a2;font-size:11px;font-weight:800;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:inherit;}
+    .hbn-item .hbn-ic{display:inline-flex;align-items:center;justify-content:center;line-height:1;}
+    .hbn-item.active{color:var(--caliches-pink);}
+    .hbn-item.active .hbn-ic{background:rgba(236,62,126,.15);border-radius:999px;padding:3px 14px;}
     #main-menu{padding-bottom:78px;}
     /* Legacy top 5-section tab bar is intentionally hidden — the fixed bottom nav
        (#hubBottomNav) + the "All Sections" hub are the single navigation model.
