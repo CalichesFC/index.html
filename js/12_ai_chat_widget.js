@@ -584,7 +584,7 @@
     function catCardHtml(q){
         var st=catStageOf(q);
         var sub=[]; if(q.company) sub.push(escapeHtml(q.company)); sub.push(escapeHtml(catDateFmt(q.event_date))); if(q.event_type) sub.push(escapeHtml(q.event_type));
-        return '<div onclick="if(typeof editQuote===\'function\')editQuote('+q.id+')" style="display:flex;justify-content:space-between;gap:10px;align-items:center;background:#fff;border:1px solid #eef0f5;border-radius:11px;padding:11px 13px;margin-bottom:7px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.04);">'
+        return '<div onclick="if(typeof openEventDetail===\'function\'){openEventDetail('+q.id+');}else if(typeof editQuote===\'function\'){editQuote('+q.id+');}" style="display:flex;justify-content:space-between;gap:10px;align-items:center;background:#fff;border:1px solid #eef0f5;border-radius:11px;padding:11px 13px;margin-bottom:7px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.04);">'
             +'<div style="flex:1;min-width:0;"><div style="font-weight:800;color:#26242b;font-size:13.5px;">'+escapeHtml(q.contact_name||('#'+q.order_num))+'</div>'
             +'<div style="font-size:11.5px;color:#6b7686;margin-top:2px;">'+sub.join(' &middot; ')+'</div></div>'
             +'<div style="text-align:right;flex-shrink:0;"><div style="font-weight:800;color:#106ab3;font-size:13px;">'+catMoney(q.total)+'</div>'
