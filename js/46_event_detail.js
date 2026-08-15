@@ -55,7 +55,7 @@
 
     function edSave(){
         if(_ed.saving||!_ed.q) return; _ed.saving=true; edRender();
-        var payload={ event_time:edVal('edTime'), event_location:edVal('edLocation'), event_type_key:edVal('edType'), po_number:edVal('edPO'), tax_exempt:(document.getElementById('edTaxx')?document.getElementById('edTaxx').checked:false) };
+        var payload={ event_time:edVal('edTime'), event_location:edVal('edLocation'), event_type:edVal('edType'), po_number:edVal('edPO'), tax_exempt:(document.getElementById('edTaxx')?document.getElementById('edTaxx').checked:false) };
         withPin(function(pin){
             supabaseClient.rpc('app_quote_details_set',{p_admin_username:currentUser.username,p_admin_password:pin,p_id:_ed.id,p_payload:payload}).then(function(r){
                 _ed.saving=false;
@@ -139,7 +139,7 @@
         rs+='<label style="display:block;font-size:12px;font-weight:700;color:#3a4353;margin-bottom:8px;">Location'+edInp('edLocation',q.event_location,'Address / venue')+'</label>';
         rs+='<div style="display:flex;gap:10px;flex-wrap:wrap;">'
             +'<label style="flex:1;min-width:150px;font-size:12px;font-weight:700;color:#3a4353;">Event time'+edInp('edTime',q.event_time,'e.g. 7:00–8:30 PM')+'</label>'
-            +'<label style="flex:1;min-width:150px;font-size:12px;font-weight:700;color:#3a4353;">Event type'+edTypeSelect(q)+'</label></div>';
+            +'<label style="flex:1;min-width:150px;font-size:12px;font-weight:700;color:#3a4353;">Event type'+edTypeInput(q)+'</label></div>';
         rs+='<div style="margin-top:12px;">'
             +edKV('Cart / trailer', (_ed.cart?('<b>'+edEsc(_ed.cart)+'</b>'+(kind?(' <span style="color:#8a8594;">('+edEsc(kind)+')</span>'):'')):'<span style="color:#c0264b;">Not assigned yet</span>')+' &nbsp; <a href="#" onclick="edClose();if(typeof openCateringCarts===\'function\')openCateringCarts();return false;" style="color:#106ab3;font-weight:700;">'+(_ed.cart?'Change':'Assign')+'</a>')
             +edKV('Crew', edCrewSummary()+' &nbsp; <a href="#" onclick="edClose();if(typeof openCateringCrew===\'function\')openCateringCrew();return false;" style="color:#106ab3;font-weight:700;">Edit</a>');
@@ -182,12 +182,9 @@
         o.innerHTML=hdr+wrap;
     }
 
-    function edTypeSelect(q){
-        var h='<select id="edType" style="border:1px solid #cfd6e0;border-radius:8px;padding:7px 10px;font-size:13px;width:100%;box-sizing:border-box;background:#fff;">';
-        h+='<option value="">— pick a type —</option>';
-        var cur=q.event_type_key||'';
-        if(_edTypes){ for(var i=0;i<_edTypes.length;i++){ var t=_edTypes[i]; if(t.active===false) continue; h+='<option value="'+edEsc(t.key)+'"'+(t.key===cur?' selected':'')+'>'+edEsc(t.label)+'</option>'; } }
-        h+='</select>'; return h;
+    function edTypeInput(q){
+        var opts=''; if(_edTypes){ for(var i=0;i<_edTypes.length;i++){ var t=_edTypes[i]; if(t.active===false) continue; opts+='<option value="'+edEsc(t.label)+'">'; } }
+        return '<input id="edType" list="edTypeList" value="'+edEsc(q.event_type||'')+'" placeholder="Type the event — e.g. Wedding, Car show, School event" style="border:1px solid #cfd6e0;border-radius:8px;padding:7px 10px;font-size:13px;width:100%;box-sizing:border-box;"><datalist id="edTypeList">'+opts+'</datalist>';
     }
     function edCrewSummary(){
         var c=_ed.crew||[]; if(!c.length) return '<span style="color:#8a8594;">No crew yet</span>';
