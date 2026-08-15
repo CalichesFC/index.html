@@ -569,8 +569,8 @@
         var counts={}; for(var ci=0;ci<CATQ_STAGES.length;ci++){ counts[CATQ_STAGES[ci]]=0; }
         for(var i=0;i<catList.length;i++){ counts[catStageOf(catList[i])]++; }
         var active=0; for(var ai=0;ai<CATQ_ACTIVE.length;ai++){ active+=counts[CATQ_ACTIVE[ai]]; }
-        function tab(key,label,n){ var on=(catFilter===key); return '<button onclick="catSetFilter(\''+key+'\')" style="border:none;border-radius:999px;padding:7px 12px;font-size:12.5px;font-weight:800;cursor:pointer;'+(on?'background:#26242b;color:#fff;':'background:#eef0f3;color:#3a4353;')+'">'+label+' <span style="background:rgba('+(on?'255,255,255,.25':'0,0,0,.12')+');border-radius:999px;font-size:10.5px;padding:1px 7px;">'+n+'</span></button>'; }
-        var h='<div style="background:#fff;border:1px solid #eef0f5;border-radius:14px;padding:11px 12px;margin:6px 0 12px;box-shadow:0 2px 8px rgba(0,0,0,.05);">';
+        function tab(key,label,n){ var on=(catFilter===key); return '<button onclick="catSetFilter(\''+key+'\')" style="border:none;border-radius:999px;padding:7px 12px;font-size:12.5px;font-weight:800;cursor:pointer;'+(on?'background:#106ab3;color:#fff;':'background:#eef2f7;color:#3a4353;')+'">'+label+' <span style="background:rgba('+(on?'255,255,255,.25':'0,0,0,.1')+');border-radius:999px;font-size:10.5px;padding:1px 7px;">'+n+'</span></button>'; }
+        var h='<div style="position:relative;overflow:hidden;background:rgba(255,255,255,.9);border:1px solid #eef0f5;border-radius:14px;padding:11px 12px;margin:6px 0 12px;box-shadow:0 2px 8px rgba(0,0,0,.05);">'+catMascotLayer(CAT_BOARD_MASCOTS)+'<div style="position:relative;z-index:2;">';
         h+='<div style="font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a8594;margin:0 2px 8px;">Workflow &mdash; tap a stage to see what&rsquo;s in it</div>';
         h+='<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">';
         h+=tab('__active','All active',active)+tab('__all','All',catList.length)+'<span style="width:1px;height:20px;background:#e5e8ee;margin:0 3px;"></span>';
@@ -579,7 +579,7 @@
             else if(j>0){ h+='<span style="color:#c3c8d2;font-weight:800;">&rarr;</span>'; }
             h+=tab(s2,s2,counts[s2]);
         }
-        h+='</div></div>'; return h;
+        h+='</div></div></div>'; return h;
     }
     function catCardHtml(q){
         var st=catStageOf(q);
@@ -590,19 +590,49 @@
             +'<div style="text-align:right;flex-shrink:0;"><div style="font-weight:800;color:#106ab3;font-size:13px;">'+catMoney(q.total)+'</div>'
             +'<span style="display:inline-block;margin-top:3px;background:'+(CATQ_COLOR[st]||'#9ca3af')+';color:#fff;border-radius:999px;font-size:10px;font-weight:800;padding:2px 9px;">'+escapeHtml(st)+'</span></div></div>';
     }
+    // ===== Brand catering nav — drawn icons + full-color mascot texture (approved design) =====
+    var CAT_NAV_IC={
+        pencil:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/>',
+        receipt:'<path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2z"/><path d="M9 7h6M9 11h6"/>',
+        plus:'<path d="M12 5v14M5 12h14"/>',
+        cal:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+        truck:'<path d="M1 5h13v10H1z"/><path d="M14 8h4l3 3v4h-7z"/><circle cx="5.5" cy="17.5" r="1.7"/><circle cx="17.5" cy="17.5" r="1.7"/>',
+        users:'<circle cx="9" cy="8" r="3.2"/><path d="M2.5 19.5a6.5 6.5 0 0113 0"/><path d="M16.5 5.6a3.2 3.2 0 010 5.6M18 19.5a6.5 6.5 0 00-3-4.8"/>'
+    };
+    function catNavIcon(k,col){ return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="'+col+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-right:8px;">'+(CAT_NAV_IC[k]||'')+'</svg>'; }
+    function catNavBtn(onclick,icon,label,full,cta){
+        var st=cta ? 'background:#ec3e7e;border:1px solid #ec3e7e;color:#fff;box-shadow:0 3px 11px rgba(236,62,126,.30);'
+                   : 'background:rgba(255,255,255,.9);border:1px solid #e7ddcd;color:#2f2a24;';
+        return '<button onclick="'+onclick+'" style="'+(full?'width:100%;':'flex:1;')+'display:inline-flex;align-items:center;justify-content:center;'+st+'border-radius:12px;padding:12px;font-size:13px;font-weight:800;cursor:pointer;">'+catNavIcon(icon,cta?'#fff':'#106ab3')+label+'</button>';
+    }
+    function catMascotLayer(list){
+        var h='<div aria-hidden="true" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0;">';
+        for(var i=0;i<list.length;i++){ var s=list[i]; h+='<img src="'+s[0]+'" alt="" onerror="this.style.display=\'none\'" style="position:absolute;left:'+s[1]+';top:'+s[2]+';width:'+s[3]+'px;transform:rotate('+s[4]+'deg);opacity:'+s[5]+';">'; }
+        return h+'</div>';
+    }
+    var CAT_NAV_MASCOTS=[
+        ['scoopy-hero.png','-3%','26px',200,-8,0.18],['poochie-wave2.png','83%','92px',180,14,0.20],
+        ['caliches-cone.png','89%','-16px',118,12,0.18],['scoopy-point.png','-3%','150px',140,10,0.15],
+        ['scoopy-wave.png','31%','16px',94,-16,0.18],['poochie-wave2.png','53%','4px',80,18,0.17],
+        ['caliches-cone.png','23%','96px',72,8,0.17],['scoopy-sad.png','63%','118px',88,-8,0.16],
+        ['caliches-cone.png','46%','54px',46,6,0.15],['scoopy-wave.png','91%','196px',78,-20,0.16]
+    ];
+    var CAT_BOARD_MASCOTS=[
+        ['scoopy-wave.png','1%','-8px',80,12,0.12],['poochie-wave2.png','87%','-10px',92,14,0.14],
+        ['caliches-cone.png','50%','20px',60,-10,0.11]
+    ];
     function catRenderBoard(){
         var box=document.getElementById('catBody'); if(!box) return;
+        var OB_QUOTE="if(typeof clearQuoteEdit==='function')clearQuoteEdit();openForm('quotesView');if(typeof hubLoadTaxRates==='function')hubLoadTaxRates();";
         var html='';
-        html+='<div style="display:flex;gap:8px;margin-bottom:10px;">'
-            +'<button onclick="if(typeof clearQuoteEdit===\'function\')clearQuoteEdit();openForm(\'quotesView\');if(typeof hubLoadTaxRates===\'function\')hubLoadTaxRates();" style="flex:1;background:#7b2d8b;color:#fff;border:none;border-radius:11px;padding:12px;font-size:13px;font-weight:800;cursor:pointer;">&#128221; Quote Builder</button>'
-            +'<button onclick="openSalesPipeline()" style="flex:1;background:#26242b;color:#fff;border:none;border-radius:11px;padding:12px;font-size:13px;font-weight:800;cursor:pointer;">&#128202; Quotes &amp; Invoices</button>'
-            +'</div>';
-        html+='<button onclick="if(typeof clearQuoteEdit===\'function\')clearQuoteEdit();openForm(\'quotesView\');if(typeof hubLoadTaxRates===\'function\')hubLoadTaxRates();" style="width:100%;background:#c0264b;color:#fff;border:none;border-radius:11px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;margin-bottom:12px;">+ New event (phone/walk-in)</button>';
-        html+='<button onclick="if(typeof openCateringCalendar===\'function\')openCateringCalendar();" style="width:100%;background:#106ab3;color:#fff;border:none;border-radius:11px;padding:11px;font-size:13px;font-weight:800;cursor:pointer;margin-bottom:10px;">&#128197; Catering Calendar</button>';
-        html+='<div style="display:flex;gap:8px;margin-bottom:6px;">'
-            +'<button onclick="if(typeof openCateringCarts===\'function\')openCateringCarts();" style="flex:1;background:#e67e22;color:#fff;border:none;border-radius:11px;padding:11px;font-size:12.5px;font-weight:800;cursor:pointer;">&#128666; Carts &amp; Trailers</button>'
-            +'<button onclick="if(typeof openCateringCrew===\'function\')openCateringCrew();" style="flex:1;background:#4f46e5;color:#fff;border:none;border-radius:11px;padding:11px;font-size:12.5px;font-weight:800;cursor:pointer;">&#128101; Crew Schedule</button>'
-            +'</div>';
+        html+='<div style="position:relative;overflow:hidden;border-radius:16px;padding:12px;margin-bottom:12px;">';
+        html+=catMascotLayer(CAT_NAV_MASCOTS);
+        html+='<div style="position:relative;z-index:2;">';
+        html+='<div style="display:flex;gap:8px;margin-bottom:9px;">'+catNavBtn(OB_QUOTE,'pencil','Quote Builder',false,false)+catNavBtn("openSalesPipeline()",'receipt','Quotes &amp; Invoices',false,false)+'</div>';
+        html+=catNavBtn(OB_QUOTE,'plus','New event (phone/walk-in)',true,true)+'<div style="height:9px;"></div>';
+        html+=catNavBtn("if(typeof openCateringCalendar==='function')openCateringCalendar();",'cal','Catering Calendar',true,false)+'<div style="height:9px;"></div>';
+        html+='<div style="display:flex;gap:8px;">'+catNavBtn("if(typeof openCateringCarts==='function')openCateringCarts();",'truck','Carts &amp; Trailers',false,false)+catNavBtn("if(typeof openCateringCrew==='function')openCateringCrew();",'users','Crew Schedule',false,false)+'</div>';
+        html+='</div></div>';
         html+=catChipsHtml();
         var vis=catVisibleQuotes();
         var label=(catFilter==='__all')?'All bookings':(catFilter==='__active'?'Active work':catFilter);
