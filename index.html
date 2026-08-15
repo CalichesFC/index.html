@@ -650,9 +650,15 @@
 <!-- CATERING PIPELINE VIEW -->
 <div id="cateringView" class="app-view">
     <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
-    <div class="header" style="background:linear-gradient(120deg,#EC3E7E,#106AB3);">
-        <h1 style="font-size:40px;margin:10px 0;">&#127846;</h1>
-        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Catering</p>
+    <div class="header" style="background:linear-gradient(120deg,#EC3E7E,#106AB3);position:relative;overflow:hidden;">
+        <div aria-hidden="true" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;">
+            <div style="position:absolute;left:1%;top:-12px;width:98px;height:98px;opacity:.18;transform:rotate(-16deg);background:#fff;-webkit-mask:url(scoopy-wave.png) center/contain no-repeat;mask:url(scoopy-wave.png) center/contain no-repeat;"></div>
+            <div style="position:absolute;right:2%;top:-8px;width:90px;height:90px;opacity:.17;transform:rotate(14deg);background:#fff;-webkit-mask:url(poochie-wave2.png) center/contain no-repeat;mask:url(poochie-wave2.png) center/contain no-repeat;"></div>
+            <div style="position:absolute;left:19%;top:4px;width:66px;height:66px;opacity:.13;transform:rotate(-22deg);background:#fff;-webkit-mask:url(scoopy-point.png) center/contain no-repeat;mask:url(scoopy-point.png) center/contain no-repeat;"></div>
+            <div style="position:absolute;left:72%;top:14px;width:52px;height:52px;opacity:.12;transform:rotate(18deg);background:#fff;-webkit-mask:url(caliches-cone.png) center/contain no-repeat;mask:url(caliches-cone.png) center/contain no-repeat;"></div>
+            <div style="position:absolute;left:54%;top:-6px;width:70px;height:70px;opacity:.10;transform:rotate(10deg);background:#fff;-webkit-mask:url(scoopy-hero.png) center/contain no-repeat;mask:url(scoopy-hero.png) center/contain no-repeat;"></div>
+        </div>
+        <img src="catering-logo.png" alt="Catering" style="position:relative;height:72px;margin:8px 0;filter:drop-shadow(0 2px 5px rgba(0,0,0,.22));" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<p style=\'font-size:18px;margin:12px 0;font-weight:bold;text-transform:uppercase;color:#fff;position:relative;\'>Catering</p>');">
     </div>
     <div class="container" style="max-width:860px;" id="catBody"><p style="text-align:center;padding:30px;color:#6b7686;">Loading...</p></div>
 </div>
