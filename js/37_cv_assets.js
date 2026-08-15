@@ -95,19 +95,21 @@
 
     // ---------- shared style builders (match app inline-style vocabulary) ----------
     function card(title,right,body){
-        return '<div style="background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.05);overflow:hidden;margin-bottom:14px;">'
-            +'<div style="background:linear-gradient(135deg,#b3202c 0%,#7a1620 100%);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:8px;">'
-            +'<b style="flex:1;font-size:14.5px;">'+title+'</b>'+(right||'')+'</div>'
-            +'<div style="padding:12px 14px;">'+body+'</div></div>';
+        return '<div style="background:#fff;border:1px solid #e9edf3;border-radius:16px;box-shadow:0 3px 14px rgba(20,30,50,.05);overflow:hidden;margin-bottom:16px;">'
+            +'<div style="padding:14px 17px;border-bottom:1px solid #e9edf3;display:flex;align-items:center;gap:9px;">'
+            +'<b style="flex:1;font-size:15px;color:#1f2430;">'+title+'</b>'+(right||'')+'</div>'
+            +'<div style="padding:6px 17px 14px;">'+body+'</div></div>';
     }
     function btn(label,onclick,style){
-        var bg,col; style=style||'dark';
-        if(style==='primary'){ bg='#fff'; col='#b3202c'; }
-        else if(style==='ghost'){ bg='rgba(255,255,255,.22)'; col='#fff'; }
-        else if(style==='light'){ bg='#eef0f3'; col='#3a4353'; }
-        else if(style==='danger'){ bg='#fdeaea'; col='#a01b3e'; }
+        var bg,col,bd='none'; style=style||'dark';
+        if(style==='primary'){ bg='#106ab3'; col='#fff'; }
+        else if(style==='ghost'||style==='outline'){ bg='#fff'; col='#3a4353'; bd='1px solid #d7dee8'; }
+        else if(style==='light'){ bg='#eef2f7'; col='#3a4353'; }
+        else if(style==='danger'){ bg='none'; col='#c0264b'; }
+        else if(style==='link'){ bg='none'; col='#106ab3'; }
         else { bg='#26242b'; col='#fff'; }
-        return '<button type="button" onclick="'+onclick+'" style="background:'+bg+';color:'+col+';border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;">'+label+'</button>';
+        var pad=(style==='link'||style==='danger')?'5px 8px':'7px 13px';
+        return '<button type="button" onclick="'+onclick+'" style="background:'+bg+';color:'+col+';border:'+bd+';border-radius:9px;padding:'+pad+';font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">'+label+'</button>';
     }
     function pill(text,bg,col){ return '<span style="display:inline-block;background:'+bg+';color:'+col+';border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;">'+esc(text)+'</span>'; }
     function statusPill(s){ s=String(s||''); if(s==='active') return pill('active','#e6f6ec','#1f7a3d'); if(s==='maintenance') return pill('maint','#fff4e0','#9a5b00'); if(s==='retired') return pill('retired','#eef0f3','#6b7280'); return pill(s||'?','#eef0f3','#6b7280'); }
@@ -123,7 +125,7 @@
     // ============================================================
     // PANEL 1 — ASSET REGISTER  (list / add / edit / retire)
     // ============================================================
-    function assetChip(val,label){ var on=(S.assetFilter===val); return '<button type="button" onclick="cva.assetFilter('+q(val)+')" style="border:none;border-radius:999px;padding:5px 11px;font-size:11.5px;font-weight:700;cursor:pointer;margin:0 5px 8px 0;'+(on?'background:#b3202c;color:#fff;':'background:#eef0f3;color:#3a4353;')+'">'+esc(label)+'</button>'; }
+    function assetChip(val,label){ var on=(S.assetFilter===val); return '<button type="button" onclick="cva.assetFilter('+q(val)+')" style="border:none;border-radius:999px;padding:5px 11px;font-size:11.5px;font-weight:700;cursor:pointer;margin:0 5px 8px 0;'+(on?'background:#106ab3;color:#fff;':'background:#eef2f7;color:#3a4353;')+'">'+esc(label)+'</button>'; }
     function assetFormHtml(){
         var a=S.assetForm||{}; var editing=!!a.id;
         return '<div style="background:#fafbfc;border:1px solid #eef0f5;border-radius:10px;padding:12px;margin:4px 0 10px;">'
@@ -140,7 +142,7 @@
     function assetRowHtml(a){
         a=a||{};
         var meta=[]; if(a.identifier) meta.push(esc(a.identifier)); if(a.market) meta.push(esc(a.market));
-        var actions=btn('Edit','cva.assetEdit('+(a.id||0)+')','light');
+        var actions=btn('Edit','cva.assetEdit('+(a.id||0)+')','link');
         if(String(a.status)!=='retired') actions+=' '+btn('Retire','cva.assetRetire('+(a.id||0)+')','danger');
         return '<div style="border-top:1px solid #f0f2f6;padding:9px 0;">'
             +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;"><b style="font-size:13.5px;color:#26242b;">'+esc(a.name||'(unnamed)')+'</b>'+kindPill(a.kind)+statusPill(a.status)+'</div>'
@@ -196,7 +198,7 @@
         for(var i=0;i<vs.length;i++){ var v=vs[i]||{}; var vid=key+'#'+v.version; var vo=(S.tplOpenVer===vid);
             h+='<div style="border-top:'+(i?'1px solid #eef0f5':'none')+';padding:7px 0;">'
                 +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;cursor:pointer;" onclick="cva.tplVer('+q(key)+','+(v.version||0)+')">'
-                +pill('v'+(v.version||'?'),'#f3e8ee','#7a1620')+(v.is_current?pill('current','#e6f6ec','#1f7a3d'):'')
+                +pill('v'+(v.version||'?'),'#eaf1fb','#106ab3')+(v.is_current?pill('current','#e6f6ec','#1f7a3d'):'')
                 +'<span style="font-size:12px;color:#26242b;font-weight:700;">'+(v.item_count!=null?v.item_count:'0')+' items</span>'
                 +(v.version_label?('<span style="font-size:11px;color:#8a93a2;">'+esc(v.version_label)+'</span>'):'')+'</div>'
                 +(v.change_note?('<div style="font-size:11.5px;color:#6b7280;margin-top:2px;">'+esc(v.change_note)+'</div>'):'')
@@ -210,9 +212,9 @@
         var badges=(t.is_current!==false?pill('current','#e6f6ec','#1f7a3d'):'')+(t.operating_unit?(' '+pill(t.operating_unit,'#eef3fb','#185FA5')):'')+(t.active===false?(' '+pill('inactive','#eef0f3','#6b7280')):'');
         var cnt=(t.items&&t.items.length!=null)?t.items.length:'';
         var h='<div style="border-top:1px solid #f0f2f6;padding:9px 0;">'
-            +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;"><b style="font-size:13.5px;color:#26242b;cursor:pointer;" onclick="cva.tplToggle('+q(key)+')">'+esc(t.label||key)+'</b>'+pill('v'+(t.version||1),'#f3e8ee','#7a1620')+badges+'</div>'
+            +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;"><b style="font-size:13.5px;color:#26242b;cursor:pointer;" onclick="cva.tplToggle('+q(key)+')">'+esc(t.label||key)+'</b>'+pill('v'+(t.version||1),'#eaf1fb','#106ab3')+badges+'</div>'
             +'<div style="font-size:11.5px;color:#6b7280;margin-top:2px;">'+esc(key)+(cnt!==''?(' &middot; '+cnt+' items'):'')+(t.version_label?(' &middot; '+esc(t.version_label)):'')+'</div>'
-            +'<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">'+btn(open?'Hide history':'History','cva.tplToggle('+q(key)+')','light')+btn('New version','cva.tplEditFrom('+q(key)+')','light')+'</div>';
+            +'<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">'+btn(open?'Hide history':'History','cva.tplToggle('+q(key)+')','link')+btn('New version','cva.tplEditFrom('+q(key)+')','link')+'</div>';
         if(open) h+=tplVersionsHtml(key);
         return h+'</div>';
     }
@@ -291,7 +293,7 @@
         return '<div style="border-top:1px solid #f0f2f6;padding:9px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
             +'<div style="flex:1;min-width:150px;"><b style="font-size:13.5px;color:#26242b;">'+esc(e.label||e.key||'')+'</b> '+actPill
             +'<div style="font-size:11.5px;color:#6b7280;margin-top:2px;">'+esc(e.key||'')+' &middot; sort '+esc(e.sort==null?'0':e.sort)+'</div></div>'
-            +btn('Edit','cva.typeEdit('+(e.id||0)+')','light')+btn((e.active!==false)?'Deactivate':'Activate','cva.typeToggleActive('+(e.id||0)+')','light')+'</div>';
+            +btn('Edit','cva.typeEdit('+(e.id||0)+')','link')+btn((e.active!==false)?'Deactivate':'Activate','cva.typeToggleActive('+(e.id||0)+')','link')+'</div>';
     }
     function typesHtml(){
         var right=btn('&#43; Add','cva.typeAdd()','ghost');
