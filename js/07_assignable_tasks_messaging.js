@@ -569,19 +569,32 @@
     }
     function maintStatusBadge(st){
         var s=(st||'').toLowerCase();
-        var c = (s.indexOf('resolv')>=0||s.indexOf('done')>=0||s.indexOf('complet')>=0) ? ['#e8f5ec','#1b7a3d','Resolved']
-              : (s.indexOf('progress')>=0||s.indexOf('working')>=0) ? ['#eef3fb','#185FA5','In progress']
-              : ['#fdeaea','#a01b3e',(st||'Open')];
+        var c = (s.indexOf('resolv')>=0||s.indexOf('done')>=0||s.indexOf('complet')>=0||s.indexOf('closed')>=0||s.indexOf('verified')>=0) ? ['#e8f5ec','#1b7a3d',(st||'Done')]
+              : (s.indexOf('progress')>=0||s.indexOf('working')>=0||s.indexOf('assigned')>=0) ? ['#eef3fb','#185FA5',(st||'In progress')]
+              : (s.indexOf('hold')>=0) ? ['#fff4e0','#9a5b00',(st||'On hold')]
+              : (s.indexOf('open')>=0||s.indexOf('report')>=0) ? ['#fdeaea','#a01b3e',(st||'Open')]
+              : (s===''||s.indexOf('pend')>=0||s.indexOf('due')>=0) ? ['#fff4e0','#9a5b00',(st||'Due')]
+              : ['#eef2f7','#3a4353',(st||'')];
         return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:3px 8px;border-radius:99px;white-space:nowrap;">'+escapeHtml(c[2])+'</span>';
+    }
+    function assetKindChip(kind){
+        var m={work_order:['#eaf1fb','#106ab3','Work order'],issue:['#fdeaea','#a01b3e','Issue'],pm:['#e6f6ec','#1f7a3d','PM cleaning'],log:['#eef2f7','#3a4353','Log']};
+        var c=m[kind]||m.log;
+        return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:2px 8px;border-radius:99px;white-space:nowrap;">'+c[2]+'</span>';
     }
     function maintIsResolved(r){ var s=((r.status||'')+'').toLowerCase(); return !!r.resolution || s.indexOf('resolv')>=0 || s.indexOf('done')>=0 || s.indexOf('complet')>=0; }
     function loadMaintHistFor(equipId){
         var box=document.getElementById('maintHistSection'); if(!box) return;
-        box.innerHTML='<div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:14px;padding:16px;color:var(--txt2,#8a8594);font-size:13px;">Loading maintenance reports&hellip;</div>';
+        box.innerHTML='<div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:14px;padding:16px;color:var(--txt2,#8a8594);font-size:13px;">Loading machine history&hellip;</div>';
         withPin(function(pin){
-            supabaseClient.rpc('app_maint_for_equipment',{p_username:currentUser.username,p_password:pin,p_equipment_id:equipId}).then(function(r){
-                if(r.error){ box.innerHTML=''; return; }
-                renderMaintHist(r.data||[],equipId);
+            // Unified timeline: work orders + issues + PM cleanings, all in one place.
+            supabaseClient.rpc('app_asset_timeline',{p_username:currentUser.username,p_password:pin,p_equipment_id:equipId}).then(function(r){
+                if(r&&!r.error&&r.data){ renderMaintHist(r.data,equipId); return; }
+                // Fallback if the unified RPC isn't live yet: legacy logs only, mapped to the same shape.
+                supabaseClient.rpc('app_maint_for_equipment',{p_username:currentUser.username,p_password:pin,p_equipment_id:equipId}).then(function(r2){
+                    var mapped=((r2&&r2.data)||[]).map(function(x){ return {kind:'issue',id:x.id,ts:x.created_at||x.report_date,title:x.item,status:x.status,priority:x.urgency,who:x.reporter,detail:x.issue,resolution:x.resolution,pdf:x.pdf}; });
+                    renderMaintHist(mapped,equipId);
+                }).catch(function(){ box.innerHTML=''; });
             }).catch(function(){ box.innerHTML=''; });
         });
     }
@@ -590,27 +603,28 @@
         window._maintHist=list; window._maintHistEquip=equipId;
         var mgr=(typeof isManagerRole==='function'?isManagerRole():(typeof isAdminManager==='function'&&isAdminManager()));
         var h='<div style="background:var(--surface,#fff);border:1px solid var(--bd,#ececf2);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);">';
-        h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><span style="font-size:18px;">&#128221;</span><b style="flex:1;font-size:15px;color:var(--txt,#26242b);">Maintenance reports</b>'+
-           '<button onclick="openMaintenanceForEquipment((window._equipCur||{}).store,(window._equipCur||{}).name)" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;">&#10133; New</button></div>';
-        if(!list.length){ h+='<div style="color:var(--txt2,#8a8594);font-size:13px;padding:4px 0;">No maintenance reports for this machine yet.</div>'; }
+        h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><span style="font-size:18px;">&#128220;</span><b style="flex:1;font-size:15px;color:var(--txt,#26242b);">Machine history</b>'+
+           '<button onclick="openMaintenanceForEquipment((window._equipCur||{}).store,(window._equipCur||{}).name)" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;">&#10133; New report</button></div>';
+        if(!list.length){ h+='<div style="color:var(--txt2,#8a8594);font-size:13px;padding:4px 0;">No history yet — issues, work orders and cleanings for this machine will all show here.</div>'; }
         else {
+            h+='<div style="position:relative;padding-left:16px;"><div style="position:absolute;left:4px;top:6px;bottom:6px;width:2px;background:#e6e2da;"></div>';
             list.forEach(function(r){
+                var kind=r.kind||'log';
+                var dotc = kind==='work_order'?'#106ab3':kind==='issue'?'#a01b3e':kind==='pm'?'#1f7a3d':'#8a93a2';
+                var when=(r.ts?String(r.ts).slice(0,10):'');
                 var resolved=maintIsResolved(r);
-                var when=(r.report_date||(r.created_at?String(r.created_at).slice(0,10):''));
-                h+='<div style="border:1px solid var(--bd,#f0eef4);border-radius:11px;padding:11px 12px;margin-bottom:8px;">'+
-                   '<div style="display:flex;align-items:flex-start;gap:8px;"><div style="flex:1;min-width:0;">'+
-                   '<div style="font-weight:700;font-size:14px;color:var(--txt,#26242b);">'+escapeHtml(r.item||'Maintenance')+'</div>'+
-                   '<div style="font-size:12px;color:var(--txt2,#8a8594);margin-top:2px;">'+escapeHtml(when)+(r.reporter?' &middot; '+escapeHtml(r.reporter):'')+(r.urgency?' &middot; '+escapeHtml(r.urgency):'')+'</div>'+
-                   (r.issue?'<div style="font-size:12.5px;color:var(--txt,#33303a);margin-top:4px;white-space:pre-wrap;">'+escapeHtml(r.issue)+'</div>':'')+
-                   '</div>'+maintStatusBadge(r.status)+'</div>';
-                if(resolved && (r.resolution||r.resolved_by)){
-                    h+='<div style="margin-top:8px;background:#f0f8f2;border:1px solid #cfe8d6;border-radius:9px;padding:8px 10px;font-size:12.5px;color:#1b5e2e;"><b>&#9989; Resolution:</b> '+escapeHtml(r.resolution||'(marked resolved)')+(r.resolved_by?'<span style="color:#5b8169;"> &middot; '+escapeHtml(r.resolved_by)+'</span>':'')+'</div>';
-                } else if(mgr){
-                    h+='<div style="margin-top:8px;"><button onclick="resolveMaint('+r.id+')" style="background:var(--pass-green,#1f7a3d);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;">&#9989; Mark resolved&hellip;</button></div>';
-                }
-                if(r.pdf){ h+='<div style="margin-top:6px;"><a href="'+escapeHtml(r.pdf)+'" target="_blank" rel="noopener" style="font-size:12px;color:#185FA5;font-weight:700;">&#128196; View report PDF</a></div>'; }
+                var canResolve = mgr && !resolved && (kind==='issue'||kind==='pm');
+                h+='<div style="position:relative;padding:0 0 14px;">'+
+                   '<div style="position:absolute;left:-15px;top:4px;width:9px;height:9px;border-radius:50%;background:'+dotc+';box-shadow:0 0 0 3px var(--surface,#fff);"></div>'+
+                   '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">'+assetKindChip(kind)+'<b style="font-size:13.5px;color:var(--txt,#26242b);">'+escapeHtml(r.title||'Maintenance')+'</b>'+maintStatusBadge(r.status)+'</div>'+
+                   '<div style="font-size:11.5px;color:var(--txt2,#8a8594);margin-top:2px;">'+escapeHtml(when)+(r.who?' &middot; '+escapeHtml(r.who):'')+(r.priority?' &middot; '+escapeHtml(r.priority):'')+(r.ref?' &middot; '+escapeHtml(r.ref):'')+'</div>';
+                if(r.detail && kind!=='pm'){ h+='<div style="font-size:12.5px;color:var(--txt,#33303a);margin-top:4px;white-space:pre-wrap;">'+escapeHtml(String(r.detail).slice(0,280))+'</div>'; }
+                if(resolved && r.resolution){ h+='<div style="margin-top:6px;background:#f0f8f2;border:1px solid #cfe8d6;border-radius:9px;padding:7px 10px;font-size:12px;color:#1b5e2e;"><b>&#9989;</b> '+escapeHtml(r.resolution)+'</div>'; }
+                else if(canResolve){ h+='<div style="margin-top:6px;"><button onclick="resolveMaint('+r.id+')" style="background:var(--pass-green,#1f7a3d);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;">&#9989; Mark resolved&hellip;</button></div>'; }
+                if(r.pdf){ h+='<div style="margin-top:5px;"><a href="'+escapeHtml(r.pdf)+'" target="_blank" rel="noopener" style="font-size:12px;color:#185FA5;font-weight:700;">&#128196; PDF</a></div>'; }
                 h+='</div>';
             });
+            h+='</div>';
         }
         h+='</div>';
         box.innerHTML=h;
