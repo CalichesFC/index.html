@@ -610,16 +610,14 @@
         for(var i=0;i<list.length;i++){ var s=list[i]; h+='<img src="'+s[0]+'" alt="" onerror="this.style.display=\'none\'" style="position:absolute;left:'+s[1]+';top:'+s[2]+';width:'+s[3]+'px;transform:rotate('+s[4]+'deg);opacity:'+s[5]+';">'; }
         return h+'</div>';
     }
+    // Toned-down, mobile-safe: a few small faint full-color mascots (1 scoopy, 1 poochie, cones).
     var CAT_NAV_MASCOTS=[
-        ['scoopy-hero.png','-3%','26px',200,-8,0.18],['poochie-wave2.png','83%','92px',180,14,0.20],
-        ['caliches-cone.png','89%','-16px',118,12,0.18],['scoopy-point.png','-3%','150px',140,10,0.15],
-        ['scoopy-wave.png','31%','16px',94,-16,0.18],['poochie-wave2.png','53%','4px',80,18,0.17],
-        ['caliches-cone.png','23%','96px',72,8,0.17],['scoopy-sad.png','63%','118px',88,-8,0.16],
-        ['caliches-cone.png','46%','54px',46,6,0.15],['scoopy-wave.png','91%','196px',78,-20,0.16]
+        ['scoopy-hero.png','-4%','36px',100,-8,0.12],['poochie-wave2.png','86%','118px',96,14,0.13],
+        ['caliches-cone.png','40%','6px',56,10,0.11],['caliches-cone.png','13%','150px',50,-8,0.10],
+        ['caliches-cone.png','73%','18px',46,12,0.10]
     ];
     var CAT_BOARD_MASCOTS=[
-        ['scoopy-wave.png','1%','-8px',80,12,0.12],['poochie-wave2.png','87%','-10px',92,14,0.14],
-        ['caliches-cone.png','50%','20px',60,-10,0.11]
+        ['caliches-cone.png','89%','-6px',52,12,0.10],['scoopy-wave.png','2%','-2px',54,-10,0.09]
     ];
     function catRenderBoard(){
         var box=document.getElementById('catBody'); if(!box) return;
