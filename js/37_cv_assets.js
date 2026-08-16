@@ -142,7 +142,7 @@
     function assetRowHtml(a){
         a=a||{};
         var meta=[]; if(a.identifier) meta.push(esc(a.identifier)); if(a.market) meta.push(esc(a.market));
-        var actions=btn('Edit','cva.assetEdit('+(a.id||0)+')','link');
+        var actions=btn('History &amp; QR','cva.profile('+(a.id||0)+')','link')+' '+btn('Edit','cva.assetEdit('+(a.id||0)+')','link');
         if(String(a.status)!=='retired') actions+=' '+btn('Retire','cva.assetRetire('+(a.id||0)+')','danger');
         return '<div style="border-top:1px solid #f0f2f6;padding:9px 0;">'
             +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;"><b style="font-size:13.5px;color:#26242b;">'+esc(a.name||'(unnamed)')+'</b>'+kindPill(a.kind)+statusPill(a.status)+'</div>'
@@ -376,6 +376,61 @@
         }catch(e){ /* never throw onto the screen */ }
     }
 
+    // ---------- Fleet asset profile: QR + report a problem + unified history ----------
+    var CVA_QR_BASE='https://calichesfc.github.io/index.html/index.html';
+    function cvaQrUrl(id,size,action){ var u=CVA_QR_BASE+'?cvasset='+id+(action?'&go='+action:''); return 'https://api.qrserver.com/v1/create-qr-code/?size='+size+'x'+size+'&margin=8&data='+encodeURIComponent(u); }
+    function cvaKindChip(kind){ var m={work_order:['#eaf1fb','#106ab3','Work order'],issue:['#fdeaea','#a01b3e','Issue'],pm:['#e6f6ec','#1f7a3d','PM'],log:['#eef2f7','#3a4353','Log']}; var c=m[kind]||m.log; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:2px 8px;border-radius:99px;">'+c[2]+'</span>'; }
+    function cvaStatusChip(st){ var s=String(st||'').toLowerCase(); var c=(s.indexOf('resolv')>=0||s.indexOf('done')>=0||s.indexOf('complet')>=0||s.indexOf('closed')>=0)?['#e8f5ec','#1b7a3d']:(s.indexOf('progress')>=0||s.indexOf('assigned')>=0)?['#eef3fb','#185FA5']:(s.indexOf('hold')>=0)?['#fff4e0','#9a5b00']:(s.indexOf('open')>=0||s.indexOf('report')>=0)?['#fdeaea','#a01b3e']:['#fff4e0','#9a5b00']; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:99px;">'+esc(st||'')+'</span>'; }
+    function cvaAssetProfile(id){
+        var a=findById(S.assets,id);
+        if(!a){ // not loaded yet (e.g. opened from a QR scan) -> fetch the register, then retry
+            rpc('app_cv_asset_list',{}, function(d){ try{ S.assets=(d&&d.assets)||S.assets||[]; }catch(e){} if(findById(S.assets,id)) cvaAssetProfile(id); }, function(){});
+            return;
+        }
+        var ov=document.getElementById('cvaProfileOv'); if(ov) ov.remove();
+        ov=document.createElement('div'); ov.id='cvaProfileOv';
+        ov.style.cssText='position:fixed;inset:0;z-index:99998;background:rgba(20,25,40,.5);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:22px 12px;';
+        var reporter=''; try{ reporter=(currentUser&&(currentUser.name||currentUser.username))||''; }catch(e){}
+        window.__cvaReporter=reporter;
+        ov.innerHTML='<div style="background:#fff;max-width:520px;width:100%;border-radius:18px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3);font-family:inherit;">'
+            +'<div style="background:linear-gradient(120deg,#ec3e7e,#106ab3);color:#fff;padding:15px 18px;display:flex;align-items:center;gap:10px;">'
+            +'<div style="flex:1;"><div style="font-size:18px;font-weight:900;">'+esc(a.name||'')+'</div><div style="font-size:11.5px;opacity:.9;text-transform:capitalize;">'+esc(a.kind||'asset')+' &middot; Fleet asset #'+id+'</div></div>'
+            +'<button onclick="var o=document.getElementById(\'cvaProfileOv\');if(o)o.remove();" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:9px;padding:7px 11px;font-size:13px;font-weight:800;cursor:pointer;">Close</button></div>'
+            +'<div style="padding:16px 18px 20px;">'
+            +'<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">'
+            +'<div style="text-align:center;"><img src="'+cvaQrUrl(id,150)+'" style="width:130px;height:130px;background:#fff;border:1px solid #eef0f5;border-radius:10px;" alt="QR"><div style="font-size:10.5px;color:#8a93a2;margin-top:4px;">Scan to open &amp; report</div><button onclick="cva.printQr('+id+')" style="margin-top:6px;background:#eef2f7;color:#3a4353;border:none;border-radius:8px;padding:6px 11px;font-size:11.5px;font-weight:700;cursor:pointer;">Print label</button></div>'
+            +'<div style="flex:1;min-width:200px;">'
+            +'<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#9aa0aa;margin-bottom:6px;">Report a problem</div>'
+            +'<textarea id="cvaRepIssue" rows="3" placeholder="What&rsquo;s wrong? e.g. left wheel wobbles, freezer not holding temp" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #d7dbe2;border-radius:9px;font-size:13px;font-family:inherit;"></textarea>'
+            +'<div style="display:flex;gap:8px;margin-top:8px;align-items:center;">'
+            +'<select id="cvaRepUrg" style="flex:1;padding:8px 10px;border:1px solid #d7dbe2;border-radius:9px;font-size:13px;background:#fff;"><option value="Normal">Normal</option><option value="Urgent">Urgent</option></select>'
+            +'<button onclick="cva.profileReport('+id+')" style="background:#ec3e7e;color:#fff;border:none;border-radius:9px;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;">Send</button></div>'
+            +'<div id="cvaRepMsg" style="font-size:12px;margin-top:6px;"></div>'
+            +'</div></div>'
+            +'<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#9aa0aa;margin:16px 0 8px;">History</div>'
+            +'<div id="cvaProfTimeline" style="color:#8a93a2;font-size:13px;">Loading history&hellip;</div>'
+            +'</div></div>';
+        document.body.appendChild(ov);
+        cvaProfileLoadTimeline(id);
+    }
+    function cvaProfileLoadTimeline(id){
+        rpc('app_cv_asset_timeline',{p_cv_asset_id:id}, function(d){
+            var box=document.getElementById('cvaProfTimeline'); if(!box) return;
+            var list=(d&&d.length)?d:[];
+            if(!list.length){ box.innerHTML='<div style="color:#8a93a2;font-size:13px;">No history yet — reports and work orders for this asset will show here.</div>'; return; }
+            var h='<div style="position:relative;padding-left:15px;"><div style="position:absolute;left:4px;top:5px;bottom:5px;width:2px;background:#e6e2da;"></div>';
+            for(var i=0;i<list.length;i++){ var r=list[i]||{}; var kind=r.kind||'log'; var dc=kind==='work_order'?'#106ab3':kind==='issue'?'#a01b3e':kind==='pm'?'#1f7a3d':'#8a93a2'; var when=r.ts?String(r.ts).slice(0,10):'';
+                h+='<div style="position:relative;padding:0 0 13px;"><div style="position:absolute;left:-15px;top:3px;width:9px;height:9px;border-radius:50%;background:'+dc+';box-shadow:0 0 0 3px #fff;"></div>'
+                 +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'+cvaKindChip(kind)+'<b style="font-size:13px;color:#26242b;">'+esc(r.title||'Maintenance')+'</b>'+cvaStatusChip(r.status)+'</div>'
+                 +'<div style="font-size:11px;color:#8a93a2;margin-top:2px;">'+esc(when)+(r.who?' &middot; '+esc(r.who):'')+(r.priority?' &middot; '+esc(r.priority):'')+'</div>'
+                 +(r.detail&&kind!=='pm'?'<div style="font-size:12px;color:#3a4353;margin-top:3px;">'+esc(String(r.detail).slice(0,200))+'</div>':'')
+                 +(r.resolution?'<div style="margin-top:4px;background:#f0f8f2;border:1px solid #cfe8d6;border-radius:8px;padding:6px 9px;font-size:11.5px;color:#1b5e2e;">&#9989; '+esc(r.resolution)+'</div>':'')
+                 +'</div>';
+            }
+            h+='</div>'; box.innerHTML=h;
+        }, function(){ var box=document.getElementById('cvaProfTimeline'); if(box) box.innerHTML='<div style="color:#c0264b;font-size:12.5px;">Could not load history.</div>'; });
+    }
+
     // ---------- expose action namespace (single global: window.cva) ----------
     try{
         window.cva = {
@@ -385,6 +440,19 @@
             assetSave:assetSave,
             assetFilter:function(f){ S.assetFilter=f||''; loadAssets(); },
             assetRetire:function(id){ try{ if(typeof confirm==='function' && !confirm('Retire this asset? It stays in history but is marked retired.')) return; }catch(e){} rpc('app_cv_asset_retire', {p_id:id}, function(){ loadAssets(); }, function(){ loadAssets(); }); },
+            profile:function(id){ cvaAssetProfile(id); },
+            profileReport:function(id){
+                var iss=(document.getElementById('cvaRepIssue')||{}).value||''; var urg=(document.getElementById('cvaRepUrg')||{}).value||'Normal';
+                var msg=document.getElementById('cvaRepMsg');
+                if(!String(iss).trim()){ if(msg){ msg.style.color='#c0264b'; msg.textContent='Please describe the problem.'; } return; }
+                if(msg){ msg.style.color='#6b7280'; msg.textContent='Sending…'; }
+                rpc('app_cv_asset_report',{p_cv_asset_id:id,p_issue:iss,p_urgency:urg,p_reporter:(window.__cvaReporter||'')}, function(){
+                    var ii=document.getElementById('cvaRepIssue'); if(ii) ii.value='';
+                    if(msg){ msg.style.color='#1b7a3d'; msg.textContent='✓ Reported — added to this asset’s history.'; }
+                    cvaProfileLoadTimeline(id);
+                }, function(err){ if(msg){ msg.style.color='#c0264b'; msg.textContent=(err&&err.message)||'Could not send.'; } });
+            },
+            printQr:function(id){ try{ var a=findById(S.assets,id)||{}; var w=window.open('','_blank'); if(!w) return; w.document.write('<div style="text-align:center;font-family:sans-serif;padding:30px;"><img src="'+cvaQrUrl(id,300,'report')+'" style="width:300px;height:300px;"><h2>'+esc(a.name||'')+'</h2><p style="text-transform:capitalize;">'+esc(a.kind||'')+' — scan to report a problem</p></div>'); w.document.close(); setTimeout(function(){ try{ w.print(); }catch(e){} },400); }catch(e){} },
             tplNew:function(){ S.tplForm={}; S.tplErr=''; renderTemplates(); },
             tplEditFrom:tplEditFrom,
             tplCancel:function(){ S.tplForm=null; S.tplErr=''; renderTemplates(); },
