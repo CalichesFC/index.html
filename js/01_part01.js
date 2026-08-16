@@ -916,6 +916,7 @@
         h+=mdTile('Invoices open', mdMoney(d.invoice_open_total),'awaiting',(d.invoice_open_total>0?'#9a5b00':'#1f2a44'));
         h+=mdTile('Invoices paid', mdMoney(d.invoice_paid_total),'in window','#1b7a3d');
         h+='</div>';
+        h+='<div id="mdOpenIssues" style="margin-bottom:12px;"></div>';
         h+='<div style="background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:13px;margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:8px;">By store</div>';
         var bs=d.by_store||[];
         if(!bs.length){ h+='<div style="color:#5b6675;font-size:13px;">No work orders yet.</div>'; }
@@ -937,6 +938,7 @@
         h+='</div>';
         mdOv().innerHTML=h;
         if(typeof mdLoadVendorSpend==='function') mdLoadVendorSpend(days);
+        if(typeof mdLoadOpenIssues==='function') mdLoadOpenIssues();
     }
     function mdVendorDateFrom(days){ var d=new Date(Date.now()-(days||90)*86400000); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
     function mdLoadVendorSpend(days){
@@ -970,6 +972,47 @@
         var t=d.totals||{}; rows.push(['TOTAL',t.invoices||0,t.invoiced||0,t.paid||0,t.outstanding||0]);
         var csv=rows.map(function(row){ return row.map(function(c){ var x=String(c); return /[",\n]/.test(x)?('"'+x.replace(/"/g,'""')+'"'):x; }).join(','); }).join('\r\n');
         var blob=new Blob([csv],{type:'text/csv'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='vendor-spend_'+(d.from||'')+'_to_'+(d.to||'')+'.csv'; document.body.appendChild(a); a.click(); setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); },100);
+    }
+    /* ---- Open issues, every store (aggregates work orders + reported issues; no new data) ---- */
+    function mdOpenSev(rank){ return rank===0?['#a01b3e']:rank===1?['#c0392b']:rank===3?['#8a93a2']:['#9a5b00']; }
+    function mdLoadOpenIssues(){
+        var box=document.getElementById('mdOpenIssues'); if(!box) return;
+        box.innerHTML='<div style="background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:13px;color:#5b6675;font-size:13px;">Loading open issues&hellip;</div>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_open_issues_board',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ box.innerHTML='<div style="background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:13px;color:#5b6675;font-size:13px;">Open issues unavailable.</div>'; return; }
+                mdRenderOpenIssues(r.data||[]);
+            }).catch(function(){ box.innerHTML='<div style="background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:13px;color:#5b6675;font-size:13px;">Open issues unavailable.</div>'; });
+        });
+    }
+    function mdRenderOpenIssues(list){
+        var box=document.getElementById('mdOpenIssues'); if(!box) return;
+        list=list||[];
+        if(!list.length){ box.innerHTML='<div style="background:#fff;border:1px solid #d8ecd8;border-radius:13px;padding:16px;text-align:center;color:#1b7a3d;font-size:13px;">&#9989; No open issues anywhere right now &mdash; every store is clear.</div>'; return; }
+        var groups={}, order=[];
+        for(var i=0;i<list.length;i++){ var it=list[i]||{}; var st=it.store||'Unassigned'; if(!groups[st]){ groups[st]=[]; order.push(st); } groups[st].push(it); }
+        var h='<div style="background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:13px;">';
+        h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><div style="flex:1;font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;">Open issues &mdash; every store</div><span style="background:#fdeaea;color:#a01b3e;font-size:11px;font-weight:800;border-radius:99px;padding:2px 9px;">'+list.length+' open</span></div>';
+        h+='<div style="font-size:11.5px;color:#8a93a2;margin:0 0 10px;">Every open work order and reported problem across machines and fleet. Tap any to open its history.</div>';
+        for(var g=0; g<order.length; g++){
+            var str=order[g], items=groups[str];
+            h+='<div style="margin-bottom:11px;"><div style="display:flex;align-items:center;gap:7px;margin:0 0 6px;"><b style="font-size:13.5px;color:#26242b;">'+escapeHtml(str)+'</b><span style="background:#eef2f7;color:#5b6675;font-size:10.5px;font-weight:800;border-radius:99px;padding:1px 7px;">'+items.length+'</span></div>';
+            for(var j=0;j<items.length;j++){
+                var it2=items[j], sev=mdOpenSev(it2.rank!=null?it2.rank:2);
+                var cvid=parseInt(it2.cv_asset_id,10)||0, eqid=parseInt(it2.equipment_id,10)||0;
+                var click= cvid?('mdClose();try{if(window.cva&&cva.profile)cva.profile('+cvid+');}catch(e){}'):(eqid?('mdClose();try{if(typeof openEquipmentDetail===\'function\')openEquipmentDetail('+eqid+');}catch(e){}'):('mdClose();try{if(typeof openWorkOrders===\'function\')openWorkOrders();}catch(e){}'));
+                var srcChip= (it2.source==='work_order')?'<span style="background:#eaf1fb;color:#106ab3;font-size:9.5px;font-weight:800;text-transform:uppercase;border-radius:99px;padding:1px 6px;">WO</span>':'<span style="background:#fdeaea;color:#a01b3e;font-size:9.5px;font-weight:800;text-transform:uppercase;border-radius:99px;padding:1px 6px;">Issue</span>';
+                h+='<button onclick="'+click+'" style="width:100%;text-align:left;background:#fafbfd;border:1px solid #eef0f5;border-radius:10px;padding:9px 11px;margin-bottom:6px;cursor:pointer;display:flex;align-items:flex-start;gap:9px;">';
+                h+='<span style="width:9px;height:9px;border-radius:50%;background:'+sev[0]+';margin-top:4px;flex:none;"></span>';
+                h+='<span style="flex:1;min-width:0;"><span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'+srcChip+'<b style="font-size:13px;color:#26242b;">'+escapeHtml(it2.asset||it2.title||'Item')+'</b></span>';
+                h+='<span style="display:block;font-size:12.5px;color:#3a4353;margin-top:1px;">'+escapeHtml(String(it2.title||'').slice(0,90))+'</span>';
+                h+='<span style="display:block;font-size:11px;color:#8a93a2;margin-top:2px;">'+escapeHtml(it2.status||'')+(it2.who?(' &middot; '+escapeHtml(it2.who)):'')+(it2.ts?(' &middot; '+escapeHtml(String(it2.ts).slice(0,10))):'')+'</span>';
+                h+='</span><span style="color:#c3c9d4;font-size:17px;flex:none;">&rsaquo;</span></button>';
+            }
+            h+='</div>';
+        }
+        h+='</div>';
+        box.innerHTML=h;
     }
     /* =================== END MAINTENANCE LEADERSHIP DASHBOARD =================== */
     /* ===================== MY COACHING NOTES (employee self-view) ===================== */
