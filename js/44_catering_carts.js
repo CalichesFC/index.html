@@ -38,7 +38,8 @@
             // 1) real fleet from the Asset Register (Active only)
             supabaseClient.rpc('app_cv_asset_list',{p_username:currentUser.username,p_password:pin}).then(function(ra){
                 var list=[]; try{ list=(ra&&ra.data&&ra.data.assets)?ra.data.assets:((ra&&ra.data)||[]); }catch(e){}
-                _ct.assets=(list||[]).filter(function(a){ return a&&String(a.status||'active').toLowerCase()==='active'; });
+                // Bookings are for carts & trailers only — vehicles/other kinds live in the Asset Register but are never bookable here.
+                _ct.assets=(list||[]).filter(function(a){ if(!a) return false; if(String(a.status||'active').toLowerCase()!=='active') return false; var k=String(a.kind||'cart').toLowerCase(); return k==='cart'||k==='trailer'; });
             }).catch(function(){ _ct.assets=[]; }).then(function(){ ctBuildColors(); ctLoadQuotes(pin); });
         });
     }
