@@ -521,12 +521,7 @@
                    '</div></details>';
             });
         }
-        if(log.length){
-            h+='<div style="margin-top:6px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--txt2,#9a93a4);">Service history</div>';
-            log.forEach(function(l){
-                h+='<div style="font-size:12px;color:var(--txt2,#8a8594);padding:4px 0;border-bottom:1px solid var(--bd,#f0eef4);">'+escapeHtml(l.done_on||'')+' &middot; '+escapeHtml(l.title||'')+(l.by?' &middot; '+escapeHtml(l.by):'')+(l.notes?' &middot; '+escapeHtml(l.notes):'')+'</div>';
-            });
-        }
+        // Completed PM now lives once, in the unified "Machine history" timeline below (de-duplicated).
         h+='</div>';
         box.innerHTML=h;
     }
