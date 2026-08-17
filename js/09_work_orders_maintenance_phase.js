@@ -1266,8 +1266,8 @@
         });
     }
     function dirFilter(){ var q=(document.getElementById('dirSearch').value||'').toLowerCase(); [].slice.call(document.querySelectorAll('.dir-row')).forEach(function(d){ d.style.display=(d.getAttribute('data-n').indexOf(q)>-1)?'block':'none'; }); }
-    var dmWith=null, dmWithName='';
-    function openDm(emp, name){ dmWith=emp; dmWithName=name||''; renderDm(); }
+    var dmWith=null, dmWithName='', dmPendingPhoto='';
+    function openDm(emp, name){ dmWith=emp; dmWithName=name||''; dmPendingPhoto=''; renderDm(); }
     function renderDm(){
         var c=document.getElementById('msgContent');
         withPin(function(pin){
@@ -1277,13 +1277,24 @@
                 var h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><button onclick="loadDmThreads()" style="background:#eee;border:none;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;">&#8592;</button><span style="font-size:15px;font-weight:500;color:#333;">'+escapeHtml(dmWithName)+'</span></div>' +
                     '<div style="background:#f7f5fb;border-radius:12px;padding:12px;max-height:50vh;overflow:auto;margin-bottom:10px;">';
                 if(!msgs.length) h+='<p style="color:#6b7686;text-align:center;font-size:13px;">No messages yet. Say hi!</p>';
-                msgs.forEach(function(m){ var rcpt=m.mine?(' &middot; '+(m.read?'&#10003; Read':'Sent')):''; h+='<div style="display:flex;justify-content:'+(m.mine?'flex-end':'flex-start')+';margin-bottom:6px;"><div style="max-width:75%;background:'+(m.mine?'#6a3fb5':'#fff')+';color:'+(m.mine?'#fff':'#333')+';border-radius:12px;padding:8px 11px;font-size:14px;box-shadow:0 1px 2px rgba(0,0,0,0.08);">'+escapeHtml(m.body)+'<div style="font-size:10px;opacity:.7;margin-top:2px;">'+socFmt(m.at)+rcpt+'</div></div></div>'; });
-                h+='</div><div style="display:flex;gap:8px;"><input id="dmInput" onkeypress="if(event.key===&quot;Enter&quot;)sendDm()" placeholder="Message..." style="flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;"><button onclick="sendDm()" style="background:#6a3fb5;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:bold;cursor:pointer;">Send</button></div>';
+                msgs.forEach(function(m){ var rcpt=m.mine?(' &middot; '+(m.read?'&#10003; Read':'Sent')):''; var img=(m.attachment&&String(m.attachment).slice(0,11)==='data:image/')?'<img src="'+escapeHtml(m.attachment)+'" onclick="dmZoom(this.src)" style="display:block;max-width:210px;max-height:230px;border-radius:9px;'+(m.body?'margin-top:6px;':'')+'cursor:pointer;object-fit:cover;">':''; h+='<div style="display:flex;justify-content:'+(m.mine?'flex-end':'flex-start')+';margin-bottom:6px;"><div style="max-width:75%;background:'+(m.mine?'#6a3fb5':'#fff')+';color:'+(m.mine?'#fff':'#333')+';border-radius:12px;padding:8px 11px;font-size:14px;box-shadow:0 1px 2px rgba(0,0,0,0.08);">'+(m.body?escapeHtml(m.body):'')+img+'<div style="font-size:10px;opacity:.7;margin-top:2px;">'+socFmt(m.at)+rcpt+'</div></div></div>'; });
+                h+='</div>'
+                  +'<div id="dmPhotoPreview" style="display:none;margin-bottom:6px;"></div>'
+                  +'<div style="display:flex;gap:8px;align-items:center;">'
+                    +'<input type="file" id="dmFile" accept="image/*" style="display:none;" onchange="dmPickPhoto()">'
+                    +'<button onclick="document.getElementById(&quot;dmFile&quot;).click()" title="Add a photo" style="background:#eef2f7;color:#6a3fb5;border:none;border-radius:8px;padding:10px 12px;font-size:16px;cursor:pointer;line-height:1;">&#128247;</button>'
+                    +'<input id="dmInput" onkeypress="if(event.key===&quot;Enter&quot;)sendDm()" placeholder="Message..." style="flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;">'
+                    +'<button onclick="sendDm()" style="background:#6a3fb5;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:bold;cursor:pointer;">Send</button>'
+                  +'</div>'
+                  +'<div id="dmPhotoStatus" style="display:none;font-size:11px;color:#6b7686;margin-top:4px;"></div>';
                 c.innerHTML=h; var inp=document.getElementById('dmInput'); if(inp) inp.focus();
             });
         });
     }
-    function sendDm(){ var inp=document.getElementById('dmInput'); var body=(inp.value||'').trim(); if(!body) return; inp.value=''; withPin(function(pin){ supabaseClient.rpc('app_dm_send',{p_username:currentUser.username,p_password:pin,p_to_emp:dmWith,p_body:body}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } renderDm(); }); }); }
+    function sendDm(){ var inp=document.getElementById('dmInput'); var body=(inp?(inp.value||''):'').trim(); var att=dmPendingPhoto||''; if(!body && !att) return; if(inp) inp.value=''; withPin(function(pin){ supabaseClient.rpc('app_dm_send',{p_username:currentUser.username,p_password:pin,p_to_emp:dmWith,p_body:body,p_attachment_url:att||null}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } dmPendingPhoto=''; renderDm(); }); }); }
+    function dmPickPhoto(){ var f=document.getElementById('dmFile'); if(!f||!f.files||!f.files[0]) return; var file=f.files[0]; f.value=''; if(file.size>12*1024*1024){ alert('That photo is too large — please pick one under ~12MB.'); return; } var st=document.getElementById('dmPhotoStatus'); if(st){ st.style.display='block'; st.textContent='Preparing photo…'; } if(typeof woCompress!=='function'){ if(st) st.textContent='Photos need an app update — please refresh.'; return; } woCompress(file,function(d){ if(!d){ if(st) st.textContent='Could not read that photo — try another.'; return; } dmPendingPhoto=d; if(st){ st.style.display='none'; st.textContent=''; } var pv=document.getElementById('dmPhotoPreview'); if(pv){ pv.style.display='block'; pv.innerHTML='<div style="display:inline-flex;align-items:center;gap:8px;background:#f0edf7;border-radius:9px;padding:5px 8px;"><img src="'+d+'" style="width:40px;height:40px;object-fit:cover;border-radius:6px;"><span style="font-size:12px;color:#6a3fb5;font-weight:600;">Photo ready to send</span><button onclick="dmClearPhoto()" style="background:none;border:none;color:#a01b3e;font-weight:800;cursor:pointer;font-size:15px;line-height:1;">&times;</button></div>'; } }); }
+    function dmClearPhoto(){ dmPendingPhoto=''; var pv=document.getElementById('dmPhotoPreview'); if(pv){ pv.style.display='none'; pv.innerHTML=''; } var st=document.getElementById('dmPhotoStatus'); if(st){ st.style.display='none'; st.textContent=''; } }
+    function dmZoom(src){ if(!src) return; var ov=document.getElementById('dmZoomOv'); if(ov) ov.remove(); ov=document.createElement('div'); ov.id='dmZoomOv'; ov.style.cssText='position:fixed;inset:0;z-index:100060;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out;'; ov.onclick=function(){ ov.remove(); }; var im=document.createElement('img'); im.src=src; im.style.cssText='max-width:96%;max-height:96%;border-radius:10px;'; ov.appendChild(im); document.body.appendChild(ov); }
 
     function loadStoreFeed(){
         var c=document.getElementById('msgContent');
