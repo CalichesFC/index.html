@@ -334,7 +334,6 @@
             <div id="schedPaneMine" class="sched-pane">
                 <div id="schedMyShifts"><p style="text-align:center;color:#6b7686;font-size:13px;padding:14px;">Loading your shifts&hellip;</p></div>
                 <button class="menu-btn" onclick="openTimeOff()"><span class="rchip staff">Staff</span><span class="tile-ic">&#127796;</span><b>Request Time Off</b><small>Submit a time-off request</small></button>
-                <button id="btn-preshift" class="menu-btn" style="display:none;" onclick="openPreshift()"><span class="rchip mgr">Shift Lead</span><span class="tile-ic">&#128221;</span><b>Pre-Shift Lineup</b><small>Set positions &amp; goals &middot; track progress</small></button>
                 <button class="menu-btn" onclick="openAvailability()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128197;</span><b>My Availability</b><small>Set the days/hours you can work</small></button>
                 <button id="btn-availApprovals" class="menu-btn" style="display:none;" onclick="openAvailApprovals()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#9989;</span><b>Availability Requests</b><small>Approve or deny submitted availability</small></button>
             </div>
@@ -1728,7 +1727,7 @@
 
 <!-- PRE-SHIFT LINEUP VIEW -->
 <div id="preshiftView" class="app-view">
-    <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
+    <button class="back-btn" onclick="psBack()">&#128281; Back</button>
     <div class="header" style="background:linear-gradient(120deg,#185FA5,#7d1d4b);">
         <h1 style="font-size:40px;margin:10px 0;">&#128221;</h1>
         <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Pre-Shift Lineup</p>
@@ -1825,7 +1824,7 @@
       <ol><li>The form now has an <b>Equipment dropdown</b> &mdash; pick the machine from the registry instead of typing it (or choose &ldquo;Other&rdquo;).</li><li>From any equipment record, the <b>&ldquo;Report maintenance&rdquo;</b> button opens the form with that machine already selected.</li></ol></div>
 
     <div class="howto-sec"><h3>&#128221; Pre-Shift Lineup &mdash; now position-first</h3>
-      <p><b>Where:</b> Schedule &rarr; <b>Pre-Shift Lineup</b> (shift leads &amp; managers).</p>
+      <p><b>Where:</b> Shift Leader Console &rarr; <b>Set up the shift lineup</b> (shift leads &amp; managers).</p>
       <ol><li>Pick the store, date, and <b>AM or PM</b> (each is its own saved lineup), and type your <b>2 shift goals.</b></li><li>The lineup now lists the <b>positions</b> &mdash; Shift Leader, Machine, two Registers, Item Maker. In each, <b>type a name or pick it from the list</b> (it suggests your crew as you type; you can even type a name that isn&rsquo;t in the system yet).</li><li>Bigger shift? Tap <b>&#10133; Add slot</b> for more spots, or the <b>&times;</b> to remove one. Then Save.</li><li>Tap the <b>&#128200; icon</b> on a slot to see that person&rsquo;s <b>training progression.</b> A reminder still goes out twice a day to set the lineup.</li></ol></div>
 
     <div class="howto-sec"><h3>&#128722; Pick n&rsquo; Take Orders (via Cherry)</h3>
