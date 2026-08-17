@@ -1316,12 +1316,25 @@
     function loadDmThreads(){
         var c=document.getElementById('msgContent');
         withPin(function(pin){
-            supabaseClient.rpc('app_dm_threads',{p_username:currentUser.username,p_password:pin}).then(function(r){
-                if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
-                if(r.data && r.data.linked===false){ c.innerHTML='<p style="text-align:center;padding:20px;color:#6b7686;">Your login isn\'t linked yet — ask a manager to link your account.</p>'; return; }
-                var th=(r.data&&r.data.threads)||[];
-                var h='<button onclick="newDm()" style="width:100%;background:#6a3fb5;color:#fff;border:none;border-radius:8px;padding:10px;font-weight:bold;cursor:pointer;margin-bottom:12px;">&#10133; New message</button>';
-                if(!th.length){ h+='<p style="color:#6b7686;text-align:center;font-size:13px;">No conversations yet.</p>'; }
+            Promise.all([
+                supabaseClient.rpc('app_group_list',{p_username:currentUser.username,p_password:pin}).catch(function(){ return {data:{groups:[]}}; }),
+                supabaseClient.rpc('app_dm_threads',{p_username:currentUser.username,p_password:pin}).catch(function(){ return {error:{message:'Could not load messages.'}}; })
+            ]).then(function(res){
+                var gr=res[0]||{}, dr=res[1]||{};
+                if(dr.error){ if(dr.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+escapeHtml(dr.error.message)+'</p>'; return; }
+                if(dr.data && dr.data.linked===false){ c.innerHTML='<p style="text-align:center;padding:20px;color:#6b7686;">Your login isn\'t linked yet — ask a manager to link your account.</p>'; return; }
+                var groups=(gr.data&&gr.data.groups)||[]; var th=(dr.data&&dr.data.threads)||[];
+                var h='<button onclick="newMessage()" style="width:100%;background:#6a3fb5;color:#fff;border:none;border-radius:8px;padding:10px;font-weight:bold;cursor:pointer;margin-bottom:12px;">&#10133; New message</button>';
+                if(groups.length){
+                    h+='<div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#9aa;margin:2px 2px 8px;">Groups</div>';
+                    groups.forEach(function(g){
+                        h+='<div onclick="openGroup('+g.id+',&quot;'+escapeHtml(String(g.title||'').replace(/"/g,''))+'&quot;)" style="background:#fff;border-radius:10px;padding:11px 12px;margin-bottom:8px;box-shadow:0 2px 4px rgba(0,0,0,0.05);cursor:pointer;display:flex;justify-content:space-between;align-items:center;">'
+                            +'<div style="display:flex;align-items:center;gap:10px;"><div style="width:34px;height:34px;border-radius:50%;background:#106ab3;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;flex:none;">&#128101;</div><div><div style="font-size:14px;font-weight:600;color:#333;">'+escapeHtml(g.title||'')+' <span style="color:#aab;font-size:11px;font-weight:400;">&middot; '+g.members+'</span></div><div style="font-size:12px;color:#6b7686;">'+escapeHtml((g.last||'').slice(0,40))+'</div></div></div>'
+                            +(g.unread>0?'<span style="background:#ec3e7e;color:#fff;border-radius:10px;font-size:11px;font-weight:bold;padding:2px 7px;">'+g.unread+'</span>':'')+'</div>';
+                    });
+                }
+                h+='<div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#9aa;margin:12px 2px 8px;">Direct</div>';
+                if(!th.length){ h+='<p style="color:#6b7686;text-align:center;font-size:13px;padding:4px 0 8px;">No direct messages yet.</p>'; }
                 else th.forEach(function(t){
                     h+='<div onclick="openDm('+t.emp+',&quot;'+escapeHtml((t.name||'').replace(/"/g,''))+'&quot;)" style="background:#fff;border-radius:10px;padding:12px;margin-bottom:8px;box-shadow:0 2px 4px rgba(0,0,0,0.05);cursor:pointer;display:flex;justify-content:space-between;align-items:center;">' +
                         '<div><div style="font-size:14px;font-weight:500;color:#333;">'+escapeHtml(t.name||'')+'</div><div style="font-size:12px;color:#6b7686;">'+escapeHtml((t.last||'').slice(0,40))+'</div></div>' +
@@ -1331,22 +1344,67 @@
             });
         });
     }
-    function newDm(){
-        var c=document.getElementById('msgContent'); c.innerHTML='<p style="text-align:center;padding:20px;color:#6b7686;">Loading directory...</p>';
+    // ---- New message: pick a role-group (Shift Leaders, Crew Trainers...) and/or specific people ----
+    var _msgSel={}, _msgDir=[];
+    function newMessage(){
+        var c=document.getElementById('msgContent'); c.innerHTML='<p style="text-align:center;padding:20px;color:#6b7686;">Loading directory...</p>'; _msgSel={};
         withPin(function(pin){
-            supabaseClient.rpc('app_directory',{p_username:currentUser.username,p_password:pin}).then(function(r){
+            supabaseClient.rpc('app_msg_directory',{p_username:currentUser.username,p_password:pin}).then(function(r){
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
-                var ppl=(r.data||[]).filter(function(p){return p.linked;});
-                var h='<button onclick="loadDmThreads()" style="background:#eee;border:none;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;margin-bottom:12px;">&#8592; Back</button>' +
-                    '<input id="dirSearch" onkeyup="dirFilter()" placeholder="Search name..." style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;">' +
-                    '<div id="dirList">';
-                ppl.forEach(function(p){ h+='<div class="dir-row" data-n="'+escapeHtml((p.name||'').toLowerCase())+'" onclick="openDm('+p.id+',&quot;'+escapeHtml((p.name||'').replace(/"/g,''))+'&quot;)" style="background:#fff;border-radius:10px;padding:11px;margin-bottom:7px;box-shadow:0 2px 4px rgba(0,0,0,0.05);cursor:pointer;font-size:14px;color:#333;">'+escapeHtml(p.name)+(p.store?' <span style="color:#aab;font-size:11px;">'+escapeHtml(p.store)+'</span>':'')+'</div>'; });
-                if(!ppl.length) h+='<p style="color:#6b7686;text-align:center;font-size:13px;">No one else has a login yet.</p>';
-                h+='</div>'; c.innerHTML=h;
+                _msgDir=(r.data||[]);
+                var rolesMap={}; _msgDir.forEach(function(p){ if(p.role_key){ rolesMap[p.role_key]=p.role||p.role_key; } });
+                var roleChips=Object.keys(rolesMap).map(function(k){ var cnt=_msgDir.filter(function(p){return p.role_key===k;}).length; return '<button onclick="msgRolePick(\''+k+'\')" style="border:1px solid #d6c9ec;background:#f4f0fb;color:#5b3aa6;border-radius:999px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;margin:0 6px 8px 0;">'+escapeHtml(rolesMap[k])+' ('+cnt+')</button>'; }).join('');
+                var h='<button onclick="loadDmThreads()" style="background:#eee;border:none;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;margin-bottom:12px;">&#8592; Back</button>'
+                    +'<div style="font-size:15px;font-weight:800;color:#26242b;margin-bottom:10px;">New message</div>'
+                    +'<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#9aa;margin-bottom:6px;">Quick pick a group</div>'
+                    +'<div style="display:flex;flex-wrap:wrap;">'+(roleChips||'<span style="font-size:12px;color:#8a93a2;">No role groups found</span>')+'</div>'
+                    +'<div style="margin:8px 0 10px;"><span id="msgSelCount" style="font-size:12.5px;color:#5b3aa6;font-weight:800;">0 selected</span> <span style="font-size:11.5px;color:#8a93a2;">&middot; 1 person = direct message, 2+ = group</span></div>'
+                    +'<input id="msgGroupName" placeholder="Group name (for 2+ people)" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #d6deea;border-radius:8px;margin-bottom:8px;font-size:13px;">'
+                    +'<input id="msgDirSearch" onkeyup="msgDirFilter()" placeholder="Search a name..." style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;">'
+                    +'<div id="msgDirList">'+_msgDir.map(function(p){return msgDirRow(p);}).join('')+(_msgDir.length?'':'<p style="color:#6b7686;text-align:center;font-size:13px;">No one else has a login yet.</p>')+'</div>'
+                    +'<button onclick="msgStart()" style="width:100%;background:#ec3e7e;color:#fff;border:none;border-radius:9px;padding:12px;font-weight:800;font-size:14px;cursor:pointer;margin-top:12px;">Start conversation</button>';
+                c.innerHTML=h;
             });
         });
     }
-    function dirFilter(){ var q=(document.getElementById('dirSearch').value||'').toLowerCase(); [].slice.call(document.querySelectorAll('.dir-row')).forEach(function(d){ d.style.display=(d.getAttribute('data-n').indexOf(q)>-1)?'block':'none'; }); }
+    function msgDirRow(p){ var on=!!_msgSel[p.id]; return '<div class="msgDirRow" data-n="'+escapeHtml((p.name||'').toLowerCase())+'" data-id="'+p.id+'" onclick="msgToggle('+p.id+')" style="display:flex;align-items:center;justify-content:space-between;background:'+(on?'#faf5ff':'#fff')+';border:1px solid '+(on?'#d6c9ec':'#eef0f5')+';border-radius:10px;padding:10px 11px;margin-bottom:7px;cursor:pointer;"><div style="font-size:14px;color:#333;">'+escapeHtml(p.name||'')+(p.store?' <span style="color:#aab;font-size:11px;">'+escapeHtml(p.store)+'</span>':'')+(p.role?' <span style="color:#9a8fc2;font-size:10.5px;">'+escapeHtml(p.role)+'</span>':'')+'</div><div style="width:20px;height:20px;border-radius:5px;border:2px solid '+(on?'#6a3fb5':'#ccd')+';background:'+(on?'#6a3fb5':'#fff')+';color:#fff;font-size:13px;text-align:center;line-height:17px;flex:none;">'+(on?'&#10003;':'')+'</div></div>'; }
+    function msgToggle(id){ if(_msgSel[id]) delete _msgSel[id]; else _msgSel[id]=true; msgRefreshSel(); }
+    function msgRolePick(rk){ var ppl=_msgDir.filter(function(p){return p.role_key===rk;}); var allOn=ppl.length&&ppl.every(function(p){return _msgSel[p.id];}); ppl.forEach(function(p){ if(allOn) delete _msgSel[p.id]; else _msgSel[p.id]=true; }); if(!allOn){ var gn=document.getElementById('msgGroupName'); if(gn && !gn.value){ var lbl=(ppl[0]&&ppl[0].role)||rk; gn.value=lbl+(/s$/i.test(lbl)?'':'s'); } } msgRefreshSel(); }
+    function msgRefreshSel(){ var el=document.getElementById('msgSelCount'); if(el) el.textContent=Object.keys(_msgSel).length+' selected'; var list=document.getElementById('msgDirList'); if(list){ list.innerHTML=_msgDir.map(function(p){return msgDirRow(p);}).join(''); msgDirFilter(); } }
+    function msgDirFilter(){ var s=document.getElementById('msgDirSearch'); var q=(s?s.value:'').toLowerCase(); [].slice.call(document.querySelectorAll('.msgDirRow')).forEach(function(d){ d.style.display=(d.getAttribute('data-n').indexOf(q)>-1)?'flex':'none'; }); }
+    function msgStart(){
+        var ids=Object.keys(_msgSel).map(function(x){return parseInt(x,10);}).filter(Boolean);
+        if(!ids.length){ alert('Pick at least one person (tap a role, or check people).'); return; }
+        if(ids.length===1){ var p=null; for(var i=0;i<_msgDir.length;i++){ if(_msgDir[i].id===ids[0]){ p=_msgDir[i]; break; } } openDm(ids[0], (p&&p.name)||''); return; }
+        var name=((document.getElementById('msgGroupName')||{}).value||'').trim();
+        if(!name){ alert('Give the group a name (e.g. Shift Leaders).'); var gn=document.getElementById('msgGroupName'); if(gn) gn.focus(); return; }
+        withPin(function(pin){ supabaseClient.rpc('app_group_create',{p_username:currentUser.username,p_password:pin,p_title:name,p_members:ids}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } openGroup(r.data, name); }); });
+    }
+    // ---- Group thread ----
+    var groupWith=null, groupWithName='', groupPendingPhoto='';
+    function openGroup(gid, name){ groupWith=gid; groupWithName=name||''; groupPendingPhoto=''; renderGroup(); }
+    function renderGroup(){
+        var c=document.getElementById('msgContent');
+        withPin(function(pin){
+            supabaseClient.rpc('app_group_thread',{p_username:currentUser.username,p_password:pin,p_group_id:groupWith}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var d=r.data||{}; var msgs=d.messages||[]; var members=d.members||[];
+                var h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:3px;"><button onclick="loadDmThreads()" style="background:#eee;border:none;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;">&#8592;</button><span style="font-size:15px;font-weight:600;color:#333;">&#128101; '+escapeHtml(d.title||groupWithName)+'</span></div>'
+                    +'<div style="font-size:11px;color:#8a93a2;margin:0 0 10px 2px;">'+members.length+' members'+(members.length?': '+escapeHtml(members.slice(0,6).join(', '))+(members.length>6?' +'+(members.length-6):''):'')+'</div>'
+                    +'<div style="background:#f7f5fb;border-radius:12px;padding:12px;max-height:46vh;overflow:auto;margin-bottom:10px;">';
+                if(!msgs.length) h+='<p style="color:#6b7686;text-align:center;font-size:13px;">No messages yet. Say hi to the group!</p>';
+                msgs.forEach(function(m){ var img=(m.attachment&&String(m.attachment).slice(0,11)==='data:image/')?'<img src="'+escapeHtml(m.attachment)+'" onclick="dmZoom(this.src)" style="display:block;max-width:200px;max-height:220px;border-radius:9px;'+(m.body?'margin-top:6px;':'')+'cursor:pointer;object-fit:cover;">':''; var rr=(m.mine&&m.read_by>0)?'<div style="font-size:10px;color:#1f7a3d;font-weight:700;text-align:right;margin:1px 4px 5px 0;">&#10003; Read by '+m.read_by+'</div>':''; h+='<div style="display:flex;justify-content:'+(m.mine?'flex-end':'flex-start')+';margin-bottom:'+(rr?'0':'6px')+';"><div style="max-width:78%;background:'+(m.mine?'#6a3fb5':'#fff')+';color:'+(m.mine?'#fff':'#333')+';border-radius:12px;padding:8px 11px;font-size:14px;box-shadow:0 1px 2px rgba(0,0,0,0.08);">'+(!m.mine?'<div style="font-size:11px;font-weight:700;color:#6a3fb5;">'+escapeHtml(m.sender||'')+'</div>':'')+(m.body?escapeHtml(m.body):'')+img+'<div style="font-size:10px;opacity:.7;margin-top:2px;">'+socFmt(m.at)+'</div></div></div>'+rr; });
+                h+='</div>'
+                    +'<div id="gmPhotoPreview" style="display:none;margin-bottom:6px;"></div>'
+                    +'<div style="display:flex;gap:8px;align-items:center;"><input type="file" id="gmFile" accept="image/*" style="display:none;" onchange="groupPickPhoto()"><button onclick="document.getElementById(&quot;gmFile&quot;).click()" title="Add a photo" style="background:#eef2f7;color:#6a3fb5;border:none;border-radius:8px;padding:10px 12px;font-size:16px;cursor:pointer;line-height:1;">&#128247;</button><input id="gmInput" onkeypress="if(event.key===&quot;Enter&quot;)sendGroup()" placeholder="Message the group..." style="flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;"><button onclick="sendGroup()" style="background:#6a3fb5;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:bold;cursor:pointer;">Send</button></div>'
+                    +'<div id="gmPhotoStatus" style="display:none;font-size:11px;color:#6b7686;margin-top:4px;"></div>';
+                c.innerHTML=h; var inp=document.getElementById('gmInput'); if(inp) inp.focus();
+            });
+        });
+    }
+    function sendGroup(){ var inp=document.getElementById('gmInput'); var body=(inp?(inp.value||''):'').trim(); var att=groupPendingPhoto||''; if(!body && !att) return; if(inp) inp.value=''; withPin(function(pin){ supabaseClient.rpc('app_group_send',{p_username:currentUser.username,p_password:pin,p_group_id:groupWith,p_body:body,p_attachment_url:att||null}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } groupPendingPhoto=''; renderGroup(); }); }); }
+    function groupPickPhoto(){ var f=document.getElementById('gmFile'); if(!f||!f.files||!f.files[0]) return; var file=f.files[0]; f.value=''; if(file.size>12*1024*1024){ alert('That photo is too large — please pick one under ~12MB.'); return; } var st=document.getElementById('gmPhotoStatus'); if(st){ st.style.display='block'; st.textContent='Preparing photo…'; } if(typeof woCompress!=='function'){ if(st) st.textContent='Photos need an app update — please refresh.'; return; } woCompress(file,function(d){ if(!d){ if(st) st.textContent='Could not read that photo — try another.'; return; } groupPendingPhoto=d; if(st){ st.style.display='none'; } var pv=document.getElementById('gmPhotoPreview'); if(pv){ pv.style.display='block'; pv.innerHTML='<div style="display:inline-flex;align-items:center;gap:8px;background:#f0edf7;border-radius:9px;padding:5px 8px;"><img src="'+d+'" style="width:40px;height:40px;object-fit:cover;border-radius:6px;"><span style="font-size:12px;color:#6a3fb5;font-weight:600;">Photo ready to send</span><button onclick="groupClearPhoto()" style="background:none;border:none;color:#a01b3e;font-weight:800;cursor:pointer;font-size:15px;line-height:1;">&times;</button></div>'; } }); }
+    function groupClearPhoto(){ groupPendingPhoto=''; var pv=document.getElementById('gmPhotoPreview'); if(pv){ pv.style.display='none'; pv.innerHTML=''; } var st=document.getElementById('gmPhotoStatus'); if(st){ st.style.display='none'; } }
     var dmWith=null, dmWithName='', dmPendingPhoto='';
     function openDm(emp, name){ dmWith=emp; dmWithName=name||''; dmPendingPhoto=''; renderDm(); }
     function renderDm(){
