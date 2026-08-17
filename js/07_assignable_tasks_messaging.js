@@ -778,6 +778,17 @@
         var dt=document.getElementById('psDate'); if(dt && !dt.value) dt.value=psTodayStr();
         loadPreshift();
     }
+    // Back from the lineup: if it was opened from the Shift Console, return there;
+    // otherwise go to the menu as before. (Set window._psReturnToConsole before opening.)
+    function psBack(){
+        var pv=document.getElementById('preshiftView'); if(pv) pv.style.display='none';
+        if(window._psReturnToConsole){
+            window._psReturnToConsole=false;
+            try{ var mm=document.getElementById('main-menu'); if(mm) mm.style.display=''; }catch(e){}
+            var ov=document.getElementById('shiftConsoleModal'); if(ov){ ov.style.display='block'; return; }
+        }
+        if(typeof openMenu==='function') openMenu(); else if(pv){ /* fallback */ location.hash=''; }
+    }
     function loadPreshift(){
         var box=document.getElementById('psRoster'); if(!box) return;
         var store=document.getElementById('psStore').value, date=document.getElementById('psDate').value||psTodayStr(), type=document.getElementById('psType').value;

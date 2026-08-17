@@ -218,7 +218,7 @@
     function opmLock(){ if(!confirm('Lock the agenda? Leadership-required topics must be acknowledged first.')) return;
         opmRpc('opm_lock',{p_id:_opm.mid},function(){ opmReload(); }); }
     function opmPublish(){ if(!confirm('Publish the pre-meeting brief to your shift leaders?\n\nThey will see ONLY approved, shift-leader-visible topics and sl_ marked notes — never manager-only or sensitive content.')) return;
-        opmRpc('opm_publish_brief',{p_id:_opm.mid},function(r){ alert('Brief published.'+(r&&r.seeded?(' '+r.seeded+' shift leader(s) added to the expected attendance list.'):'')); opmReload(); }); }
+        opmRpc('opm_publish_brief',{p_id:_opm.mid},function(r){ opmSyncFocusPriorities(); alert('Brief published.'+(r&&r.seeded?(' '+r.seeded+' shift leader(s) added to the expected attendance list.'):'')+' Your Focus areas now show as store priorities in the Shift Console.'); opmReload(); }); }
 
     /* ===== PERFORMANCE ====================================================== */
     function opmPerfLabel(kind,val){
@@ -275,8 +275,12 @@
     function opmPerfSave(){
         var keys=['sl_perf_sales','sl_perf_labor','sl_perf_wins','sl_perf_focus','sl_manual_sales','sl_manual_sales_ly','sl_manual_labor','sl_manual_guests','mgr_perf_private'];
         var f={}; keys.forEach(function(k){ var e=document.getElementById('opm_'+k); if(e) f[k]=e.value; });
-        opmRpc('opm_save_section',{p_id:_opm.mid,p_fields:f},function(){ opmReload(); });
+        opmRpc('opm_save_section',{p_id:_opm.mid,p_fields:f},function(){ opmSyncFocusPriorities(); opmReload(); });
     }
+    // Push the meeting's "Focus areas" (sl_perf_focus) into the store's priorities so
+    // shift leaders see & acknowledge them in the console. Best-effort; the RPC only
+    // acts on published-or-later meetings (drafts never leak) and is safe to call often.
+    function opmSyncFocusPriorities(){ if(!_opm.mid) return; try{ opmRpc('app_priority_sync_from_focus',{p_meeting_id:_opm.mid},function(){},function(){}); }catch(e){} }
 
     /* ===== AGENDA + AI INSIGHTS ============================================ */
     function opmSrcBadge(src){ var map={manual:['Manager','#eef0f3','#5b6472'],ai:['Cherry suggestion','#ede4fb','#5b3aa6'],leadership:['Leadership Required','#fbe4ea','#a01b3e'],shift_leader:['From a shift leader','#e3ecfa','#185FA5'],carry_forward:['Follow Up Next Month','#fdf0dd','#9a5b00'],your_voice:['Team voice theme','#e4f3e8','#1b7a3d']}; var x=map[src]||map.manual; return opmBadge(x[0],x[1],x[2]); }

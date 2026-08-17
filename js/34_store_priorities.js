@@ -337,7 +337,7 @@
         if(!items || !items.length){ root.innerHTML=''; return; }   // empty -> render nothing
         root.innerHTML='<div style="background:#fff;border:1px solid #ececf2;border-left:4px solid #185FA5;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 6px rgba(0,0,0,.04);">'+
             '<div style="font-size:12px;font-weight:800;text-transform:uppercase;color:#185FA5;letter-spacing:.3px;margin-bottom:4px;">&#128204; Store Priorities</div>'+
-            '<div style="font-size:11.5px;color:#6b7686;margin-bottom:6px;">From your manager &mdash; tap Acknowledge once you&rsquo;ve read each one.</div>'+
+            '<div style="font-size:11.5px;color:#6b7686;margin-bottom:6px;">This month&rsquo;s focus from your manager &mdash; tap Acknowledge once you&rsquo;ve read each one.</div>'+
             items.map(spfSRow).join('')+
         '</div>';
     }
@@ -360,16 +360,17 @@
     // then safety nets in case either overlay is already open at load.
     // ══════════════════════════════════════════════════════════════════════
     (function initWraps(){
+        // Priorities are now authored via the Ops Meeting's "Focus areas" (they sync into
+        // store_priority automatically). The manager AUTHOR panel is no longer injected into
+        // the Manager Action Center — only the read-only shift-console panel remains.
         function tryWrap(){
-            var a=spfWrap('openManagerActionCenter', spfMOnOpen);
             var b=spfWrap('openShiftConsole', spfSOnOpen);
             spfWrap('openShiftConsoleInner', spfSOnOpen);   // best-effort belt-and-suspenders
-            return a && b;
+            return b;
         }
         if(tryWrap()) return;
         var tries=0; var iv=setInterval(function(){ tries++; if(tryWrap() || tries>60){ clearInterval(iv); } },100);
     })();
 
-    try{ var _m=document.getElementById('macModal'); if(_m && _m.style && _m.style.display!=='none'){ spfEnsureObs(spfM,'macModal',spfMSync); spfSchedule(spfM,spfMSync); } }catch(e){}
     try{ var _s=document.getElementById('shiftConsoleModal'); if(_s && _s.style && _s.style.display!=='none'){ spfEnsureObs(spfS,'shiftConsoleModal',spfSSync); spfSchedule(spfS,spfSSync); } }catch(e){}
 })();

@@ -1207,7 +1207,7 @@
         { id:'messages', key:'messages', label:'Messages', emoji:'&#128172;', section:'Messages', keywords:['message','chat','dm','direct','announcement','broadcast','inbox','updates'], roleCheck:null, go:function(){ openMessages(); } },
         /* --- tile enrichments: inherit the tile's label/emoji/visibility, add search keywords --- */
         { id:'scheduling', key:'scheduling', btn:'btn-scheduling', keywords:['schedule builder','build','publish','weekly shifts','rota'] },
-        { id:'preshift', btn:'btn-preshift', keywords:['pre shift','lineup','positions','huddle','goals'] },
+        { id:'preshift', label:'Shift Setup — Pre-Shift Lineup', emoji:'&#128221;', section:'Shift', keywords:['pre shift','lineup','positions','huddle','goals','shift setup','stations'], roleCheck:_hubRole('shcCanUse'), go:function(){ if(typeof openPreshift==='function') openPreshift(); } },
         { id:'crewtrainer', btn:'btn-crewtrainer', keywords:['crew trainer','trainee','coach','training delivered'] },
         { id:'availability', btn:'btn-availApprovals', keywords:['availability requests','approve availability','deny'] },
         { id:'requests', btn:'requestsBtn', keywords:['time off approvals','swap','approve','deny','requests'] },

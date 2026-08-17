@@ -180,19 +180,24 @@
         var stores=(typeof HUB_STORES!=='undefined'?HUB_STORES:['Roadrunner','Valley','Lenox','Alamogordo','Roswell']);
         var myLoc=shcStoreLoc();
         var types=shcCsv('shc_shift_types');
+        // Pre-select the likely shift type by time of day (saves a tap; any value stays editable).
+        var _nowH=new Date().getHours(); var _defType=_nowH<13?'AM':(_nowH<16?'Mid':'PM');
+        if(types.indexOf(_defType)<0) _defType=types[0]||'';
         var prompts=shcPipes('shc_start_prompts');
         var h=shcHeader('Shift Leader Console','');
         h+='<div style="max-width:760px;margin:0 auto;padding:16px 16px 60px;">';
         h+='<p style="font-size:12.5px;color:#6b7686;margin-top:0;">Run your shift from one place — checklist, temps, log book and closeout, with follow-ups routed into the Hub. Off the clock? Just close this; nothing here follows you home.</p>';
+        h+='<div id="shcHandoff"></div>';
 
         var body='<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
             '<div style="flex:1;min-width:170px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">Store</label><select id="shcS_loc" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;">'+stores.map(function(s){return '<option value="'+escapeHtml(s)+'"'+(myLoc===s?' selected':'')+'>'+escapeHtml(s)+'</option>';}).join('')+'</select></div>'+
-            '<div style="flex:1;min-width:170px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">Shift type</label><select id="shcS_type" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;">'+types.map(function(t){return '<option value="'+escapeHtml(t)+'">'+escapeHtml(t)+'</option>';}).join('')+'</select></div>'+
+            '<div style="flex:1;min-width:170px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">Shift type</label><select id="shcS_type" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;">'+types.map(function(t){return '<option value="'+escapeHtml(t)+'"'+(t===_defType?' selected':'')+'>'+escapeHtml(t)+'</option>';}).join('')+'</select></div>'+
             '</div>'+
             '<div style="margin-bottom:9px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">Supporting leaders (optional)</label><input id="shcS_support" type="text" placeholder="e.g. Maria (drive-thru lead)" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;"></div>'+
             '<div style="font-size:12px;color:#6b7686;margin:4px 0 8px;">Leader on duty: <b style="color:#1f2a44;">'+escapeHtml((currentUser&&currentUser.name)||'')+'</b> &middot; '+escapeHtml(shcTodayIso())+'</div>'+
             shcBtn('&#9654; Start shift','shcStartShift()','primary');
         h+=shcCard(body,'Start / continue a shift');
+        h+=shcLineupCard();
 
         if(prompts.length){
             h+=shcCard('<ul style="margin:0;padding-left:18px;">'+prompts.map(function(p){ return '<li style="font-size:12.5px;color:#33404e;margin-bottom:4px;">'+escapeHtml(p)+'</li>'; }).join('')+'</ul>','Before you start');
@@ -205,6 +210,34 @@
         h+=shcCard(links,'More');
         h+='</div>';
         ov.innerHTML=h;
+        try{ shcLoadHandoff(); }catch(e){}
+    }
+    // Shift-to-shift continuity: surface what the LAST ended shift at this store left
+    // unresolved (from its saved recap). Best-effort + guarded — shows nothing if the
+    // handoff was clean or data is unavailable. Reuses shc_sessions_list + shc_session_get.
+    function shcLoadHandoff(){
+        var host=document.getElementById('shcHandoff'); if(!host) return;
+        var loc=shcStoreLoc(); if(!loc) return;
+        shcRpc('shc_sessions_list',{p_filters:{location:loc,status:'Ended'}},function(rows){
+            rows=rows||[]; if(!rows.length) return;
+            rows.sort(function(a,b){ return String(b.business_date||'').localeCompare(String(a.business_date||'')); });
+            var last=rows[0]; if(!last||last.id==null) return;
+            shcRpc('shc_session_get',{p_session_id:last.id},function(s){
+                s=s||{}; var rc=s.recap||{}; var items=[];
+                if(rc.checklist){ Object.keys(rc.checklist).forEach(function(k){ var c=rc.checklist[k]; if(c && c.total && c.done<c.total) items.push(({open:'Opening',close:'Closing',clean:'Cleaning'}[k]||k)+' checklist '+c.done+'/'+c.total); }); }
+                if(rc.temps){ var miss=(rc.temps.total||0)-(rc.temps.logged||0); if(miss>0) items.push(miss+' temp point'+(miss>1?'s':'')+' not logged'); if(rc.temps.out_of_range>0) items.push(rc.temps.out_of_range+' out-of-range temp'+(rc.temps.out_of_range>1?'s':'')); }
+                if(rc.dsr_status && !(typeof dsrIsSubmittedStatus==='function' && dsrIsSubmittedStatus(rc.dsr_status))) items.push('Daily Report was '+rc.dsr_status);
+                var pnote=rc.priority_note;
+                if(!items.length && !pnote) return; // clean handoff — nothing to surface
+                var when=String(s.business_date||last.business_date||'').slice(0,10);
+                var h='<div style="background:#fff8ee;border:1px solid #f0dfb8;border-radius:12px;padding:12px 14px;margin-bottom:12px;">'+
+                    '<div style="font-weight:800;color:#9a6a00;margin-bottom:6px;">&#128203; Handoff from the last shift'+(s.leader_name?(' &middot; '+escapeHtml(s.leader_name)):'')+(when?(' &middot; '+escapeHtml(when)):'')+'</div>';
+                if(items.length) h+='<ul style="margin:0 0 4px;padding-left:18px;">'+items.map(function(x){return '<li style="font-size:12.5px;color:#7a5b12;margin-bottom:3px;">'+escapeHtml(x)+'</li>';}).join('')+'</ul>';
+                if(pnote) h+='<div style="font-size:12.5px;color:#33404e;margin-top:4px;"><b>Priority note:</b> '+escapeHtml(pnote)+'</div>';
+                h+='<div style="font-size:10.5px;color:#a99a80;margin-top:5px;">Carried over so nothing slips between shifts.</div></div>';
+                host.innerHTML=h;
+            }, function(){});
+        }, function(){});
     }
     function shcOpenDsrModule(){ shcClose(); if(typeof openDailyReport==='function') openDailyReport(); else alert('The Daily Store Report module is not loaded.'); }
 
@@ -233,7 +266,6 @@
             });
             supabaseClient.rpc('app_checklist_windows',U).then(function(r){ if(!r.error){ _shc.data.windows=r.data||[]; shcPatch(); } }).catch(function(){});
             supabaseClient.rpc('app_my_tasks',U).then(function(r){ if(!r.error){ _shc.data.tasks=(r.data&&r.data.tasks)||[]; shcPatch(); } }).catch(function(){});
-            supabaseClient.rpc('shc_priorities_get',Object.assign({p_location:loc},U)).then(function(r){ if(!r.error){ _shc.data.priorities=r.data||[]; shcPatch(); } }).catch(function(){});
             supabaseClient.rpc('dsr_list',Object.assign({p_filters:{location:loc,from:(s.business_date||shcTodayIso()),to:(s.business_date||shcTodayIso()),status:''}},U)).then(function(r){ if(!r.error){ var rows=r.data||[]; _shc.data.dsrRow=rows.length?rows[0]:null; shcPatch(); } }).catch(function(){});
             supabaseClient.rpc('app_contacts_list',Object.assign({p_location:loc},U)).then(function(r){ if(!r.error){ _shc.data.contacts=r.data||[]; shcPatch(); } }).catch(function(){});
         });
@@ -258,6 +290,7 @@
             '<span style="background:'+(s.status==='Active'?'#1f7a3d':'#5b6472')+';color:#fff;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:800;">'+escapeHtml(s.status||'')+'</span>'+
             '</div><div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">'+
             shcBtn('&#9632; End shift','shcEndShift()','danger')+
+            shcBtn('&#128221; Lineup','shcOpenLineup()','ghost')+
             shcBtn('Refresh','shcLoadAll(); shcRefreshSession();','ghost')+
             '</div>';
         h+=shcCard(strip,'');
@@ -265,8 +298,9 @@
         // due now
         h+=shcCard('<div id="shcDueBox">'+shcDueHtml()+'</div>','&#9200; Due now');
 
-        // store priorities (only if any)
-        h+='<div id="shcPrioWrap">'+shcPrioHtml()+'</div>';
+        // Store priorities are authored by corporate / store managers and injected
+        // into this console read-only by js/34 (app_priority_shift_feed) — the console
+        // no longer has its own priority-setting card (removed per owner direction).
 
         // shift-relevant tasks (filtered, never the whole task list)
         h+='<div id="shcTasksWrap">'+shcTasksHtml()+'</div>';
@@ -313,7 +347,6 @@
         if(_shc.view!=='console') return;
         var el;
         el=document.getElementById('shcDueBox'); if(el) el.innerHTML=shcDueHtml();
-        el=document.getElementById('shcPrioWrap'); if(el) el.innerHTML=shcPrioHtml();
         el=document.getElementById('shcTasksWrap'); if(el) el.innerHTML=shcTasksHtml();
         el=document.getElementById('shcSum_temps'); if(el) el.innerHTML=shcTempsSummary();
         el=document.getElementById('shcSum_checks'); if(el) el.innerHTML=shcChecksSummary();
@@ -376,36 +409,22 @@
     }
     function shcOpenSec(key){ _shc.sec[key]=true; shcRenderConsole(); }
 
-    // ---- Store priorities ----
-    function shcPrioHtml(){
-        var pr=_shc.data.priorities;
-        var mgr=shcIsMgr();
-        if((!pr || !pr.length) && !mgr) return '';
-        var inner='';
-        if(pr && pr.length){
-            inner=pr.map(function(p){
-                return '<div style="background:#f2f7ff;border:1px solid #d8e6f7;border-radius:10px;padding:9px 11px;margin-bottom:6px;">'+
-                    '<div style="display:flex;gap:8px;align-items:center;"><b style="flex:1;font-size:12.5px;color:#185FA5;">&#11088; '+escapeHtml(p.title||'')+'</b>'+
-                    (mgr?('<button onclick="shcRetirePriority('+p.id+')" style="background:#eef0f3;border:none;border-radius:7px;padding:4px 8px;font-size:10.5px;font-weight:700;color:#5b6472;cursor:pointer;">Retire</button>'):'')+'</div>'+
-                    (p.body?('<div style="font-size:12px;color:#33404e;margin-top:3px;">'+escapeHtml(p.body)+'</div>'):'')+
-                    (p.ends_on?('<div style="font-size:10.5px;color:#8a91a0;margin-top:3px;">through '+escapeHtml(p.ends_on)+'</div>'):'')+
-                '</div>';
-            }).join('');
-        } else { inner=shcEmpty('No active store priorities.'); }
-        if(mgr) inner+=shcBtn('&#10133; Add priority','shcAddPriority()','ghost');
-        return shcCard(inner,'&#11088; Store priorities');
+    // ---- Shift setup (Pre-Shift Lineup) — moved here from the Schedule tab ----
+    // Reuses the existing lineup feature (openPreshift in js/07) unchanged, so its
+    // position credit keeps flowing to each person's passport + training progress
+    // (app_preshift_save -> app_position_tally). We just launch it from the console
+    // and route Back here. Setting store priorities is NOT done in the console.
+    function shcOpenLineup(){
+        if(typeof openPreshift!=='function'){ alert('The shift setup isn’t available right now — please refresh.'); return; }
+        window._psReturnToConsole=true;
+        var ov=document.getElementById('shiftConsoleModal'); if(ov) ov.style.display='none';
+        try{ openPreshift(); }catch(e){ if(ov) ov.style.display='block'; window._psReturnToConsole=false; }
     }
-    function shcAddPriority(){
-        var title=prompt('Priority (short & action-oriented, e.g. "Focus: closing cleanliness"):'); if(title===null||!title.trim()) return;
-        var body=prompt('One-line detail (optional):','')||'';
-        var ends=prompt('Show through date (YYYY-MM-DD, optional):','')||'';
-        var loc=prompt('Store (blank = this store, ALL = every store):','')||'';
-        var payload={ title:title.trim(), body:body.trim(), ends_on:ends.trim(), location:(loc.trim()||shcSess().location), source:'manual', active:true };
-        shcRpc('shc_priority_save',{p_payload:payload},function(){ shcLoadAll(); });
-    }
-    function shcRetirePriority(id){
-        if(!confirm('Retire this priority card?')) return;
-        shcRpc('shc_priority_save',{p_payload:{id:id,active:false}},function(){ shcLoadAll(); });
+    function shcLineupCard(){
+        return shcCard(
+            '<div style="font-size:12.5px;color:#33404e;margin-bottom:9px;">Assign who’s on each station and set the shift’s goals. Time on each station builds your team’s passport &amp; training progress.</div>'+
+            shcBtn('&#128221; Set up the shift lineup','shcOpenLineup()','primary'),
+            '&#128221; Shift setup');
     }
 
     // ---- Shift-relevant tasks (filtered: overdue / due today only) ----
@@ -778,7 +797,7 @@
         }
 
         // priority note (optional, configurable)
-        var askPr=(String(shcCfg('shc_recap_ask_priority'))==='1') && (_shc.data.priorities||[]).length>0;
+        var askPr=(String(shcCfg('shc_recap_ask_priority'))==='1');
         if(askPr){
             h+=shcCard('<div style="font-size:12px;color:#5b6675;margin-bottom:6px;">Anything to report on the active store priorities? (optional)</div><textarea id="shcPrNote" rows="2" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;font-family:inherit;"></textarea>','&#11088; Priority notes');
         }
