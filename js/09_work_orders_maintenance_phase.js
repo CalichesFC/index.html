@@ -1184,7 +1184,88 @@
 
     // ---- Messaging ----
     var msgTab='updates';
-    function openMessages(){ document.getElementById('main-menu').style.display='none'; document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';}); document.getElementById('messagesView').style.display='block'; window.scrollTo(0,0); msgTab='updates'; renderMsgTabs(); loadMsgTab(); try{ msgBadgeClear(); }catch(e){} }
+    function openMessages(){ document.getElementById('main-menu').style.display='none'; document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';}); document.getElementById('messagesView').style.display='block'; window.scrollTo(0,0); msgTab='updates'; renderMsgTabs(); loadMsgTab(); try{ msgBadgeClear(); }catch(e){} try{ msgComplianceBar(); }catch(e){} try{ msgPolicyGate(); }catch(e){} }
+    // ---- Messaging compliance: employee notice + one-time acknowledgment (legal keystone) ----
+    function msgPolicyGate(){
+        withPin(function(pin){
+            supabaseClient.rpc('app_msg_policy_status',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                var d=(r&&r.data)||{}; if(d.acknowledged!==false) return; if(document.getElementById('msgPolicyOv')) return;
+                var ov=document.createElement('div'); ov.id='msgPolicyOv';
+                ov.style.cssText='position:fixed;inset:0;z-index:100055;background:rgba(20,25,40,.55);display:flex;align-items:center;justify-content:center;padding:22px;';
+                ov.innerHTML='<div style="background:#fff;max-width:440px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3);font-family:inherit;">'
+                    +'<div style="background:linear-gradient(120deg,#ec3e7e,#106ab3);color:#fff;padding:15px 18px;font-size:16px;font-weight:900;">A note about messages</div>'
+                    +'<div style="padding:16px 18px;font-size:13.5px;color:#2f2a24;line-height:1.5;">'
+                    +'Messages you send in the Hub are <b>company records</b>. To keep everyone safe, authorized leadership may review them when there&rsquo;s a legitimate business or legal reason &mdash; for example, a harassment complaint or a legal matter. Every review is logged. Please keep messages respectful and work-appropriate.'
+                    +'<div style="margin-top:14px;text-align:right;"><button onclick="msgPolicyAck()" style="background:#ec3e7e;color:#fff;border:none;border-radius:9px;padding:10px 18px;font-size:13.5px;font-weight:800;cursor:pointer;">I understand</button></div>'
+                    +'</div></div>';
+                document.body.appendChild(ov);
+            }).catch(function(){});
+        });
+    }
+    function msgPolicyAck(){ withPin(function(pin){ supabaseClient.rpc('app_msg_policy_ack',{p_username:currentUser.username,p_password:pin}).then(function(){ var o=document.getElementById('msgPolicyOv'); if(o)o.remove(); }).catch(function(){ var o=document.getElementById('msgPolicyOv'); if(o)o.remove(); }); }); }
+    function msgIsLeadership(){ try{ var r=String((currentUser&&currentUser.role)||''); return r==='Admin Manager'||r==='Vice President/Co-Owner'||r==='Executive'||r==='Owner'||(currentUser&&currentUser.is_developer===true); }catch(e){ return false; } }
+    function msgComplianceBar(){
+        var host=document.getElementById('msgContent'); if(!host||!host.parentNode) return;
+        var old=document.getElementById('msgComplyBar'); if(old) old.remove();
+        var bar=document.createElement('div'); bar.id='msgComplyBar';
+        var admBtn=msgIsLeadership()?'<button onclick="openMsgRecords()" style="background:#fff;border:1px solid #e7ddcd;color:#a01b3e;border-radius:8px;padding:6px 11px;font-size:11.5px;font-weight:800;cursor:pointer;white-space:nowrap;">&#128274; Message records (Legal/HR)</button>':'';
+        bar.style.cssText='display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fbf7ef;border:1px solid #eee2cf;border-radius:10px;padding:8px 11px;margin-bottom:12px;';
+        bar.innerHTML='<span style="flex:1;min-width:170px;font-size:11px;color:#8a7f6a;">&#128274; Messages are company records and may be reviewed by leadership for legal/HR reasons.</span>'+admBtn;
+        host.parentNode.insertBefore(bar, host);
+    }
+    // ---- Legal / HR message-records tool (owner + admin leadership only; every access logged) ----
+    function openMsgRecords(){
+        var ov=document.getElementById('msgRecOv'); if(ov) ov.remove();
+        ov=document.createElement('div'); ov.id='msgRecOv'; ov.style.cssText='position:fixed;inset:0;z-index:100058;background:#f4f5f8;overflow:auto;';
+        ov.innerHTML='<div style="background:linear-gradient(120deg,#7d1d4b,#106ab3);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;"><b style="flex:1;font-size:16px;">&#128274; Message Records &mdash; Legal / HR</b><button onclick="var o=document.getElementById(\'msgRecOv\');if(o)o.remove();" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;">Close</button></div><div style="max-width:720px;margin:0 auto;padding:16px 16px 50px;" id="msgRecBody"><p style="text-align:center;color:#6b7686;padding:20px;">Loading&hellip;</p></div>';
+        document.body.appendChild(ov);
+        withPin(function(pin){
+            supabaseClient.rpc('app_directory',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                var box=document.getElementById('msgRecBody'); if(!box) return;
+                if(r.error){ box.innerHTML='<div style="background:#fff;border:1px solid #f3d9d9;border-radius:12px;padding:18px;color:#a01b3e;">'+(r.error.code==='42501'?'This tool is for owner/admin leadership only.':escapeHtml(r.error.message||'Error'))+'</div>'; return; }
+                var ppl=(r.data||[]).filter(function(p){return p.linked;});
+                var opts='<option value="">&mdash; choose an employee &mdash;</option>'+ppl.map(function(p){return '<option value="'+p.id+'">'+escapeHtml(p.name||'')+(p.store?(' ('+escapeHtml(p.store)+')'):'')+'</option>';}).join('');
+                box.innerHTML='<div style="background:#fff8ec;border:1px solid #f0e2c8;border-radius:12px;padding:12px 14px;font-size:12.5px;color:#7a6a48;margin-bottom:14px;line-height:1.5;"><b>&#9888;&#65039; Use only for a legitimate business or legal reason</b> (harassment complaint, legal matter, safety). Every access is logged with your name, the reason, and the date &mdash; and that log is reviewable. If a complaint is <i>about</i> a manager, only the owner should review the other party&rsquo;s messages.</div>'
+                    +'<div style="background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:14px;">'
+                    +'<label style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;">Employee</label>'
+                    +'<select id="mrEmp" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:13px;margin:5px 0 12px;">'+opts+'</select>'
+                    +'<label style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;">Reason for access (required, logged)</label>'
+                    +'<input id="mrReason" placeholder="e.g. Harassment complaint #2026-014" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #d6deea;border-radius:8px;font-size:13px;margin:5px 0 12px;">'
+                    +'<button onclick="msgRecView()" style="background:#a01b3e;color:#fff;border:none;border-radius:9px;padding:10px 16px;font-size:13px;font-weight:800;cursor:pointer;">View &amp; log access</button>'
+                    +'<button onclick="msgRecLog()" style="background:#eef2f7;color:#3a4353;border:none;border-radius:9px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;margin-left:8px;">View access log</button>'
+                    +'</div><div id="mrResult" style="margin-top:14px;"></div>';
+            }).catch(function(){ var box=document.getElementById('msgRecBody'); if(box) box.innerHTML='<div style="color:#a01b3e;">Connection error.</div>'; });
+        });
+    }
+    function msgRecView(){
+        var emp=parseInt((document.getElementById('mrEmp')||{}).value,10)||0; var reason=((document.getElementById('mrReason')||{}).value||'').trim(); var out=document.getElementById('mrResult');
+        if(!emp){ if(out) out.innerHTML='<div style="color:#a01b3e;font-size:13px;">Choose an employee.</div>'; return; }
+        if(!reason){ if(out) out.innerHTML='<div style="color:#a01b3e;font-size:13px;">A written reason is required.</div>'; return; }
+        if(out) out.innerHTML='<p style="color:#6b7686;">Retrieving&hellip;</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_admin_msg_view',{p_username:currentUser.username,p_password:pin,p_target_emp:emp,p_reason:reason}).then(function(r){
+                if(r.error){ if(out) out.innerHTML='<div style="color:#a01b3e;font-size:13px;">'+(r.error.code==='42501'?'Restricted to owner/admin leadership.':escapeHtml(r.error.message||'Error'))+'</div>'; return; }
+                var d=r.data||{}; var msgs=d.messages||[];
+                var h='<div style="background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:14px;"><div style="font-size:13px;color:#26242b;margin-bottom:2px;"><b>'+escapeHtml(d.target||'')+'</b> &mdash; '+d.count+' message'+(d.count===1?'':'s')+' on record</div><div style="font-size:11px;color:#8a93a2;margin-bottom:10px;">&#128274; Access logged &middot; reason: '+escapeHtml(d.reason||'')+'</div>';
+                if(!msgs.length){ h+='<div style="color:#6b7686;font-size:13px;">No direct messages on record for this employee.</div>'; }
+                else { msgs.forEach(function(m){ var who=escapeHtml(m.from||'')+' &rarr; '+escapeHtml(m.to||''); h+='<div style="border-top:1px solid #f0f2f6;padding:8px 0;"><div style="font-size:11px;color:#8a93a2;">'+socFmt(m.at)+' &middot; '+who+'</div><div style="font-size:13px;color:#2f2a24;margin-top:2px;">'+(m.body?escapeHtml(m.body):'')+(m.has_photo?' <span style="color:#6a3fb5;font-weight:700;">[photo]</span>':'')+'</div></div>'; }); }
+                h+='</div>'; if(out) out.innerHTML=h;
+            }).catch(function(){ if(out) out.innerHTML='<div style="color:#a01b3e;">Connection error.</div>'; });
+        });
+    }
+    function msgRecLog(){
+        var out=document.getElementById('mrResult'); if(out) out.innerHTML='<p style="color:#6b7686;">Loading log&hellip;</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_admin_msg_access_log',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ if(out) out.innerHTML='<div style="color:#a01b3e;font-size:13px;">'+escapeHtml(r.error.message||'Error')+'</div>'; return; }
+                var rows=r.data||[];
+                var h='<div style="background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:14px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:8px;">Access log &mdash; who viewed messages</div>';
+                if(!rows.length){ h+='<div style="color:#6b7686;font-size:13px;">No access has been logged yet.</div>'; }
+                else { rows.forEach(function(x){ h+='<div style="border-top:1px solid #f0f2f6;padding:7px 0;font-size:12.5px;color:#2f2a24;"><b>'+escapeHtml(x.who||'')+'</b> viewed <b>'+escapeHtml(x.target||'')+'</b> ('+x.count+' msgs)<div style="font-size:11px;color:#8a93a2;">'+socFmt(x.at)+' &middot; '+escapeHtml(x.reason||'')+'</div></div>'; }); }
+                h+='</div>'; if(out) out.innerHTML=h;
+            }).catch(function(){ if(out) out.innerHTML='<div style="color:#a01b3e;">Connection error.</div>'; });
+        });
+    }
     function renderMsgTabs(){ ['updates','dm','store'].forEach(function(t){ var el=document.getElementById('msgTab'+t.charAt(0).toUpperCase()+t.slice(1)); if(el) el.className='msg-tab'+(msgTab===t?' active':''); }); }
     function setMsgTab(t){ msgTab=t; renderMsgTabs(); loadMsgTab(); }
     function loadMsgTab(){ var c=document.getElementById('msgContent'); c.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading...</p>'; if(msgTab==='updates') loadUpdates(); else if(msgTab==='dm') loadDmThreads(); else loadStoreFeed(); }
