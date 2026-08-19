@@ -427,11 +427,15 @@
     var DASH_TABS=[
         { k:'live',       emoji:'&#128225;', short:'Live',       title:'Live Dashboard',      btn:'adminDashBtn',     desc:'NCR Pulse net sales, labor &amp; transactions per store, plus vending routes &amp; catering.', go:function(){ openAdminDash(); } },
         { k:'command',    emoji:'&#128202;', short:'Command',    title:'Store Intelligence',  btn:'commandCenterBtn', desc:'Who is on the clock right now, hours today &amp; this week, and open tasks.', go:function(){ openCommandCenter(); } },
-        { k:'manager',    emoji:'&#128200;', short:'Manager',    title:'Manager Dashboard',   btn:'managerBtn',       desc:'Submitted forms &amp; activity: pop-ins, checklists, temp logs &amp; more.', go:function(){ openDashboard(); } },
+        { k:'manager',    emoji:'&#128200;', short:'Activity',   title:'Submissions &amp; Activity', btn:'managerBtn',  desc:'Submitted forms &amp; activity: pop-ins, checklists, temp logs &amp; more.', go:function(){ openDashboard(); } },
         { k:'scorecards', emoji:'&#127978;', short:'Scorecards', title:'Store Scorecards',    btn:'btn-scorecards',   desc:'Per-store scorecard: sales vs last year, labor, speed, inspection &amp; training.', go:function(){ openScorecards(); } },
+        { k:'health',     emoji:'&#128737;&#65039;', short:'Health', title:'Store Health',     btn:'btn-storeHealth',  desc:'0&ndash;100 store health score with green / yellow / red bands and what needs action.', go:function(){ openStoreHealthScorecard(); } },
         { k:'maint',      emoji:'&#128295;', short:'Maintenance', title:'Maintenance Leadership', btn:'btn-maintDash', desc:'Open work orders, costs by store &amp; vendor spend for leadership.', go:function(){ openMaintDashboard(); } }
     ];
-    function dashTabAllowed(t){ var b=document.getElementById(t.btn); return !!(b && b.style.display!=='none'); }
+    // Which dashboards the current role may see — set by applyRoleUI so the hub no
+    // longer depends on the (now hidden) stand-alone tiles being displayed.
+    var DASH_ALLOW={};
+    function dashTabAllowed(t){ return !!(DASH_ALLOW && DASH_ALLOW[t.k]); }
     function dashAnyAllowed(){ for(var i=0;i<DASH_TABS.length;i++){ if(dashTabAllowed(DASH_TABS[i])) return true; } return false; }
     function renderDashTabs(active){
         var bar=document.getElementById('dashTabsBar'), body=document.getElementById('dashBody');
@@ -491,10 +495,12 @@
         if (mgmtTab) mgmtTab.style.display = permAllow('mgmt_tab', (devOverride || isManager)) ? 'flex' : 'none';
 
         // ── Buttons within Management tab ──
-        const commandCenterBtn = document.getElementById('commandCenterBtn');
-        if (commandCenterBtn) commandCenterBtn.style.display = permAllow('command_center', (devOverride || isManager)) ? 'block' : 'none';
-        const adminDashBtn = document.getElementById('adminDashBtn');
-        if (adminDashBtn) adminDashBtn.style.display = permAllow('admin_dash', (devOverride || role === 'Admin Manager')) ? 'block' : 'none';
+        // Dashboard tiles now live only inside the "Dashboards" hub — compute their
+        // permission for the hub and keep the stand-alone tiles hidden (declutter).
+        DASH_ALLOW.command = permAllow('command_center', (devOverride || isManager));
+        var commandCenterBtn = document.getElementById('commandCenterBtn'); if (commandCenterBtn) commandCenterBtn.style.display = 'none';
+        DASH_ALLOW.live = permAllow('admin_dash', (devOverride || role === 'Admin Manager'));
+        var adminDashBtn = document.getElementById('adminDashBtn'); if (adminDashBtn) adminDashBtn.style.display = 'none';
         var _adminConsoleBtn = document.getElementById('btn-admin-console'); if (_adminConsoleBtn) _adminConsoleBtn.style.display = permAllow('admin_console', (devOverride || role === 'Admin Manager' || role === 'Vice President/Co-Owner')) ? 'block' : 'none';
         var _permMxBtn=document.getElementById('btn-permMatrix'); if(_permMxBtn) _permMxBtn.style.display=(devOverride || role === 'Admin Manager' || role === 'Vice President/Co-Owner') ? 'block' : 'none';
         const salesBtn = document.getElementById('salesBtn');
@@ -523,7 +529,7 @@
         const inventoryBtn = document.getElementById('btn-inventory');
         if (inventoryBtn) inventoryBtn.style.display = permAllow('inventory', mgmtTools) ? 'block' : 'none';
         if (typeof refreshMyStores === 'function') refreshMyStores();
-        document.getElementById('managerBtn').style.display = permAllow('manager_admin', (devOverride || role === 'Admin Manager')) ? 'block' : 'none';
+        DASH_ALLOW.manager = permAllow('manager_admin', (devOverride || role === 'Admin Manager')); var _mgrDashBtn=document.getElementById('managerBtn'); if(_mgrDashBtn) _mgrDashBtn.style.display='none';
         const kbBtn = document.getElementById('knowledgeBaseBtn');
         if (kbBtn) kbBtn.style.display = permAllow('knowledge_base', (devOverride || role === 'Admin Manager')) ? 'block' : 'none';
         const rosterBtn = document.getElementById('rosterBtn');
@@ -546,16 +552,16 @@
         var _thBtn=document.getElementById('btn-trainingHub'); if(_thBtn) _thBtn.style.display=permAllow('training_hub', true)?'block':'none';
         var _wtBtn=document.getElementById('btn-writeupTemplates'); if(_wtBtn) _wtBtn.style.display=permAllow('writeup_templates', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Shift Lead','Shift Leader'].indexOf(role)>=0))?'block':'none';
         var _rrBtn=document.getElementById('btn-requestsRails'); if(_rrBtn) _rrBtn.style.display=permAllow('requests_rails', true)?'block':'none';
-        var _ccBtn=document.getElementById('btn-commandCenter'); if(_ccBtn) _ccBtn.style.display=permAllow('command_center', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Office'].indexOf(role)>=0))?'block':'none';
+        var _ccBtn=document.getElementById('btn-commandCenter'); if(_ccBtn) _ccBtn.style.display='none'; // duplicate Store Intelligence tile retired — reach it via the Dashboards hub
         var _macBtn=document.getElementById('btn-managerActionCenter'); if(_macBtn) _macBtn.style.display=permAllow('manager_action_center', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
-        var _shsBtn=document.getElementById('btn-storeHealth'); if(_shsBtn) _shsBtn.style.display=permAllow('store_health_scorecard', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Assistant Manager'].indexOf(role)>=0))?'block':'none';
+        DASH_ALLOW.health = permAllow('store_health_scorecard', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Assistant Manager'].indexOf(role)>=0)); var _shsBtn=document.getElementById('btn-storeHealth'); if(_shsBtn) _shsBtn.style.display='none';
         var _calBtn=document.getElementById('btn-companyCalendar'); if(_calBtn) _calBtn.style.display=permAllow('company_calendar', true)?'block':'none';
         var _ptBtn=document.getElementById('btn-payTools'); if(_ptBtn) _ptBtn.style.display=permAllow('pay_tools', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Office'].indexOf(role)>=0))?'block':'none';
         /* btn-marketingV2 tile retired 2026-07-13 — folded into btn-marketingHub (openMarketingHub router). */
         var _smBtn=document.getElementById('btn-storeManager'); if(_smBtn) _smBtn.style.display=permAllow('store_manager', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
-        var _scBtn=document.getElementById('btn-scorecards'); if(_scBtn) _scBtn.style.display=permAllow('scorecards', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
+        DASH_ALLOW.scorecards = permAllow('scorecards', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0)); var _scBtn2=document.getElementById('btn-scorecards'); if(_scBtn2) _scBtn2.style.display='none';
         var _catBtn=document.getElementById('btn-catering'); if(_catBtn) _catBtn.style.display=permAllow('catering', (devOverride||isManager||['Vice President/Co-Owner','Store Manager'].indexOf(role)>=0))?'block':'none';
-        var _mdBtn=document.getElementById('btn-maintDash'); if(_mdBtn) _mdBtn.style.display=permAllow('maint_dash', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Finance Approver','Maintenance Lead'].indexOf(role)>=0))?'block':'none';
+        DASH_ALLOW.maint = permAllow('maint_dash', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Finance Approver','Maintenance Lead'].indexOf(role)>=0)); var _mdBtn=document.getElementById('btn-maintDash'); if(_mdBtn) _mdBtn.style.display='none';
         /* Merged Dashboards tile: visible when ANY of the five legacy dashboard tiles is allowed (they stay the role truth). */
         var _dashBtn=document.getElementById('btn-dashboards'); if(_dashBtn) _dashBtn.style.display=(typeof dashAnyAllowed==='function'&&dashAnyAllowed())?'block':'none';
         /* Forms & Documents (btn-formsDocs) stays visible to everyone; access is now
