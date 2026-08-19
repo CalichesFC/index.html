@@ -330,6 +330,16 @@
     function woNormPri(p){ var s=String(p||'').trim().toLowerCase(); if(s==='urgent') return 'critical'; if(s==='normal') return 'medium'; if(s==='low'||s==='medium'||s==='high'||s==='critical') return s; return 'medium'; }
     function woPriLabel(p){ var n=woNormPri(p); return n.charAt(0).toUpperCase()+n.slice(1); }
     function woPriColor(p){ return {critical:'#c0264b',high:'#b8860b',medium:'#185FA5',low:'#6b7686'}[woNormPri(p)]; }
+    // CATEGORY BRIDGE NORMALIZER (maintenance #4): Work Orders auto-created from the Daily Store
+    // Report historically stored category 'General' -- a value this UI's own report form never
+    // offers (it uses repair/damage/safety/other). The source default was corrected to 'repair'
+    // and existing rows migrated, but normalize on display/edit too so any legacy or future stray
+    // value renders and pre-selects cleanly rather than showing a blank/mismatched dropdown.
+    function woNormCat(c){ var s=String(c||'').trim().toLowerCase(); if(s==='repair'||s==='damage'||s==='safety'||s==='other') return s; return 'repair'; }
+    function woCatLabel(c){ var n=woNormCat(c); return n.charAt(0).toUpperCase()+n.slice(1); }
+    function woPriSelect(id,sel){ var opts=[['low','Low – when convenient'],['medium','Medium – soon'],['high','High – affects service'],['critical','Critical – safety or stop-work']]; var n=woNormPri(sel); var s='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Priority</label><select id="'+id+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;">'; opts.forEach(function(o){ s+='<option value="'+o[0]+'"'+(o[0]===n?' selected':'')+'>'+o[1]+'</option>'; }); return s+'</select>'; }
+    function woPersonName(id){ if(!id) return ''; var m=(_wo.people&&_wo.people.maint)||[]; for(var i=0;i<m.length;i++){ if(parseInt(m[i].id,10)===parseInt(id,10)) return m[i].name; } return '#'+id; }
+    function woFmtDate(s){ if(!s) return ''; try{ var p=String(s).slice(0,10).split('-'); if(p.length===3) return parseInt(p[1],10)+'/'+parseInt(p[2],10)+'/'+p[0]; }catch(e){} return String(s); }
     function woStatusChip(s){ var m={'Reported':['#eef0f3','#5b6472'],'Assigned':['#eef3fb','#185FA5'],'In Progress':['#fff4e0','#9a5b00'],'On Hold':['#fdeee8','#a85217'],'Documented':['#f3eefb','#5b3aa6'],'Verified':['#e8f5ec','#1b7a3d'],'Closed':['#e8f5ec','#1b7a3d'],'Cancelled':['#f0f0f0','#999999']}; var c=m[s]||m['Reported']; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:2px 9px;border-radius:99px;white-space:nowrap;">'+escapeHtml(s||'')+'</span>'; }
     function woField(id,label,val){ return '<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">'+label+'</label><input id="'+id+'" value="'+String(val||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;">'; }
     function woSelect(id,label,opts,sel){ return '<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">'+label+'</label><select id="'+id+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;">'+opts.map(function(o){ var lbl=o===''?'—':o.replace(/_/g,' '); return '<option value="'+o+'"'+(o===sel?' selected':'')+'>'+lbl+'</option>'; }).join('')+'</select>'; }
@@ -417,14 +427,22 @@
     }
     function woFmt(t){ if(!t) return ''; try{ var d=new Date(t); return (d.getMonth()+1)+'/'+d.getDate()+' '+d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } }
     function woRenderDetail(d){
-        var ov=woOverlay(); var ev=d.events||[];
+        var ov=woOverlay(); var ev=d.events||[]; window._woDetail=d;
         var h='<div style="max-width:640px;margin:0 auto;padding:16px;">';
         h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:17px;color:#1f2a44;">'+escapeHtml(d.title||'')+'</b>'+woStatusChip(d.status)+'</div>';
-        h+='<div style="font-size:12px;color:#5b6675;margin-top:3px;">'+escapeHtml(d.wo_number||'')+' &middot; '+escapeHtml(d.location||'')+' &middot; <span style="color:'+woPriColor(d.priority)+';font-weight:700;">'+escapeHtml(woPriLabel(d.priority))+'</span>'+(d.safety_impact?' &middot; &#9888; safety':'')+'</div>';
+        h+='<div style="font-size:12px;color:#5b6675;margin-top:3px;">'+escapeHtml(d.wo_number||'')+' &middot; '+escapeHtml(d.location||'')+' &middot; <span style="color:'+woPriColor(d.priority)+';font-weight:700;">'+escapeHtml(woPriLabel(d.priority))+'</span> &middot; '+escapeHtml(woCatLabel(d.category))+(d.safety_impact?' &middot; &#9888; safety':'')+'</div>';
         if(d.description) h+='<div style="font-size:13.5px;color:#33303a;margin-top:8px;">'+escapeHtml(d.description)+'</div>';
         if(d.asset_label) h+='<div style="font-size:12.5px;color:#6b7686;margin-top:6px;">Equipment: '+escapeHtml(d.asset_label)+(d.equipment_use_status?(' ('+escapeHtml(String(d.equipment_use_status).replace(/_/g,' '))+')'):'')+'</div>';
         if(d.work_performed) h+='<div style="margin-top:8px;background:#f3f8ff;border:1px solid #d8e7fb;border-radius:9px;padding:9px;font-size:13px;color:#1f2a44;"><b>Work performed:</b> '+escapeHtml(d.work_performed)+'</div>';
         if(d.verification_required && d.status==='Documented') h+='<div style="margin-top:8px;font-size:12px;color:#a85217;font-weight:700;">&#9888; Awaiting operational verification before it can close.</div>';
+        // ASSIGNMENT + DELEGATION SUMMARY (maintenance #4): surface who owns the WO, the backup,
+        // and any active temporary delegation (with its end date) so the new delegation control
+        // below is actually visible/auditable on the card. Names resolve from the maintenance
+        // people list already loaded for the assign dropdowns.
+        var _asg=[]; if(d.assigned_to) _asg.push('Owner: '+escapeHtml(woPersonName(d.assigned_to))); if(d.backup_to) _asg.push('Backup: '+escapeHtml(woPersonName(d.backup_to)));
+        var _delg=''; if(d.delegated_to){ _delg='Delegated to '+escapeHtml(woPersonName(d.delegated_to)); if(d.delegation_until) _delg+=' until '+escapeHtml(woFmtDate(d.delegation_until)); }
+        if(_asg.length||_delg) h+='<div style="font-size:12px;color:#5b6675;margin-top:8px;border-top:1px solid #f3f4f8;padding-top:8px;">'+_asg.join(' &middot; ')+(_delg?('<div style="margin-top:2px;color:#9a5b00;font-weight:600;">&#8635; '+_delg+'</div>'):'')+'</div>';
+        if(d.can_manage) h+='<div style="margin-top:10px;"><button onclick="woEditOpen()" style="background:#eef0f3;color:#33303a;border:1px solid #dfe2e8;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;">&#9998; Edit details</button></div>';
         h+='</div>';
         h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#5b6675;margin-bottom:8px;">Status timeline</div>';
         if(!ev.length) h+='<div style="font-size:13px;color:#5b6675;">No events.</div>';
@@ -485,20 +503,72 @@
     function woDocPrompt(){ var wp=prompt('Describe the work performed (required):'); if(wp===null) return; if(!String(wp).trim()){ alert('Work documentation is required.'); return; } woAct('document',String(wp).trim()); }
     function woModal(html){ var m=document.getElementById('woModal2'); if(!m){ m=document.createElement('div'); m.id='woModal2'; m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100001;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:16px;box-sizing:border-box;'; document.body.appendChild(m); } m.innerHTML=html; m.style.display='flex'; return m; }
     function woModalClose(){ var m=document.getElementById('woModal2'); if(m)m.style.display='none'; }
+    // EDIT WORK-ORDER DETAILS (maintenance #4): managers can correct any field on a WO after it
+    // was reported -- previously the only way to fix a wrong title/store/priority/equipment was to
+    // cancel and re-report, losing the history. Backed by app_wo_edit (manager-gated, logs an
+    // 'edited' event + audit). Reuses window._woDetail captured in woRenderDetail.
+    function woEditAssetField(d){
+        var eq=(_wo.equip||[]); var aid=d.asset_id?parseInt(d.asset_id,10):0; var lbl=d.asset_label||'';
+        var h='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Equipment / item</label>';
+        if(!eq.length){ return h+'<input id="woeAsset" value="'+String(lbl).replace(/"/g,'&quot;')+'" placeholder="Describe the item" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;"><input type="hidden" id="woeAssetSel" value="">'; }
+        var found=false; var mid=eq.map(function(e){ var m=(parseInt(e.id,10)===aid); if(m)found=true; return '<option value="'+e.id+'"'+(m?' selected':'')+'>'+escapeHtml(e.name||('#'+e.id))+'</option>'; }).join('');
+        var otherSel=(!found&&lbl)?' selected':'';
+        h+='<select id="woeAssetSel" onchange="woEditAssetPick()" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;"><option value="">&mdash; none &mdash;</option>'+mid+'<option value="__other__"'+otherSel+'>Other / not listed</option></select>';
+        h+='<input id="woeAsset" placeholder="Describe the item" value="'+String(otherSel?lbl:'').replace(/"/g,'&quot;')+'" style="display:'+(otherSel?'block':'none')+';width:100%;margin-top:6px;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;">';
+        return h;
+    }
+    function woEditAssetPick(){ var s=document.getElementById('woeAssetSel'); var t=document.getElementById('woeAsset'); if(!s||!t)return; t.style.display=(s.value==='__other__')?'block':'none'; }
+    function woEditOpen(){
+        var d=window._woDetail; if(!d){ return; }
+        var stores=((typeof HUB_STORES!=='undefined'?HUB_STORES.slice():['Roadrunner','Valley','Lenox','Alamogordo','Roswell']).concat(['Warehouse']));
+        var h='<div style="background:#fff;border-radius:14px;max-width:520px;width:100%;margin-top:20px;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.3);max-height:88vh;overflow:auto;box-sizing:border-box;"><h3 style="margin:0 0 3px;color:#1f2a44;">Edit work order details</h3><div style="font-size:12px;color:#6b7686;margin-bottom:8px;">'+escapeHtml(d.wo_number||'')+'</div>';
+        h+=woField('woeTitle','What is wrong?',d.title);
+        h+='<label style="display:block;font-size:12px;color:#6b7686;margin:8px 0 3px;">Details</label><textarea id="woeDesc" style="width:100%;height:64px;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;">'+escapeHtml(d.description||'')+'</textarea>';
+        h+=woSelect('woeStore','Store / location',stores,d.location||'');
+        h+=woEditAssetField(d);
+        h+=woSelect('woeCat','Type',['repair','damage','safety','other'],woNormCat(d.category));
+        h+=woPriSelect('woePri',d.priority);
+        h+=woSelect('woeUse','Equipment status',['','in_use','backup','out_of_service'],d.equipment_use_status||'');
+        h+='<label style="display:flex;align-items:center;gap:8px;margin:10px 0;font-size:13px;cursor:pointer;"><input type="checkbox" id="woeSafety"'+(d.safety_impact?' checked':'')+'> This is a safety issue</label>';
+        h+='<div id="woeMsg" style="font-size:12.5px;color:#c0264b;margin:6px 0;"></div>';
+        h+='<div style="display:flex;gap:8px;"><button onclick="woModalClose()" style="flex:1;background:#eef0f3;border:none;border-radius:9px;padding:11px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="woDoEdit('+d.id+')" style="flex:2;background:#185FA5;color:#fff;border:none;border-radius:9px;padding:11px;font-weight:800;cursor:pointer;">Save changes</button></div></div>';
+        woModal(h);
+    }
+    function woDoEdit(id){
+        var t=woVal('woeTitle').trim(); var m=document.getElementById('woeMsg');
+        if(!t){ if(m)m.textContent='Title is required.'; return; }
+        var sel=document.getElementById('woeAssetSel'); var aid=null, alabel=woVal('woeAsset');
+        if(sel && sel.value && sel.value!=='__other__'){ aid=parseInt(sel.value,10); alabel=((sel.options[sel.selectedIndex]||{}).text||alabel); }
+        withPin(function(pin){
+            supabaseClient.rpc('app_wo_edit',{p_username:currentUser.username,p_password:pin,p_id:id,p_title:t,p_description:woVal('woeDesc'),p_location:woVal('woeStore'),p_category:woVal('woeCat'),p_priority:woVal('woePri'),p_asset_id:aid,p_asset_label:alabel,p_equipment_use_status:woVal('woeUse')||null,p_safety_impact:document.getElementById('woeSafety').checked}).then(function(r){
+                if(r.error){ if(m)m.textContent=(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':r.error.message); return; }
+                woModalClose(); woOpenDetail(id);
+            }).catch(function(){ if(m)m.textContent='Could not save.'; });
+        });
+    }
     function woAssign(id){
+        var d=window._woDetail||{};
         var maint=(_wo.people&&_wo.people.maint)||[];
         var opts='<option value="">&mdash; unchanged &mdash;</option>'+maint.map(function(p){return '<option value="'+p.id+'">'+escapeHtml(p.name)+' ('+escapeHtml(p.role)+')</option>';}).join('');
-        var h='<div style="background:#fff;border-radius:14px;max-width:480px;width:100%;margin-top:20px;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.3);"><h3 style="margin:0 0 12px;color:#1f2a44;">Assign / route work order</h3>';
+        // TEMPORARY DELEGATION (maintenance #4): hand a WO to another maintenance person for a
+        // limited time (owner is out, specialist needed) without changing the permanent owner.
+        // Pre-filled from the current row so re-saving assignment keeps it; blank clears it.
+        var dopts='<option value="">&mdash; none &mdash;</option>'+maint.map(function(p){return '<option value="'+p.id+'"'+(parseInt(d.delegated_to,10)===parseInt(p.id,10)?' selected':'')+'>'+escapeHtml(p.name)+' ('+escapeHtml(p.role)+')</option>';}).join('');
+        var untilVal=d.delegation_until?String(d.delegation_until).slice(0,10):'';
+        var h='<div style="background:#fff;border-radius:14px;max-width:480px;width:100%;margin-top:20px;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.3);max-height:88vh;overflow:auto;box-sizing:border-box;"><h3 style="margin:0 0 12px;color:#1f2a44;">Assign / route work order</h3>';
         h+='<label style="display:block;font-size:12px;color:#6b7686;margin-bottom:3px;">Owner (Maintenance)</label><select id="woaOwner" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;box-sizing:border-box;">'+opts+'</select>';
         h+='<label style="display:block;font-size:12px;color:#6b7686;margin-bottom:3px;">Backup (covers if owner is unavailable)</label><select id="woaBackup" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;box-sizing:border-box;">'+opts+'</select>';
+        h+='<div style="border-top:1px solid #eef0f3;margin:12px 0 8px;"></div><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#5b6675;margin-bottom:3px;">Temporary delegation</div><div style="font-size:11.5px;color:#6b7686;margin-bottom:6px;">Optional. Hand this work order to someone else for a limited time. Leave blank for none.</div>';
+        h+='<label style="display:block;font-size:12px;color:#6b7686;margin-bottom:3px;">Delegate to</label><select id="woaDelegate" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;box-sizing:border-box;">'+dopts+'</select>';
+        h+='<label style="display:block;font-size:12px;color:#6b7686;margin-bottom:3px;">Delegate until</label><input type="date" id="woaUntil" value="'+untilVal+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;box-sizing:border-box;font-size:13px;">';
         h+='<div id="woaMsg" style="font-size:12.5px;color:#c0264b;margin:6px 0;"></div>';
         h+='<div style="display:flex;gap:8px;"><button onclick="woModalClose()" style="flex:1;background:#eef0f3;border:none;border-radius:9px;padding:11px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="woDoAssign('+id+')" style="flex:2;background:#185FA5;color:#fff;border:none;border-radius:9px;padding:11px;font-weight:800;cursor:pointer;">Save</button></div></div>';
         woModal(h);
     }
     function woDoAssign(id){
-        var owner=woVal('woaOwner'), backup=woVal('woaBackup');
+        var owner=woVal('woaOwner'), backup=woVal('woaBackup'), deleg=woVal('woaDelegate'), until=woVal('woaUntil');
         withPin(function(pin){
-            supabaseClient.rpc('app_wo_assign',{p_username:currentUser.username,p_password:pin,p_id:id,p_assigned_to:owner?parseInt(owner,10):null,p_backup_to:backup?parseInt(backup,10):null,p_delegated_to:null,p_delegation_until:null,p_vendor_id:null}).then(function(r){
+            supabaseClient.rpc('app_wo_assign',{p_username:currentUser.username,p_password:pin,p_id:id,p_assigned_to:owner?parseInt(owner,10):null,p_backup_to:backup?parseInt(backup,10):null,p_delegated_to:deleg?parseInt(deleg,10):null,p_delegation_until:until||null,p_vendor_id:null}).then(function(r){
                 if(r.error){ document.getElementById('woaMsg').textContent=(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':r.error.message); return; }
                 woModalClose(); woOpenDetail(id);
             }).catch(function(){ document.getElementById('woaMsg').textContent='Could not save.'; });
