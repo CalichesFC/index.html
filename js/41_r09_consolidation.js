@@ -149,10 +149,50 @@
         }catch(e){ return false; }
     }
 
+    // --- DAMAGE (maintenance #2, one intake): Vehicle/Trailer/Cart Damage -> Work Orders ---
+    // damage_reports is a 0-row orphan store (its old "Report a Repair" sibling already redirects
+    // here). Fold it into Work Orders the same way, forcing Type = Damage. Work Orders is strictly
+    // more capable for a damage repair (photos, priority, safety flag, assignment, board tracking).
+    function goWorkOrdersDamage(pre, carryPhotos){
+        try{
+            if(typeof window.openWorkOrders!=='function') return false;
+            window.openWorkOrders();
+            try{ if(typeof _wo!=='undefined' && _wo) _wo.tab='report'; }catch(e){}
+            notice('&#9888;&#65039; <b>Damage reports are now Work Orders.</b> Vehicle, trailer &amp; cart damage is logged here (Type: Damage) so it gets photos, a priority, an owner and board tracking. Fill in the details and submit.');
+            setTimeout(function(){
+                try{ var c=byId('woCat'); if(c) c.value='damage'; }catch(e){}
+                if(carryPhotos){
+                    try{
+                        var ph=null; try{ ph=window.damagePhotos; }catch(e){}
+                        if(ph && ph.length && typeof _wo!=='undefined' && _wo){
+                            _wo.repPhotos=(_wo.repPhotos||[]).concat(ph.slice());
+                            if(typeof woRepPhotoRender==='function') woRepPhotoRender();
+                        }
+                    }catch(e){}
+                }
+            }, 500);
+            if(pre){ setTimeout(function(){ prefill(pre,0); }, 450); }
+            return true;
+        }catch(e){ return false; }
+    }
+    // Read whatever the user typed in the legacy damage form (back-nav / deep-link case) so a
+    // submit there carries into the Work Order instead of being lost.
+    function damagePrefill(){
+        try{
+            var f=byId('damageForm'); if(!f) return null;
+            var g=function(sel){ var el=f.querySelector(sel); return el?(el.value||''):''; };
+            var asset=g('[name="DamageAsset"]'), cause=g('[name="IncidentCause"]'),
+                when=g('[name="IncidentDate"]'), desc=g('[name="DamageDescription"]');
+            var d=[]; if(cause) d.push('What happened: '+cause); if(when) d.push('Date of incident: '+when); if(desc) d.push(desc);
+            return { woItem:asset, woTitle:(asset?('Damage: '+asset):'Damage report'), woDesc:d.join('\n') };
+        }catch(e){ return null; }
+    }
+
     hookFn('openForm', function(orig){
         return function(formId){
             try{
                 if(formId==='maintenanceView' && goWorkOrdersReport(null)) return;
+                if(formId==='damageView' && goWorkOrdersDamage(null,false)) return;
             }catch(e){}
             return orig.apply(this, arguments);
         };
@@ -182,6 +222,17 @@
                     try{ var f=byId('maintenanceForm'); if(f){ var d=f.querySelector('textarea[name="IssueDescription"]'); if(d) desc=d.value||''; } }catch(e){}
                     try{ var l=byId('maintLoc'); if(l) loc=l.value||''; }catch(e){}
                     if(goWorkOrdersReport({ woTitle:item, woDesc:desc, woStore:loc })) return;
+                }
+            }catch(e){}
+            return orig.apply(this, arguments);
+        };
+    }, 0);
+
+    hookFn('submitDamage', function(orig){
+        return function(){
+            try{
+                if(typeof window.openWorkOrders==='function'){
+                    if(goWorkOrdersDamage(damagePrefill(), true)) return;
                 }
             }catch(e){}
             return orig.apply(this, arguments);
@@ -281,6 +332,9 @@
         injectBanner('maintenanceView','r09MaintMoved',
             '&#128736; <b>This form has moved.</b> Repairs are now reported and tracked in <b>Work Orders</b> — one place to report, assign and complete repairs. Submitting here will open Work Orders instead. Your past reports are still under <b>My Submissions</b>.'
             + bannerBtn('Open Work Orders', "try{if(window.r09)window.r09.wo();}catch(e){}"));
+        injectBanner('damageView','r09DamageMoved',
+            '&#9888;&#65039; <b>This form now creates a Work Order.</b> Vehicle, trailer &amp; cart damage is tracked in <b>Work Orders</b> (Type: Damage) with photos, a priority and an owner. Submitting here will open Work Orders with your details carried over.'
+            + bannerBtn('Open Work Orders', "try{if(window.r09)window.r09.damage();}catch(e){}"));
         injectBanner('harassReportView','r09HarassMoved',
             '&#128274; <b>This form has moved.</b> Confidential concerns now go through <b>Your Voice &rarr; Report a Concern</b> — the same privacy (Admin Managers only, anonymous option) plus a reference + access code to follow up. Submitting here will open Your Voice instead.'
             + bannerBtn('Open Your Voice', "try{if(window.r09)window.r09.voice();}catch(e){}"));
@@ -292,12 +346,17 @@
             var b=byId('btn-maintenance');
             if(b){ var sm=b.querySelector('small'); if(sm) sm.textContent='Opens Work Orders — report & track repairs'; }
         }catch(e){}
+        try{
+            var bd=byId('btn-damage');
+            if(bd){ var smd=bd.querySelector('small'); if(smd) smd.textContent='Creates a Work Order (Type: Damage) with photos'; }
+        }catch(e){}
     }
 
     // public surface for the banner buttons (inline onclick)
     try{
         window.r09 = {
             wo: function(){ try{ if(!goWorkOrdersReport(null) && typeof openMenu==='function') openMenu(); }catch(e){} },
+            damage: function(){ try{ if(!goWorkOrdersDamage(null,false) && typeof openMenu==='function') openMenu(); }catch(e){} },
             supply: function(){ try{ if(!goSupply(null) && typeof openMenu==='function') openMenu(); }catch(e){} },
             voice: function(){ try{ if(!goVoiceConcern() && typeof openMenu==='function') openMenu(); }catch(e){} }
         };
