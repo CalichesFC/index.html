@@ -364,7 +364,7 @@
             </div>
             <div id="maintPaneReport" class="sched-pane">
                 <button id="btn-maintenance" class="menu-btn" style="display:none;" onclick="openForm('maintenanceView')"><span class="rchip staff">Staff</span><span class="tile-ic">&#128295;</span><b>Report a Repair</b><small>Flag broken equipment for repair</small></button>
-                <button id="btn-equipment" class="menu-btn" onclick="openEquipment()"><span class="rchip staff">Staff</span><span class="tile-ic">&#9881;</span><b>Equipment History</b><small>Records, QR codes &amp; repairs</small></button>
+                <button id="btn-equipment" class="menu-btn" onclick="openEquipment()"><span class="rchip staff">Staff</span><span class="tile-ic">&#9881;</span><b>Equipment &amp; Assets</b><small>Machines, fleet, QR codes &amp; repairs</small></button>
                 <button id="btn-workorders" class="menu-btn" style="display:none;" onclick="openWorkOrders()"><span class="rchip mgr">Maint</span><span class="tile-ic">&#128736;</span><b>Work Orders</b><small>Report, assign &amp; track repairs</small></button>
                 <button id="btn-vehicles" class="menu-btn" style="display:none;" onclick="openVehiclesService()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128666;</span><b>Vehicles &amp; Service</b><small>Mileage-based service tracker for trucks &amp; trailers</small></button>
                 <button id="btn-contacts" class="menu-btn" onclick="openContactsDir()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128222;</span><b>Important Contacts</b><small>Vendors, repairs, utilities &amp; escalation</small></button>
@@ -1695,8 +1695,8 @@
     <button class="back-btn" onclick="openMenu()">&#128281; Back to Menu</button>
     <div class="header" style="background:linear-gradient(120deg,#5b4636,#854F0B);">
         <h1 style="font-size:40px;margin:10px 0;">&#9881;&#65039;</h1>
-        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Equipment History</p>
-        <p style="font-size:12px;margin:6px 0 0 0;opacity:0.85;">Records, manuals, repairs &amp; QR codes</p>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Equipment &amp; Assets</p>
+        <p style="font-size:12px;margin:6px 0 0 0;opacity:0.85;">Machines, fleet, manuals, repairs &amp; QR codes</p>
     </div>
     <div class="container" style="max-width:760px;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">
@@ -1710,6 +1710,7 @@
             <button id="equipAddBtn" onclick="openEquipmentEdit(null)" style="display:none;flex:1;min-width:150px;background:var(--caliches-pink);color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">&#10133; Add equipment</button>
             <button id="equipPrintAllBtn" onclick="printStoreQRSheet()" style="display:none;flex:1;min-width:150px;background:#fff;border:1px solid #d8cfc2;border-radius:10px;padding:10px;font-size:13px;font-weight:700;color:#854F0B;cursor:pointer;">&#128424;&#65039; Print all QR codes</button>
             <button id="equipMaintDueBtn" onclick="openMaintDue()" style="flex:1;min-width:150px;background:#fff4e0;border:1px solid #f0d9a8;border-radius:10px;padding:10px;font-size:13px;font-weight:700;color:#9a5b00;cursor:pointer;">&#128295; Maintenance due</button>
+            <button id="equipFleetBtn" onclick="openFleetAssets()" style="display:none;flex:1;min-width:150px;background:#eef3fb;border:1px solid #cfe0f5;border-radius:10px;padding:10px;font-size:13px;font-weight:700;color:#185FA5;cursor:pointer;">&#128666; Fleet &amp; vehicles</button>
         </div>
         <div id="maintDueBox" data-open="0" style="display:none;margin-bottom:12px;"></div>
         <div id="equipList"><p style="text-align:center;color:#6b7686;padding:30px;">Loading&hellip;</p></div>
