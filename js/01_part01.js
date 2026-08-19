@@ -1072,6 +1072,36 @@
         });
     }
     /* =================== END PINNED ANNOUNCEMENTS =================== */
+    /* OVERDUE WORK-ORDER HOME FLAG (maintenance #3): a red home card for managers & maintenance
+       when any work order they oversee is past its due date. Pairs with the daily push sweep
+       (app_wo_overdue_reminder) so an overdue repair cannot quietly sit. Self-contained: reuses
+       app_wo_list and does its own YYYY-MM-DD overdue compare. Front-line staff are not flagged. */
+    function _woHomeToday(){ var n=new Date(); var m=n.getMonth()+1, dd=n.getDate(); return n.getFullYear()+'-'+(m<10?'0':'')+m+'-'+(dd<10?'0':'')+dd; }
+    function loadOverdueWOFlag(){
+        var host=document.getElementById('homeDayCard'); if(!host) return;
+        var role=(currentUser&&currentUser.role)||'';
+        var mgr=['Admin Manager','Manager','Vice President/Co-Owner','Store Manager'].indexOf(role)>=0;
+        var maint=['Maintenance Lead','Maintenance Contributor'].indexOf(role)>=0;
+        if(!mgr && !maint){ var c0=document.getElementById('homeOverdueCard'); if(c0){ c0.innerHTML=''; c0.style.display='none'; } return; }
+        var scope=mgr?'store':'queue';
+        withPin(function(pin){
+            supabaseClient.rpc('app_wo_list',{p_username:currentUser.username,p_password:pin,p_scope:scope}).then(function(r){
+                var card=document.getElementById('homeOverdueCard');
+                var list=(r && !r.error && Array.isArray(r.data))?r.data:[];
+                var today=_woHomeToday();
+                var od=list.filter(function(w){ return w.due_date && ['Closed','Cancelled','Verified'].indexOf(w.status)<0 && String(w.due_date).slice(0,10) < today; });
+                if(!od.length){ if(card){ card.innerHTML=''; card.style.display='none'; } return; }
+                if(!card){ card=document.createElement('div'); card.id='homeOverdueCard'; var before=document.getElementById('homeActionCard')||document.getElementById('homePinnedCard'); host.parentNode.insertBefore(card, before||host); }
+                card.style.display='block';
+                var n=od.length;
+                card.innerHTML='<div onclick="openWorkOrders()" style="background:#fdecec;border:1px solid #f3b4b4;border-left:4px solid #c0264b;border-radius:12px;padding:13px 14px;margin-bottom:10px;box-shadow:0 3px 6px rgba(0,0,0,0.05);cursor:pointer;">'+
+                  '<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;"><span style="font-size:15px;">&#9200;</span><span style="font-size:11px;font-weight:800;letter-spacing:.04em;color:#a01b3e;">OVERDUE WORK '+(n>1?'ORDERS':'ORDER')+'</span></div>'+
+                  '<div style="font-size:14px;font-weight:800;color:#7a1530;">'+n+' work order'+(n>1?'s are':' is')+' past due</div>'+
+                  '<div style="font-size:12.5px;color:#9a5b66;margin-top:2px;">Tap to review and update '+(n>1?'them':'it')+' in Work Orders.</div>'+
+                '</div>';
+            }).catch(function(){ var card=document.getElementById('homeOverdueCard'); if(card){ card.innerHTML=''; card.style.display='none'; } });
+        });
+    }
     function renderHomeDay(d) {
         var el = document.getElementById('homeDayCard');
         if (!el) return;
@@ -1093,6 +1123,7 @@
         try{ renderHomeSearch(); }catch(e){}
         try{ loadActionItems(); }catch(e){}
         try{ loadPinnedAnnouncements(); }catch(e){}
+        try{ loadOverdueWOFlag(); }catch(e){}
     }
 
     // ── Personalized "Jump to": most-used tools, learned from clicks ──
