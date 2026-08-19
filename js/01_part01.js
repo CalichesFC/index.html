@@ -915,7 +915,15 @@
         h+=mdTile('Cost logged', mdMoney(d.cost_logged),'in window');
         h+=mdTile('Invoices open', mdMoney(d.invoice_open_total),'awaiting',(d.invoice_open_total>0?'#9a5b00':'#1f2a44'));
         h+=mdTile('Invoices paid', mdMoney(d.invoice_paid_total),'in window','#1b7a3d');
+        // #150 analytics tiles: mean time to resolve, overdue count, PM compliance
+        var _mt=d.mttr||{}; var _mtVal=(_mt.n>0)?((_mt.avg_days>=1)?(_mt.avg_days+'d'):((_mt.avg_hours||0)+'h')):'&mdash;';
+        h+=mdTile('Avg time to close', _mtVal, (_mt.n>0?('over '+_mt.n+' closed'):'no closes yet'));
+        h+=mdTile('Overdue open', (d.overdue_open!=null?d.overdue_open:'0'),'past due',((d.overdue_open||0)>0?'#a01b3e':'#1b7a3d'));
+        var _pm0=d.pm_compliance||{}; var _pmc=(_pm0.pct!=null?_pm0.pct+'%':'&mdash;'); var _pmcolor=(_pm0.pct==null?'#1f2a44':(_pm0.pct>=80?'#1b7a3d':(_pm0.pct>=50?'#9a5b00':'#a01b3e')));
+        h+=mdTile('PM on schedule', _pmc, ((_pm0.overdue||0)>0?(_pm0.overdue+' overdue'):(_pm0.active?'all current':'no PM set')), _pmcolor);
         h+='</div>';
+        var cbc=d.cost_by_category||[];
+        if(cbc.length){ var _cbcStr=cbc.map(function(r){ return '<span style="text-transform:capitalize;">'+escapeHtml(r.category||'')+'</span> '+mdMoney(r.total); }).join(' &nbsp;&middot;&nbsp; '); h+='<div style="font-size:12px;color:#5b6675;margin:-4px 2px 12px;">Spend by work type: '+_cbcStr+'</div>'; }
         h+='<div id="mdOpenIssues" style="margin-bottom:12px;"></div>';
         h+='<div style="background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:13px;margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:8px;">By store</div>';
         var bs=d.by_store||[];
@@ -933,6 +941,25 @@
         var bk=d.cost_by_kind||[];
         if(!bk.length){ h+='<div style="color:#5b6675;font-size:13px;">No costs logged.</div>'; } else { bk.forEach(function(r){ h+='<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid #f7f8fb;font-size:13px;"><span style="color:#33303a;text-transform:capitalize;">'+escapeHtml(r.kind||'')+'</span><b style="color:#1f2a44;">'+mdMoney(r.total)+'</b></div>'; }); }
         h+='</div></div>';
+        // #150: repeat failures + cost per machine
+        h+='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;">';
+        h+='<div style="flex:1;min-width:240px;background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:13px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:8px;">&#128260; Repeat failures</div>';
+        var ra=d.repeat_assets||[];
+        if(!ra.length){ h+='<div style="color:#5b6675;font-size:13px;">No equipment with repeat work orders in this window &mdash; good sign.</div>'; }
+        else { ra.forEach(function(r){ h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-top:1px solid #f7f8fb;font-size:13px;"><span style="color:#33303a;">'+escapeHtml(r.asset||'')+'</span><span><b style="color:#a01b3e;">'+(r.total||0)+' WOs</b>'+((r.open||0)>0?(' <span style="color:#9a5b00;font-size:11.5px;">('+r.open+' open)</span>'):'')+'</span></div>'; }); h+='<div style="font-size:11px;color:#8a93a2;margin-top:6px;">Equipment with 2+ work orders in the window &mdash; candidates for replacement or a PM plan.</div>'; }
+        h+='</div>';
+        h+='<div style="flex:1;min-width:240px;background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:13px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:8px;">&#128176; Cost per machine (window)</div>';
+        var ca=d.cost_by_asset||[];
+        if(!ca.length){ h+='<div style="color:#5b6675;font-size:13px;">No costs logged yet in this window.</div>'; }
+        else { ca.forEach(function(r){ h+='<div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid #f7f8fb;font-size:13px;"><span style="color:#33303a;">'+escapeHtml(r.asset||'')+'<span style="color:#9aa7b4;font-size:11px;"> &middot; '+(r.n||0)+' WO'+((r.n||0)>1?'s':'')+'</span></span><b style="color:#1f2a44;">'+mdMoney(r.total)+'</b></div>'; }); }
+        h+='</div></div>';
+        // #150: PM compliance detail
+        var pm=d.pm_compliance||{};
+        if(pm.active){ h+='<div style="background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:13px;margin-top:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:8px;">Preventive maintenance schedule</div><div style="display:flex;gap:9px;flex-wrap:wrap;">'+
+            mdTile('On schedule',(pm.on_time||0),'of '+pm.active+' machines','#1b7a3d')+
+            mdTile('Overdue',(pm.overdue||0),'need service',((pm.overdue||0)>0?'#a01b3e':'#1b7a3d'))+
+            mdTile('Due soon',(pm.due_soon||0),'next 7 days',((pm.due_soon||0)>0?'#9a5b00':'#1f2a44'))+
+          '</div></div>'; }
         h+='<div id="mdVendorSpend" style="margin-top:12px;"></div>';
         h+='<p style="font-size:11.5px;color:#5b6675;margin-top:14px;">Numbers come from logged work-order costs and maintenance invoices. As more work orders are closed and invoices entered, this view fills in automatically.</p>';
         h+='</div>';
