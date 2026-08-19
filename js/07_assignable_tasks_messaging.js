@@ -286,7 +286,9 @@
     // EQUIPMENT HISTORY + QR CODES
     // ============================================================
     var EQUIP_BASE = 'https://calichesfc.github.io/index.html/index.html';
-    function equipQrUrl(id, size, action){ var _u=EQUIP_BASE+'?equip='+id+(action?'&go='+action:''); return 'https://api.qrserver.com/v1/create-qr-code/?size='+size+'x'+size+'&margin=8&data='+encodeURIComponent(_u); }
+    // ONE QR (maintenance #5): emit the unified ?asset=eq-<id> format for new labels. Old ?equip=
+    // stickers still resolve (js/02 keeps that handler), so nothing already printed breaks.
+    function equipQrUrl(id, size, action){ var _u=EQUIP_BASE+'?asset=eq-'+id+(action?'&go='+action:''); return 'https://api.qrserver.com/v1/create-qr-code/?size='+size+'x'+size+'&margin=8&data='+encodeURIComponent(_u); }
     function equipStatusBadge(st){
         st=(st||'ok').toLowerCase();
         var map={ok:['#1f7a3d','#e7f6ec','Operational'], watch:['#854F0B','#fdf3e8','Watch'], down:['#c0264b','#fdeaea','Down']};
@@ -306,11 +308,40 @@
         }
         loadEquipment();
     }
+    // ONE ASSET ENTRY POINT (maintenance #5): the Equipment screen also reaches the fleet register
+    // (vehicles, trailers, carts) so there is a single door to every asset. Reuses app_cv_asset_list
+    // and routes each row to the existing fleet profile (cva.profile) — no data merge, no schema change.
+    function openFleetAssets(){
+        var box=document.getElementById('equipList'); if(!box) return;
+        var srch=document.getElementById('equipSearch'); if(srch) srch.value='';
+        box.innerHTML='<p style="text-align:center;color:#6b7686;padding:24px;">Loading fleet &amp; vehicles&hellip;</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_cv_asset_list',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                var backBtn='<div style="text-align:center;margin-top:10px;"><button onclick="loadEquipment()" style="background:#eef0f3;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;">&larr; Store equipment</button></div>';
+                if(r.error){ box.innerHTML='<div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:18px;text-align:center;color:#6b7686;font-size:13px;">'+(String(r.error.message||'').indexOf('forbidden')>=0?'Fleet &amp; vehicles is available to managers.':'Could not load fleet.')+'</div>'+backBtn; return; }
+                var assets=(r.data&&r.data.assets)||[];
+                var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><button onclick="loadEquipment()" style="background:#eef0f3;border:none;border-radius:8px;padding:7px 12px;font-weight:700;cursor:pointer;font-size:12.5px;">&larr; Store equipment</button><b style="flex:1;font-size:14px;color:#5b4636;">&#128666; Fleet &amp; vehicles</b></div>';
+                if(!assets.length){ box.innerHTML=h+'<div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:18px;text-align:center;color:#6b7686;font-size:13px;">No fleet assets yet.</div>'; return; }
+                assets.forEach(function(a){
+                    var kind=String(a.kind||'').toLowerCase();
+                    var ic=(kind==='vehicle')?'&#128667;':(kind==='trailer')?'&#128668;':(kind==='cart')?'&#128679;':'&#128230;';
+                    h+='<div onclick="try{cva.profile('+a.id+')}catch(e){}" style="background:#fff;border:1px solid #ececf2;border-radius:12px;padding:12px 14px;margin-bottom:9px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.04);display:flex;align-items:center;gap:10px;">'+
+                       '<span style="font-size:20px;">'+ic+'</span>'+
+                       '<div style="flex:1;"><b style="font-size:14px;color:#26242b;">'+escapeHtml(a.name||('#'+a.id))+'</b><div style="font-size:11.5px;color:#5b6675;text-transform:capitalize;">'+escapeHtml(kind||'asset')+(a.identifier?(' &middot; '+escapeHtml(a.identifier)):'')+(a.market?(' &middot; '+escapeHtml(a.market)):'')+'</div></div>'+
+                       '<span style="color:#9aa7b4;font-size:18px;">&#8250;</span>'+
+                     '</div>';
+                });
+                box.innerHTML=h;
+            }).catch(function(){ box.innerHTML='<div style="padding:18px;text-align:center;color:#c0264b;">Could not load fleet.</div>'; });
+        });
+    }
     function loadEquipment(){
         var box=document.getElementById('equipList'); if(!box) return;
         var admin=(typeof isAdminManager==='function' && isAdminManager());
         var addBtn=document.getElementById('equipAddBtn'); if(addBtn) addBtn.style.display=admin?'block':'none';
         var prtBtn=document.getElementById('equipPrintAllBtn'); if(prtBtn) prtBtn.style.display='block';
+        var fleetBtn=document.getElementById('equipFleetBtn');
+        if(fleetBtn){ var _r=String((currentUser&&currentUser.role)||'').toLowerCase(); var _pf=['manager','admin','owner','vp','president','director','lead','supervisor','catering','vending']; var _cf=(currentUser&&currentUser.is_developer===true); for(var _i=0;_i<_pf.length && !_cf;_i++){ if(_r.indexOf(_pf[_i])>=0) _cf=true; } fleetBtn.style.display=_cf?'block':'none'; }
         var store=document.getElementById('equipStoreSel').value;
         window._equipIsWarehouse=(store==='Warehouse');
         box.innerHTML='<p style="text-align:center;color:#6b7686;padding:20px;">Loading&hellip;</p>';

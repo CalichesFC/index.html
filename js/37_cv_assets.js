@@ -378,7 +378,9 @@
 
     // ---------- Fleet asset profile: QR + report a problem + unified history ----------
     var CVA_QR_BASE='https://calichesfc.github.io/index.html/index.html';
-    function cvaQrUrl(id,size,action){ var u=CVA_QR_BASE+'?cvasset='+id+(action?'&go='+action:''); return 'https://api.qrserver.com/v1/create-qr-code/?size='+size+'x'+size+'&margin=8&data='+encodeURIComponent(u); }
+    // ONE QR (maintenance #5): emit the unified ?asset=cv-<id> format for new labels. Old ?cvasset=
+    // stickers still resolve (js/02 keeps that handler), so nothing already printed breaks.
+    function cvaQrUrl(id,size,action){ var u=CVA_QR_BASE+'?asset=cv-'+id+(action?'&go='+action:''); return 'https://api.qrserver.com/v1/create-qr-code/?size='+size+'x'+size+'&margin=8&data='+encodeURIComponent(u); }
     function cvaKindChip(kind){ var m={work_order:['#eaf1fb','#106ab3','Work order'],issue:['#fdeaea','#a01b3e','Issue'],pm:['#e6f6ec','#1f7a3d','PM'],log:['#eef2f7','#3a4353','Log']}; var c=m[kind]||m.log; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:2px 8px;border-radius:99px;">'+c[2]+'</span>'; }
     function cvaStatusChip(st){ var s=String(st||'').toLowerCase(); var c=(s.indexOf('resolv')>=0||s.indexOf('done')>=0||s.indexOf('complet')>=0||s.indexOf('closed')>=0)?['#e8f5ec','#1b7a3d']:(s.indexOf('progress')>=0||s.indexOf('assigned')>=0)?['#eef3fb','#185FA5']:(s.indexOf('hold')>=0)?['#fff4e0','#9a5b00']:(s.indexOf('open')>=0||s.indexOf('report')>=0)?['#fdeaea','#a01b3e']:['#fff4e0','#9a5b00']; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:99px;">'+esc(st||'')+'</span>'; }
     function cvaAssetProfile(id){

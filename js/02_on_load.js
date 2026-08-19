@@ -18,6 +18,10 @@
         setTimeout(maybeShowHowTo, 1300);
         if (window._pendingEquip) { var _eq=window._pendingEquip; var _eqGo=window._pendingEquipGo; window._pendingEquip=null; window._pendingEquipGo=null; try { if(history.replaceState) history.replaceState(null,'',location.pathname); } catch(e){} setTimeout(function(){ if(_eqGo==='report' && typeof woReportForEquipment==='function'){ woReportForEquipment(parseInt(_eq,10)); } else if(typeof openEquipmentDetail==='function'){ openEquipmentDetail(parseInt(_eq,10)); } }, 800); }
         if (window._pendingCvAsset) { var _cv=window._pendingCvAsset; window._pendingCvAsset=null; try { if(history.replaceState) history.replaceState(null,'',location.pathname); } catch(e){} setTimeout(function(){ try{ if(typeof openCatering==='function') openCatering(); }catch(e){} setTimeout(function(){ try{ if(window.cva && typeof cva.profile==='function') cva.profile(parseInt(_cv,10)); }catch(e){} }, 1100); }, 800); }
+        // ONE QR (maintenance #5): a single unified sticker format ?asset=eq-<id> / ?asset=cv-<id>
+        // resolves to the right profile. Legacy ?equip= and ?cvasset= stickers keep working above,
+        // so nothing already printed breaks; new labels use this one format.
+        if (window._pendingAsset) { var _a=window._pendingAsset; window._pendingAsset=null; try { if(history.replaceState) history.replaceState(null,'',location.pathname); } catch(e){} setTimeout(function(){ try{ if(_a.type==='cv'){ if(typeof openCatering==='function') openCatering(); setTimeout(function(){ try{ if(window.cva && typeof cva.profile==='function') cva.profile(_a.id); }catch(e){} }, 1100); } else { if(_a.go==='report' && typeof woReportForEquipment==='function'){ woReportForEquipment(_a.id); } else if(typeof openEquipmentDetail==='function'){ openEquipmentDetail(_a.id); } } }catch(e){} }, 800); }
         if (window._pendingGo === 'tasks') { window._pendingGo=null; try { if(history.replaceState) history.replaceState(null,'',location.pathname); } catch(e){} setTimeout(function(){ try { if(typeof hubNav==='function') hubNav('tasks'); } catch(e){} }, 700); }
         setTimeout(checkScheduleGate, 450);
         resetTimer();
@@ -309,7 +313,7 @@
         if (frOrgRoute()) return;
         if (checkQuoteAcceptRoute()) return;
         if (checkInvoiceRoute()) return;
-        try { var _qsp=new URLSearchParams(window.location.search); window._pendingEquip = _qsp.get('equip'); window._pendingEquipGo = _qsp.get('go'); window._pendingCvAsset = _qsp.get('cvasset'); window._pendingGo = (!_qsp.get('equip') && !_qsp.get('cvasset') && _qsp.get('go')==='tasks') ? 'tasks' : null; } catch(e) {}
+        try { var _qsp=new URLSearchParams(window.location.search); window._pendingEquip = _qsp.get('equip'); window._pendingEquipGo = _qsp.get('go'); window._pendingCvAsset = _qsp.get('cvasset'); var _am=(_qsp.get('asset')||'').match(/^\s*(eq|cv)[-:]?(\d+)\s*$/i); window._pendingAsset=_am?{type:_am[1].toLowerCase(),id:parseInt(_am[2],10),go:_qsp.get('go')}:null; window._pendingGo = (!_qsp.get('equip') && !_qsp.get('cvasset') && !_am && _qsp.get('go')==='tasks') ? 'tasks' : null; } catch(e) {}
         addQuoteRow(); addQuoteRow(); addQuoteRow();
         populateQuoteTemplates();
         let savedUser = localStorage.getItem('calichesUser');
