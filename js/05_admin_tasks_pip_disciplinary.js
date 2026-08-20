@@ -869,7 +869,7 @@
             supabaseClient.rpc('app_emp_home', { p_username: currentUser.username, p_password: pin }).then(function(res) {
                 if (res.error) { if (res.error.code === '42501') sessionPin = null; c.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Could not load: ' + escapeHtml(res.error.message) + '</p>'; return; }
                 empHomeRender(res.data || {});
-                if (res.data && res.data.linked) loadMyTasks('empTasksCard');
+                if (res.data && res.data.linked) { loadMyTasks('empTasksCard'); loadOpenShiftsForMe(); }
             }).catch(function() { c.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Connection error.</p>'; });
         }, function() { c.innerHTML = '<p style="text-align:center;padding:30px;color:#6b7686;">PIN required.</p>'; });
     }
@@ -897,6 +897,7 @@
             '<h2 style="margin:0;color:var(--caliches-blue);font-size:20px;">Hi, ' + escapeHtml(name) + '! &#128075;</h2>' +
             (d.employee && d.employee.home_location ? '<p style="margin:4px 0 0;color:#6b7686;font-size:13px;">Home store: ' + escapeHtml(d.employee.home_location) + '</p>' : '') + '</div>';
         html += '<div id="empTasksCard"></div>';
+        html += '<div id="empOpenShiftsCard"></div>';
 
         // PIP banner (own status, supportive tone)
         if (d.pip && d.pip.active) {
@@ -916,7 +917,10 @@
                 var lbl = s.date + '  ' + (s.start || '') + '-' + (s.end || '') + (s.location ? '  @ ' + s.location : '');
                 html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;' + (i < empHomeState.shifts.length - 1 ? 'border-bottom:1px solid #eee;' : '') + '">' +
                     '<span style="font-size:14px;color:#333;">' + escapeHtml(lbl) + '</span>' +
-                    '<button onclick="openSwap(' + s.id + ',' + i + ')" style="background:#0d6eaf;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:bold;cursor:pointer;white-space:nowrap;">Request cover</button></div>';
+                    '<span style="display:flex;gap:5px;white-space:nowrap;">' +
+                      '<button onclick="openSwap(' + s.id + ',' + i + ')" style="background:#0d6eaf;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:bold;cursor:pointer;">Cover</button>' +
+                      '<button onclick="openGiveAway(' + s.id + ',' + i + ')" style="background:#854F0B;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:bold;cursor:pointer;">Give away</button>' +
+                    '</span></div>';
             });
         }
         html += '</div>';
@@ -998,6 +1002,88 @@
         }, function(){ btn.disabled=false; btn.innerText='Submit Request'; });
     }
 
+    // ===== SHIFT MARKETPLACE — staff self-service (open-shift grab + give away / trade) =====
+    function msT(t){ if(!t) return ''; var p=String(t).split(':'); var h=+p[0]||0,m=p[1]||'00'; var ap=h<12?'a':'p'; var hh=h%12; if(hh===0)hh=12; return hh+(m!=='00'?(':'+m):'')+ap; }
+    function msRow(s, btnLabel, onclick, pos, sub){
+        var t=(msT(s.start_time)+'-'+msT(s.end_time));
+        return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #f0f0f0;">'+
+          '<span style="font-size:13.5px;color:#333;">'+escapeHtml(String(s.shift_date||''))+' '+escapeHtml(t)+(pos?(' &middot; '+escapeHtml(pos)):'')+(s.location?(' @ '+escapeHtml(s.location)):'')+(sub?('<br><span style="font-size:11.5px;color:#6b7686;">'+escapeHtml(sub)+'</span>'):'')+'</span>'+
+          '<button onclick="'+onclick+'" style="background:var(--pass-green,#1f7a3d);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:800;cursor:pointer;white-space:nowrap;">'+btnLabel+'</button></div>';
+    }
+    function loadOpenShiftsForMe(){
+        var card=document.getElementById('empOpenShiftsCard'); if(!card) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_open_shifts_for_me',{p_username:currentUser.username,p_password:pin}).then(function(res){
+                if(res.error||!res.data){ card.innerHTML=''; return; }
+                window._msCoworkers=res.data.coworkers||[];
+                var open=res.data.open_shifts||[], rel=res.data.releases||[];
+                if(!open.length && !rel.length){ card.innerHTML=''; return; }
+                var h='<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">';
+                h+='<h3 style="margin:0 0 4px;color:var(--caliches-blue);font-size:16px;">&#128588; Shifts you can grab</h3>';
+                h+='<p style="margin:0 0 8px;font-size:12px;color:#6b7686;">Open shifts and shifts coworkers are giving away. A manager confirms after you request.</p>';
+                open.forEach(function(s){ h+=msRow(s,'Grab','grabOpenShift('+s.shift_id+')',s.position_name,'Open shift'); });
+                rel.forEach(function(o){ h+=msRow(o,'Pick up','pickupRelease('+o.offer_id+')',o.position_name,(o.from_name?('from '+o.from_name):'Up for grabs')); });
+                h+='</div>'; card.innerHTML=h;
+            }).catch(function(){ card.innerHTML=''; });
+        });
+    }
+    function grabOpenShift(shiftId){
+        withPin(function(pin){
+            supabaseClient.rpc('app_openshift_claim',{p_username:currentUser.username,p_password:pin,p_shift_id:shiftId}).then(function(res){
+                if(res.error){ alert(res.error.message); return; }
+                alert('Requested! A manager will confirm and you’ll get a notification.'); loadEmployeeHome();
+            }).catch(function(){ alert('Connection error.'); });
+        });
+    }
+    function pickupRelease(offerId){
+        withPin(function(pin){
+            supabaseClient.rpc('app_offer_pickup',{p_username:currentUser.username,p_password:pin,p_offer_id:offerId}).then(function(res){
+                if(res.error){ alert(res.error.message); return; }
+                alert('Requested! A manager will confirm and you’ll get a notification.'); loadEmployeeHome();
+            }).catch(function(){ alert('Connection error.'); });
+        });
+    }
+    function openGiveAway(shiftId, idx){
+        var s=empHomeState.shifts[idx]||{};
+        var lbl=(s.date||'')+'  '+(s.start||'')+'-'+(s.end||'')+(s.location?('  @ '+s.location):'');
+        var m=document.getElementById('gaModal');
+        if(!m){ m=document.createElement('div'); m.id='gaModal'; m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100061;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;'; document.body.appendChild(m); }
+        m.innerHTML='<div style="background:#fff;border-radius:14px;max-width:440px;width:100%;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.3);">'+
+          '<h3 style="margin:0 0 4px;color:#1f2a44;">Give away this shift</h3>'+
+          '<div style="font-size:12.5px;color:#6b7686;margin-bottom:12px;">'+escapeHtml(lbl)+'</div>'+
+          '<button onclick="gaDoRelease('+shiftId+')" style="width:100%;background:#854F0B;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:8px;">&#128226; Post it for anyone to grab</button>'+
+          '<div style="text-align:center;font-size:12px;color:#9aa;margin:6px 0;">&mdash; or offer it to a specific coworker &mdash;</div>'+
+          '<select id="gaCoworker" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:9px;margin-bottom:8px;box-sizing:border-box;"><option value="">Loading coworkers&hellip;</option></select>'+
+          '<button onclick="gaDoOffer('+shiftId+')" style="width:100%;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;">&#128101; Offer to selected coworker</button>'+
+          '<div id="gaMsg" style="font-size:12.5px;color:#c0264b;margin-top:8px;min-height:16px;"></div>'+
+          '<button onclick="gaClose()" style="width:100%;background:#eef0f3;color:#5b6472;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;margin-top:6px;">Cancel</button>'+
+          '</div>';
+        m.style.display='flex';
+        var list=window._msCoworkers||[]; var sel=document.getElementById('gaCoworker');
+        if(sel){ sel.innerHTML='<option value="">&mdash; pick a coworker &mdash;</option>'+list.map(function(e){ return '<option value="'+e.id+'">'+escapeHtml(e.name||('#'+e.id))+'</option>'; }).join(''); }
+    }
+    function gaClose(){ var m=document.getElementById('gaModal'); if(m) m.style.display='none'; }
+    function gaDoRelease(shiftId){
+        var msg=document.getElementById('gaMsg'); if(msg) msg.textContent='';
+        withPin(function(pin){
+            supabaseClient.rpc('app_shift_release',{p_username:currentUser.username,p_password:pin,p_shift_id:shiftId}).then(function(res){
+                if(res.error){ if(msg) msg.textContent=res.error.message; return; }
+                gaClose(); alert('Posted! Coworkers can pick it up; a manager confirms the swap.'); loadEmployeeHome();
+            }).catch(function(){ if(msg) msg.textContent='Connection error.'; });
+        });
+    }
+    function gaDoOffer(shiftId){
+        var msg=document.getElementById('gaMsg'); if(msg) msg.textContent='';
+        var t=document.getElementById('gaCoworker'); var target=t?t.value:'';
+        if(!target){ if(msg) msg.textContent='Pick a coworker, or use “post for anyone” above.'; return; }
+        withPin(function(pin){
+            supabaseClient.rpc('app_swap_offer',{p_username:currentUser.username,p_password:pin,p_shift_id:shiftId,p_target_emp:parseInt(target,10)}).then(function(res){
+                if(res.error){ if(msg) msg.textContent=res.error.message; return; }
+                gaClose(); alert('Offered! Your coworker and a manager have been notified.'); loadEmployeeHome();
+            }).catch(function(){ if(msg) msg.textContent='Connection error.'; });
+        });
+    }
+
     // Manager: pending requests
     function openRequests() {
         document.getElementById('main-menu').style.display = 'none';
@@ -1010,9 +1096,15 @@
         var c=document.getElementById('requestsContent');
         c.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading requests...</p>';
         withPin(function(pin){
-            supabaseClient.rpc('app_requests_pending',{p_username:currentUser.username,p_password:pin}).then(function(res){
-                if(res.error){ if(res.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;padding:20px;">Could not load: '+escapeHtml(res.error.message)+'</p>'; return; }
-                requestsRender(res.data||{});
+            Promise.all([
+                supabaseClient.rpc('app_requests_pending',{p_username:currentUser.username,p_password:pin}),
+                supabaseClient.rpc('app_offers_pending',{p_username:currentUser.username,p_password:pin})
+            ]).then(function(rs){
+                var r0=rs[0], r1=rs[1];
+                if(r0.error){ if(r0.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;padding:20px;">Could not load: '+escapeHtml(r0.error.message)+'</p>'; return; }
+                var d=r0.data||{};
+                if(r1 && !r1.error && r1.data){ d.claims=r1.data.claims||[]; d.offers=r1.data.offers||[]; }
+                requestsRender(d);
             }).catch(function(){ c.innerHTML='<p style="color:red;text-align:center;padding:20px;">Connection error.</p>'; });
         }, function(){ c.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">PIN required.</p>'; });
     }
@@ -1041,19 +1133,47 @@
                 '<button onclick="reqDecide(\'swap\','+w.id+',false)" style="background:var(--damage-red);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Deny</button></div></div>';
         });
         html+='</div>';
+        // Open-shift claims (new marketplace)
+        var cl=d.claims||[];
+        html+='<div style="background:#fff;border-radius:12px;padding:16px;margin-top:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
+            '<h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#128588; Open-Shift Claims ('+cl.length+')</h3>';
+        if(!cl.length){ html+='<p style="color:#6b7686;font-size:13px;margin:0;">None pending. &#127881;</p>'; }
+        else cl.forEach(function(x,i){
+            html+='<div style="padding:10px 0;'+(i<cl.length-1?'border-bottom:1px solid #eee;':'')+'">' +
+                '<div style="font-size:14px;color:#333;font-weight:bold;">'+escapeHtml(x.employee_name||'')+' wants an open shift</div>' +
+                '<div style="font-size:13px;color:#555;">'+escapeHtml(String(x.shift_date||''))+'  '+escapeHtml(msT(x.start_time))+'-'+escapeHtml(msT(x.end_time))+(x.position_name?(' &middot; '+escapeHtml(x.position_name)):'')+(x.location?(' @ '+escapeHtml(x.location)):'')+'</div>' +
+                '<div style="margin-top:6px;display:flex;gap:8px;"><button onclick="reqDecide(\'claim\','+x.claim_id+',true)" style="background:var(--pass-green);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Approve</button>' +
+                '<button onclick="reqDecide(\'claim\','+x.claim_id+',false)" style="background:var(--damage-red);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Deny</button></div></div>';
+        });
+        html+='</div>';
+        // Shift trades / give-aways (new marketplace)
+        var of=d.offers||[];
+        html+='<div style="background:#fff;border-radius:12px;padding:16px;margin-top:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
+            '<h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#128257; Shift Trades ('+of.length+')</h3>';
+        if(!of.length){ html+='<p style="color:#6b7686;font-size:13px;margin:0;">None pending. &#127881;</p>'; }
+        else of.forEach(function(x,i){
+            html+='<div style="padding:10px 0;'+(i<of.length-1?'border-bottom:1px solid #eee;':'')+'">' +
+                '<div style="font-size:14px;color:#333;font-weight:bold;">'+escapeHtml(x.from_name||'')+' &rarr; '+escapeHtml(x.to_name||'')+'</div>' +
+                '<div style="font-size:13px;color:#555;">'+escapeHtml(String(x.shift_date||''))+'  '+escapeHtml(msT(x.start_time))+'-'+escapeHtml(msT(x.end_time))+(x.position_name?(' &middot; '+escapeHtml(x.position_name)):'')+(x.location?(' @ '+escapeHtml(x.location)):'')+'</div>' +
+                '<div style="margin-top:6px;display:flex;gap:8px;"><button onclick="reqDecide(\'offer\','+x.offer_id+',true)" style="background:var(--pass-green);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Approve</button>' +
+                '<button onclick="reqDecide(\'offer\','+x.offer_id+',false)" style="background:var(--damage-red);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Deny</button></div></div>';
+        });
+        html+='</div>';
         c.innerHTML=html;
     }
     function reqDecide(type, id, approve) {
         var note='';
-        if(!approve){ note=prompt('Optional note to the employee (reason for denial):','')||''; }
+        if(!approve && (type==='time_off'||type==='swap')){ note=prompt('Optional note to the employee (reason for denial):','')||''; }
         withPin(function(pin){
-            var args={p_username:currentUser.username,p_password:pin,p_id:id,p_approve:approve,p_note:note};
             var onDecideDone=function(res){
                 if(res.error){ if(res.error.code==='42501') sessionPin=null; alert('Error: '+res.error.message); return; }
                 loadRequests();
             };
+            var u=currentUser.username;
             // Literal RPC names (not a variable) so the pre-deploy manifest checker can see them.
-            if(type==='swap') supabaseClient.rpc('app_swap_decide',args).then(onDecideDone).catch(function(){ alert('Connection error.'); });
-            else supabaseClient.rpc('app_time_off_decide',args).then(onDecideDone).catch(function(){ alert('Connection error.'); });
+            if(type==='swap') supabaseClient.rpc('app_swap_decide',{p_username:u,p_password:pin,p_id:id,p_approve:approve,p_note:note}).then(onDecideDone).catch(function(){ alert('Connection error.'); });
+            else if(type==='claim') supabaseClient.rpc('app_claim_decide',{p_username:u,p_password:pin,p_claim_id:id,p_approve:approve}).then(onDecideDone).catch(function(){ alert('Connection error.'); });
+            else if(type==='offer') supabaseClient.rpc('app_offer_decide',{p_username:u,p_password:pin,p_offer_id:id,p_approve:approve}).then(onDecideDone).catch(function(){ alert('Connection error.'); });
+            else supabaseClient.rpc('app_time_off_decide',{p_username:u,p_password:pin,p_id:id,p_approve:approve,p_note:note}).then(onDecideDone).catch(function(){ alert('Connection error.'); });
         });
     }
