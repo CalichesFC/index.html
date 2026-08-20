@@ -959,7 +959,9 @@
             mdTile('On schedule',(pm.on_time||0),'of '+pm.active+' machines','#1b7a3d')+
             mdTile('Overdue',(pm.overdue||0),'need service',((pm.overdue||0)>0?'#a01b3e':'#1b7a3d'))+
             mdTile('Due soon',(pm.due_soon||0),'next 7 days',((pm.due_soon||0)>0?'#9a5b00':'#1f2a44'))+
-          '</div></div>'; }
+          '</div>'+
+          (((pm.overdue||0)+(pm.due_soon||0))>0 && typeof openPmBacklog==='function' ? '<button onclick="openPmBacklog()" style="width:100%;margin-top:11px;background:#854F0B;color:#fff;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:800;cursor:pointer;">&#128295; Work the PM backlog'+((pm.overdue||0)>0?(' ('+pm.overdue+' overdue)'):'')+' &rarr;</button>' : '')+
+          '</div>'; }
         h+='<div id="mdVendorSpend" style="margin-top:12px;"></div>';
         h+='<p style="font-size:11.5px;color:#5b6675;margin-top:14px;">Numbers come from logged work-order costs and maintenance invoices. As more work orders are closed and invoices entered, this view fills in automatically.</p>';
         h+='</div>';

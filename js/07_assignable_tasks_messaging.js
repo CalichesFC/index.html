@@ -691,6 +691,63 @@
             }).catch(function(){ box.innerHTML='<p style="color:#c0264b;text-align:center;padding:10px;">Could not load.</p>'; });
         });
     }
+    // ===== PM CATCH-UP (backlog clearer) =====
+    // Company-wide preventive-maintenance backlog in one screen, worst-overdue first, with an inline
+    // "Mark serviced" that rolls the next service date. Built for the 25%-compliance finding on the
+    // leadership dashboard. Reuses app_pm_list (p_store null = all stores) + app_pm_complete — no new
+    // backend. Front-line staff can't load it (app_pm_list is manager-gated server-side).
+    function openPmBacklog(store){
+        window._pmBacklogStore=(typeof store==='undefined')?(window._pmBacklogStore||''):store;
+        var ov=document.getElementById('pmBacklogOv');
+        if(!ov){ ov=document.createElement('div'); ov.id='pmBacklogOv'; ov.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100050;overflow:auto;'; document.body.appendChild(ov); }
+        ov.style.display='block';
+        ov.innerHTML='<div style="background:linear-gradient(120deg,#854F0B,#9a5b00);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;"><b style="flex:1;font-size:16px;">&#128295; PM Catch-Up</b><button onclick="pmBacklogClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;font-size:15px;">&times;</button></div><div id="pmBacklogBody" style="max-width:720px;margin:0 auto;padding:14px 16px 50px;"><p style="text-align:center;color:#6b7686;padding:30px;">Loading&hellip;</p></div>';
+        loadPmBacklog();
+    }
+    function pmBacklogClose(){ var ov=document.getElementById('pmBacklogOv'); if(ov) ov.style.display='none'; }
+    function loadPmBacklog(){
+        var body=document.getElementById('pmBacklogBody'); if(!body) return;
+        var store=window._pmBacklogStore||'';
+        withPin(function(pin){
+            supabaseClient.rpc('app_pm_list',{p_username:currentUser.username,p_password:pin,p_store:store||null}).then(function(r){
+                if(r.error){ body.innerHTML='<div style="padding:22px;text-align:center;color:#c0264b;">'+(String(r.error.message||'').indexOf('uthor')>=0?'This view is for managers.':escapeHtml(r.error.message||'Error'))+'</div>'; return; }
+                var list=r.data||[];
+                var stores=['','Roadrunner','Valley','Lenox','Alamogordo','Roswell','Warehouse'];
+                var chips='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">'+stores.map(function(s){ var lbl=s||'All stores'; var on=(store===s); return '<button onclick=\'openPmBacklog('+JSON.stringify(s)+')\' style="background:'+(on?'#854F0B':'#eef0f3')+';color:'+(on?'#fff':'#5b6472')+';border:none;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;">'+lbl+'</button>'; }).join('')+'</div>';
+                var overdue=list.filter(function(x){return x.status==='overdue';});
+                var soon=list.filter(function(x){return x.status!=='overdue';});
+                var h=chips+'<div style="display:flex;gap:9px;margin-bottom:14px;">'+
+                   '<div style="flex:1;background:#fff;border:1px solid #eef0f5;border-radius:11px;padding:11px 13px;"><div style="font-size:10.5px;font-weight:800;text-transform:uppercase;color:#5b6675;">Overdue</div><div style="font-size:22px;font-weight:800;color:'+(overdue.length?'#a01b3e':'#1b7a3d')+';">'+overdue.length+'</div></div>'+
+                   '<div style="flex:1;background:#fff;border:1px solid #eef0f5;border-radius:11px;padding:11px 13px;"><div style="font-size:10.5px;font-weight:800;text-transform:uppercase;color:#5b6675;">Due soon</div><div style="font-size:22px;font-weight:800;color:'+(soon.length?'#9a5b00':'#1b7a3d')+';">'+soon.length+'</div></div></div>';
+                if(!list.length){ body.innerHTML=h+'<div style="background:#fff;border:1px solid #eef0f5;border-radius:13px;padding:24px;text-align:center;color:#1b7a3d;font-size:14px;">&#9989; All caught up'+(store?(' at '+escapeHtml(store)):'')+' &mdash; no preventive maintenance due.</div>'; return; }
+                list.forEach(function(it){
+                    var d=it.days_until; var dt=(d<0?Math.abs(d)+'d overdue':(d===0?'due today':'in '+d+'d'));
+                    var bc=(it.status==='overdue'?'#c0264b':(it.status==='due_soon'?'#e0a13c':'#1b7a3d'));
+                    h+='<div id="pmrow_'+it.pm_id+'" style="background:#fff;border:1px solid #ececf2;border-left:4px solid '+bc+';border-radius:12px;padding:12px 14px;margin-bottom:9px;box-shadow:0 2px 6px rgba(0,0,0,.04);">'+
+                       '<div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:14px;color:#26242b;">'+escapeHtml(it.equipment||'')+'</b>'+pmStatusBadge(it.status)+'</div>'+
+                       '<div style="font-size:12px;color:#5b6675;margin-top:3px;">'+escapeHtml(it.title||'')+' &middot; '+escapeHtml(it.store||'')+' &middot; '+dt+'</div>'+
+                       '<div style="display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;">'+
+                         '<button onclick="pmBacklogDone('+it.pm_id+','+it.equipment_id+')" style="flex:1;min-width:130px;background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:9px;font-size:12.5px;font-weight:800;cursor:pointer;">&#9989; Mark serviced</button>'+
+                         '<button onclick="pmBacklogOpenMachine('+it.equipment_id+')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:9px 12px;font-size:12.5px;font-weight:700;cursor:pointer;">Open machine</button>'+
+                       '</div></div>';
+                });
+                body.innerHTML=h;
+            }).catch(function(){ body.innerHTML='<div style="padding:22px;text-align:center;color:#c0264b;">Connection error.</div>'; });
+        });
+    }
+    function pmBacklogDone(pmId,equipId){
+        var note=prompt('Log this service as done today?\n\nOptional note (parts replaced, issues found…):','');
+        if(note===null) return;
+        withPin(function(pin){
+            supabaseClient.rpc('app_pm_complete',{p_username:currentUser.username,p_password:pin,p_id:pmId,p_done_on:null,p_notes:note||null}).then(function(r){
+                if(r.error){ alert('Could not log: '+r.error.message); return; }
+                supabaseClient.rpc('app_pm_close_tickets',{p_username:currentUser.username,p_password:pin,p_pm_id:pmId}).catch(function(){});
+                var row=document.getElementById('pmrow_'+pmId); if(row){ row.style.transition='opacity .2s'; row.style.opacity='0.35'; }
+                setTimeout(function(){ loadPmBacklog(); }, 260);
+            }).catch(function(){ alert('Could not log the service.'); });
+        });
+    }
+    function pmBacklogOpenMachine(equipId){ pmBacklogClose(); if(typeof openEquipmentDetail==='function') openEquipmentDetail(equipId); }
     function printEquipmentQR(action){ var _rep=(action==='report');
         var e=window._equipCur; if(!e) return;
         var w=window.open('','_blank');
