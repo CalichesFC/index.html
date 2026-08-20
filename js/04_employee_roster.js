@@ -333,7 +333,7 @@
         var hours=extra.hours||{}; var goals=extra.goals||[]; var history=extra.history||[];
         var qualified=positions.filter(function(p){return passportRank(p.level)>=3;}).length;
         var certCount=(d.certs||[]).length;
-        var totalHours=0; Object.keys(hours).forEach(function(k){ var hh=hours[k]||{}; totalHours+=(+hh.confirmed||0)+(+hh.unconfirmed||0); });
+        var totalHours=0; Object.keys(hours).forEach(function(k){ var hh=hours[k]||{}; totalHours+=(+hh.confirmed||0)+(+hh.unconfirmed||0)+(+hh.scheduled||0); });
         var h='<div style="margin-top:18px;border:1px solid #ece6f5;border-radius:16px;overflow:hidden;">';
         h+='<div style="background:linear-gradient(120deg,#7b2d8b,#ec3e7e 55%,#f0772f);padding:15px 16px 14px;color:#fff;">';
         h+='<div style="display:flex;align-items:center;justify-content:space-between;"><div><div style="font-size:11px;font-weight:800;letter-spacing:.09em;opacity:.85;">DEVELOPMENT PASSPORT</div><div style="font-size:17px;font-weight:800;margin-top:1px;">Skills &amp; Growth</div></div><div style="font-size:25px;">&#128706;</div></div>';
@@ -349,8 +349,8 @@
             h+='<div style="padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
             positions.forEach(function(p){
                 var days=byPos[p.name]||0; var c=passportColor(p.level); var nmJs=(p.name||'').replace(/&/g,'').replace(/"/g,'');
-                var hr=hours[String(p.position_id)]||{}; var logged=(+hr.confirmed||0)+(+hr.unconfirmed||0); var conf=(+hr.confirmed||0);
-                var hrsHtml; if(logged>0){ hrsHtml=Math.round(logged)+'h'+(conf>=logged?' &#10003;':(conf>0?' ('+Math.round(conf)+'h conf)':' unconf')); } else if(days>0){ hrsHtml='~'+(days*5)+'h est'; } else { hrsHtml='&mdash;'; }
+                var hr=hours[String(p.position_id)]||{}; var conf=(+hr.confirmed||0); var manual=conf+(+hr.unconfirmed||0); var sched=(+hr.scheduled||0); var logged=manual+sched;
+                var hrsHtml; if(logged>0){ hrsHtml=Math.round(logged)+'h'+((sched>0&&manual===0)?' <span style="font-size:9px;color:#185FA5;font-weight:700;">from schedule</span>':(conf>=logged?' &#10003;':(conf>0?' ('+Math.round(conf)+'h conf)':''))); } else if(days>0){ hrsHtml='~'+(days*5)+'h est'; } else { hrsHtml='&mdash;'; }
                 h+='<div style="border:1px solid #eef0f5;border-radius:13px;padding:12px;background:#fff;">';
                 h+='<div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;"><span style="width:10px;height:10px;border-radius:50%;flex:0 0 auto;background:'+(p.color||'#bbb')+';"></span><span style="font-weight:700;font-size:13px;color:#1f2a44;flex:1;line-height:1.2;">'+escapeHtml(p.name||'')+'</span>'+(p.cleared?'<span style="font-size:9.5px;font-weight:800;color:#1f7a3d;background:#e7f6ec;padding:2px 6px;border-radius:6px;letter-spacing:.04em;">CLEARED</span>':'')+'</div>';
                 h+=passportMeter(p.level);
@@ -362,7 +362,7 @@
             });
             h+='</div>';
         }
-        h+='<div style="padding:0 13px 10px;"><div style="font-size:11px;color:#5b6675;background:#faf8fd;border:1px dashed #e3dcf0;border-radius:9px;padding:9px;">&#9201; Hours show as <b>logged</b> where recorded (estimated &rarr; confirmed), and a <b>~estimate from days</b> otherwise. They fill in automatically once the time clock + published schedule are in everyday use.</div></div>';
+        h+='<div style="padding:0 13px 10px;"><div style="font-size:11px;color:#5b6675;background:#faf8fd;border:1px dashed #e3dcf0;border-radius:9px;padding:9px;">&#9201; Hours now credit automatically from the <b>published schedule</b> (past shifts, by position), plus any hours a manager logs by hand. Where nothing is recorded yet, a <b>~estimate from days</b> is shown.</div></div>';
         h+='<div style="padding:2px 13px 12px;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;"><div style="font-size:11px;font-weight:800;color:#5b6675;text-transform:uppercase;letter-spacing:.05em;">Growth goals &amp; cross-training</div>'+(canManage?'<button onclick="openPassportGoal('+empId+')" style="background:#fff;border:1px solid #7b2d8b;color:#7b2d8b;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;cursor:pointer;">+ Add</button>':'')+'</div>';
         if(goals.length){ goals.forEach(function(g){ var label=g.kind==='cross_train'?('Wants to train on <b>'+escapeHtml(g.position||'a station')+'</b>'):escapeHtml(g.text||'Goal'); h+='<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0eef4;font-size:13px;"><span style="font-size:14px;">'+(g.kind==='cross_train'?'&#127891;':'&#127919;')+'</span><span style="flex:1;color:#33303a;">'+label+(g.by?(' <span style="color:#aab2bd;font-size:11px;">· '+escapeHtml(g.by)+'</span>'):'')+'</span>'+(canManage?'<button onclick="passportGoalDone('+g.id+','+empId+')" style="background:#eef7f0;color:#1f7a3d;border:none;font-size:11px;font-weight:700;padding:4px 9px;border-radius:7px;cursor:pointer;">Done</button>':'')+'</div>'; }); }
         else { h+='<div style="font-size:12.5px;color:#5b6675;">No goals yet. '+(canManage?'Add a growth goal or a station someone wants to learn.':'Ask your manager to add one.')+'</div>'; }

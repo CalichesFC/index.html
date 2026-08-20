@@ -133,7 +133,7 @@
     // override picker. Nothing here is a "test" tool.
     // ============================================================
     let clockState = { status: null, timer: null };
-    function clockSelectedEmp() { const s = document.getElementById('clockEmpSelect'); return s && s.value ? parseInt(s.value,10) : null; }
+    function clockSelectedEmp() { if(window._clockSelfMode) return window._clockSelfEmp||null; const s = document.getElementById('clockEmpSelect'); return s && s.value ? parseInt(s.value,10) : null; }
 
     function openTimeClock() {
         triggerTransition(() => {
@@ -147,6 +147,31 @@
 
     function loadClockEmployees() {
         const sel = document.getElementById('clockEmpSelect');
+        var isMgr = (typeof schedIsMgr === 'function') && schedIsMgr();
+        // SELF-SERVE CLOCK (catering / vending / any team member, incl. people who clock in from
+        // Homebase like Adri): regular staff clock THEMSELVES. Don't call the manager-only roster
+        // RPC (app_sched_employees) — it errors for them and used to break the whole clock screen.
+        // app_clock_status/in/out resolve a null employee id to the caller's own record.
+        if (!isMgr) {
+            window._clockSelfMode = true;
+            withPin(function(pin){
+                supabaseClient.rpc('app_clock_status', { p_username: currentUser.username, p_password: pin, p_employee_id: null })
+                .then(({ data, error }) => {
+                    if (error) {
+                        if (error.code === '42501') sessionPin = null;
+                        clockApplyPickerMode(null);
+                        var big=document.getElementById('clockStatusBig'); if(big) big.innerText = 'Your login isn’t linked to the roster yet — ask a manager to link you, then you can clock in here.';
+                        return;
+                    }
+                    window._clockSelfEmp = (data && data.employee_id) || null;
+                    clockApplyPickerMode({ name: currentUser.name });
+                    clockState.status = data || {};
+                    renderClockCard();
+                });
+            });
+            return;
+        }
+        window._clockSelfMode = false;
         withPin(function(pin){
             supabaseClient.rpc('app_sched_employees', { p_username: currentUser.username, p_password: pin })
             .then(({ data, error }) => {
@@ -869,7 +894,7 @@
             supabaseClient.rpc('app_emp_home', { p_username: currentUser.username, p_password: pin }).then(function(res) {
                 if (res.error) { if (res.error.code === '42501') sessionPin = null; c.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Could not load: ' + escapeHtml(res.error.message) + '</p>'; return; }
                 empHomeRender(res.data || {});
-                if (res.data && res.data.linked) { loadMyTasks('empTasksCard'); loadOpenShiftsForMe(); }
+                if (res.data && res.data.linked) { loadMyTasks('empTasksCard'); }
             }).catch(function() { c.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Connection error.</p>'; });
         }, function() { c.innerHTML = '<p style="text-align:center;padding:30px;color:#6b7686;">PIN required.</p>'; });
     }
@@ -897,7 +922,6 @@
             '<h2 style="margin:0;color:var(--caliches-blue);font-size:20px;">Hi, ' + escapeHtml(name) + '! &#128075;</h2>' +
             (d.employee && d.employee.home_location ? '<p style="margin:4px 0 0;color:#6b7686;font-size:13px;">Home store: ' + escapeHtml(d.employee.home_location) + '</p>' : '') + '</div>';
         html += '<div id="empTasksCard"></div>';
-        html += '<div id="empOpenShiftsCard"></div>';
 
         // PIP banner (own status, supportive tone)
         if (d.pip && d.pip.active) {
@@ -917,10 +941,7 @@
                 var lbl = s.date + '  ' + (s.start || '') + '-' + (s.end || '') + (s.location ? '  @ ' + s.location : '');
                 html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;' + (i < empHomeState.shifts.length - 1 ? 'border-bottom:1px solid #eee;' : '') + '">' +
                     '<span style="font-size:14px;color:#333;">' + escapeHtml(lbl) + '</span>' +
-                    '<span style="display:flex;gap:5px;white-space:nowrap;">' +
-                      '<button onclick="openSwap(' + s.id + ',' + i + ')" style="background:#0d6eaf;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:bold;cursor:pointer;">Cover</button>' +
-                      '<button onclick="openGiveAway(' + s.id + ',' + i + ')" style="background:#854F0B;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:bold;cursor:pointer;">Give away</button>' +
-                    '</span></div>';
+                    '<button onclick="openCantWork(' + s.id + ',' + i + ')" style="background:#0d6eaf;color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:bold;cursor:pointer;white-space:nowrap;">Can&rsquo;t work this?</button></div>';
             });
         }
         html += '</div>';
@@ -942,9 +963,9 @@
 
         // Swaps
         html += '<div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
-            '<h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#128260; My Shift Cover Requests</h3>';
+            '<h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#128260; My can’t-work requests</h3>';
         var sw = d.swaps || [];
-        if (!sw.length) { html += '<p style="color:#6b7686;font-size:13px;margin:0;">No cover requests.</p>'; }
+        if (!sw.length) { html += '<p style="color:#6b7686;font-size:13px;margin:0;">None &mdash; use "Can’t work this?" on a shift above if something comes up.</p>'; }
         else {
             sw.forEach(function(w, i) {
                 html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;' + (i < sw.length - 1 ? 'border-bottom:1px solid #eee;' : '') + '">' +
@@ -1002,84 +1023,43 @@
         }, function(){ btn.disabled=false; btn.innerText='Submit Request'; });
     }
 
-    // ===== SHIFT MARKETPLACE — staff self-service (open-shift grab + give away / trade) =====
-    function msT(t){ if(!t) return ''; var p=String(t).split(':'); var h=+p[0]||0,m=p[1]||'00'; var ap=h<12?'a':'p'; var hh=h%12; if(hh===0)hh=12; return hh+(m!=='00'?(':'+m):'')+ap; }
-    function msRow(s, btnLabel, onclick, pos, sub){
-        var t=(msT(s.start_time)+'-'+msT(s.end_time));
-        return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #f0f0f0;">'+
-          '<span style="font-size:13.5px;color:#333;">'+escapeHtml(String(s.shift_date||''))+' '+escapeHtml(t)+(pos?(' &middot; '+escapeHtml(pos)):'')+(s.location?(' @ '+escapeHtml(s.location)):'')+(sub?('<br><span style="font-size:11.5px;color:#6b7686;">'+escapeHtml(sub)+'</span>'):'')+'</span>'+
-          '<button onclick="'+onclick+'" style="background:var(--pass-green,#1f7a3d);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:800;cursor:pointer;white-space:nowrap;">'+btnLabel+'</button></div>';
-    }
-    function loadOpenShiftsForMe(){
-        var card=document.getElementById('empOpenShiftsCard'); if(!card) return;
-        withPin(function(pin){
-            supabaseClient.rpc('app_open_shifts_for_me',{p_username:currentUser.username,p_password:pin}).then(function(res){
-                if(res.error||!res.data){ card.innerHTML=''; return; }
-                window._msCoworkers=res.data.coworkers||[];
-                var open=res.data.open_shifts||[], rel=res.data.releases||[];
-                if(!open.length && !rel.length){ card.innerHTML=''; return; }
-                var h='<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">';
-                h+='<h3 style="margin:0 0 4px;color:var(--caliches-blue);font-size:16px;">&#128588; Shifts you can grab</h3>';
-                h+='<p style="margin:0 0 8px;font-size:12px;color:#6b7686;">Open shifts and shifts coworkers are giving away. A manager confirms after you request.</p>';
-                open.forEach(function(s){ h+=msRow(s,'Grab','grabOpenShift('+s.shift_id+')',s.position_name,'Open shift'); });
-                rel.forEach(function(o){ h+=msRow(o,'Pick up','pickupRelease('+o.offer_id+')',o.position_name,(o.from_name?('from '+o.from_name):'Up for grabs')); });
-                h+='</div>'; card.innerHTML=h;
-            }).catch(function(){ card.innerHTML=''; });
-        });
-    }
-    function grabOpenShift(shiftId){
-        withPin(function(pin){
-            supabaseClient.rpc('app_openshift_claim',{p_username:currentUser.username,p_password:pin,p_shift_id:shiftId}).then(function(res){
-                if(res.error){ alert(res.error.message); return; }
-                alert('Requested! A manager will confirm and you’ll get a notification.'); loadEmployeeHome();
-            }).catch(function(){ alert('Connection error.'); });
-        });
-    }
-    function pickupRelease(offerId){
-        withPin(function(pin){
-            supabaseClient.rpc('app_offer_pickup',{p_username:currentUser.username,p_password:pin,p_offer_id:offerId}).then(function(res){
-                if(res.error){ alert(res.error.message); return; }
-                alert('Requested! A manager will confirm and you’ll get a notification.'); loadEmployeeHome();
-            }).catch(function(){ alert('Connection error.'); });
-        });
-    }
-    function openGiveAway(shiftId, idx){
+    // ===== "CAN'T WORK THIS SHIFT" — respectful coverage request with a reason =====
+    // Deliberately NOT a marketplace: employees never grab hours or beg coworkers. When someone
+    // genuinely can't work a shift (sick, injury, school, family) they flag it with a reason, as
+    // early as possible, and it goes to a MANAGER to arrange coverage. Backed by the existing
+    // app_swap_create; the reason rides in the note so the manager sees why.
+    function openCantWork(shiftId, idx){
         var s=empHomeState.shifts[idx]||{};
         var lbl=(s.date||'')+'  '+(s.start||'')+'-'+(s.end||'')+(s.location?('  @ '+s.location):'');
-        var m=document.getElementById('gaModal');
-        if(!m){ m=document.createElement('div'); m.id='gaModal'; m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100061;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;'; document.body.appendChild(m); }
+        window._cwShiftId=shiftId; window._cwReason='';
+        var m=document.getElementById('cwModal');
+        if(!m){ m=document.createElement('div'); m.id='cwModal'; m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100061;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;'; document.body.appendChild(m); }
+        var reasons=[['Sick','🤒'],['Injury','🩹'],['School / exam','🎓'],['Family','👪'],['Other','📌']];
+        var chips=reasons.map(function(r){ return '<button type="button" onclick="cwPick(this,\''+r[0]+'\')" style="border:1.5px solid #dfe2e8;background:#fff;border-radius:10px;padding:9px 12px;font-size:13px;font-weight:700;color:#33303a;cursor:pointer;">'+r[1]+' '+r[0]+'</button>'; }).join('');
         m.innerHTML='<div style="background:#fff;border-radius:14px;max-width:440px;width:100%;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.3);">'+
-          '<h3 style="margin:0 0 4px;color:#1f2a44;">Give away this shift</h3>'+
+          '<h3 style="margin:0 0 3px;color:#1f2a44;">Can’t work this shift?</h3>'+
           '<div style="font-size:12.5px;color:#6b7686;margin-bottom:12px;">'+escapeHtml(lbl)+'</div>'+
-          '<button onclick="gaDoRelease('+shiftId+')" style="width:100%;background:#854F0B;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:8px;">&#128226; Post it for anyone to grab</button>'+
-          '<div style="text-align:center;font-size:12px;color:#9aa;margin:6px 0;">&mdash; or offer it to a specific coworker &mdash;</div>'+
-          '<select id="gaCoworker" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:9px;margin-bottom:8px;box-sizing:border-box;"><option value="">Loading coworkers&hellip;</option></select>'+
-          '<button onclick="gaDoOffer('+shiftId+')" style="width:100%;background:#185FA5;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;">&#128101; Offer to selected coworker</button>'+
-          '<div id="gaMsg" style="font-size:12.5px;color:#c0264b;margin-top:8px;min-height:16px;"></div>'+
-          '<button onclick="gaClose()" style="width:100%;background:#eef0f3;color:#5b6472;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;margin-top:6px;">Cancel</button>'+
+          '<div style="font-size:12.5px;color:#5b6675;margin-bottom:6px;">What’s the reason? (the more notice you give, the easier it is to cover)</div>'+
+          '<div id="cwChips" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px;">'+chips+'</div>'+
+          '<textarea id="cwNote" placeholder="Anything your manager should know (optional)" style="width:100%;height:56px;padding:9px;border:1px solid #ddd;border-radius:9px;box-sizing:border-box;font-size:13px;"></textarea>'+
+          '<div id="cwMsg" style="font-size:12.5px;color:#c0264b;margin:8px 0 0;min-height:16px;"></div>'+
+          '<div style="display:flex;gap:8px;margin-top:10px;"><button onclick="cwClose()" style="flex:1;background:#eef0f3;color:#5b6472;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;">Cancel</button>'+
+          '<button onclick="cwSubmit()" style="flex:2;background:#0d6eaf;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;">Send to my manager</button></div>'+
+          '<div style="font-size:11px;color:#9aa2ad;margin-top:9px;text-align:center;">Your manager arranges coverage &mdash; you’re not asking coworkers directly.</div>'+
           '</div>';
         m.style.display='flex';
-        var list=window._msCoworkers||[]; var sel=document.getElementById('gaCoworker');
-        if(sel){ sel.innerHTML='<option value="">&mdash; pick a coworker &mdash;</option>'+list.map(function(e){ return '<option value="'+e.id+'">'+escapeHtml(e.name||('#'+e.id))+'</option>'; }).join(''); }
     }
-    function gaClose(){ var m=document.getElementById('gaModal'); if(m) m.style.display='none'; }
-    function gaDoRelease(shiftId){
-        var msg=document.getElementById('gaMsg'); if(msg) msg.textContent='';
+    function cwPick(el,reason){ window._cwReason=reason; var box=document.getElementById('cwChips'); if(box){ [].forEach.call(box.children,function(c){ c.style.background='#fff'; c.style.borderColor='#dfe2e8'; c.style.color='#33303a'; }); } el.style.background='#0d6eaf'; el.style.borderColor='#0d6eaf'; el.style.color='#fff'; }
+    function cwClose(){ var m=document.getElementById('cwModal'); if(m) m.style.display='none'; }
+    function cwSubmit(){
+        var msg=document.getElementById('cwMsg'); if(msg) msg.textContent='';
+        if(!window._cwReason){ if(msg) msg.textContent='Pick a reason first.'; return; }
+        var extra=((document.getElementById('cwNote')||{}).value||'').trim();
+        var note=window._cwReason + (extra? (' — '+extra) : '');
         withPin(function(pin){
-            supabaseClient.rpc('app_shift_release',{p_username:currentUser.username,p_password:pin,p_shift_id:shiftId}).then(function(res){
-                if(res.error){ if(msg) msg.textContent=res.error.message; return; }
-                gaClose(); alert('Posted! Coworkers can pick it up; a manager confirms the swap.'); loadEmployeeHome();
-            }).catch(function(){ if(msg) msg.textContent='Connection error.'; });
-        });
-    }
-    function gaDoOffer(shiftId){
-        var msg=document.getElementById('gaMsg'); if(msg) msg.textContent='';
-        var t=document.getElementById('gaCoworker'); var target=t?t.value:'';
-        if(!target){ if(msg) msg.textContent='Pick a coworker, or use “post for anyone” above.'; return; }
-        withPin(function(pin){
-            supabaseClient.rpc('app_swap_offer',{p_username:currentUser.username,p_password:pin,p_shift_id:shiftId,p_target_emp:parseInt(target,10)}).then(function(res){
-                if(res.error){ if(msg) msg.textContent=res.error.message; return; }
-                gaClose(); alert('Offered! Your coworker and a manager have been notified.'); loadEmployeeHome();
+            supabaseClient.rpc('app_swap_create',{p_username:currentUser.username,p_password:pin,p_shift_id:window._cwShiftId,p_note:note}).then(function(res){
+                if(res.error){ if(res.error.code==='42501') sessionPin=null; if(msg) msg.textContent='Could not send: '+res.error.message; return; }
+                cwClose(); alert('Sent to your manager. They’ll arrange coverage — thanks for the heads up.'); loadEmployeeHome();
             }).catch(function(){ if(msg) msg.textContent='Connection error.'; });
         });
     }
@@ -1096,15 +1076,9 @@
         var c=document.getElementById('requestsContent');
         c.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading requests...</p>';
         withPin(function(pin){
-            Promise.all([
-                supabaseClient.rpc('app_requests_pending',{p_username:currentUser.username,p_password:pin}),
-                supabaseClient.rpc('app_offers_pending',{p_username:currentUser.username,p_password:pin})
-            ]).then(function(rs){
-                var r0=rs[0], r1=rs[1];
-                if(r0.error){ if(r0.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;padding:20px;">Could not load: '+escapeHtml(r0.error.message)+'</p>'; return; }
-                var d=r0.data||{};
-                if(r1 && !r1.error && r1.data){ d.claims=r1.data.claims||[]; d.offers=r1.data.offers||[]; }
-                requestsRender(d);
+            supabaseClient.rpc('app_requests_pending',{p_username:currentUser.username,p_password:pin}).then(function(res){
+                if(res.error){ if(res.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;padding:20px;">Could not load: '+escapeHtml(res.error.message)+'</p>'; return; }
+                requestsRender(res.data||{});
             }).catch(function(){ c.innerHTML='<p style="color:red;text-align:center;padding:20px;">Connection error.</p>'; });
         }, function(){ c.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">PIN required.</p>'; });
     }
@@ -1123,40 +1097,15 @@
         });
         html+='</div>';
         html+='<div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
-            '<h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#128260; Pending Shift Cover ('+sw.length+')</h3>';
+            '<h3 style="margin:0 0 4px;color:var(--caliches-blue);font-size:16px;">&#128260; Can’t-work / cover requests ('+sw.length+')</h3>' +
+            '<p style="margin:0 0 8px;font-size:12px;color:#6b7686;">A team member can’t work a shift — the reason is shown. Approve to acknowledge; arrange coverage as usual.</p>';
         if(!sw.length){ html+='<p style="color:#6b7686;font-size:13px;margin:0;">None pending. &#127881;</p>'; }
         else sw.forEach(function(w,i){
             html+='<div style="padding:10px 0;'+(i<sw.length-1?'border-bottom:1px solid #eee;':'')+'">' +
                 '<div style="font-size:14px;color:#333;font-weight:bold;">'+escapeHtml(w.employee)+'</div>' +
-                '<div style="font-size:13px;color:#555;">'+escapeHtml(w.date||'')+'  '+escapeHtml(w.start||'')+'-'+escapeHtml(w.end||'')+(w.note?' — '+escapeHtml(w.note):'')+'</div>' +
+                '<div style="font-size:13px;color:#555;">'+escapeHtml(w.date||'')+'  '+escapeHtml(w.start||'')+'-'+escapeHtml(w.end||'')+(w.note?' — <b>'+escapeHtml(w.note)+'</b>':'')+'</div>' +
                 '<div style="margin-top:6px;display:flex;gap:8px;"><button onclick="reqDecide(\'swap\','+w.id+',true)" style="background:var(--pass-green);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Approve</button>' +
                 '<button onclick="reqDecide(\'swap\','+w.id+',false)" style="background:var(--damage-red);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Deny</button></div></div>';
-        });
-        html+='</div>';
-        // Open-shift claims (new marketplace)
-        var cl=d.claims||[];
-        html+='<div style="background:#fff;border-radius:12px;padding:16px;margin-top:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
-            '<h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#128588; Open-Shift Claims ('+cl.length+')</h3>';
-        if(!cl.length){ html+='<p style="color:#6b7686;font-size:13px;margin:0;">None pending. &#127881;</p>'; }
-        else cl.forEach(function(x,i){
-            html+='<div style="padding:10px 0;'+(i<cl.length-1?'border-bottom:1px solid #eee;':'')+'">' +
-                '<div style="font-size:14px;color:#333;font-weight:bold;">'+escapeHtml(x.employee_name||'')+' wants an open shift</div>' +
-                '<div style="font-size:13px;color:#555;">'+escapeHtml(String(x.shift_date||''))+'  '+escapeHtml(msT(x.start_time))+'-'+escapeHtml(msT(x.end_time))+(x.position_name?(' &middot; '+escapeHtml(x.position_name)):'')+(x.location?(' @ '+escapeHtml(x.location)):'')+'</div>' +
-                '<div style="margin-top:6px;display:flex;gap:8px;"><button onclick="reqDecide(\'claim\','+x.claim_id+',true)" style="background:var(--pass-green);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Approve</button>' +
-                '<button onclick="reqDecide(\'claim\','+x.claim_id+',false)" style="background:var(--damage-red);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Deny</button></div></div>';
-        });
-        html+='</div>';
-        // Shift trades / give-aways (new marketplace)
-        var of=d.offers||[];
-        html+='<div style="background:#fff;border-radius:12px;padding:16px;margin-top:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
-            '<h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#128257; Shift Trades ('+of.length+')</h3>';
-        if(!of.length){ html+='<p style="color:#6b7686;font-size:13px;margin:0;">None pending. &#127881;</p>'; }
-        else of.forEach(function(x,i){
-            html+='<div style="padding:10px 0;'+(i<of.length-1?'border-bottom:1px solid #eee;':'')+'">' +
-                '<div style="font-size:14px;color:#333;font-weight:bold;">'+escapeHtml(x.from_name||'')+' &rarr; '+escapeHtml(x.to_name||'')+'</div>' +
-                '<div style="font-size:13px;color:#555;">'+escapeHtml(String(x.shift_date||''))+'  '+escapeHtml(msT(x.start_time))+'-'+escapeHtml(msT(x.end_time))+(x.position_name?(' &middot; '+escapeHtml(x.position_name)):'')+(x.location?(' @ '+escapeHtml(x.location)):'')+'</div>' +
-                '<div style="margin-top:6px;display:flex;gap:8px;"><button onclick="reqDecide(\'offer\','+x.offer_id+',true)" style="background:var(--pass-green);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Approve</button>' +
-                '<button onclick="reqDecide(\'offer\','+x.offer_id+',false)" style="background:var(--damage-red);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Deny</button></div></div>';
         });
         html+='</div>';
         c.innerHTML=html;
