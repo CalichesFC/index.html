@@ -1109,10 +1109,11 @@
     function loadOverdueWOFlag(){
         var host=document.getElementById('homeDayCard'); if(!host) return;
         var role=(currentUser&&currentUser.role)||'';
-        var mgr=['Admin Manager','Manager','Vice President/Co-Owner','Store Manager'].indexOf(role)>=0;
+        var mgrAll=['Admin Manager','Vice President/Co-Owner'].indexOf(role)>=0 || (currentUser&&currentUser.is_developer===true);
+        var mgrStore=['Manager','Store Manager','Assistant Manager'].indexOf(role)>=0;
         var maint=['Maintenance Lead','Maintenance Contributor'].indexOf(role)>=0;
-        if(!mgr && !maint){ var c0=document.getElementById('homeOverdueCard'); if(c0){ c0.innerHTML=''; c0.style.display='none'; } return; }
-        var scope=mgr?'store':'queue';
+        if(!mgrAll && !mgrStore && !maint){ var c0=document.getElementById('homeOverdueCard'); if(c0){ c0.innerHTML=''; c0.style.display='none'; } return; }
+        var scope=mgrAll?'all':(mgrStore?'store':'queue');
         withPin(function(pin){
             supabaseClient.rpc('app_wo_list',{p_username:currentUser.username,p_password:pin,p_scope:scope}).then(function(r){
                 var card=document.getElementById('homeOverdueCard');
