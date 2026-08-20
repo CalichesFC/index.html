@@ -306,10 +306,11 @@
             Promise.all([
                 supabaseClient.rpc('app_wo_list',{p_username:currentUser.username,p_password:pin,p_scope:woScope()}),
                 supabaseClient.rpc('app_wo_people',{p_username:currentUser.username,p_password:pin}),
-                supabaseClient.rpc('app_equipment_list',{p_username:currentUser.username,p_password:pin,p_store:(currentUser.store||currentUser.location||'')})
+                supabaseClient.rpc('app_equipment_list',{p_username:currentUser.username,p_password:pin,p_store:(currentUser.store||currentUser.location||'')}),
+                supabaseClient.rpc('app_wo_vendors',{p_username:currentUser.username,p_password:pin})
             ]).then(function(res){
                 if(res[0].error){ ov.innerHTML=woHeader('Work Orders','')+'<div style="max-width:680px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">'+(String(res[0].error.message||'').indexOf('forbidden')>=0?'Not available for your role.':escapeHtml(res[0].error.message))+'</div>'; return; }
-                _wo.list=res[0].data||[]; _wo.people=(res[1]&&res[1].data)||{maint:[]}; _wo.equip=(res[2]&&res[2].data)||[];
+                _wo.list=res[0].data||[]; _wo.people=(res[1]&&res[1].data)||{maint:[]}; _wo.equip=(res[2]&&res[2].data)||[]; _wo.vendors=(res[3]&&res[3].data)||[];
                 if(cb)cb();
             }).catch(function(){ ov.innerHTML=woHeader('Work Orders','')+'<div style="max-width:680px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">Connection error.</div>'; });
         }, function(){ ov.innerHTML=woHeader('Work Orders','')+'<div style="max-width:680px;margin:0 auto;padding:30px 16px;color:#6b7686;text-align:center;">PIN required.</div>'; });
@@ -451,6 +452,7 @@
         var _delg=''; if(d.delegated_to){ _delg='Delegated to '+escapeHtml(woPersonName(d.delegated_to)); if(d.delegation_until) _delg+=' until '+escapeHtml(woFmtDate(d.delegation_until)); }
         if(_asg.length||_delg) h+='<div style="font-size:12px;color:#5b6675;margin-top:8px;border-top:1px solid #f3f4f8;padding-top:8px;">'+_asg.join(' &middot; ')+(_delg?('<div style="margin-top:2px;color:#9a5b00;font-weight:600;">&#8635; '+_delg+'</div>'):'')+'</div>';
         if(d.due_date) h+='<div style="margin-top:8px;">'+woDueChip(d.due_date,d.status)+'</div>';
+        if(d.vendor_name) h+='<div style="font-size:12px;color:#5b6675;margin-top:8px;border-top:1px solid #f3f4f8;padding-top:8px;">&#128736; Outside vendor: <b style="color:#33303a;">'+escapeHtml(d.vendor_name)+'</b>'+(d.vendor_service?(' &middot; '+escapeHtml(d.vendor_service)):'')+(d.vendor_phone?(' &middot; <a href="tel:'+escapeHtml(String(d.vendor_phone).replace(/[^0-9+]/g,''))+'" style="color:#185FA5;text-decoration:none;font-weight:600;">'+escapeHtml(d.vendor_phone)+'</a>'):'')+'</div>';
         if(d.can_manage) h+='<div style="margin-top:10px;"><button onclick="woEditOpen()" style="background:#eef0f3;color:#33303a;border:1px solid #dfe2e8;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;">&#9998; Edit details</button></div>';
         h+='</div>';
         h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;"><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#5b6675;margin-bottom:8px;">Status timeline</div>';
@@ -472,7 +474,7 @@
             var mine=(list||[]).filter(function(i){return i.wo===woNum;});
             if(mine.length===1) return wobOpen(mine[0].id);
             if(mine.length>1){ _wob.tab='invoices'; _wob.list=mine; wobRender(); return; }
-            var v=prompt('Vendor for this invoice \u2014 leave blank for in-house Caliche\'s Maintenance. Any costs already logged on this work order are pulled in automatically:'); if(v===null) return;
+            var v=prompt('Vendor for this invoice \u2014 leave blank for in-house Caliche\'s Maintenance. Any costs already logged on this work order are pulled in automatically:', (window._woDetail&&window._woDetail.vendor_name)||''); if(v===null) return;
             wobRpc('wo_invoice_from_wo',{p_work_order_id:woId,p_vendor:v},function(c){ wobOpen(c.id); });
         });
     }
@@ -568,6 +570,10 @@
         var dopts='<option value="">&mdash; none &mdash;</option>'+maint.map(function(p){return '<option value="'+p.id+'"'+(parseInt(d.delegated_to,10)===parseInt(p.id,10)?' selected':'')+'>'+escapeHtml(p.name)+' ('+escapeHtml(p.role)+')</option>';}).join('');
         var untilVal=d.delegation_until?String(d.delegation_until).slice(0,10):'';
         var dueVal=d.due_date?String(d.due_date).slice(0,10):'';
+        // OUTSIDE VENDOR (maintenance vendor tracking): route the job to a vendor from the Contacts
+        // directory. Pre-filled from the current row so re-saving keeps it; "none" clears it.
+        var vends=(_wo.vendors||[]);
+        var vopts='<option value="">&mdash; none (in-house) &mdash;</option>'+vends.map(function(v){return '<option value="'+v.id+'"'+(parseInt(d.vendor_id,10)===parseInt(v.id,10)?' selected':'')+'>'+escapeHtml(v.name)+(v.service?(' &middot; '+escapeHtml(v.service)):'')+'</option>';}).join('');
         var h='<div style="background:#fff;border-radius:14px;max-width:480px;width:100%;margin-top:20px;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.3);max-height:88vh;overflow:auto;box-sizing:border-box;"><h3 style="margin:0 0 12px;color:#1f2a44;">Assign / route work order</h3>';
         h+='<label style="display:block;font-size:12px;color:#6b7686;margin-bottom:3px;">Owner (Maintenance)</label><select id="woaOwner" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;box-sizing:border-box;">'+opts+'</select>';
         h+='<label style="display:block;font-size:12px;color:#6b7686;margin-bottom:3px;">Backup (covers if owner is unavailable)</label><select id="woaBackup" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;box-sizing:border-box;">'+opts+'</select>';
@@ -575,14 +581,16 @@
         h+='<div style="border-top:1px solid #eef0f3;margin:12px 0 8px;"></div><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#5b6675;margin-bottom:3px;">Temporary delegation</div><div style="font-size:11.5px;color:#6b7686;margin-bottom:6px;">Optional. Hand this work order to someone else for a limited time. Leave blank for none.</div>';
         h+='<label style="display:block;font-size:12px;color:#6b7686;margin-bottom:3px;">Delegate to</label><select id="woaDelegate" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;box-sizing:border-box;">'+dopts+'</select>';
         h+='<label style="display:block;font-size:12px;color:#6b7686;margin-bottom:3px;">Delegate until</label><input type="date" id="woaUntil" value="'+untilVal+'" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;box-sizing:border-box;font-size:13px;">';
+        h+='<div style="border-top:1px solid #eef0f3;margin:12px 0 8px;"></div><div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#5b6675;margin-bottom:3px;">Outside vendor</div><div style="font-size:11.5px;color:#6b7686;margin-bottom:6px;">Optional. Route this job to an outside repair vendor (from your Contacts directory). Leave blank for in-house.</div>';
+        h+='<label style="display:block;font-size:12px;color:#6b7686;margin-bottom:3px;">Vendor</label><select id="woaVendor" style="width:100%;padding:9px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;box-sizing:border-box;">'+vopts+'</select>';
         h+='<div id="woaMsg" style="font-size:12.5px;color:#c0264b;margin:6px 0;"></div>';
         h+='<div style="display:flex;gap:8px;"><button onclick="woModalClose()" style="flex:1;background:#eef0f3;border:none;border-radius:9px;padding:11px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="woDoAssign('+id+')" style="flex:2;background:#185FA5;color:#fff;border:none;border-radius:9px;padding:11px;font-weight:800;cursor:pointer;">Save</button></div></div>';
         woModal(h);
     }
     function woDoAssign(id){
-        var owner=woVal('woaOwner'), backup=woVal('woaBackup'), deleg=woVal('woaDelegate'), until=woVal('woaUntil');
+        var owner=woVal('woaOwner'), backup=woVal('woaBackup'), deleg=woVal('woaDelegate'), until=woVal('woaUntil'), vend=woVal('woaVendor');
         withPin(function(pin){
-            supabaseClient.rpc('app_wo_assign',{p_username:currentUser.username,p_password:pin,p_id:id,p_assigned_to:owner?parseInt(owner,10):null,p_backup_to:backup?parseInt(backup,10):null,p_delegated_to:deleg?parseInt(deleg,10):null,p_delegation_until:until||null,p_vendor_id:null}).then(function(r){
+            supabaseClient.rpc('app_wo_assign',{p_username:currentUser.username,p_password:pin,p_id:id,p_assigned_to:owner?parseInt(owner,10):null,p_backup_to:backup?parseInt(backup,10):null,p_delegated_to:deleg?parseInt(deleg,10):null,p_delegation_until:until||null,p_vendor_id:vend?parseInt(vend,10):null}).then(function(r){
                 if(r.error){ document.getElementById('woaMsg').textContent=(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':r.error.message); return; }
                 var due=woVal('woaDue'); var orig=(window._woDetail&&window._woDetail.due_date)?String(window._woDetail.due_date).slice(0,10):'';
                 if(due!==orig){ supabaseClient.rpc('app_wo_set_due',{p_username:currentUser.username,p_password:pin,p_id:id,p_due_date:due||null}).then(function(){ woModalClose(); woOpenDetail(id); }).catch(function(){ woModalClose(); woOpenDetail(id); }); }
