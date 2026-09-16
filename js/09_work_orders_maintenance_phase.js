@@ -1277,8 +1277,8 @@
     }
 
     // ---- Messaging ----
-    var msgTab='updates';
-    function openMessages(){ document.getElementById('main-menu').style.display='none'; document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';}); document.getElementById('messagesView').style.display='block'; window.scrollTo(0,0); msgTab='updates'; renderMsgTabs(); loadMsgTab(); try{ msgBadgeClear(); }catch(e){} try{ msgComplianceBar(); }catch(e){} try{ msgPolicyGate(); }catch(e){} }
+    var msgTab='msgs';
+    function openMessages(){ document.getElementById('main-menu').style.display='none'; document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';}); document.getElementById('messagesView').style.display='block'; window.scrollTo(0,0); msgTab='msgs'; renderMsgTabs(); loadMsgTab(); try{ msgBadgeClear(); }catch(e){} try{ msgComplianceBar(); }catch(e){} try{ msgPolicyGate(); }catch(e){} }
     // ---- Messaging compliance: employee notice + one-time acknowledgment (legal keystone) ----
     function msgPolicyGate(){
         withPin(function(pin){
@@ -1302,9 +1302,9 @@
         var host=document.getElementById('msgContent'); if(!host||!host.parentNode) return;
         var old=document.getElementById('msgComplyBar'); if(old) old.remove();
         var bar=document.createElement('div'); bar.id='msgComplyBar';
-        var admBtn=msgIsLeadership()?'<button onclick="openMsgRecords()" style="background:#fff;border:1px solid #e7ddcd;color:#a01b3e;border-radius:8px;padding:6px 11px;font-size:11.5px;font-weight:800;cursor:pointer;white-space:nowrap;">&#128274; Message records (Legal/HR)</button>':'';
-        bar.style.cssText='display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fbf7ef;border:1px solid #eee2cf;border-radius:10px;padding:8px 11px;margin-bottom:12px;';
-        bar.innerHTML='<span style="flex:1;min-width:170px;font-size:11px;color:#8a7f6a;">&#128274; Messages are company records and may be reviewed by leadership for legal/HR reasons.</span>'+admBtn;
+        var admBtn=msgIsLeadership()?'<button onclick="openMsgRecords()" style="background:#fff;border:1px solid #e7ddcd;color:#a01b3e;border-radius:7px;padding:4px 9px;font-size:10.5px;font-weight:800;cursor:pointer;white-space:nowrap;">&#128274; Message records (Legal/HR)</button>':'';
+        bar.style.cssText='display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fbf7ef;border:1px solid #eee2cf;border-radius:9px;padding:5px 10px;margin-bottom:10px;';
+        bar.innerHTML='<span style="flex:1;min-width:150px;font-size:10.5px;line-height:1.3;color:#8a7f6a;">&#128274; Messages are company records and may be reviewed by leadership for legal/HR reasons.</span>'+admBtn;
         host.parentNode.insertBefore(bar, host);
     }
     // ---- Legal / HR message-records tool (owner + admin leadership only; every access logged) ----
@@ -1360,9 +1360,15 @@
             }).catch(function(){ if(out) out.innerHTML='<div style="color:#a01b3e;">Connection error.</div>'; });
         });
     }
-    function renderMsgTabs(){ ['updates','dm','store'].forEach(function(t){ var el=document.getElementById('msgTab'+t.charAt(0).toUpperCase()+t.slice(1)); if(el) el.className='msg-tab'+(msgTab===t?' active':''); }); }
-    function setMsgTab(t){ msgTab=t; renderMsgTabs(); loadMsgTab(); }
-    function loadMsgTab(){ var c=document.getElementById('msgContent'); c.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading...</p>'; if(msgTab==='updates') loadUpdates(); else if(msgTab==='dm') loadDmThreads(); else loadStoreFeed(); }
+    // ---- Tabs (Homebase layout): Messages | Announcements ----
+    function msgTabsHost(){ var t=document.getElementById('msgTabs'); if(!t){ var c=document.getElementById('msgContent'); if(!c||!c.parentNode) return null; t=document.createElement('div'); t.id='msgTabs'; c.parentNode.insertBefore(t,c); var old=document.getElementById('msgTabUpdates'); if(old&&old.parentNode&&old.parentNode!==t) old.parentNode.style.display='none'; } return t; }
+    function renderMsgTabs(){
+        var host=msgTabsHost(); if(!host) return;
+        host.innerHTML='<div style="display:flex;gap:2px;border-bottom:1px solid #e3e7ee;margin:0 0 12px;">'+[['msgs','Messages'],['updates','Announcements']].map(function(t){ var on=(msgTab===t[0]);
+            return '<button onclick="setMsgTab(\''+t[0]+'\')" style="background:none;border:none;border-bottom:3px solid '+(on?'#106ab3':'transparent')+';margin-bottom:-1px;padding:10px 14px;font-size:14.5px;font-weight:'+(on?'800':'600')+';color:'+(on?'#106ab3':'#5f6b7a')+';cursor:pointer;font-family:inherit;">'+t[1]+(t[0]==='msgs'&&_convUnread>0?' <span style="display:inline-block;background:#e0245e;color:#fff;border-radius:99px;font-size:10.5px;font-weight:800;padding:1px 6px;margin-left:3px;vertical-align:1px;">'+_convUnread+'</span>':'')+'</button>'; }).join('')+'</div>';
+    }
+    function setMsgTab(t){ msgTab=(t==='updates')?'updates':'msgs'; renderMsgTabs(); loadMsgTab(); }
+    function loadMsgTab(){ var c=document.getElementById('msgContent'); c.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading...</p>'; if(msgTab==='updates') loadUpdates(); else loadConversations(); }
     function isMgr(){ return currentUser && (currentUser.role==='Admin Manager'||currentUser.role==='Manager'||currentUser.role==='Vice President/Co-Owner'||currentUser.is_developer===true); }
 
     function loadUpdates(){
@@ -1423,36 +1429,72 @@
 
     function annEditItem(id){ var nb=prompt('Edit this announcement (type the new text):'); if(nb===null) return; nb=nb.trim(); if(!nb){ alert('Announcement cannot be empty.'); return; } withPin(function(pin){ supabaseClient.rpc('app_announcement_edit',{p_username:currentUser.username,p_password:pin,p_id:id,p_body:nb}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':('Error: '+r.error.message)); return; } loadUpdates(); }).catch(function(){ alert('Connection error.'); }); }); }
     function annDeleteItem(id){ if(!confirm('Delete this announcement? This cannot be undone.')) return; withPin(function(pin){ supabaseClient.rpc('app_announcement_delete',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':('Error: '+r.error.message)); return; } loadUpdates(); }).catch(function(){ alert('Connection error.'); }); }); }
-    function loadDmThreads(){
-        var c=document.getElementById('msgContent');
+    // ---- Conversations: ONE list (Homebase layout) — every "Entire team" wall, group and direct message the person
+    //      can see, grouped by store. Backed by app_conversations (message_groups kind = store | group | dm). ----
+    var _convUnread=0, _convFilter='all', _convData=null, _convById={};
+    function convStoreLabel(loc){ loc=String(loc||''); if(!loc) return "Caliche’s"; if(/catering/i.test(loc)) return "Caliche’s Catering & Vending"; return "Caliche’s Frozen Custard – "+loc; }
+    function convWhen(s){ if(!s) return ''; try{ var d=new Date(s), n=new Date(); if(d.toDateString()===n.toDateString()) return d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}); var y=new Date(n); y.setDate(n.getDate()-1); if(d.toDateString()===y.toDateString()) return 'Yesterday'; if(d.getFullYear()===n.getFullYear()) return d.toLocaleDateString([],{month:'short',day:'numeric'}); return d.toLocaleDateString([],{month:'numeric',day:'numeric',year:'2-digit'}); }catch(e){ return ''; } }
+    function convInitials(name){ var p=String(name||'').trim().split(/\s+/); var a=(p[0]||'').charAt(0), b=(p.length>1?p[p.length-1]:'').charAt(0); return (a+b).toUpperCase()||'?'; }
+    function convColor(name){ var cols=['#106ab3','#ec3e7e','#0f8a5f','#c2571a','#6a3fb5','#0b7f8a','#b0298a','#4c6ef5']; var h=0; String(name||'').split('').forEach(function(ch){ h=(h*31+ch.charCodeAt(0))>>>0; }); return cols[h%cols.length]; }
+    function convPeopleSvg(sz){ return '<svg viewBox="0 0 24 24" width="'+sz+'" height="'+sz+'" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'; }
+    function convAvatar(it, sz){ sz=sz||44; var base='width:'+sz+'px;height:'+sz+'px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;';
+        if(it.kind==='store') return '<div style="'+base+'background:#e6f0fa;color:#106ab3;">'+convPeopleSvg(Math.round(sz*0.5))+'</div>';
+        if(it.kind==='group') return '<div style="'+base+'background:'+convColor(it.title)+';color:#fff;">'+convPeopleSvg(Math.round(sz*0.5))+'</div>';
+        return '<div style="'+base+'background:'+convColor(it.title)+';color:#fff;font-size:'+Math.round(sz*0.34)+'px;font-weight:800;">'+escapeHtml(convInitials(it.title))+'</div>'; }
+    function convOpenId(id){ var it=_convById[id]; if(!it) return; if(it.kind==='store') openStoreThread(it.location); else if(it.kind==='group') openGroup(it.id, it.title); else openDm(it.with_emp, it.title); }
+    function convRow(it, i){
+        var unread=(parseInt(it.unread,10)||0);
+        var pre = it.last==null ? '' : (it.last_mine ? 'You: ' : (it.kind!=='dm' && it.last_from ? it.last_from+': ' : ''));
+        return '<div onclick="convOpenId('+it.id+')" style="display:flex;align-items:center;gap:12px;padding:11px 12px;background:#fff;'+(i>0?'border-top:1px solid #eef1f5;':'')+'cursor:pointer;">'
+            + convAvatar(it)
+            + '<div style="flex:1;min-width:0;">'
+            +   '<div style="display:flex;align-items:baseline;gap:8px;"><div style="flex:1;min-width:0;font-size:14.5px;font-weight:'+(unread?'800':'700')+';color:#1f2430;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escapeHtml(it.title||'')+'</div><div style="font-size:11.5px;color:'+(unread?'#106ab3':'#8a93a2')+';font-weight:'+(unread?'700':'500')+';flex:none;">'+convWhen(it.last_at)+'</div></div>'
+            +   '<div style="display:flex;align-items:center;gap:8px;margin-top:2px;"><div style="flex:1;min-width:0;font-size:13px;color:'+(unread?'#1f2430':'#6b7686')+';font-weight:'+(unread?'600':'400')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(it.last==null?'<span style="color:#9aa3b2;">No messages yet</span>':escapeHtml(pre+it.last))+'</div>'
+            +   (unread?'<span style="background:#e0245e;color:#fff;border-radius:99px;min-width:20px;height:20px;line-height:20px;font-size:11.5px;font-weight:800;text-align:center;padding:0 6px;box-sizing:border-box;flex:none;">'+(unread>99?'99+':unread)+'</span>':'')
+            +   '<button onclick="event.stopPropagation();convMenu('+it.id+',this)" title="More" style="background:none;border:none;color:#8a93a2;font-size:18px;line-height:1;padding:2px 4px;cursor:pointer;flex:none;">&#8942;</button></div>'
+            + '</div></div>';
+    }
+    function loadConversations(){
+        var c=document.getElementById('msgContent'); if(!c) return;
         withPin(function(pin){
-            Promise.all([
-                supabaseClient.rpc('app_group_list',{p_username:currentUser.username,p_password:pin}).catch(function(){ return {data:{groups:[]}}; }),
-                supabaseClient.rpc('app_dm_threads',{p_username:currentUser.username,p_password:pin}).catch(function(){ return {error:{message:'Could not load messages.'}}; })
-            ]).then(function(res){
-                var gr=res[0]||{}, dr=res[1]||{};
-                if(dr.error){ if(dr.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+escapeHtml(dr.error.message)+'</p>'; return; }
-                if(dr.data && dr.data.linked===false){ c.innerHTML='<p style="text-align:center;padding:20px;color:#6b7686;">Your login isn\'t linked yet — ask a manager to link your account.</p>'; return; }
-                var groups=(gr.data&&gr.data.groups)||[]; var th=(dr.data&&dr.data.threads)||[];
-                var h='<button onclick="newMessage()" style="width:100%;background:#6a3fb5;color:#fff;border:none;border-radius:8px;padding:10px;font-weight:bold;cursor:pointer;margin-bottom:12px;">&#10133; New message</button>';
-                if(groups.length){
-                    h+='<div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#9aa;margin:2px 2px 8px;">Groups</div>';
-                    groups.forEach(function(g){
-                        h+='<div onclick="openGroup('+g.id+',&quot;'+escapeHtml(String(g.title||'').replace(/"/g,''))+'&quot;)" style="background:#fff;border-radius:10px;padding:11px 12px;margin-bottom:8px;box-shadow:0 2px 4px rgba(0,0,0,0.05);cursor:pointer;display:flex;justify-content:space-between;align-items:center;">'
-                            +'<div style="display:flex;align-items:center;gap:10px;"><div style="width:34px;height:34px;border-radius:50%;background:#106ab3;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;flex:none;">&#128101;</div><div><div style="font-size:14px;font-weight:600;color:#333;">'+escapeHtml(g.title||'')+' <span style="color:#aab;font-size:11px;font-weight:400;">&middot; '+g.members+'</span></div><div style="font-size:12px;color:#6b7686;">'+escapeHtml((g.last||'').slice(0,40))+'</div></div></div>'
-                            +(g.unread>0?'<span style="background:#ec3e7e;color:#fff;border-radius:10px;font-size:11px;font-weight:bold;padding:2px 7px;">'+g.unread+'</span>':'')+'</div>';
-                    });
-                }
-                h+='<div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#9aa;margin:12px 2px 8px;">Direct</div>';
-                if(!th.length){ h+='<p style="color:#6b7686;text-align:center;font-size:13px;padding:4px 0 8px;">No direct messages yet.</p>'; }
-                else th.forEach(function(t){
-                    h+='<div onclick="openDm('+t.emp+',&quot;'+escapeHtml((t.name||'').replace(/"/g,''))+'&quot;)" style="background:#fff;border-radius:10px;padding:12px;margin-bottom:8px;box-shadow:0 2px 4px rgba(0,0,0,0.05);cursor:pointer;display:flex;justify-content:space-between;align-items:center;">' +
-                        '<div><div style="font-size:14px;font-weight:500;color:#333;">'+escapeHtml(t.name||'')+'</div><div style="font-size:12px;color:#6b7686;">'+escapeHtml((t.last||'').slice(0,40))+'</div></div>' +
-                        (t.unread>0?'<span style="background:#6a3fb5;color:#fff;border-radius:10px;font-size:11px;font-weight:bold;padding:2px 7px;">'+t.unread+'</span>':'') + '</div>';
-                });
-                c.innerHTML=h;
-            });
+            supabaseClient.rpc('app_conversations',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
+                var d=r.data||{}; if(d.linked===false){ c.innerHTML='<p style="text-align:center;padding:20px;color:#6b7686;">Your login isn\'t linked yet — ask a manager to link your account.</p>'; return; }
+                _convData=d; _convUnread=parseInt(d.unread_total,10)||0; renderMsgTabs(); renderConversations();
+            }).catch(function(){ c.innerHTML='<p style="color:red;text-align:center;">Could not load messages.</p>'; });
         });
+    }
+    function loadDmThreads(){ loadConversations(); }
+    function renderConversations(){
+        var c=document.getElementById('msgContent'); if(!c||!_convData) return; var d=_convData; _convById={};
+        var h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">'
+            +'<select onchange="_convFilter=this.value;renderConversations()" style="padding:8px 10px;border:1px solid #d6deea;border-radius:8px;font-size:13px;font-weight:700;color:#3a4353;background:#fff;font-family:inherit;"><option value="all"'+(_convFilter==='all'?' selected':'')+'>All messages</option><option value="unread"'+(_convFilter==='unread'?' selected':'')+'>Unread'+(_convUnread?' ('+_convUnread+')':'')+'</option></select>'
+            +'<span style="flex:1;"></span>'
+            +'<button onclick="newMessage()" style="background:#106ab3;color:#fff;border:none;border-radius:9px;padding:9px 14px;font-size:13.5px;font-weight:800;cursor:pointer;white-space:nowrap;">+ New Message</button></div>';
+        var secs=d.sections||[]; var shown=0;
+        secs.forEach(function(s){
+            var items=(s.items||[]).filter(function(it){ return _convFilter!=='unread' || (parseInt(it.unread,10)||0)>0; });
+            if(!items.length) return; shown+=items.length;
+            h+='<div style="font-size:12.5px;font-weight:800;color:#3a4353;background:#f3f5f9;border:1px solid #e6eaf0;border-bottom:none;border-radius:12px 12px 0 0;padding:8px 12px;margin-top:12px;">'+escapeHtml(convStoreLabel(s.location))+'</div>';
+            h+='<div style="border:1px solid #e6eaf0;border-radius:0 0 12px 12px;overflow:hidden;background:#fff;">'+items.map(function(it,i){ _convById[it.id]=it; return convRow(it,i); }).join('')+'</div>';
+        });
+        if(!shown) h+='<div style="text-align:center;padding:36px 10px;color:#6b7686;font-size:13.5px;">'+(_convFilter==='unread'?'You\'re all caught up &mdash; no unread messages.':'No conversations yet. Tap <b>+ New Message</b> to start one.')+'</div>';
+        c.innerHTML=h;
+    }
+    function convMenu(id, btn){ var it=_convById[id]; if(!it) return; var old=document.getElementById('convMenuPop'); if(old) old.remove();
+        var unread=(parseInt(it.unread,10)||0);
+        var pop=document.createElement('div'); pop.id='convMenuPop'; pop.style.cssText='position:fixed;z-index:100057;background:#fff;border:1px solid #e3e7ee;border-radius:10px;box-shadow:0 10px 30px rgba(20,30,50,.18);min-width:180px;overflow:hidden;';
+        pop.innerHTML='<button onclick="convMark('+id+','+(unread?'true':'false')+')" style="display:block;width:100%;text-align:left;background:none;border:none;padding:11px 14px;font-size:13.5px;color:#1f2430;cursor:pointer;font-family:inherit;">'+(unread?'&#10003; Mark as read':'&#9679; Mark as unread')+'</button>';
+        var r=btn.getBoundingClientRect(); pop.style.top=(r.bottom+4)+'px'; pop.style.right=Math.max(8, window.innerWidth-r.right)+'px';
+        document.body.appendChild(pop);
+        setTimeout(function(){ document.addEventListener('click', function h(){ pop.remove(); document.removeEventListener('click', h); }); },0);
+    }
+    function convMark(id, read){ withPin(function(pin){ supabaseClient.rpc('app_conv_mark',{p_username:currentUser.username,p_password:pin,p_group_id:id,p_read:read}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } loadConversations(); try{ msgBadgeTick(); }catch(e){} }); }); }
+    function convThreadHeader(it, sub){ return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><button onclick="loadConversations()" title="Back to messages" style="background:#eef2f7;border:none;border-radius:8px;padding:8px 12px;font-size:15px;cursor:pointer;line-height:1;">&#8592;</button>'+convAvatar(it,38)+'<div style="min-width:0;"><div style="font-size:15px;font-weight:800;color:#1f2430;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escapeHtml(it.title||'')+'</div>'+(sub?'<div style="font-size:11.5px;color:#8a93a2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+sub+'</div>':'')+'</div></div>'; }
+    function convBubble(m, showName){
+        var img=(m.attachment&&String(m.attachment).slice(0,11)==='data:image/')?'<img src="'+escapeHtml(m.attachment)+'" onclick="dmZoom(this.src)" style="display:block;max-width:210px;max-height:230px;border-radius:9px;'+(m.body?'margin-top:6px;':'')+'cursor:pointer;object-fit:cover;">':'';
+        var name=(showName&&!m.mine)?'<div style="font-size:11px;font-weight:800;color:#106ab3;margin-bottom:1px;">'+escapeHtml(m.sender||m.name||'')+'</div>':'';
+        return '<div style="max-width:'+(m.poll?'86%':'78%')+';background:'+(m.mine?'#106ab3':'#fff')+';color:'+(m.mine?'#fff':'#1f2430')+';border-radius:14px;'+(m.mine?'border-bottom-right-radius:4px;':'border-bottom-left-radius:4px;')+'padding:8px 12px;font-size:14px;box-shadow:0 1px 2px rgba(0,0,0,0.08);">'+name+(m.body?escapeHtml(m.body):'')+img+(m.poll?groupPollHtml(m.poll, m.mine):'')+'<div style="font-size:10px;opacity:.7;margin-top:2px;">'+socFmt(m.at)+(m.rcpt||'')+'</div></div>';
     }
     // ---- New message: pick a role-group (Shift Leaders, Crew Trainers...) and/or specific people ----
     var _msgSel={}, _msgDir=[];
@@ -1463,21 +1505,20 @@
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
                 _msgDir=(r.data||[]);
                 var rolesMap={}; _msgDir.forEach(function(p){ if(p.role_key){ rolesMap[p.role_key]=p.role||p.role_key; } });
-                var roleChips=Object.keys(rolesMap).map(function(k){ var cnt=_msgDir.filter(function(p){return p.role_key===k;}).length; return '<button onclick="msgRolePick(\''+k+'\')" style="border:1px solid #d6c9ec;background:#f4f0fb;color:#5b3aa6;border-radius:999px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;margin:0 6px 8px 0;">'+escapeHtml(rolesMap[k])+' ('+cnt+')</button>'; }).join('');
-                var h='<button onclick="loadDmThreads()" style="background:#eee;border:none;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;margin-bottom:12px;">&#8592; Back</button>'
-                    +'<div style="font-size:15px;font-weight:800;color:#26242b;margin-bottom:10px;">New message</div>'
+                var roleChips=Object.keys(rolesMap).map(function(k){ var cnt=_msgDir.filter(function(p){return p.role_key===k;}).length; return '<button onclick="msgRolePick(\''+k+'\')" style="border:1px solid #bcd8f2;background:#eef4fb;color:#106ab3;border-radius:999px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;margin:0 6px 8px 0;">'+escapeHtml(rolesMap[k])+' ('+cnt+')</button>'; }).join('');
+                var h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><button onclick="loadConversations()" title="Back to messages" style="background:#eef2f7;border:none;border-radius:8px;padding:8px 12px;font-size:15px;cursor:pointer;line-height:1;">&#8592;</button><div style="font-size:16px;font-weight:800;color:#1f2430;">New Message</div></div>'
                     +'<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#9aa;margin-bottom:6px;">Quick pick a group</div>'
                     +'<div style="display:flex;flex-wrap:wrap;">'+(roleChips||'<span style="font-size:12px;color:#8a93a2;">No role groups found</span>')+'</div>'
-                    +'<div style="margin:8px 0 10px;"><span id="msgSelCount" style="font-size:12.5px;color:#5b3aa6;font-weight:800;">0 selected</span> <span style="font-size:11.5px;color:#8a93a2;">&middot; 1 person = direct message, 2+ = group</span></div>'
+                    +'<div style="margin:8px 0 10px;"><span id="msgSelCount" style="font-size:12.5px;color:#106ab3;font-weight:800;">0 selected</span> <span style="font-size:11.5px;color:#8a93a2;">&middot; 1 person = direct message, 2+ = group</span></div>'
                     +'<input id="msgGroupName" placeholder="Group name (for 2+ people)" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #d6deea;border-radius:8px;margin-bottom:8px;font-size:13px;">'
                     +'<input id="msgDirSearch" onkeyup="msgDirFilter()" placeholder="Search a name..." style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;">'
                     +'<div id="msgDirList">'+_msgDir.map(function(p){return msgDirRow(p);}).join('')+(_msgDir.length?'':'<p style="color:#6b7686;text-align:center;font-size:13px;">No one else has a login yet.</p>')+'</div>'
-                    +'<button onclick="msgStart()" style="width:100%;background:#ec3e7e;color:#fff;border:none;border-radius:9px;padding:12px;font-weight:800;font-size:14px;cursor:pointer;margin-top:12px;">Start conversation</button>';
+                    +'<button onclick="msgStart()" style="width:100%;background:#106ab3;color:#fff;border:none;border-radius:9px;padding:12px;font-weight:800;font-size:14px;cursor:pointer;margin-top:12px;">Start conversation</button>';
                 c.innerHTML=h;
             });
         });
     }
-    function msgDirRow(p){ var on=!!_msgSel[p.id]; return '<div class="msgDirRow" data-n="'+escapeHtml((p.name||'').toLowerCase())+'" data-id="'+p.id+'" onclick="msgToggle('+p.id+')" style="display:flex;align-items:center;justify-content:space-between;background:'+(on?'#faf5ff':'#fff')+';border:1px solid '+(on?'#d6c9ec':'#eef0f5')+';border-radius:10px;padding:10px 11px;margin-bottom:7px;cursor:pointer;"><div style="font-size:14px;color:#333;">'+escapeHtml(p.name||'')+(p.store?' <span style="color:#aab;font-size:11px;">'+escapeHtml(p.store)+'</span>':'')+(p.role?' <span style="color:#9a8fc2;font-size:10.5px;">'+escapeHtml(p.role)+'</span>':'')+'</div><div style="width:20px;height:20px;border-radius:5px;border:2px solid '+(on?'#6a3fb5':'#ccd')+';background:'+(on?'#6a3fb5':'#fff')+';color:#fff;font-size:13px;text-align:center;line-height:17px;flex:none;">'+(on?'&#10003;':'')+'</div></div>'; }
+    function msgDirRow(p){ var on=!!_msgSel[p.id]; return '<div class="msgDirRow" data-n="'+escapeHtml((p.name||'').toLowerCase())+'" data-id="'+p.id+'" onclick="msgToggle('+p.id+')" style="display:flex;align-items:center;justify-content:space-between;background:'+(on?'#eef4fb':'#fff')+';border:1px solid '+(on?'#bcd8f2':'#eef0f5')+';border-radius:10px;padding:10px 11px;margin-bottom:7px;cursor:pointer;"><div style="font-size:14px;color:#333;">'+escapeHtml(p.name||'')+(p.store?' <span style="color:#aab;font-size:11px;">'+escapeHtml(p.store)+'</span>':'')+(p.role?' <span style="color:#7f93b3;font-size:10.5px;">'+escapeHtml(p.role)+'</span>':'')+'</div><div style="width:20px;height:20px;border-radius:5px;border:2px solid '+(on?'#106ab3':'#ccd')+';background:'+(on?'#106ab3':'#fff')+';color:#fff;font-size:13px;text-align:center;line-height:17px;flex:none;">'+(on?'&#10003;':'')+'</div></div>'; }
     function msgToggle(id){ if(_msgSel[id]) delete _msgSel[id]; else _msgSel[id]=true; msgRefreshSel(); }
     function msgRolePick(rk){ var ppl=_msgDir.filter(function(p){return p.role_key===rk;}); var allOn=ppl.length&&ppl.every(function(p){return _msgSel[p.id];}); ppl.forEach(function(p){ if(allOn) delete _msgSel[p.id]; else _msgSel[p.id]=true; }); if(!allOn){ var gn=document.getElementById('msgGroupName'); if(gn && !gn.value){ var lbl=(ppl[0]&&ppl[0].role)||rk; gn.value=lbl+(/s$/i.test(lbl)?'':'s'); } } msgRefreshSel(); }
     function msgRefreshSel(){ var el=document.getElementById('msgSelCount'); if(el) el.textContent=Object.keys(_msgSel).length+' selected'; var list=document.getElementById('msgDirList'); if(list){ list.innerHTML=_msgDir.map(function(p){return msgDirRow(p);}).join(''); msgDirFilter(); } }
@@ -1488,7 +1529,7 @@
         if(ids.length===1){ var p=null; for(var i=0;i<_msgDir.length;i++){ if(_msgDir[i].id===ids[0]){ p=_msgDir[i]; break; } } openDm(ids[0], (p&&p.name)||''); return; }
         var name=((document.getElementById('msgGroupName')||{}).value||'').trim();
         if(!name){ alert('Give the group a name (e.g. Shift Leaders).'); var gn=document.getElementById('msgGroupName'); if(gn) gn.focus(); return; }
-        withPin(function(pin){ supabaseClient.rpc('app_group_create',{p_username:currentUser.username,p_password:pin,p_title:name,p_members:ids}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } openGroup(r.data, name); }); });
+        withPin(function(pin){ supabaseClient.rpc('app_group_create',{p_username:currentUser.username,p_password:pin,p_title:name,p_members:ids,p_location:activeStoreLoc()||null}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } openGroup(r.data, name); }); });
     }
     // ---- Group thread ----
     var groupWith=null, groupWithName='', groupPendingPhoto='';
@@ -1499,21 +1540,20 @@
             supabaseClient.rpc('app_group_thread',{p_username:currentUser.username,p_password:pin,p_group_id:groupWith}).then(function(r){
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
                 var d=r.data||{}; var msgs=d.messages||[]; var members=d.members||[];
-                var h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:3px;"><button onclick="loadDmThreads()" style="background:#eee;border:none;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;">&#8592;</button><span style="font-size:15px;font-weight:600;color:#333;">&#128101; '+escapeHtml(d.title||groupWithName)+'</span></div>'
-                    +'<div style="font-size:11px;color:#8a93a2;margin:0 0 10px 2px;">'+members.length+' members'+(members.length?': '+escapeHtml(members.slice(0,6).join(', '))+(members.length>6?' +'+(members.length-6):''):'')+'</div>'
-                    +'<div style="background:#f7f5fb;border-radius:12px;padding:12px;max-height:46vh;overflow:auto;margin-bottom:10px;">';
+                var h=convThreadHeader({kind:'group',title:(d.title||groupWithName)}, members.length+' members'+(members.length?': '+escapeHtml(members.slice(0,6).join(', '))+(members.length>6?' +'+(members.length-6):''):''))
+                    +'<div id="gmThread" style="background:#f3f5f9;border-radius:14px;padding:12px;max-height:46vh;overflow:auto;margin-bottom:10px;">';
                 if(!msgs.length) h+='<p style="color:#6b7686;text-align:center;font-size:13px;">No messages yet. Say hi to the group!</p>';
-                msgs.forEach(function(m){ var img=(m.attachment&&String(m.attachment).slice(0,11)==='data:image/')?'<img src="'+escapeHtml(m.attachment)+'" onclick="dmZoom(this.src)" style="display:block;max-width:200px;max-height:220px;border-radius:9px;'+(m.body?'margin-top:6px;':'')+'cursor:pointer;object-fit:cover;">':''; var rr=(m.mine&&m.read_by>0)?'<div style="font-size:10px;color:#1f7a3d;font-weight:700;text-align:right;margin:1px 4px 5px 0;">&#10003; Read by '+m.read_by+'</div>':''; var poll=m.poll?groupPollHtml(m.poll, m.mine):''; h+='<div style="display:flex;justify-content:'+(m.mine?'flex-end':'flex-start')+';margin-bottom:'+(rr?'0':'6px')+';"><div style="max-width:'+(m.poll?'86%':'78%')+';background:'+(m.mine?'#6a3fb5':'#fff')+';color:'+(m.mine?'#fff':'#333')+';border-radius:12px;padding:8px 11px;font-size:14px;box-shadow:0 1px 2px rgba(0,0,0,0.08);">'+(!m.mine?'<div style="font-size:11px;font-weight:700;color:#6a3fb5;">'+escapeHtml(m.sender||'')+'</div>':'')+(m.body?escapeHtml(m.body):'')+img+poll+'<div style="font-size:10px;opacity:.7;margin-top:2px;">'+socFmt(m.at)+'</div></div></div>'+rr; });
+                msgs.forEach(function(m){ var rr=(m.mine&&m.read_by>0)?'<div style="font-size:10px;color:#1f7a3d;font-weight:700;text-align:right;margin:1px 4px 5px 0;">&#10003; Read by '+m.read_by+'</div>':''; h+='<div style="display:flex;justify-content:'+(m.mine?'flex-end':'flex-start')+';margin-bottom:'+(rr?'0':'6px')+';">'+convBubble(m, true)+'</div>'+rr; });
                 h+='</div>'
                     +'<div id="gmPhotoPreview" style="display:none;margin-bottom:6px;"></div>'
-                    +'<div style="display:flex;gap:6px;align-items:center;"><input type="file" id="gmFile" accept="image/*" style="display:none;" onchange="groupPickPhoto()"><button onclick="if(typeof toggleAIChatPanel===&quot;function&quot;)toggleAIChatPanel()" title="Ask Mr. Scoopy" style="background:#fdeaf1;color:#ec3e7e;border:none;border-radius:8px;padding:10px 11px;font-size:15px;cursor:pointer;line-height:1;">&#127846;</button><button onclick="groupPollForm()" title="Create a poll" style="background:#f0edf9;color:#6a3fb5;border:none;border-radius:8px;padding:10px 11px;font-size:15px;cursor:pointer;line-height:1;">&#128202;</button><button onclick="document.getElementById(&quot;gmFile&quot;).click()" title="Add a photo" style="background:#eef2f7;color:#6a3fb5;border:none;border-radius:8px;padding:10px 11px;font-size:16px;cursor:pointer;line-height:1;">&#128247;</button><input id="gmInput" onkeypress="if(event.key===&quot;Enter&quot;)sendGroup()" placeholder="Message the group..." style="flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;"><button onclick="sendGroup()" style="background:#6a3fb5;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-weight:bold;cursor:pointer;">Send</button></div>'
+                    +'<div style="display:flex;gap:6px;align-items:center;"><input type="file" id="gmFile" accept="image/*" style="display:none;" onchange="groupPickPhoto()"><button onclick="if(typeof toggleAIChatPanel===&quot;function&quot;)toggleAIChatPanel()" title="Ask Mr. Scoopy" style="background:#fdeaf1;color:#ec3e7e;border:none;border-radius:8px;padding:10px 11px;font-size:15px;cursor:pointer;line-height:1;">&#127846;</button><button onclick="groupPollForm()" title="Create a poll" style="background:#eef4fb;color:#106ab3;border:none;border-radius:8px;padding:10px 11px;font-size:15px;cursor:pointer;line-height:1;">&#128202;</button><button onclick="document.getElementById(&quot;gmFile&quot;).click()" title="Add a photo" style="background:#eef2f7;color:#106ab3;border:none;border-radius:8px;padding:10px 11px;font-size:16px;cursor:pointer;line-height:1;">&#128247;</button><input id="gmInput" onkeypress="if(event.key===&quot;Enter&quot;)sendGroup()" placeholder="Message the group..." style="flex:1;padding:11px 12px;border:1px solid #d6deea;border-radius:10px;font-size:14px;font-family:inherit;"><button onclick="sendGroup()" style="background:#106ab3;color:#fff;border:none;border-radius:10px;padding:11px 16px;font-weight:800;cursor:pointer;">Send</button></div>'
                     +'<div id="gmPhotoStatus" style="display:none;font-size:11px;color:#6b7686;margin-top:4px;"></div>';
-                c.innerHTML=h; var inp=document.getElementById('gmInput'); if(inp) inp.focus();
+                c.innerHTML=h; var th=document.getElementById('gmThread'); if(th) th.scrollTop=th.scrollHeight; var inp=document.getElementById('gmInput'); if(inp) inp.focus();
             });
         });
     }
     function sendGroup(){ var inp=document.getElementById('gmInput'); var body=(inp?(inp.value||''):'').trim(); var att=groupPendingPhoto||''; if(!body && !att) return; if(inp) inp.value=''; withPin(function(pin){ supabaseClient.rpc('app_group_send',{p_username:currentUser.username,p_password:pin,p_group_id:groupWith,p_body:body,p_attachment_url:att||null}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } groupPendingPhoto=''; renderGroup(); }); }); }
-    function groupPickPhoto(){ var f=document.getElementById('gmFile'); if(!f||!f.files||!f.files[0]) return; var file=f.files[0]; f.value=''; if(file.size>12*1024*1024){ alert('That photo is too large — please pick one under ~12MB.'); return; } var st=document.getElementById('gmPhotoStatus'); if(st){ st.style.display='block'; st.textContent='Preparing photo…'; } if(typeof woCompress!=='function'){ if(st) st.textContent='Photos need an app update — please refresh.'; return; } woCompress(file,function(d){ if(!d){ if(st) st.textContent='Could not read that photo — try another.'; return; } groupPendingPhoto=d; if(st){ st.style.display='none'; } var pv=document.getElementById('gmPhotoPreview'); if(pv){ pv.style.display='block'; pv.innerHTML='<div style="display:inline-flex;align-items:center;gap:8px;background:#f0edf7;border-radius:9px;padding:5px 8px;"><img src="'+d+'" style="width:40px;height:40px;object-fit:cover;border-radius:6px;"><span style="font-size:12px;color:#6a3fb5;font-weight:600;">Photo ready to send</span><button onclick="groupClearPhoto()" style="background:none;border:none;color:#a01b3e;font-weight:800;cursor:pointer;font-size:15px;line-height:1;">&times;</button></div>'; } }); }
+    function groupPickPhoto(){ var f=document.getElementById('gmFile'); if(!f||!f.files||!f.files[0]) return; var file=f.files[0]; f.value=''; if(file.size>12*1024*1024){ alert('That photo is too large — please pick one under ~12MB.'); return; } var st=document.getElementById('gmPhotoStatus'); if(st){ st.style.display='block'; st.textContent='Preparing photo…'; } if(typeof woCompress!=='function'){ if(st) st.textContent='Photos need an app update — please refresh.'; return; } woCompress(file,function(d){ if(!d){ if(st) st.textContent='Could not read that photo — try another.'; return; } groupPendingPhoto=d; if(st){ st.style.display='none'; } var pv=document.getElementById('gmPhotoPreview'); if(pv){ pv.style.display='block'; pv.innerHTML='<div style="display:inline-flex;align-items:center;gap:8px;background:#eef4fb;border-radius:9px;padding:5px 8px;"><img src="'+d+'" style="width:40px;height:40px;object-fit:cover;border-radius:6px;"><span style="font-size:12px;color:#106ab3;font-weight:600;">Photo ready to send</span><button onclick="groupClearPhoto()" style="background:none;border:none;color:#a01b3e;font-weight:800;cursor:pointer;font-size:15px;line-height:1;">&times;</button></div>'; } }); }
     function groupClearPhoto(){ groupPendingPhoto=''; var pv=document.getElementById('gmPhotoPreview'); if(pv){ pv.style.display='none'; pv.innerHTML=''; } var st=document.getElementById('gmPhotoStatus'); if(st){ st.style.display='none'; } }
     // ---- Polls in a group ----
     function groupPollHtml(poll, mine){
@@ -1521,8 +1561,8 @@
         var h='<div style="background:#fff;border:1px solid #ece7f5;border-radius:10px;padding:9px 10px;margin-top:'+(mine?'4px':'2px')+';min-width:210px;">'
             +'<div style="font-size:12.5px;font-weight:800;color:#26242b;margin-bottom:7px;">&#128202; '+escapeHtml(poll.question||'')+'</div>';
         opts.forEach(function(o){ var votes=o.votes||0, pct=total>0?Math.round(votes*100/total):0, mineOpt=(myVote===o.id);
-            h+='<div onclick="groupVote('+poll.id+','+o.id+')" style="position:relative;cursor:pointer;border:1px solid '+(mineOpt?'#6a3fb5':'#e5e0ef')+';border-radius:8px;padding:6px 9px;margin-bottom:5px;overflow:hidden;background:#faf8ff;">'
-                +'<div style="position:absolute;left:0;top:0;bottom:0;width:'+pct+'%;background:'+(mineOpt?'#ded3f5':'#eee9f8')+';"></div>'
+            h+='<div onclick="groupVote('+poll.id+','+o.id+')" style="position:relative;cursor:pointer;border:1px solid '+(mineOpt?'#106ab3':'#e3e7ee')+';border-radius:8px;padding:6px 9px;margin-bottom:5px;overflow:hidden;background:#f8fafd;">'
+                +'<div style="position:absolute;left:0;top:0;bottom:0;width:'+pct+'%;background:'+(mineOpt?'#cfe1f5':'#e6eef8')+';"></div>'
                 +'<div style="position:relative;display:flex;justify-content:space-between;font-size:12.5px;color:#33303a;"><span style="font-weight:'+(mineOpt?'800':'600')+';">'+(mineOpt?'&#10003; ':'')+escapeHtml(o.label||'')+'</span><span style="color:#6b6275;">'+pct+'%</span></div></div>';
         });
         h+='<div style="font-size:10.5px;color:#8a8594;">'+total+' vote'+(total===1?'':'s')+(myVote?' &middot; tap to change':'')+'</div></div>';
@@ -1532,11 +1572,11 @@
         var ov=document.getElementById('gPollOv'); if(ov) ov.remove();
         ov=document.createElement('div'); ov.id='gPollOv'; ov.style.cssText='position:fixed;inset:0;z-index:100059;background:rgba(20,25,40,.5);display:flex;align-items:center;justify-content:center;padding:20px;';
         ov.innerHTML='<div style="background:#fff;max-width:400px;width:100%;border-radius:15px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3);">'
-            +'<div style="background:#6a3fb5;color:#fff;padding:13px 16px;font-size:15px;font-weight:800;">&#128202; New poll</div>'
+            +'<div style="background:#106ab3;color:#fff;padding:13px 16px;font-size:15px;font-weight:800;">&#128202; New poll</div>'
             +'<div style="padding:14px 16px;">'
             +'<input id="pollQ" placeholder="Question (e.g. Who can cover Saturday?)" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #d6deea;border-radius:8px;font-size:13px;margin-bottom:10px;">'
             +'<div id="pollOpts"><input class="pollOpt" placeholder="Option 1" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #d6deea;border-radius:8px;font-size:13px;margin-bottom:6px;"><input class="pollOpt" placeholder="Option 2" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #d6deea;border-radius:8px;font-size:13px;margin-bottom:6px;"></div>'
-            +'<button onclick="pollAddOption()" style="background:none;border:none;color:#6a3fb5;font-size:12.5px;font-weight:700;cursor:pointer;padding:2px 0;">+ Add option</button>'
+            +'<button onclick="pollAddOption()" style="background:none;border:none;color:#106ab3;font-size:12.5px;font-weight:700;cursor:pointer;padding:2px 0;">+ Add option</button>'
             +'<div style="display:flex;gap:8px;margin-top:12px;"><button onclick="var o=document.getElementById(\'gPollOv\');if(o)o.remove();" style="flex:1;background:#eef0f3;border:none;border-radius:9px;padding:10px;font-weight:700;cursor:pointer;">Cancel</button><button onclick="groupPollCreate()" style="flex:2;background:#ec3e7e;color:#fff;border:none;border-radius:9px;padding:10px;font-weight:800;cursor:pointer;">Post poll</button></div>'
             +'</div></div>';
         document.body.appendChild(ov);
@@ -1558,47 +1598,51 @@
             supabaseClient.rpc('app_dm_thread',{p_username:currentUser.username,p_password:pin,p_with_emp:dmWith}).then(function(r){
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
                 var msgs=(r.data&&r.data.messages)||[];
-                var h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><button onclick="loadDmThreads()" style="background:#eee;border:none;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;">&#8592;</button><span style="font-size:15px;font-weight:500;color:#333;">'+escapeHtml(dmWithName)+'</span></div>' +
-                    '<div style="background:#f7f5fb;border-radius:12px;padding:12px;max-height:50vh;overflow:auto;margin-bottom:10px;">';
+                var h=convThreadHeader({kind:'dm',title:(dmWithName||(r.data&&r.data.name)||'')}, 'Direct message')
+                    +'<div id="dmThread" style="background:#f3f5f9;border-radius:14px;padding:12px;max-height:50vh;overflow:auto;margin-bottom:10px;">';
                 if(!msgs.length) h+='<p style="color:#6b7686;text-align:center;font-size:13px;">No messages yet. Say hi!</p>';
-                msgs.forEach(function(m){ var rcpt=m.mine?(' &middot; '+(m.read?'&#10003; Read':'Sent')):''; var img=(m.attachment&&String(m.attachment).slice(0,11)==='data:image/')?'<img src="'+escapeHtml(m.attachment)+'" onclick="dmZoom(this.src)" style="display:block;max-width:210px;max-height:230px;border-radius:9px;'+(m.body?'margin-top:6px;':'')+'cursor:pointer;object-fit:cover;">':''; h+='<div style="display:flex;justify-content:'+(m.mine?'flex-end':'flex-start')+';margin-bottom:6px;"><div style="max-width:75%;background:'+(m.mine?'#6a3fb5':'#fff')+';color:'+(m.mine?'#fff':'#333')+';border-radius:12px;padding:8px 11px;font-size:14px;box-shadow:0 1px 2px rgba(0,0,0,0.08);">'+(m.body?escapeHtml(m.body):'')+img+'<div style="font-size:10px;opacity:.7;margin-top:2px;">'+socFmt(m.at)+rcpt+'</div></div></div>'; });
+                msgs.forEach(function(m){ m.rcpt=m.mine?(' &middot; '+(m.read?'&#10003; Read':'Sent')):''; h+='<div style="display:flex;justify-content:'+(m.mine?'flex-end':'flex-start')+';margin-bottom:6px;">'+convBubble(m, false)+'</div>'; });
                 h+='</div>'
                   +'<div id="dmPhotoPreview" style="display:none;margin-bottom:6px;"></div>'
                   +'<div style="display:flex;gap:8px;align-items:center;">'
                     +'<input type="file" id="dmFile" accept="image/*" style="display:none;" onchange="dmPickPhoto()">'
                     +'<button onclick="if(typeof toggleAIChatPanel===&quot;function&quot;)toggleAIChatPanel()" title="Ask Mr. Scoopy" style="background:#fdeaf1;color:#ec3e7e;border:none;border-radius:8px;padding:10px 12px;font-size:16px;cursor:pointer;line-height:1;">&#127846;</button>'
-                    +'<button onclick="document.getElementById(&quot;dmFile&quot;).click()" title="Add a photo" style="background:#eef2f7;color:#6a3fb5;border:none;border-radius:8px;padding:10px 12px;font-size:16px;cursor:pointer;line-height:1;">&#128247;</button>'
-                    +'<input id="dmInput" onkeypress="if(event.key===&quot;Enter&quot;)sendDm()" placeholder="Message..." style="flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;">'
-                    +'<button onclick="sendDm()" style="background:#6a3fb5;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:bold;cursor:pointer;">Send</button>'
+                    +'<button onclick="document.getElementById(&quot;dmFile&quot;).click()" title="Add a photo" style="background:#eef2f7;color:#106ab3;border:none;border-radius:8px;padding:10px 12px;font-size:16px;cursor:pointer;line-height:1;">&#128247;</button>'
+                    +'<input id="dmInput" onkeypress="if(event.key===&quot;Enter&quot;)sendDm()" placeholder="Message..." style="flex:1;padding:11px 12px;border:1px solid #d6deea;border-radius:10px;font-size:14px;font-family:inherit;">'
+                    +'<button onclick="sendDm()" style="background:#106ab3;color:#fff;border:none;border-radius:10px;padding:11px 16px;font-weight:800;cursor:pointer;">Send</button>'
                   +'</div>'
                   +'<div id="dmPhotoStatus" style="display:none;font-size:11px;color:#6b7686;margin-top:4px;"></div>';
-                c.innerHTML=h; var inp=document.getElementById('dmInput'); if(inp) inp.focus();
+                c.innerHTML=h; var th=document.getElementById('dmThread'); if(th) th.scrollTop=th.scrollHeight; var inp=document.getElementById('dmInput'); if(inp) inp.focus();
             });
         });
     }
     function sendDm(){ var inp=document.getElementById('dmInput'); var body=(inp?(inp.value||''):'').trim(); var att=dmPendingPhoto||''; if(!body && !att) return; if(inp) inp.value=''; withPin(function(pin){ supabaseClient.rpc('app_dm_send',{p_username:currentUser.username,p_password:pin,p_to_emp:dmWith,p_body:body,p_attachment_url:att||null}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } dmPendingPhoto=''; renderDm(); }); }); }
-    function dmPickPhoto(){ var f=document.getElementById('dmFile'); if(!f||!f.files||!f.files[0]) return; var file=f.files[0]; f.value=''; if(file.size>12*1024*1024){ alert('That photo is too large — please pick one under ~12MB.'); return; } var st=document.getElementById('dmPhotoStatus'); if(st){ st.style.display='block'; st.textContent='Preparing photo…'; } if(typeof woCompress!=='function'){ if(st) st.textContent='Photos need an app update — please refresh.'; return; } woCompress(file,function(d){ if(!d){ if(st) st.textContent='Could not read that photo — try another.'; return; } dmPendingPhoto=d; if(st){ st.style.display='none'; st.textContent=''; } var pv=document.getElementById('dmPhotoPreview'); if(pv){ pv.style.display='block'; pv.innerHTML='<div style="display:inline-flex;align-items:center;gap:8px;background:#f0edf7;border-radius:9px;padding:5px 8px;"><img src="'+d+'" style="width:40px;height:40px;object-fit:cover;border-radius:6px;"><span style="font-size:12px;color:#6a3fb5;font-weight:600;">Photo ready to send</span><button onclick="dmClearPhoto()" style="background:none;border:none;color:#a01b3e;font-weight:800;cursor:pointer;font-size:15px;line-height:1;">&times;</button></div>'; } }); }
+    function dmPickPhoto(){ var f=document.getElementById('dmFile'); if(!f||!f.files||!f.files[0]) return; var file=f.files[0]; f.value=''; if(file.size>12*1024*1024){ alert('That photo is too large — please pick one under ~12MB.'); return; } var st=document.getElementById('dmPhotoStatus'); if(st){ st.style.display='block'; st.textContent='Preparing photo…'; } if(typeof woCompress!=='function'){ if(st) st.textContent='Photos need an app update — please refresh.'; return; } woCompress(file,function(d){ if(!d){ if(st) st.textContent='Could not read that photo — try another.'; return; } dmPendingPhoto=d; if(st){ st.style.display='none'; st.textContent=''; } var pv=document.getElementById('dmPhotoPreview'); if(pv){ pv.style.display='block'; pv.innerHTML='<div style="display:inline-flex;align-items:center;gap:8px;background:#eef4fb;border-radius:9px;padding:5px 8px;"><img src="'+d+'" style="width:40px;height:40px;object-fit:cover;border-radius:6px;"><span style="font-size:12px;color:#106ab3;font-weight:600;">Photo ready to send</span><button onclick="dmClearPhoto()" style="background:none;border:none;color:#a01b3e;font-weight:800;cursor:pointer;font-size:15px;line-height:1;">&times;</button></div>'; } }); }
     function dmClearPhoto(){ dmPendingPhoto=''; var pv=document.getElementById('dmPhotoPreview'); if(pv){ pv.style.display='none'; pv.innerHTML=''; } var st=document.getElementById('dmPhotoStatus'); if(st){ st.style.display='none'; st.textContent=''; } }
     function dmZoom(src){ if(!src) return; var ov=document.getElementById('dmZoomOv'); if(ov) ov.remove(); ov=document.createElement('div'); ov.id='dmZoomOv'; ov.style.cssText='position:fixed;inset:0;z-index:100060;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out;'; ov.onclick=function(){ ov.remove(); }; var im=document.createElement('img'); im.src=src; im.style.cssText='max-width:96%;max-height:96%;border-radius:10px;'; ov.appendChild(im); document.body.appendChild(ov); }
 
-    function loadStoreFeed(){
-        var c=document.getElementById('msgContent');
+    // ---- "Entire team" store wall (kind = store on the one conversation model) ----
+    var _stLoc='';
+    function openStoreThread(loc){ _stLoc=loc||activeStoreLoc(); loadStoreFeed(_stLoc); }
+    function loadStoreFeed(loc){
+        loc = loc || _stLoc || activeStoreLoc(); _stLoc = loc;
+        var c=document.getElementById('msgContent'); if(!c) return;
         withPin(function(pin){
-            supabaseClient.rpc('app_store_feed',{p_username:currentUser.username,p_password:pin,p_location:activeStoreLoc()}).then(function(r){
+            supabaseClient.rpc('app_store_feed',{p_username:currentUser.username,p_password:pin,p_location:loc}).then(function(r){
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
                 if(r.data && r.data.linked===false){ c.innerHTML='<p style="text-align:center;padding:20px;color:#6b7686;">Your login isn\'t linked yet — ask a manager to link your account.</p>'; return; }
-                var msgs=(r.data&&r.data.messages)||[]; var store=(r.data&&r.data.store)||'your store';
-                var h='<div style="font-size:13px;color:#6b7686;margin-bottom:10px;">Team thread for <strong>'+escapeHtml(store)+'</strong></div>' +
-                    '<div style="background:#f7f5fb;border-radius:12px;padding:12px;max-height:55vh;overflow:auto;margin-bottom:10px;">';
-                if(!msgs.length) h+='<p style="color:#6b7686;text-align:center;font-size:13px;">No messages yet.</p>';
-                msgs.forEach(function(m){ h+='<div style="display:flex;justify-content:'+(m.mine?'flex-end':'flex-start')+';margin-bottom:8px;"><div style="max-width:78%;background:'+(m.mine?'#6a3fb5':'#fff')+';color:'+(m.mine?'#fff':'#333')+';border-radius:12px;padding:8px 11px;font-size:14px;box-shadow:0 1px 2px rgba(0,0,0,0.08);">'+(!m.mine?'<div style="font-size:11px;font-weight:500;opacity:.8;">'+escapeHtml(m.name||'')+'</div>':'')+escapeHtml(m.body)+'<div style="font-size:10px;opacity:.7;margin-top:2px;">'+socFmt(m.at)+'</div></div></div>'; });
-                h+='</div><div style="display:flex;gap:8px;"><input id="stInput" onkeypress="if(event.key===&quot;Enter&quot;)postStore()" placeholder="Message your store team..." style="flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;"><button onclick="postStore()" style="background:#6a3fb5;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:bold;cursor:pointer;">Send</button></div>';
-                c.innerHTML=h;
+                var msgs=(r.data&&r.data.messages)||[]; var store=(r.data&&r.data.store)||loc||'your store';
+                var it=_convById[(r.data&&r.data.group_id)||-1]; var sub=escapeHtml(convStoreLabel(store))+(it&&it.members?' &middot; '+it.members+' people':'');
+                var h=convThreadHeader({kind:'store',title:'Entire team'}, sub)
+                    +'<div id="stThread" style="background:#f3f5f9;border-radius:14px;padding:12px;max-height:55vh;overflow:auto;margin-bottom:10px;">';
+                if(!msgs.length) h+='<p style="color:#6b7686;text-align:center;font-size:13px;">No messages yet. Say hi to the '+escapeHtml(store)+' team!</p>';
+                msgs.forEach(function(m){ h+='<div style="display:flex;justify-content:'+(m.mine?'flex-end':'flex-start')+';margin-bottom:8px;">'+convBubble(m, true)+'</div>'; });
+                h+='</div><div style="display:flex;gap:8px;align-items:center;"><input id="stInput" onkeypress="if(event.key===&quot;Enter&quot;)postStore()" placeholder="Message the '+escapeHtml(store)+' team..." style="flex:1;padding:11px 12px;border:1px solid #d6deea;border-radius:10px;font-size:14px;font-family:inherit;"><button onclick="postStore()" style="background:#106ab3;color:#fff;border:none;border-radius:10px;padding:11px 16px;font-weight:800;cursor:pointer;">Send</button></div>';
+                c.innerHTML=h; var th=document.getElementById('stThread'); if(th) th.scrollTop=th.scrollHeight;
             });
         });
     }
-    function postStore(){ var inp=document.getElementById('stInput'); var body=(inp.value||'').trim(); if(!body) return; inp.value=''; withPin(function(pin){ supabaseClient.rpc('app_store_post',{p_username:currentUser.username,p_password:pin,p_location:activeStoreLoc(),p_body:body}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } loadStoreFeed(); }); }); }
-
+    function postStore(){ var inp=document.getElementById('stInput'); var body=(inp?(inp.value||''):'').trim(); if(!body) return; inp.value=''; var loc=_stLoc||activeStoreLoc(); withPin(function(pin){ supabaseClient.rpc('app_store_post',{p_username:currentUser.username,p_password:pin,p_location:loc,p_body:body}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } loadStoreFeed(loc); }); }); }
     // Priority level meta (1=Critical .. 4=Low; default Normal)
     function maintPrioMeta(rank) {
         var r = parseInt(rank, 10) || 3;

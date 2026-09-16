@@ -796,7 +796,7 @@
         }
 
         /* ---- Messages unread badge (red dot on the 💬 button + More tab) ----
-           Derived from RPCs that already exist: app_dm_threads (per-thread unread) +
+           Derived from RPCs that already exist: app_conversations (unread_total) +
            app_announce_feed (per-item read flag). No new RPC. Never prompts for PIN —
            it rides the same 60s notifications tick and skips when no PIN is cached. */
         function msgBadgeEnsure() {
@@ -833,11 +833,11 @@
                 withPin(function(pin) {
                     var u = { p_username: currentUser.username, p_password: pin };
                     Promise.all([
-                        supabaseClient.rpc('app_dm_threads', u).then(function(r){ return r.error ? null : r.data; }).catch(function(){ return null; }),
+                        supabaseClient.rpc('app_conversations', u).then(function(r){ return r.error ? null : r.data; }).catch(function(){ return null; }),
                         supabaseClient.rpc('app_announce_feed', u).then(function(r){ return r.error ? null : r.data; }).catch(function(){ return null; })
                     ]).then(function(res) {
                         var n = 0;
-                        ((res[0] && res[0].threads) || []).forEach(function(t){ n += (parseInt(t.unread, 10) || 0); });
+                        n += (res[0] && parseInt(res[0].unread_total, 10)) || 0; /* every conversation: Entire team walls, groups, direct */
                         ((res[1] && res[1].items) || []).forEach(function(a){ if (!a.read) n++; });
                         msgBadgeRender(n);
                     }).catch(function(){});

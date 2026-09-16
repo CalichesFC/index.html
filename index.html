@@ -668,16 +668,12 @@
 
 <div id="messagesView" class="app-view">
     <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
-    <div class="header" style="background:#6a3fb5;">
+    <div class="header">
         <h1 style="font-size:40px;margin:10px 0;">&#128172;</h1>
         <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Messages</p>
     </div>
     <div class="container" style="max-width:760px;">
-        <div style="display:flex;gap:8px;margin-bottom:14px;">
-            <button id="msgTabUpdates" class="msg-tab" onclick="setMsgTab('updates')">&#128226; Updates</button>
-            <button id="msgTabDm" class="msg-tab" onclick="setMsgTab('dm')">&#128100; Direct</button>
-            <button id="msgTabStore" class="msg-tab" onclick="setMsgTab('store')">&#127970; My Store</button>
-        </div>
+        <div id="msgTabs"></div>
         <div id="msgContent"><p style="text-align:center;padding:30px;color:#6b7686;">Loading...</p></div>
     </div>
 </div>
