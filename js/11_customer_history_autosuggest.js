@@ -838,7 +838,7 @@
                     ]).then(function(res) {
                         var n = 0;
                         n += (res[0] && parseInt(res[0].unread_total, 10)) || 0; /* every conversation: Entire team walls, groups, direct */
-                        ((res[1] && res[1].items) || []).forEach(function(a){ if (!a.read) n++; });
+                        ((res[1] && res[1].items) || []).forEach(function(a){ if (!a.read || (a.requires_ack && !a.acked)) n++; });
                         msgBadgeRender(n);
                     }).catch(function(){});
                 }, function(){});

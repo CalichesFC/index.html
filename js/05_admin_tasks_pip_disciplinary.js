@@ -608,8 +608,6 @@
         // ── AI widget, announce, badge ──
         const aiWidget = document.getElementById('aiChatWidget');
         if (aiWidget) aiWidget.style.display = 'flex';
-        const announceBtn = document.getElementById('announceBtn');
-        if (announceBtn) announceBtn.style.display = permAllow('announce', (devOverride || isManager)) ? 'block' : 'none';
         if (devOverride || role === 'Admin Manager') {
             setTimeout(updateScoopyGapBadge, 500);
             setTimeout(renderScoopyTrainPrompt, 700);

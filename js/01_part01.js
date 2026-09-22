@@ -1088,7 +1088,7 @@
                     var img=(a.attachment&&String(a.attachment).slice(0,11)==='data:image/')?'<img src="'+escapeHtml(a.attachment)+'" style="display:block;max-width:100%;max-height:170px;border-radius:8px;margin-top:8px;object-fit:cover;">':'';
                     var body=String(a.body||''); if(body.length>220) body=body.slice(0,220)+'…';
                     var when=(typeof socFmt==='function'&&a.at)?(' &bull; '+socFmt(a.at)):'';
-                    h+='<div onclick="openMessages()" style="background:#fffdf5;border:1px solid #f0e2b6;border-left:4px solid #eec53b;border-radius:12px;padding:13px 14px;margin-bottom:10px;box-shadow:0 3px 6px rgba(0,0,0,0.05);cursor:pointer;">' +
+                    h+='<div onclick="openMessages();try{setMsgTab(&quot;updates&quot;);}catch(e){}" style="background:#fffdf5;border:1px solid #f0e2b6;border-left:4px solid #eec53b;border-radius:12px;padding:13px 14px;margin-bottom:10px;box-shadow:0 3px 6px rgba(0,0,0,0.05);cursor:pointer;">' +
                         '<div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;"><span style="font-size:15px;">&#128204;</span><span style="font-size:11px;font-weight:800;letter-spacing:.04em;color:#8a6d00;">PINNED ANNOUNCEMENT</span></div>' +
                         (a.title?'<div style="font-size:15px;font-weight:800;color:#3a3020;">'+escapeHtml(a.title)+'</div>':'') +
                         '<div style="font-size:13.5px;color:#5c5340;white-space:pre-wrap;margin-top:2px;">'+escapeHtml(body)+'</div>' +

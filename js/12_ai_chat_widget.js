@@ -341,58 +341,7 @@
         if(b) b.innerHTML=open?'&#9662; Show last 7 days':'&#9652; Hide history';
     }
 
-    /* ---------- 4. ANNOUNCEMENT READ RECEIPTS ---------- */
-    loadUpdates=(function(){ return function(){
-        var c=document.getElementById('msgContent');
-        withPin(function(pin){
-            supabaseClient.rpc('app_announce_feed',{p_username:currentUser.username,p_password:pin}).then(function(r){
-                if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+p4Esc(r.error.message)+'</p>'; return; }
-                if(r.data && r.data.linked===false){ c.innerHTML='<p style="text-align:center;padding:20px;color:#6b7686;">Your login isn\'t linked yet — ask a manager to link your account.</p>'; return; }
-                var items=(r.data&&r.data.items)||[]; var h='';
-                if(isMgr()){
-                    h+='<div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
-                        '<div style="font-size:14px;font-weight:500;color:#6a3fb5;margin-bottom:8px;">Post an update</div>' +
-                        '<input id="anTitle" placeholder="Title (optional)" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;">' +
-                        '<textarea id="anBody" rows="2" placeholder="What&#39;s the update? (new item, policy change…)" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;"></textarea>' +
-                        '<div style="display:flex;gap:8px;"><select id="anAud" onchange="anAudChange()" style="flex:1;padding:9px;border:1px solid #ccc;border-radius:8px;"><option value="everyone">Everyone</option><option value="store">A store</option></select>' +
-                        '<select id="anStore" style="flex:1;padding:9px;border:1px solid #ccc;border-radius:8px;display:none;"></select>' +
-                        '<button onclick="postAnnounce()" style="background:#6a3fb5;color:#fff;border:none;border-radius:8px;padding:9px 14px;font-weight:bold;cursor:pointer;">Post</button></div></div>';
-                }
-                if(!items.length){ h+='<p style="color:#6b7686;text-align:center;padding:10px;font-size:13px;">No updates yet.</p>'; }
-                else items.forEach(function(a){
-                    var _amg=isMgr()?('<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"><button onclick="annEditItem('+a.id+')" style="background:#f3eeff;color:#6a3fb5;border:1px solid #d9c9f5;border-radius:7px;padding:4px 11px;font-size:12px;font-weight:700;cursor:pointer;">Edit</button><button onclick="annDeleteItem('+a.id+')" style="background:#fff2f3;color:#c0264b;border:1px solid #f0b8c3;border-radius:7px;padding:4px 11px;font-size:12px;font-weight:700;cursor:pointer;">Delete</button><button onclick="p4AnnWho('+a.id+')" style="background:#eef6fd;color:#0d6eaf;border:1px solid #bcdcf2;border-radius:7px;padding:4px 11px;font-size:12px;font-weight:700;cursor:pointer;">&#128065; Who&rsquo;s read</button></div><div id="p4annwho-'+a.id+'" style="display:none;font-size:12px;margin-top:6px;background:var(--surface2,#f7f8fb);border-radius:8px;padding:8px 10px;color:#445;"></div>'):'';
-                    h+='<div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 4px 6px rgba(0,0,0,0.05);'+(a.read?'':'border-left:4px solid #6a3fb5;')+'">' +
-                        (a.title?'<div style="font-size:15px;font-weight:500;color:#333;">'+p4Esc(a.title)+'</div>':'') +
-                        '<div style="font-size:14px;color:#444;white-space:pre-wrap;">'+p4Esc(a.body)+'</div>' +
-                        '<div style="font-size:11px;color:#aab;margin-top:6px;">'+p4Esc(a['from']||'')+' &bull; '+socFmt(a.at)+(a.mine?' &bull; &#10003; Read by '+(a.reads||0):'')+'</div>'+_amg+'</div>';
-                });
-                c.innerHTML=h;
-                if(isMgr() && taTargets===null){ withPin(function(p2){ supabaseClient.rpc('app_task_targets',{p_username:currentUser.username,p_password:p2}).then(function(rr){ if(!rr.error){ taTargets=rr.data||{}; var sel=document.getElementById('anStore'); if(sel) sel.innerHTML=(taTargets.stores||[]).map(function(s){return '<option value="'+p4Esc(s)+'">'+p4Esc(s)+'</option>';}).join(''); } }); }); }
-                else if(isMgr()){ var sel=document.getElementById('anStore'); if(sel&&taTargets) sel.innerHTML=(taTargets.stores||[]).map(function(s){return '<option value="'+p4Esc(s)+'">'+p4Esc(s)+'</option>';}).join(''); }
-                // mark unread read (legacy badge counter)
-                (items||[]).forEach(function(a){ if(!a.read){ withPin(function(p3){ supabaseClient.rpc('app_announce_read',{p_username:currentUser.username,p_password:p3,p_id:a.id}); }); } });
-                // P4: fire-and-forget read receipts for every rendered announcement (idempotent)
-                try{
-                    withPin(function(p4){
-                        (items||[]).slice(0,30).forEach(function(a){
-                            try{ supabaseClient.rpc('app_announce_mark_read',{p_username:currentUser.username,p_password:p4,p_key:String(a.id)}).then(function(){},function(){}); }catch(e){}
-                        });
-                    });
-                }catch(e){}
-            });
-        });
-    }; })();
-    function p4AnnWho(id){
-        var box=document.getElementById('p4annwho-'+id); if(!box) return;
-        if(box.style.display!=='none'){ box.style.display='none'; return; }
-        box.style.display='block'; box.innerHTML='Checking&hellip;';
-        p4Rpc('app_announce_read_status',{p_key:String(id)},function(d){
-            d=d||{};
-            if(d.ok===false){ box.innerHTML=p4Esc(d.reason||'Managers only.'); return; }
-            var rd=(d.read||[]).map(p4Esc).join(', ')||'&mdash;', un=(d.unread||[]).map(p4Esc).join(', ')||'&mdash;';
-            box.innerHTML='<b style="color:#1f7a3d;">Read ('+(d.read_count||0)+'):</b> '+rd+'<br><b style="color:#a01b3e;">Unread ('+(d.unread_count||0)+'):</b> '+un;
-        },function(m){ box.innerHTML=p4Esc(m); });
-    }
+    /* ---------- 4. (retired 2026-09-22) Announcements now live in ONE place: js/09 loadUpdates/renderAnnouncements ---------- */
 
     /* ---------- 5. OT WATCH + OPEN PUNCHES (Timesheets, mgr) ---------- */
     openTimesheets=(function(orig){ return function(){ orig.apply(this,arguments); try{ p4TsInject(); }catch(e){} }; })(openTimesheets);

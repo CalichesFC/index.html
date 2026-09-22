@@ -1277,7 +1277,7 @@
     }
 
     // ---- Messaging ----
-    var msgTab='msgs';
+    var msgTab='msgs', _annNeed=0;
     function openMessages(){ document.getElementById('main-menu').style.display='none'; document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';}); document.getElementById('messagesView').style.display='block'; window.scrollTo(0,0); msgTab='msgs'; renderMsgTabs(); loadMsgTab(); try{ msgBadgeClear(); }catch(e){} try{ msgComplianceBar(); }catch(e){} try{ msgPolicyGate(); }catch(e){} }
     // ---- Messaging compliance: employee notice + one-time acknowledgment (legal keystone) ----
     function msgPolicyGate(){
@@ -1365,70 +1365,125 @@
     function renderMsgTabs(){
         var host=msgTabsHost(); if(!host) return;
         host.innerHTML='<div style="display:flex;gap:2px;border-bottom:1px solid #e3e7ee;margin:0 0 12px;">'+[['msgs','Messages'],['updates','Announcements']].map(function(t){ var on=(msgTab===t[0]);
-            return '<button onclick="setMsgTab(\''+t[0]+'\')" style="background:none;border:none;border-bottom:3px solid '+(on?'#106ab3':'transparent')+';margin-bottom:-1px;padding:10px 14px;font-size:14.5px;font-weight:'+(on?'800':'600')+';color:'+(on?'#106ab3':'#5f6b7a')+';cursor:pointer;font-family:inherit;">'+t[1]+(t[0]==='msgs'&&_convUnread>0?' <span style="display:inline-block;background:#e0245e;color:#fff;border-radius:99px;font-size:10.5px;font-weight:800;padding:1px 6px;margin-left:3px;vertical-align:1px;">'+_convUnread+'</span>':'')+'</button>'; }).join('')+'</div>';
+            return '<button onclick="setMsgTab(\''+t[0]+'\')" style="background:none;border:none;border-bottom:3px solid '+(on?'#106ab3':'transparent')+';margin-bottom:-1px;padding:10px 14px;font-size:14.5px;font-weight:'+(on?'800':'600')+';color:'+(on?'#106ab3':'#5f6b7a')+';cursor:pointer;font-family:inherit;">'+t[1]+((t[0]==='msgs'&&_convUnread>0)?' <span style="display:inline-block;background:#e0245e;color:#fff;border-radius:99px;font-size:10.5px;font-weight:800;padding:1px 6px;margin-left:3px;vertical-align:1px;">'+_convUnread+'</span>':'')+((t[0]==='updates'&&_annNeed>0)?' <span style="display:inline-block;background:#e0245e;color:#fff;border-radius:99px;font-size:10.5px;font-weight:800;padding:1px 6px;margin-left:3px;vertical-align:1px;">'+_annNeed+'</span>':'')+'</button>'; }).join('')+'</div>';
     }
     function setMsgTab(t){ msgTab=(t==='updates')?'updates':'msgs'; renderMsgTabs(); loadMsgTab(); }
     function loadMsgTab(){ var c=document.getElementById('msgContent'); c.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading...</p>'; if(msgTab==='updates') loadUpdates(); else loadConversations(); }
     function isMgr(){ return currentUser && (currentUser.role==='Admin Manager'||currentUser.role==='Manager'||currentUser.role==='Vice President/Co-Owner'||currentUser.is_developer===true); }
 
+    // ---- Announcements: ONE system (Homebase layout) — feed, "Seen by", optional "I read it" ----
+    // Data: public.announcements + public.announcement_reads (read_at = seen, acked_at = tapped "I read it").
+    // RPCs: app_announce_feed / _post / _read / _ack / _who / _remind / _pin / app_announcement_edit / _delete.
+    var _annFeed=null, _annComposeOpen=false, _annTo='everyone', _annPhoto='';
+    function annCanPost(){ return !!(_annFeed && _annFeed.is_mgr) || isMgr(); }
+    function annAudLabel(a){ if(a.audience==='store') return convStoreLabel(a.audience_value); if(a.audience==='role') return 'By position'; return 'Everyone'; }
     function loadUpdates(){
-        var c=document.getElementById('msgContent');
+        var c=document.getElementById('msgContent'); if(!c) return;
         withPin(function(pin){
             supabaseClient.rpc('app_announce_feed',{p_username:currentUser.username,p_password:pin}).then(function(r){
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
                 if(r.data && r.data.linked===false){ c.innerHTML='<p style="text-align:center;padding:20px;color:#6b7686;">Your login isn\'t linked yet — ask a manager to link your account.</p>'; return; }
-                var items=(r.data&&r.data.items)||[]; var h='';
-                if(isMgr()){
-                    h+='<div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
-                        '<div style="font-size:14px;font-weight:500;color:#6a3fb5;margin-bottom:8px;">Post an update</div>' +
-                        '<input id="anTitle" placeholder="Title (optional)" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;">' +
-                        '<textarea id="anBody" rows="2" placeholder="What&#39;s the update? (new item, policy change…)" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;"></textarea>' +
-                        '<input type="file" id="anFile" accept="image/*" style="display:none;" onchange="annPickPhoto()">' +
-                        '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:8px;">' +
-                            '<button type="button" onclick="document.getElementById(&quot;anFile&quot;).click()" style="background:#f3eeff;color:#6a3fb5;border:1px solid #d9c9f5;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;">&#128247; Add photo</button>' +
-                            '<label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#444;cursor:pointer;font-weight:600;"><input type="checkbox" id="anPin" style="width:16px;height:16px;cursor:pointer;">&#128204; Pin to home</label>' +
-                        '</div>' +
-                        '<div id="anPhotoPrev" style="display:none;margin-bottom:8px;"></div>' +
-                        '<div style="display:flex;gap:8px;"><select id="anAud" onchange="anAudChange()" style="flex:1;padding:9px;border:1px solid #ccc;border-radius:8px;"><option value="everyone">Everyone</option><option value="store">A store</option></select>' +
-                        '<select id="anStore" style="flex:1;padding:9px;border:1px solid #ccc;border-radius:8px;display:none;"></select>' +
-                        '<button onclick="postAnnounce()" style="background:#6a3fb5;color:#fff;border:none;border-radius:8px;padding:9px 14px;font-weight:bold;cursor:pointer;">Post</button></div></div>';
-                }
-                if(!items.length){ h+='<p style="color:#6b7686;text-align:center;padding:10px;font-size:13px;">No updates yet.</p>'; }
-                else items.forEach(function(a){
-                    var _pinBtn=isMgr()?'<button onclick="annPin('+a.id+','+(a.pinned?'false':'true')+')" style="background:'+(a.pinned?'#fff7e0':'#eef4fb')+';color:'+(a.pinned?'#8a6d00':'#106ab3')+';border:1px solid '+(a.pinned?'#f0dfa0':'#bcd8f2')+';border-radius:7px;padding:4px 11px;font-size:12px;font-weight:700;cursor:pointer;">'+(a.pinned?'&#128204; Unpin':'&#128204; Pin to home')+'</button>':'';
-                    var _amg=isMgr()?('<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">'+_pinBtn+'<button onclick="annEditItem('+a.id+')" style="background:#f3eeff;color:#6a3fb5;border:1px solid #d9c9f5;border-radius:7px;padding:4px 11px;font-size:12px;font-weight:700;cursor:pointer;">Edit</button><button onclick="annDeleteItem('+a.id+')" style="background:#fff2f3;color:#c0264b;border:1px solid #f0b8c3;border-radius:7px;padding:4px 11px;font-size:12px;font-weight:700;cursor:pointer;">Delete</button></div>'):'';
-                    var _img=(a.attachment&&String(a.attachment).slice(0,11)==='data:image/')?'<img src="'+escapeHtml(a.attachment)+'" onclick="dmZoom(this.src)" style="display:block;max-width:100%;max-height:260px;border-radius:9px;margin-top:8px;cursor:pointer;object-fit:cover;">':'';
-                    var _pinBadge=a.pinned?'<div><span style="display:inline-block;background:#fff7e0;color:#8a6d00;border:1px solid #f0dfa0;border-radius:20px;padding:1px 9px;font-size:11px;font-weight:700;margin-bottom:5px;">&#128204; Pinned to home</span></div>':'';
-                    h+='<div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 4px 6px rgba(0,0,0,0.05);'+(a.read?'':'border-left:4px solid #6a3fb5;')+'">' +
-                        _pinBadge +
-                        (a.title?'<div style="font-size:15px;font-weight:500;color:#333;">'+escapeHtml(a.title)+'</div>':'') +
-                        '<div style="font-size:14px;color:#444;white-space:pre-wrap;">'+escapeHtml(a.body)+'</div>' +
-                        _img +
-                        '<div style="font-size:11px;color:#aab;margin-top:6px;">'+escapeHtml(a['from']||'')+' &bull; '+socFmt(a.at)+(a.mine?' &bull; &#10003; Read by '+(a.reads||0):'')+'</div>'+_amg+'</div>';
-                });
-                c.innerHTML=h;
-                if(isMgr() && taTargets===null){ withPin(function(p2){ supabaseClient.rpc('app_task_targets',{p_username:currentUser.username,p_password:p2}).then(function(rr){ if(!rr.error){ taTargets=rr.data||{}; var sel=document.getElementById('anStore'); if(sel) sel.innerHTML=(taTargets.stores||[]).map(function(s){return '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>';}).join(''); } }); }); }
-                else if(isMgr()){ var sel=document.getElementById('anStore'); if(sel&&taTargets) sel.innerHTML=(taTargets.stores||[]).map(function(s){return '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>';}).join(''); }
-                // mark unread read
-                (items||[]).forEach(function(a){ if(!a.read){ withPin(function(p3){ supabaseClient.rpc('app_announce_read',{p_username:currentUser.username,p_password:p3,p_id:a.id}); }); } });
+                _annFeed=r.data||{items:[]}; _annNeed=parseInt(_annFeed.needs_ack,10)||0; renderMsgTabs(); renderAnnouncements();
+                // everything on screen counts as seen (fire-and-forget; idempotent server-side)
+                (_annFeed.items||[]).forEach(function(a){ if(!a.read){ try{ supabaseClient.rpc('app_announce_read',{p_username:currentUser.username,p_password:pin,p_id:a.id}).then(function(){},function(){}); }catch(e){} } });
             });
         });
     }
-    function anAudChange(){ document.getElementById('anStore').style.display=(document.getElementById('anAud').value==='store')?'block':'none'; }
-    var _annPhoto='';
-    function postAnnounce(){
-        var title=document.getElementById('anTitle').value.trim(), body=document.getElementById('anBody').value.trim();
-        var aud=document.getElementById('anAud').value, av=aud==='store'?document.getElementById('anStore').value:null;
-        var pinned=!!(document.getElementById('anPin')&&document.getElementById('anPin').checked);
-        if(!body){ alert('Write an update first.'); return; }
-        withPin(function(pin){ supabaseClient.rpc('app_announce_post',{p_username:currentUser.username,p_password:pin,p_title:title,p_body:body,p_audience_type:aud,p_audience_value:av,p_attachment_url:_annPhoto||null,p_pinned:pinned}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } _annPhoto=''; var _t=document.getElementById('anTitle'); if(_t)_t.value=''; var _b=document.getElementById('anBody'); if(_b)_b.value=''; loadUpdates(); }); });
+    function annSection(t){ return t?'<div style="font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#5f6b7a;margin:14px 2px 8px;">'+t+'</div>':''; }
+    function renderAnnouncements(){
+        var c=document.getElementById('msgContent'); if(!c||!_annFeed) return;
+        var items=_annFeed.items||[]; var h='';
+        if(annCanPost()) h+=annComposerHtml();
+        var need=items.filter(function(a){ return a.requires_ack && !a.acked; });
+        var pinned=items.filter(function(a){ return a.pinned && need.indexOf(a)<0; });
+        var rest=items.filter(function(a){ return need.indexOf(a)<0 && pinned.indexOf(a)<0; });
+        if(!items.length) h+='<p style="color:#6b7686;text-align:center;padding:24px 10px;font-size:13.5px;">No announcements yet.</p>';
+        if(need.length) h+=annSection('Needs your &#10003;')+need.map(annCard).join('');
+        if(pinned.length) h+=annSection('Pinned')+pinned.map(annCard).join('');
+        if(rest.length) h+=annSection((need.length||pinned.length)?'Earlier':'')+rest.map(annCard).join('');
+        c.innerHTML=h;
+        if(_annComposeOpen && _annPhoto){ var pv=document.getElementById('anPhotoPrev'); if(pv){ pv.style.display='block'; pv.innerHTML='<img src="'+escapeHtml(_annPhoto)+'" style="max-width:100%;max-height:160px;border-radius:9px;display:block;"><a href="#" onclick="annClearPhoto();return false;" style="font-size:12px;color:#a01b3e;">Remove photo</a>'; } }
     }
-    function annPickPhoto(){ var f=document.getElementById('anFile'); if(!f||!f.files||!f.files[0]) return; var file=f.files[0]; f.value=''; if(file.size>12*1024*1024){ alert('That photo is too large — under ~12MB please.'); return; } if(typeof woCompress!=='function') return; woCompress(file,function(d){ if(!d) return; _annPhoto=d; var pv=document.getElementById('anPhotoPrev'); if(pv){ pv.style.display='block'; pv.innerHTML='<div style="display:inline-flex;align-items:center;gap:8px;background:#f0edf7;border-radius:9px;padding:4px 8px;margin-top:6px;"><img src="'+d+'" style="width:38px;height:38px;object-fit:cover;border-radius:6px;"><span style="font-size:12px;color:#6a3fb5;font-weight:600;">Photo attached</span><button onclick="annClearPhoto()" style="background:none;border:none;color:#a01b3e;font-weight:800;cursor:pointer;font-size:14px;">&times;</button></div>'; } }); }
+    function annCard(a){
+        var mgr=annCanPost(), name=a.from_name||a['from']||'', need=(a.requires_ack&&!a.acked), tot=parseInt(a.audience_count,10)||0, seen=parseInt(a.reads,10)||0, acks=parseInt(a.acks,10)||0;
+        var h='<div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 4px 6px rgba(0,0,0,0.05);'+(need?'border-left:4px solid #106ab3;':'')+'">';
+        if(a.pinned) h+='<div style="margin-bottom:8px;"><span style="display:inline-block;background:#fff7e0;color:#8a6d00;border:1px solid #f0dfa0;border-radius:20px;padding:1px 9px;font-size:11px;font-weight:700;">&#128204; Pinned to home</span></div>';
+        h+='<div style="display:flex;align-items:center;gap:10px;">'+convAvatar({title:name},40)+'<div style="min-width:0;"><div style="font-size:14px;font-weight:800;color:#1f2a44;">'+escapeHtml(name)+'</div>'
+          +'<div style="font-size:12px;color:#6b7686;margin-top:1px;"><span style="display:inline-block;background:#eef4fb;color:#106ab3;border:1px solid #bcd8f2;border-radius:20px;padding:0 8px;font-size:11px;font-weight:700;vertical-align:1px;">'+escapeHtml(annAudLabel(a))+'</span> &nbsp;'+escapeHtml(convWhen(a.at))+'</div></div></div>';
+        if(a.title) h+='<div style="font-size:15.5px;font-weight:800;color:#1f2a44;margin-top:10px;">'+escapeHtml(a.title)+'</div>';
+        h+='<div style="font-size:14px;color:#3b4453;white-space:pre-wrap;line-height:1.45;margin-top:4px;">'+escapeHtml(a.body||'')+'</div>';
+        if(a.attachment&&String(a.attachment).slice(0,11)==='data:image/') h+='<img src="'+escapeHtml(a.attachment)+'" onclick="dmZoom(this.src)" style="display:block;max-width:100%;max-height:260px;border-radius:9px;margin-top:8px;cursor:pointer;object-fit:cover;">';
+        if(need) h+='<div style="font-size:12.5px;color:#106ab3;font-weight:700;margin-top:8px;">'+escapeHtml((name.split(' ')[0])||'Your manager')+' asked everyone to confirm they read this.</div>';
+        h+='<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:12.5px;color:#6b7686;">';
+        if(need) h+='<button onclick="annAck('+a.id+')" style="background:#106ab3;color:#fff;border:none;border-radius:9px;padding:9px 14px;font-size:13.5px;font-weight:800;cursor:pointer;font-family:inherit;">I read it &#10003;</button>';
+        else if(a.requires_ack&&a.acked) h+='<span style="color:#1b7a3d;font-weight:800;">&#10003; You read this'+(a.acked_at?' &middot; '+escapeHtml(convWhen(a.acked_at)):'')+'</span>';
+        h+='<span>&#128065; Seen by '+seen+' of '+tot+'</span></div>';
+        if(mgr){
+            var left=a.requires_ack?Math.max(tot-acks,0):Math.max(tot-seen,0);
+            if(a.requires_ack){ var pct=tot?Math.round(acks*100/tot):0;
+                h+='<div style="display:flex;gap:12px;align-items:center;margin-top:10px;font-size:12.5px;color:#6b7686;"><span style="color:#1b7a3d;font-weight:800;">&#10003; '+acks+' of '+tot+' read it</span><div style="height:6px;border-radius:4px;background:#e3e7ee;flex:1;min-width:80px;overflow:hidden;"><i style="display:block;height:100%;width:'+pct+'%;background:#1b7a3d;"></i></div><span>'+left+' haven\'t</span></div>'; }
+            h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;">'
+              +'<button onclick="annWho('+a.id+')" style="background:#eef4fb;color:#106ab3;border:1px solid #bcd8f2;border-radius:9px;padding:7px 12px;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit;">See who</button>'
+              +(left>0?'<button onclick="annRemind('+a.id+')" style="background:#eefaf1;color:#1b7a3d;border:1px solid #bfe6cb;border-radius:9px;padding:7px 12px;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit;">&#128276; Remind'+(a.requires_ack?' the '+left:'')+'</button>':'')
+              +'<span style="flex:1"></span><span style="font-size:12px;color:#8a94a6;white-space:nowrap;"><a href="#" onclick="annEditItem('+a.id+');return false;" style="color:#8a94a6;">Edit</a> &middot; <a href="#" onclick="annPin('+a.id+','+(a.pinned?'false':'true')+');return false;" style="color:#8a94a6;">'+(a.pinned?'Unpin':'Pin')+'</a> &middot; <a href="#" onclick="annDeleteItem('+a.id+');return false;" style="color:#8a94a6;">Delete</a></span></div>'
+              +'<div id="annwho-'+a.id+'" style="display:none;margin-top:8px;font-size:12.5px;color:#3b4453;background:#f6f8fb;border-radius:9px;padding:9px 11px;line-height:1.5;"></div>';
+        }
+        return h+'</div>';
+    }
+    function annComposerHtml(){
+        if(!_annComposeOpen) return '<div onclick="annCompose(true)" style="display:flex;align-items:center;gap:8px;background:#fff;border:1.5px dashed #bcd8f2;color:#106ab3;border-radius:12px;padding:11px 14px;font-weight:800;font-size:14px;margin-bottom:12px;cursor:pointer;">&#43; New announcement</div>';
+        var stores=(taTargets&&taTargets.stores)||(typeof HUB_STORES!=='undefined'?HUB_STORES:[]);
+        var chips=['everyone'].concat(stores).map(function(s){ var on=(_annTo===s); return '<span onclick="annSetTo(this.getAttribute(&quot;data-s&quot;))" data-s="'+escapeHtml(String(s))+'" style="display:inline-block;border:1px solid '+(on?'#106ab3':'#cbd5e1')+';border-radius:20px;padding:4px 11px;font-size:12.5px;font-weight:700;color:'+(on?'#fff':'#3b4453')+';margin:0 6px 6px 0;background:'+(on?'#106ab3':'#fff')+';cursor:pointer;">'+(s==='everyone'?'Everyone':escapeHtml(String(s)))+'</span>'; }).join('');
+        return '<div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 4px 6px rgba(0,0,0,0.05);border:1px solid #e3e7ee;">'
+          +'<div style="display:flex;align-items:center;"><div style="font-size:14px;font-weight:800;color:#1f2a44;flex:1;">New announcement</div><button onclick="annCompose(false)" title="Close" style="background:none;border:none;color:#8a94a6;font-size:20px;line-height:1;cursor:pointer;">&times;</button></div>'
+          +'<div style="font-size:12px;font-weight:800;color:#5f6b7a;margin:8px 0 6px;">To</div><div>'+chips+'</div>'
+          +'<input id="anTitle" placeholder="Title (optional)" style="width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:10px;padding:9px 10px;font-size:14px;font-family:inherit;margin:6px 0 8px;">'
+          +'<textarea id="anBody" rows="3" placeholder="What does the team need to know?" style="width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:10px;padding:10px;font-size:14px;font-family:inherit;color:#3b4453;"></textarea>'
+          +'<input type="file" id="anFile" accept="image/*" style="display:none;" onchange="annPickPhoto()"><div id="anPhotoPrev" style="display:none;margin:8px 0;"></div>'
+          +'<label style="display:flex;align-items:center;gap:9px;font-size:13.5px;color:#3b4453;font-weight:600;margin:10px 0 6px;cursor:pointer;"><input type="checkbox" id="anAck" style="width:18px;height:18px;cursor:pointer;"> Ask everyone to tap &ldquo;I read it&rdquo;</label>'
+          +'<label style="display:flex;align-items:center;gap:9px;font-size:13.5px;color:#3b4453;font-weight:600;margin:6px 0;cursor:pointer;"><input type="checkbox" id="anPin" style="width:18px;height:18px;cursor:pointer;"> &#128204; Pin to home</label>'
+          +'<div style="display:flex;align-items:center;gap:8px;margin-top:8px;"><button type="button" onclick="document.getElementById(&quot;anFile&quot;).click()" style="background:#eef4fb;color:#106ab3;border:1px solid #bcd8f2;border-radius:9px;padding:8px 12px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;">&#128247; Add photo</button><span style="flex:1"></span><button onclick="postAnnounce()" style="background:#106ab3;color:#fff;border:none;border-radius:9px;padding:9px 16px;font-weight:800;cursor:pointer;font-family:inherit;">Post</button></div></div>';
+    }
+    function annFormState(){ var t=document.getElementById('anTitle'), b=document.getElementById('anBody'), k=document.getElementById('anAck'), p=document.getElementById('anPin'); return {t:t?t.value:'', b:b?b.value:'', k:!!(k&&k.checked), p:!!(p&&p.checked)}; }
+    function annFormRestore(s){ var t=document.getElementById('anTitle'), b=document.getElementById('anBody'), k=document.getElementById('anAck'), p=document.getElementById('anPin'); if(t) t.value=s.t; if(b) b.value=s.b; if(k) k.checked=s.k; if(p) p.checked=s.p; }
+    function annCompose(open){
+        _annComposeOpen=!!open; if(!open){ _annPhoto=''; _annTo='everyone'; }
+        renderAnnouncements();
+        if(open){ var b=document.getElementById('anBody'); if(b) b.focus();
+            if(taTargets===null){ withPin(function(p){ supabaseClient.rpc('app_task_targets',{p_username:currentUser.username,p_password:p}).then(function(rr){ if(rr.error) return; taTargets=rr.data||{}; var s=annFormState(); renderAnnouncements(); annFormRestore(s); }); }); } }
+    }
+    function annSetTo(s){ var st=annFormState(); _annTo=s||'everyone'; renderAnnouncements(); annFormRestore(st); }
+    function postAnnounce(){
+        var s=annFormState(); var title=String(s.t||'').trim(), body=String(s.b||'').trim();
+        var aud=(_annTo==='everyone')?'everyone':'store', av=(_annTo==='everyone')?null:_annTo;
+        if(!body){ alert('Write the announcement first.'); return; }
+        withPin(function(pin){ supabaseClient.rpc('app_announce_post',{p_username:currentUser.username,p_password:pin,p_title:title,p_body:body,p_audience_type:aud,p_audience_value:av,p_attachment_url:_annPhoto||null,p_pinned:!!s.p,p_requires_ack:!!s.k}).then(function(r){
+            if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
+            _annPhoto=''; _annComposeOpen=false; _annTo='everyone'; loadUpdates();
+            if(s.p && typeof loadPinnedAnnouncements==='function'){ try{ loadPinnedAnnouncements(); }catch(e){} }
+        }); });
+    }
+    function annPickPhoto(){ var f=document.getElementById('anFile'); if(!f||!f.files||!f.files[0]) return; var file=f.files[0]; f.value=''; if(file.size>12*1024*1024){ alert('That photo is too large — under ~12MB please.'); return; } if(typeof woCompress!=='function') return; woCompress(file,function(d){ if(!d) return; _annPhoto=d; var pv=document.getElementById('anPhotoPrev'); if(pv){ pv.style.display='block'; pv.innerHTML='<img src="'+escapeHtml(d)+'" style="max-width:100%;max-height:160px;border-radius:9px;display:block;"><a href="#" onclick="annClearPhoto();return false;" style="font-size:12px;color:#a01b3e;">Remove photo</a>'; } }); }
     function annClearPhoto(){ _annPhoto=''; var pv=document.getElementById('anPhotoPrev'); if(pv){ pv.style.display='none'; pv.innerHTML=''; } }
-    function annPin(id, pinned){ withPin(function(pin){ supabaseClient.rpc('app_announce_pin',{p_username:currentUser.username,p_password:pin,p_id:id,p_pinned:pinned}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } loadUpdates(); }); }); }
-
-    function annEditItem(id){ var nb=prompt('Edit this announcement (type the new text):'); if(nb===null) return; nb=nb.trim(); if(!nb){ alert('Announcement cannot be empty.'); return; } withPin(function(pin){ supabaseClient.rpc('app_announcement_edit',{p_username:currentUser.username,p_password:pin,p_id:id,p_body:nb}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':('Error: '+r.error.message)); return; } loadUpdates(); }).catch(function(){ alert('Connection error.'); }); }); }
-    function annDeleteItem(id){ if(!confirm('Delete this announcement? This cannot be undone.')) return; withPin(function(pin){ supabaseClient.rpc('app_announcement_delete',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':('Error: '+r.error.message)); return; } loadUpdates(); }).catch(function(){ alert('Connection error.'); }); }); }
+    function annAck(id){ withPin(function(pin){ supabaseClient.rpc('app_announce_ack',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } loadUpdates(); if(typeof msgBadgeTick==='function'){ try{ msgBadgeTick(); }catch(e){} } }); }); }
+    function annWho(id){
+        var box=document.getElementById('annwho-'+id); if(!box) return;
+        if(box.style.display!=='none'){ box.style.display='none'; return; }
+        box.style.display='block'; box.innerHTML='Checking&hellip;';
+        withPin(function(pin){ supabaseClient.rpc('app_announce_who',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){
+            if(r.error){ box.innerHTML=escapeHtml(String(r.error.message||'').indexOf('unauthorized')>=0?'Managers only.':r.error.message); return; }
+            var d=r.data||{}, seen=d.seen||[], h='';
+            if(d.requires_ack){ var ak=seen.filter(function(x){return x.acked;}).map(function(x){return escapeHtml(x.name);}); var na=(d.not_acked||[]).map(escapeHtml);
+                h='<b style="color:#1b7a3d;">Read it ('+ak.length+'):</b> '+(ak.join(', ')||'&mdash;')+'<br><b style="color:#a01b3e;">Haven\'t yet ('+na.length+'):</b> '+(na.join(', ')||'&mdash;'); }
+            else { var sn=seen.map(function(x){return escapeHtml(x.name);}), ns=(d.not_seen||[]).map(escapeHtml);
+                h='<b style="color:#1b7a3d;">Seen ('+sn.length+'):</b> '+(sn.join(', ')||'&mdash;')+'<br><b style="color:#a01b3e;">Not yet ('+ns.length+'):</b> '+(ns.join(', ')||'&mdash;'); }
+            box.innerHTML=h;
+        }); });
+    }
+    function annRemind(id){ if(!confirm('Send a reminder to everyone who hasn\'t read this yet?')) return; withPin(function(pin){ supabaseClient.rpc('app_announce_remind',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } var n=parseInt((r.data&&r.data.sent),10)||0; alert(n?('Reminder sent to '+n+' '+(n===1?'person':'people')+'.'):'Nobody left to remind — or no one waiting has notifications turned on.'); }); }); }
+    function annPin(id, pinned){ withPin(function(pin){ supabaseClient.rpc('app_announce_pin',{p_username:currentUser.username,p_password:pin,p_id:id,p_pinned:pinned}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; } loadUpdates(); if(typeof loadPinnedAnnouncements==='function'){ try{ loadPinnedAnnouncements(); }catch(e){} } }); }); }
+    function annEditItem(id){ var cur=null; try{ cur=(_annFeed&&_annFeed.items||[]).filter(function(x){return x.id===id;})[0]; }catch(e){} var nb=prompt('Edit this announcement:', cur?cur.body:''); if(nb===null) return; nb=nb.trim(); if(!nb){ alert('Announcement cannot be empty.'); return; } withPin(function(pin){ supabaseClient.rpc('app_announcement_edit',{p_username:currentUser.username,p_password:pin,p_id:id,p_body:nb}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':('Error: '+r.error.message)); return; } loadUpdates(); }); }); }
+    function annDeleteItem(id){ if(!confirm('Delete this announcement? This cannot be undone.')) return; withPin(function(pin){ supabaseClient.rpc('app_announcement_delete',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){ if(r.error){ if(r.error.code==='42501') sessionPin=null; alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':('Error: '+r.error.message)); return; } loadUpdates(); if(typeof loadPinnedAnnouncements==='function'){ try{ loadPinnedAnnouncements(); }catch(e){} } }); }); }
     // ---- Conversations: ONE list (Homebase layout) — every "Entire team" wall, group and direct message the person
     //      can see, grouped by store. Backed by app_conversations (message_groups kind = store | group | dm). ----
     var _convUnread=0, _convFilter='all', _convData=null, _convById={};

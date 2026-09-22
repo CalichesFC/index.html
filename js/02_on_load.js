@@ -13,7 +13,6 @@
         document.getElementById('main-menu').style.display = 'block';
         switchMenuTab('home');
         applyWeeklyQuotes();
-        fetchAnnouncement();
         setTimeout(showAppTour, 800);
         setTimeout(maybeShowHowTo, 1300);
         if (window._pendingEquip) { var _eq=window._pendingEquip; var _eqGo=window._pendingEquipGo; window._pendingEquip=null; window._pendingEquipGo=null; try { if(history.replaceState) history.replaceState(null,'',location.pathname); } catch(e){} setTimeout(function(){ if(_eqGo==='report' && typeof woReportForEquipment==='function'){ woReportForEquipment(parseInt(_eq,10)); } else if(typeof openEquipmentDetail==='function'){ openEquipmentDetail(parseInt(_eq,10)); } }, 800); }
