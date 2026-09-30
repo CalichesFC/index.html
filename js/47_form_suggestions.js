@@ -19,7 +19,11 @@
 
         function load(){
             if(LOADED||LOADING) return;
-            if(typeof withPin!=='function'||typeof supabaseClient==='undefined'||typeof currentUser==='undefined'||!currentUser) return;
+            if(typeof withPin!=='function'||typeof supabaseClient==='undefined'||typeof currentUser==='undefined'||!currentUser||!currentUser.username) return;
+            // Suggestions are a convenience: never pop a PIN box for them. Only load when a PIN is
+            // already saved for this signed-in session (so customer invoice/quote links never prompt).
+            var _hasPin=false; try{ _hasPin=(typeof sessionPin!=='undefined'&&!!sessionPin)||(localStorage.getItem('calichesKeep')!=='0'&&!!sessionStorage.getItem('calichesPin')); }catch(e){}
+            if(!_hasPin) return;
             LOADING=true;
             withPin(function(pin){
                 supabaseClient.rpc('app_quote_suggestions',{p_admin_username:currentUser.username,p_admin_password:pin}).then(function(r){
