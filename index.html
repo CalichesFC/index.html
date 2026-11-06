@@ -1227,6 +1227,8 @@
   .sp-addbtn { border:1px dashed #c2cbd6; color:#7a828f; background:#fff; border-radius:8px; padding:7px 12px; font-size:12px; cursor:pointer; }
   .sp-laborbar { position:sticky; bottom:0; background:#0f1830; color:#fff; padding:9px 14px; display:flex; justify-content:space-between; align-items:center; gap:10px; z-index:8; }
   .sp-laborbar.wide { overflow-x:auto; }
+  .sp-laborbar.wide.aligned { overflow-x:visible; justify-content:flex-start; gap:0; padding-left:0; padding-right:0; box-sizing:border-box; }
+  .sp-laborbar.wide.aligned > * { box-sizing:border-box; padding-left:8px; padding-right:8px; }
   .sp-laborbar .lbl { font-size:10px; color:#9fb0c9; }
   .sp-laborbar b { font-size:14px; }
   .sp-laborbar .lcell { flex:1; min-width:84px; text-align:center; border-left:1px solid #28344f; padding:0 4px; }
@@ -1256,6 +1258,8 @@
         <a data-nav="live" onclick="schedRailNav('live',this)">&#128994; On the clock</a>
         <a data-nav="clock" onclick="schedRailNav('clock',this)">&#9201;&#65039; Time clock</a>
         <a data-nav="roster" onclick="schedRailNav('roster',this)">&#128101; Roster</a>
+        <a data-nav="requests" onclick="openRequests()">&#128229; Requests</a>
+        <a data-nav="availreq" onclick="openAvailApprovals()">&#128467;&#65039; Availability</a>
         <div class="sp-toolhdr">Tools</div>
         <a data-nav="buildnext" onclick="schedRailNav('buildnext',this)">&#9889; Auto-fill open shifts</a>
         <a data-nav="copy" onclick="schedRailNav('copy',this)">&#128203; Copy last week</a>
@@ -1270,6 +1274,7 @@
         <a class="active" data-nav="myshifts" onclick="schedRailNav('myshifts',this)">&#128197; My shifts</a>
         <a data-nav="timeoff" onclick="schedRailNav('timeoff',this)">&#127796; Request time off</a>
         <a data-nav="availability" onclick="schedRailNav('availability',this)">&#128340; My availability</a>
+        <a data-nav="clockin" onclick="openTimeClock()">&#9201;&#65039; Time clock</a>
       </nav>
       <button class="sp-back" onclick="openMenu()">&#8249; Back to Hub</button>
     </aside>

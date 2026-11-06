@@ -487,7 +487,7 @@
     // Admin entry (#sectionsAdminCard) stays manager-gated in code, not just here.
     function hubNav(dest) {
         if (dest === 'home') { ensureMenuVisible(); switchMenuTab('home'); window.scrollTo(0,0); }
-        else if (dest === 'schedule') { ensureMenuVisible(); switchMenuTab('scheduling'); window.scrollTo(0,0); }
+        else if (dest === 'schedule') { if (typeof openScheduling === 'function') { openScheduling(); } else { ensureMenuVisible(); switchMenuTab('scheduling'); } window.scrollTo(0,0); }
         else if (dest === 'tasks') { openTasks(); }
         else if (dest === 'more') { ensureMenuVisible(); switchMenuTab('sections'); window.scrollTo(0,0); }
         else if (dest === 'work') { ensureMenuVisible(); switchMenuTab('operations'); window.scrollTo(0,0); }
@@ -556,6 +556,7 @@
             var panel=document.getElementById('aiChatPanel');
             if(panel){ var pcs=window.getComputedStyle(panel); if(pcs.display!=='none'){ w.classList.remove('scoopy-hidden'); return; } }
             var blocked=false,i,els;
+            var _sbv=document.getElementById('scheduleBuilderView'); if(_sbv && window.getComputedStyle(_sbv).display!=='none'){ blocked=true; }
             els=document.querySelectorAll('.modal-overlay,[id$="Modal"]');
             for(i=0;i<els.length;i++){ if(els[i].id==='aiChatPanel') continue; var cs=window.getComputedStyle(els[i]); if(cs.display!=='none' && cs.visibility!=='hidden'){ blocked=true; break; } }
             if(!blocked){ els=document.getElementsByClassName('save-btn'); for(i=0;i<els.length;i++){ if(els[i].offsetParent!==null){ blocked=true; break; } } }

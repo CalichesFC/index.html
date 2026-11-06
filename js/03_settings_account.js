@@ -304,6 +304,8 @@
         document.getElementById('schedSearch').parentElement.style.display = mgr ? '' : 'none';
         const sel = document.getElementById('schedLocation');
         if (sel && !sel.options.length) sel.innerHTML = SCHED_LOCATIONS.map(l => '<option>'+l+'</option>').join('');
+        try { const _hs = document.getElementById('storeSelect'); const _want = (_hs && _hs.value) || localStorage.getItem('calichesActiveStore');
+              if (sel && _want && Array.prototype.some.call(sel.options, o => o.value === _want)) sel.value = _want; } catch (e) {}
         schedState.location = sel ? sel.value : 'Roadrunner';
         if (!schedState.weekStart) schedState.weekStart = schedMondayOf(new Date());
         if (mgr) fetchScheduleWeek(); else fetchMyShifts();
@@ -620,7 +622,7 @@
             return '<div class="sched-chip'+(conflict?' sched-chip-conflict':'')+'" data-shiftid="'+s.id+'" tabindex="0" role="button" style="background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+(s.start_time||'')+'-'+(s.end_time||'')+'<br>'+escapeHtml(lblTxt)+(conflict?' &#9888;':'')+(s.published?'':' *')+'</div>';
         };
         const hbTime = t => { if(!t) return ''; const p=String(t).split(':'); let h=+p[0]||0; const m=+p[1]||0; const ap=h<12?'a':'p'; let hh=h%12; if(hh===0) hh=12; return hh+(m?(':'+String(m).padStart(2,'0')):'')+ap; };
-        const initialsOf = nm => { const parts=String(nm||'').trim().split(/\s+/); return ((parts[0]||'')[0]||'').toUpperCase()+((parts[1]||'')[0]||'').toUpperCase() || '?'; };
+        const initialsOf = nm => { const parts=String(nm||'').replace(/\([^)]*\)/g,' ').replace(/["\u201C][^"\u201D]*["\u201D]/g,' ').replace(/[^A-Za-z\u00C0-\u024F\s'-]/g,' ').trim().split(/\s+/).filter(Boolean); if(!parts.length) return '?'; return (parts[0][0]+(parts.length>1?parts[parts.length-1][0]:'')).toUpperCase(); };
         const avatarColor = e => { const p=schedPosById(e.default_position_id); return (p && p.color) ? p.color : '#185FA5'; };
         const blockHtml = (s, conflict) => {
             const p = schedPosById(s.position_id); const col = p ? p.color : '#6b7280';
@@ -639,7 +641,7 @@
         (schedState.elsewhere||[]).forEach(x => { elseEmpSet[x.employee_id]=1; if(x.location) elseStoreSet[x.location]=1; });
         const elseEmpN = Object.keys(elseEmpSet).length, elseStoreN = Object.keys(elseStoreSet).length;
         const photoOf = id => (schedState.photos||{})[id];
-        const avatarHtml = e => { const ph=photoOf(e.id); return ph ? '<span class="hbg-av" style="background-image:url('+escapeHtml(ph)+');background-size:cover;background-position:center;"></span>' : '<span class="hbg-av" style="background:'+avatarColor(e)+';">'+initialsOf(e.name)+'</span>'; };
+        const avatarHtml = e => { const ph=photoOf(e.id); return ph ? '<span class="hbg-av" style="background-image:url('+escapeHtml(ph)+');background-size:cover;background-position:center;"></span>' : (function(){ const _c=avatarColor(e); const _t=hbTextOn(_c); return '<span class="hbg-av" style="background:'+_c+';'+(_t!=='#fff'?'color:'+_t+';box-shadow:inset 0 0 0 1px #cbd2dc;':'')+'">'+initialsOf(e.name)+'</span>'; })(); };
         const tagOf = e => { const list=(e.stores&&e.stores.length)?e.stores:(e.home_location?[e.home_location]:[]); return list.length?'<span class="hbg-tag">'+list.map(schedAbbr).join('&middot;')+'</span> ':''; };
         const dayStaff = {}; shifts.forEach(s => { if(s.employee_id!=null){ (dayStaff[s.shift_date]=dayStaff[s.shift_date]||{})[s.employee_id]=1; } });
         let weekHrs=0, weekCost=0;
@@ -723,9 +725,22 @@
             if (pb){ pb.disabled=true; pb.style.opacity=.5; pb.style.cursor='not-allowed'; pb.title='Resolve cross-store conflicts to publish'; }
         } else if (pb){ pb.disabled=false; pb.style.opacity=1; pb.style.cursor='pointer'; pb.title=''; }
         document.getElementById('schedGrid').innerHTML = html;
+        if (typeof schedAlignLaborBar === 'function') schedAlignLaborBar();
         schedInitDragReorder();
         if(typeof schedInitShiftDrag==='function') schedInitShiftDrag();
     }
+    function schedAlignLaborBar(){
+        try {
+            var g=document.getElementById('schedGrid'); if(!g) return;
+            var tbl=g.querySelector('table.hbg'), bar=g.querySelector('.sp-laborbar.wide');
+            if(!tbl||!bar||!tbl.tHead||!tbl.tHead.rows.length) return;
+            var cells=tbl.tHead.rows[0].cells, kids=bar.children;
+            if(kids.length!==cells.length) return;
+            bar.classList.add('aligned'); bar.style.width=tbl.offsetWidth+'px';
+            for(var i=0;i<kids.length;i++){ var w=cells[i].getBoundingClientRect().width; kids[i].style.flex='0 0 '+w+'px'; kids[i].style.width=w+'px'; kids[i].style.minWidth='0'; }
+        } catch(e) {}
+    }
+    if (!window._schedAlignResize) { window._schedAlignResize = true; window.addEventListener('resize', function(){ clearTimeout(window._schedAlignT); window._schedAlignT = setTimeout(schedAlignLaborBar, 150); }); }
     function schedPickDay(i){ schedState.selectedDay=i; renderScheduleGrid(); }
     function schedCloseCtx(){ var m=document.getElementById('schedCtxMenu'); if(m) m.remove(); }
     function schedCtx(ev, empId, ds, shiftId){
