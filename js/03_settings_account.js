@@ -37,6 +37,7 @@
             if (error) { msg.innerText = 'Error: ' + error.message; msg.className = 'settings-msg err'; msg.style.display = 'block'; return; }
             sessionPin = newPin;
             try { if(localStorage.getItem('calichesKeep')!=='0') sessionStorage.setItem('calichesPin', newPin); } catch(e){}
+            try { if(localStorage.getItem('calichesKeep')!=='0' && typeof hubRememberSave==='function') hubRememberSave(currentUser.username, newPin); } catch(e){}
             msg.innerText = 'PIN updated successfully!'; msg.className = 'settings-msg ok'; msg.style.display = 'block';
             document.getElementById('settingsCurrentPin').value = ''; document.getElementById('settingsNewPin').value = ''; document.getElementById('settingsConfirmPin').value = '';
         }).catch(() => { msg.innerText = 'Connection error. Please try again.'; msg.className = 'settings-msg err'; msg.style.display = 'block'; });
@@ -1138,11 +1139,11 @@
         schedDoPublish();
     }
     function schedDoPublish(){
-        if (!confirm('Publish this week’s schedule for ' + schedState.location + '? Staff with shifts will be notified.')) return;
+        if (!confirm('Publish this week’s schedule for ' + schedState.location + '? Staff with shifts who have Hub phone alerts on will be notified.')) return;
         const ws = schedFmt(schedState.weekStart);
         withPin(function(pin){
             supabaseClient.rpc('app_sched_publish_week', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_week_start: ws })
-            .then(({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } alert('Published ' + (data||0) + ' shift(s) for ' + schedState.location + '. Staff with shifts were notified on their phones. 📲'); fetchScheduleWeek(); });
+            .then(({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } alert('Published ' + (data||0) + ' shift(s) for ' + schedState.location + '. Phone alerts went to everyone on it who has Hub alerts turned on.'); fetchScheduleWeek(); });
         });
     }
     function schedShowPublishGate(conflicts){

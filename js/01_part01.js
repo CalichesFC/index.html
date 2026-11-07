@@ -31,6 +31,38 @@
     // In-memory only PIN cache (never persisted to localStorage). Used to re-verify
     // sensitive account/admin actions against the secure RPC functions.
     let sessionPin = null;
+    // ---- Keep me logged in on this device (2026-11-06) ----
+    // When "Keep me logged in on this device" is ticked, the PIN is kept in this browser only,
+    // encrypted with a browser key that can't be read back out, for 30 days from the last time
+    // the Hub was opened. Signing out clears it. A changed PIN or a deactivated login fails the
+    // server check on the next open, which clears it too. Server sign-in is unchanged
+    // (still username + PIN on every call).
+    var HUB_REMEMBER_DAYS = 30;
+    function _hubIdb(){ return new Promise(function(res, rej){ try { var rq = indexedDB.open('calichesHub', 1); rq.onupgradeneeded = function(){ try { rq.result.createObjectStore('kv'); } catch(e){} }; rq.onsuccess = function(){ res(rq.result); }; rq.onerror = function(){ rej(rq.error); }; rq.onblocked = function(){ rej(new Error('blocked')); }; } catch(e){ rej(e); } }); }
+    function _hubKv(mode, op){ return _hubIdb().then(function(db){ return new Promise(function(res, rej){ var req; try { var tx = db.transaction('kv', mode); req = op(tx.objectStore('kv')); tx.oncomplete = function(){ try { db.close(); } catch(e){} res(req ? req.result : undefined); }; tx.onerror = tx.onabort = function(){ try { db.close(); } catch(e){} rej(tx.error); }; } catch(e){ try { db.close(); } catch(_){} rej(e); } }); }); }
+    function hubRememberSave(username, pin){
+        try { if (!username || !pin || !window.indexedDB || !window.crypto || !crypto.subtle) return Promise.resolve(false); } catch(e){ return Promise.resolve(false); }
+        return crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']).then(function(key){
+            var iv = crypto.getRandomValues(new Uint8Array(12));
+            return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(String(pin))).then(function(ct){
+                var rec = { u: String(username), key: key, iv: iv, ct: new Uint8Array(ct), exp: Date.now() + HUB_REMEMBER_DAYS * 86400000 };
+                return _hubKv('readwrite', function(st){ return st.put(rec, 'remember'); }).then(function(){ return true; });
+            });
+        }).catch(function(){ return false; });
+    }
+    function hubRememberLoad(username){
+        try { if (!username || !window.indexedDB || !window.crypto || !crypto.subtle) return Promise.resolve(null); } catch(e){ return Promise.resolve(null); }
+        return _hubKv('readonly', function(st){ return st.get('remember'); }).then(function(rec){
+            if (!rec || rec.u !== String(username) || !rec.key || !rec.ct || !rec.iv) return null;
+            if (!(rec.exp > Date.now())) { hubRememberForget(); return null; }
+            return crypto.subtle.decrypt({ name: 'AES-GCM', iv: rec.iv }, rec.key, rec.ct).then(function(pt){
+                rec.exp = Date.now() + HUB_REMEMBER_DAYS * 86400000;   // 30 days from the last time it was used
+                _hubKv('readwrite', function(st){ return st.put(rec, 'remember'); }).catch(function(){});
+                return new TextDecoder().decode(pt);
+            });
+        }).catch(function(){ return null; });
+    }
+    function hubRememberForget(){ try { if (!window.indexedDB) return Promise.resolve(); } catch(e){ return Promise.resolve(); } return _hubKv('readwrite', function(st){ return st.delete('remember'); }).catch(function(){}); }
     function withPin(callback, onCancel) {
         if (sessionPin) { callback(sessionPin); return; }
         try { if (localStorage.getItem('calichesKeep')!=='0') { var _kp=sessionStorage.getItem('calichesPin'); if(_kp){ sessionPin=_kp; callback(sessionPin); return; } } } catch(e){}

@@ -327,6 +327,12 @@
                the user to the password screen. Biometric unlock is preserved: it
                is only reached AFTER the server verifies the stored credential. */
             if (sessionPin) { verifyStoredSessionThenEnter(); }
+            else if (localStorage.getItem('calichesKeep') !== '0' && typeof hubRememberLoad === 'function') {
+                hubRememberLoad(currentUser.username).then(function(p){
+                    if (p) { sessionPin = p; try { sessionStorage.setItem('calichesPin', p); } catch(e){} verifyStoredSessionThenEnter(); }
+                    else { showLoginScreenNow(); }
+                }, function(){ showLoginScreenNow(); });
+            }
             else { showLoginScreenNow(); }
         } else {
             setTimeout(function() {
@@ -615,7 +621,7 @@
     function verifyStoredSessionThenEnter(){
         try{
             supabaseClient.rpc('app_login',{p_username:currentUser.username,p_password:sessionPin}).then(function(r){
-                if((r && r.error) || !r || !r.data || !r.data.length){ showLoginScreenNow(); return; }
+                if((r && r.error) || !r || !r.data || !r.data.length){ if (r && !r.error && typeof hubRememberForget === 'function') hubRememberForget(); showLoginScreenNow(); return; }
                 var u = r.data[0];
                 currentUser.name=u.name; currentUser.role=u.role; currentUser.permissions=u.permissions||null; currentUser.maint_board_access=(u.maint_board_access!==false); currentUser.username=u.username; currentUser.email=u.email||''; currentUser.is_developer=(u.is_developer===true);
                 try{ localStorage.setItem('calichesUser', JSON.stringify(currentUser)); }catch(e){}
@@ -647,6 +653,7 @@
             currentUser.username = user.username; currentUser.email = user.email || ''; currentUser.is_developer = (user.is_developer === true);
             localStorage.setItem('calichesUser', JSON.stringify(currentUser));
             try { var _keep = !document.getElementById('keepLoggedIn') || document.getElementById('keepLoggedIn').checked; if(_keep){ localStorage.setItem('calichesKeep','1'); sessionStorage.setItem('calichesPin', sessionPin); } else { localStorage.setItem('calichesKeep','0'); sessionStorage.removeItem('calichesPin'); } try{ localStorage.removeItem('calichesPin'); }catch(e){} } catch(e){}
+            try { if (typeof hubRememberSave === 'function') { if (localStorage.getItem('calichesKeep') !== '0') hubRememberSave(user.username, sessionPin); else hubRememberForget(); } } catch(e){}
             logActivity(user.username, user.name, 'login');
             document.getElementById('greetingName').innerText = 'Hello, ' + user.name;
             document.getElementById('greetingRole').innerText = 'Role: ' + user.role;
@@ -680,6 +687,7 @@
         supabaseClient.rpc('app_set_password',{p_username:currentUser.username,p_current:sessionPin,p_new:p1}).then(function(r){
             if(r.error){ if(msg){ msg.style.color='#c0264b'; msg.textContent=(r.error.message||'Could not save.'); } return; }
             sessionPin=p1; try{ if(localStorage.getItem('calichesKeep')!=='0') sessionStorage.setItem('calichesPin', sessionPin); }catch(e){}
+            try{ if(localStorage.getItem('calichesKeep')!=='0' && typeof hubRememberSave==='function') hubRememberSave(currentUser.username, sessionPin); }catch(e){}
             var ov=document.getElementById('setPwModal'); if(ov) ov.style.display='none';
             try{ alert('Password set. Use it the next time you log in.'); }catch(e){}
         }).catch(function(){ if(msg){ msg.style.color='#c0264b'; msg.textContent='Connection error.'; } });
@@ -697,6 +705,7 @@
             const user = data[0];
             sessionPin = newPassword;
             try { localStorage.setItem('calichesKeep','1'); sessionStorage.setItem('calichesPin', sessionPin); } catch(e){}
+            try { if (typeof hubRememberSave === 'function') hubRememberSave(user.username, sessionPin); } catch(e){}
             currentUser.name = user.name; currentUser.role = user.role;
             currentUser.username = user.username; currentUser.email = user.email || ''; currentUser.is_developer = (user.is_developer === true);
             localStorage.setItem('calichesUser', JSON.stringify(currentUser));
@@ -713,6 +722,7 @@
             document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
             document.getElementById('login-view').style.display = 'flex';
             localStorage.removeItem('calichesUser'); localStorage.removeItem('calichesKeep'); localStorage.removeItem('calichesPin'); sessionStorage.removeItem('calichesPin'); currentUser = { name:'', role:'' }; sessionPin = null; clearInterval(slideTimer);
+            try { if (typeof hubRememberForget === 'function') hubRememberForget(); } catch(e){}
             const aiWidget = document.getElementById('aiChatWidget');
             if (aiWidget) { aiWidget.style.display = 'none'; }
             aiChatHistory = []; aiChatOpen = false;
