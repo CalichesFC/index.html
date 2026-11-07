@@ -1229,6 +1229,9 @@
   .sp-laborbar.wide { overflow-x:auto; }
   .sp-laborbar.wide.aligned { overflow-x:visible; justify-content:flex-start; gap:0; padding-left:0; padding-right:0; box-sizing:border-box; }
   .sp-laborbar.wide.aligned > * { box-sizing:border-box; padding-left:8px; padding-right:8px; }
+  .shift-daychip { border:1.5px solid #185FA5; background:#fff; color:#185FA5; border-radius:999px; padding:6px 12px; font-size:13px; font-weight:700; line-height:1.2; cursor:pointer; }
+  .shift-daychip.on { background:#185FA5; color:#fff; }
+  .shift-daychip:focus-visible { outline:2px solid #ec3e7e; outline-offset:2px; }
   .sp-laborbar .lbl { font-size:10px; color:#9fb0c9; }
   .sp-laborbar b { font-size:14px; }
   .sp-laborbar .lcell { flex:1; min-width:84px; text-align:center; border-left:1px solid #28344f; padding:0 4px; }
@@ -1266,6 +1269,8 @@
         <a data-nav="templates" onclick="schedRailNav('templates',this)">&#128209; Templates</a>
         <a data-nav="schedvsactual" onclick="schedRailNav('schedvsactual',this)">&#128202; Scheduled vs actual</a>
         <a data-nav="confirms" onclick="schedRailNav('confirms',this)">&#9989; Confirmations</a>
+        <a data-nav="pubhistory" onclick="schedRailNav('pubhistory',this)">&#128338; Publish history</a>
+        <a data-nav="resend" onclick="schedRailNav('resend',this)">&#128227; Resend schedule</a>
         <a data-nav="addemp" onclick="schedRailNav('addemp',this)">&#10133; Add employee</a>
         <a data-nav="roles" onclick="schedRailNav('roles',this)">&#127912; Manage roles</a>
         <a data-nav="print" onclick="schedRailNav('print',this)">&#128424;&#65039; Print</a>
@@ -1621,7 +1626,7 @@
 
 <!-- SHIFT EDIT MODAL -->
 <div id="shiftModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;padding:20px;">
-    <div style="background:#fff;border-radius:16px;padding:24px;max-width:380px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,0.3);">
+    <div style="background:#fff;border-radius:16px;padding:24px;max-width:380px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,0.3);max-height:calc(100vh - 40px);overflow:auto;box-sizing:border-box;">
         <h2 id="shiftModalTitle" style="color:var(--caliches-blue);margin-top:0;font-size:20px;">Add Shift</h2>
         <label class="form-label">Assign to:</label>
         <select id="shiftEmployee" onchange="schedModalEmpChanged()" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;margin-bottom:12px;"></select>
@@ -1636,7 +1641,8 @@
         <div id="shiftCompMsg" style="display:none;font-size:12.5px;margin-top:6px;padding:7px 10px;border-radius:7px;background:#fdf3e8;color:#854F0B;"></div>
         <label class="form-label" style="margin-top:12px;">Note (optional):</label>
         <input type="text" id="shiftNote" placeholder="e.g., AM duties, register" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;">
-        <div id="shiftRepeatWrap" style="margin-top:12px;"><label class="form-label">Repeat weekly:</label><select id="shiftRepeat" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;"><option value="0">No — just this day</option><option value="1">This + next week</option><option value="3">This + next 3 weeks</option><option value="7">This + next 7 weeks</option></select></div>
+        <div id="shiftDaysWrap" style="display:none;margin-top:12px;"><label class="form-label" style="margin-bottom:6px;">Days <span style="font-weight:400;color:#6b7686;font-size:12px;">(tap more days to add the same shift)</span></label><div id="shiftDays" style="display:flex;flex-wrap:wrap;gap:6px;"></div><div id="shiftDaysMsg" style="display:none;font-size:12.5px;color:#c0264b;margin-top:6px;"></div><div id="shiftPrefillHint" style="display:none;font-size:12px;color:#6b7686;margin-top:6px;">Times filled in from your last shift at this store.</div></div>
+        <div id="shiftRepeatWrap" style="margin-top:12px;"><label class="form-label">Repeat weekly:</label><select id="shiftRepeat" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;"><option value="0">No — just this week</option><option value="1">This + next week</option><option value="3">This + next 3 weeks</option><option value="7">This + next 7 weeks</option></select></div>
         <div style="display:flex;gap:8px;margin-top:18px;">
             <button class="save-btn blue-btn" style="flex:1;margin:0;" onclick="schedSaveShift()">Save</button>
             <button id="shiftDeleteBtn" class="save-btn red-btn" style="flex:0 0 90px;margin:0;display:none;" onclick="schedDeleteShift()">Delete</button>

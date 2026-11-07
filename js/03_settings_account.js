@@ -326,6 +326,8 @@
             case 'copy': schedCopyLastWeek(); break;
             case 'templates': openSchedTemplates(); break;
             case 'confirms': openWeekConfirms(); break;
+            case 'pubhistory': openPublishHistory(); break;
+            case 'resend': openResendSchedule(); break;
             case 'addemp': schedAddEmployee(); break;
             case 'roles': openRolesModal(); break;
             case 'buildnext': schedAutoFill(); break;
@@ -642,7 +644,8 @@
         const elseEmpN = Object.keys(elseEmpSet).length, elseStoreN = Object.keys(elseStoreSet).length;
         const photoOf = id => (schedState.photos||{})[id];
         const avatarHtml = e => { const ph=photoOf(e.id); return ph ? '<span class="hbg-av" style="background-image:url('+escapeHtml(ph)+');background-size:cover;background-position:center;"></span>' : (function(){ const _c=avatarColor(e); const _t=hbTextOn(_c); return '<span class="hbg-av" style="background:'+_c+';'+(_t!=='#fff'?'color:'+_t+';box-shadow:inset 0 0 0 1px #cbd2dc;':'')+'">'+initialsOf(e.name)+'</span>'; })(); };
-        const tagOf = e => { const list=(e.stores&&e.stores.length)?e.stores:(e.home_location?[e.home_location]:[]); return list.length?'<span class="hbg-tag">'+list.map(schedAbbr).join('&middot;')+'</span> ':''; };
+        const elseLocsByEmp = {}; (schedState.elsewhere||[]).forEach(x => { if(x.employee_id!=null && x.location){ (elseLocsByEmp[x.employee_id]=elseLocsByEmp[x.employee_id]||{})[x.location]=1; } });
+        const tagOf = e => { const locs=Object.keys(elseLocsByEmp[e.id]||{}); return locs.length?'<span class="hbg-tag" title="Also scheduled at '+escapeHtml(locs.join(', '))+' this week">Also '+locs.map(l=>escapeHtml(schedAbbr(l))).join('&middot;')+'</span> ':''; };
         const dayStaff = {}; shifts.forEach(s => { if(s.employee_id!=null){ (dayStaff[s.shift_date]=dayStaff[s.shift_date]||{})[s.employee_id]=1; } });
         let weekHrs=0, weekCost=0;
         emps.forEach(e=>{ const eh=empHrs[e.id]||0; const reg=Math.min(eh,OT_THRESH),ot=Math.max(0,eh-OT_THRESH); weekCost+=reg*(wageOf[e.id]||0)+ot*(wageOf[e.id]||0)*OT_MULT; });
@@ -837,7 +840,7 @@
           supabaseClient.rpc('app_week_confirm_roster',{p_username:currentUser.username,p_password:pin,p_location:loc,p_week_start:ws}).then(function(r){
             var body=document.getElementById('weekConfirmsBody'); if(!body) return;
             if(r.error){ body.innerHTML='<p style="color:#c0264b;text-align:center;">'+escapeHtml(r.error.message)+'</p>'; return; }
-            var list=r.data||[]; if(!list.length){ body.innerHTML='<p style="color:#6b7686;text-align:center;padding:16px;">No active staff for this store.</p>'; return; }
+            var list=r.data||[]; if(!list.length){ body.innerHTML='<p style="color:#6b7686;text-align:center;padding:16px;">No shifts are posted at <b>'+escapeHtml(loc||'this store')+'</b> this week yet. Once the week is published, everyone on it shows up here.</p>'; return; }
             var done=list.filter(function(x){return x.confirmed;}).length;
             var h='<div style="font-size:12.5px;font-weight:700;color:var(--txt,#26242b);margin-bottom:8px;">'+done+' of '+list.length+' confirmed</div>';
             list.forEach(function(x){
@@ -848,6 +851,63 @@
             });
             body.innerHTML=h;
           }).catch(function(){ var body=document.getElementById('weekConfirmsBody'); if(body) body.innerHTML='<p style="color:#c0264b;text-align:center;">Could not load.</p>'; });
+        });
+    }
+    // ---- Publish history + Resend schedule (batch 2) ----
+    function schedFmtWhen(ts){ try { var d=new Date(ts); if(isNaN(d)) return String(ts||''); return d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})+', '+d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}); } catch(e){ return String(ts||''); } }
+    function schedFmtWeekOf(ws){ try { var d=new Date(String(ws).slice(0,10)+'T00:00:00'); if(isNaN(d)) return String(ws||''); return d.toLocaleDateString(undefined,{month:'short',day:'numeric'}); } catch(e){ return String(ws||''); } }
+    var SCHED_BTN_LIGHT='background:#fff;border:1px solid #cfd6e0;color:#26242b;border-radius:10px;padding:10px 18px;font-size:14.5px;font-weight:700;cursor:pointer;';
+    var SCHED_BTN_PINK='background:#ec3e7e;border:none;color:#fff;border-radius:10px;padding:10px 18px;font-size:14.5px;font-weight:800;cursor:pointer;';
+    function openPublishHistory(){
+        var loc=schedState.location||'';
+        schedModal('Publish history &middot; '+escapeHtml(loc), '<p style="text-align:center;color:#6b7686;padding:16px;">Loading&hellip;</p>');
+        withPin(function(pin){
+            supabaseClient.rpc('app_sched_publish_history',{p_username:currentUser.username,p_password:pin,p_location:loc}).then(function(r){
+                if(r.error){ schedModalBody('<p style="color:#c0264b;text-align:center;padding:12px;">'+(r.error.code==='42501'?'Only admin managers can see publish history.':escapeHtml(r.error.message))+'</p>'); return; }
+                var list=r.data||[];
+                var h='<div style="font-size:13px;color:#5b6675;margin-bottom:10px;">Every time a week is posted or re-sent, it shows here.</div>';
+                if(!list.length){ schedModalBody(h+'<p style="color:#6b7686;text-align:center;padding:14px;border:1px dashed #d9dee6;border-radius:10px;margin:0;">Nothing yet. The first time a week is posted at '+escapeHtml(loc)+', it will show up here.</p>'); return; }
+                list.forEach(function(x){
+                    var pub=(x.action==='publish'); var sc=x.shift_count||0, pc=x.people_count||0;
+                    var right=(pub?(sc+' shift'+(sc===1?'':'s')+' &middot; '):'')+pc+' '+(pc===1?'person':'people');
+                    h+='<div style="border:1px solid #e6ebf2;border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start;">'+
+                       '<div style="flex:1;min-width:0;"><div style="font-size:15px;color:#26242b;"><b style="color:'+(pub?'#1f7a3d':'#185FA5')+';">'+(pub?'Posted':'Re-sent')+'</b> &middot; Week of '+escapeHtml(schedFmtWeekOf(x.week_start))+'</div>'+
+                       '<div style="font-size:12.5px;color:#5b6675;margin-top:2px;">by '+escapeHtml(x.by_name||'')+' &middot; '+escapeHtml(schedFmtWhen(x.at))+'</div></div>'+
+                       '<div style="font-size:12.5px;color:#26242b;white-space:nowrap;">'+right+'</div></div>';
+                });
+                schedModalBody(h);
+            }, function(){ schedModalBody('<p style="color:#c0264b;text-align:center;">Could not load. Check your connection and try again.</p>'); });
+        });
+    }
+    function openResendSchedule(){
+        var loc=schedState.location||''; var ws=schedFmt(schedState.weekStart);
+        schedModal('Resend schedule', '<p style="text-align:center;color:#6b7686;padding:16px;">Loading&hellip;</p>');
+        withPin(function(pin){
+            supabaseClient.rpc('app_sched_resend_preview',{p_username:currentUser.username,p_password:pin,p_location:loc,p_week_start:ws}).then(function(r){
+                if(r.error){ schedModalBody('<p style="color:#c0264b;text-align:center;padding:12px;">'+(r.error.code==='42501'?'Only admin managers can re-send the schedule.':escapeHtml(r.error.message))+'</p>'); return; }
+                var list=r.data||[];
+                if(!list.length){ schedModalBody('<p style="color:#5b6675;text-align:center;padding:10px 6px;font-size:14px;">No shifts are posted at <b>'+escapeHtml(loc)+'</b> for the week of <b>'+escapeHtml(schedFmtWeekOf(ws))+'</b> yet, so there&rsquo;s no one to send it to. Publish the week first.</p><div style="text-align:right;"><button onclick="schedModalClose()" style="'+SCHED_BTN_LIGHT+'">Close</button></div>'); return; }
+                var on=list.filter(function(x){ return x.alerts_on; }).length, n=list.length;
+                var names=list.map(function(x){ return escapeHtml(x.name||''); }).join(', ');
+                var h='<div style="font-size:14.5px;line-height:1.45;color:#26242b;">Send the <b>&ldquo;schedule posted&rdquo;</b> alert again to everyone with shifts at <b>'+escapeHtml(loc)+'</b> for the week of <b>'+escapeHtml(schedFmtWeekOf(ws))+'</b>?</div>'+
+                      '<div style="background:#f3f6fb;border-radius:10px;padding:10px 12px;margin:12px 0;font-size:13.5px;color:#3b4656;">'+n+' '+(n===1?'person':'people')+' will get it: '+names+'</div>'+
+                      (on<n?'<div style="font-size:12.5px;color:#854F0B;background:#fdf3e8;border-radius:8px;padding:8px 10px;margin-bottom:12px;">'+(on===0?'Heads up: none of them have turned on Hub phone alerts yet, so no one will actually get buzzed.':('Heads up: only '+on+' of '+n+' have turned on Hub phone alerts. The rest won&rsquo;t get buzzed.'))+'</div>':'')+
+                      '<div style="display:flex;gap:10px;justify-content:flex-end;"><button onclick="schedModalClose()" style="'+SCHED_BTN_LIGHT+'">Cancel</button><button id="schedResendGo" onclick="schedDoResend()" style="'+SCHED_BTN_PINK+'">Send again</button></div>'+
+                      '<div style="font-size:11.5px;color:#6b7686;margin-top:10px;">It only goes to people with posted shifts that week. Email gets added when email alerts are set up.</div>';
+                schedModalBody(h);
+            }, function(){ schedModalBody('<p style="color:#c0264b;text-align:center;">Could not load. Check your connection and try again.</p>'); });
+        });
+    }
+    function schedDoResend(){
+        var btn=document.getElementById('schedResendGo'); if(btn){ if(btn.disabled) return; btn.disabled=true; btn.textContent='Sending…'; }
+        var loc=schedState.location||''; var ws=schedFmt(schedState.weekStart);
+        withPin(function(pin){
+            supabaseClient.rpc('app_sched_resend_week',{p_username:currentUser.username,p_password:pin,p_location:loc,p_week_start:ws}).then(function(r){
+                if(r.error){ schedModalBody('<p style="color:#c0264b;text-align:center;padding:12px;">'+(r.error.code==='42501'?'Only admin managers can re-send the schedule.':escapeHtml(r.error.message))+'</p>'); return; }
+                var d=r.data||{}, p=d.people||0, q=d.queued||0;
+                var msg = p===0 ? 'No shifts are posted that week, so nothing was sent.' : (q===p ? 'All of them have phone alerts on.' : (q===0 ? 'None of them have phone alerts on yet, so no one got buzzed.' : (q+' of '+p+' have phone alerts on and will get buzzed.')));
+                schedModalBody('<div style="text-align:center;padding:8px 4px;"><div style="font-size:30px;">&#128227;</div><div style="font-size:15px;font-weight:800;color:#1f7a3d;margin:6px 0;">Re-sent to '+p+' '+(p===1?'person':'people')+'</div><div style="font-size:13px;color:#5b6675;">'+msg+(p>0?' It&rsquo;s logged in Publish history.':'')+'</div><div style="margin-top:14px;"><button onclick="schedModalClose()" style="'+SCHED_BTN_LIGHT+'">Done</button></div></div>');
+            }, function(){ schedModalBody('<p style="color:#c0264b;text-align:center;">Could not send. Check your connection and try again.</p>'); });
         });
     }
     function confirmWeek(ws){
@@ -870,6 +930,9 @@
         document.getElementById('shiftStart').value = s ? (s.start_time||'') : '';
         document.getElementById('shiftEnd').value = s ? (s.end_time||'') : '';
         document.getElementById('shiftNote').value = s ? (s.note||'') : '';
+        var _prefilled = false;
+        if (!s) { try { var _lt = JSON.parse(localStorage.getItem('calichesLastShiftTimes:'+schedState.location)||'null'); if (_lt && _lt.start && _lt.end) { document.getElementById('shiftStart').value=_lt.start; document.getElementById('shiftEnd').value=_lt.end; _prefilled = true; } } catch(e) {} }
+        schedRenderDayChips(shiftId ? null : date, _prefilled);
         posSel.value = (s && s.position_id) ? String(s.position_id) : '';
         document.getElementById('shiftDeleteBtn').style.display = shiftId ? 'block' : 'none';
         var _rw=document.getElementById('shiftRepeatWrap'); if(_rw) _rw.style.display = shiftId ? 'none' : 'block';
@@ -896,6 +959,19 @@
         if(typeof schedShiftComplianceMsg==='function') schedShiftComplianceMsg();
     }
     function schedCloseModal(){ document.getElementById('shiftModal').style.display = 'none'; }
+    function schedRenderDayChips(date, prefilled){
+        var wrap=document.getElementById('shiftDaysWrap'), box=document.getElementById('shiftDays'); if(!wrap||!box) return;
+        var dm=document.getElementById('shiftDaysMsg'); if(dm) dm.style.display='none';
+        var hint=document.getElementById('shiftPrefillHint'); if(hint) hint.style.display=prefilled?'block':'none';
+        if(!date || !schedState.weekStart){ wrap.style.display='none'; box.innerHTML=''; return; }
+        var names=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], h='';
+        for(var i=0;i<7;i++){ var ds=schedFmt(schedAddDays(schedState.weekStart,i)); var on=(ds===date);
+            h+='<button type="button" class="shift-daychip'+(on?' on':'')+'" data-date="'+ds+'" aria-pressed="'+(on?'true':'false')+'" onclick="schedToggleDayChip(this)">'+names[i]+'</button>'; }
+        box.innerHTML=h; wrap.style.display='block';
+    }
+    function schedToggleDayChip(b){ var on=!b.classList.contains('on'); b.classList.toggle('on',on); b.setAttribute('aria-pressed',on?'true':'false'); var dm=document.getElementById('shiftDaysMsg'); if(dm) dm.style.display='none'; }
+    function schedShortErr(m){ m=String(m||''); if(/already scheduled/i.test(m)) return 'already scheduled then'; if(/16 hours/i.test(m)) return 'over 16 hours'; if(/end after it starts/i.test(m)) return 'ends before it starts'; return m.length>80?m.slice(0,77)+'…':m; }
+    function schedToast(msg, ms){ if(typeof showUndo!=='function') return; showUndo(msg, null); clearTimeout(window._undoTimer); window._undoTimer=setTimeout(function(){ var t=document.getElementById('undoToast'); if(t) t.style.display='none'; }, ms||6500); }
 
     function schedSaveShift() {
         const ed = schedState.editing;
@@ -906,12 +982,55 @@
         if (!st || !en) { alert('Please enter start and end times.'); return; }
         var _empSel=document.getElementById('shiftEmployee'); if(_empSel){ ed.employeeId = _empSel.value!=='' ? parseInt(_empSel.value,10) : null; }
         var repeat = (!ed.shiftId) ? (parseInt((document.getElementById('shiftRepeat')||{}).value,10)||0) : 0;
+        // New shifts can go on several days of this week in one save (day chips), plus "Repeat weekly".
+        var days = [ed.date];
+        if (!ed.shiftId) {
+            var _dw = document.getElementById('shiftDaysWrap');
+            if (_dw && _dw.style.display !== 'none') {
+                days = Array.prototype.map.call(document.querySelectorAll('#shiftDays .shift-daychip.on'), function(b){ return b.getAttribute('data-date'); });
+                if (!days.length) { var _dm = document.getElementById('shiftDaysMsg'); if (_dm) { _dm.textContent = 'Pick at least one day.'; _dm.style.display = 'block'; } return; }
+            }
+            try { localStorage.setItem('calichesLastShiftTimes:' + schedState.location, JSON.stringify({ start: st, end: en })); } catch(e) {}
+        }
+        var dates = [];
+        days.forEach(function(d){ for (var i = 0; i <= repeat; i++) { dates.push(i === 0 ? d : schedFmt(schedAddDays(new Date(d + 'T00:00:00'), 7 * i))); } });
         withPin(function(pin){
-            supabaseClient.rpc('app_sched_upsert_shift', { p_username: currentUser.username, p_password: pin, p_id: ed.shiftId, p_location: schedState.location, p_shift_date: ed.date, p_employee_id: ed.employeeId, p_position_id: pos ? parseInt(pos,10) : null, p_start: st, p_end: en, p_note: note })
-            .then(({ error }) => { if (error) { alert('Error: ' + error.message); return; }
-                if(repeat>0){ for(var i=1;i<=repeat;i++){ var nd=schedFmt(schedAddDays(new Date(ed.date+'T00:00:00'), 7*i)); supabaseClient.rpc('app_sched_upsert_shift', { p_username: currentUser.username, p_password: pin, p_id:null, p_location: schedState.location, p_shift_date: nd, p_employee_id: ed.employeeId, p_position_id: pos ? parseInt(pos,10) : null, p_start: st, p_end: en, p_note: note }).then(function(){}); } }
+            var args = function(d){ return { p_username: currentUser.username, p_password: pin, p_id: ed.shiftId, p_location: schedState.location, p_shift_date: d, p_employee_id: ed.employeeId, p_position_id: pos ? parseInt(pos,10) : null, p_start: st, p_end: en, p_note: note }; };
+            if (dates.length === 1) {
+                // One shift (or an edit): same as before.
+                supabaseClient.rpc('app_sched_upsert_shift', args(dates[0]))
+                .then(({ error }) => { if (error) { alert('Error: ' + error.message); return; } schedCloseModal(); fetchScheduleWeek(); });
+                return;
+            }
+            var ok = [], bad = [], idx = 0;
+            var saveBtn = document.querySelector('#shiftModal button[onclick="schedSaveShift()"]');
+            if (saveBtn) { saveBtn.disabled = true; saveBtn.setAttribute('data-txt', saveBtn.textContent); saveBtn.textContent = 'Saving ' + dates.length + ' shifts\u2026'; }
+            var finish = function(){
+                if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = saveBtn.getAttribute('data-txt') || 'Save'; }
+                if (!ok.length) {
+                    var why = bad.length ? schedShortErr(bad[0].why) : 'not saved';
+                    var dm = document.getElementById('shiftDaysMsg');
+                    if (dm && dm.parentNode && dm.parentNode.style.display !== 'none') { dm.textContent = 'Nothing was added (' + why + ').'; dm.style.display = 'block'; }
+                    else { schedToast('Nothing was added (' + why + ').', 9000); }
+                    return;
+                }
                 schedCloseModal(); fetchScheduleWeek();
-            });
+                var msg = 'Added ' + ok.length + ' shift' + (ok.length === 1 ? '' : 's') + (ok.length <= 4 ? ': ' + ok.map(schedDayName).join(', ') : '') + '.';
+                if (bad.length) msg += ' Skipped ' + bad.map(function(b){ return schedDayName(b.d) + ' (' + schedShortErr(b.why) + ')'; }).join(', ') + '.';
+                schedToast(msg, bad.length ? 12000 : 6500);
+            };
+            var next = function(){
+                if (idx >= dates.length) { finish(); return; }
+                var d = dates[idx++];
+                supabaseClient.rpc('app_sched_upsert_shift', Object.assign(args(d), { p_id: null }))
+                .then(function(r){ return r; }, function(){ return { error: { message: 'Could not reach the server' } }; })
+                .then(function(r){
+                    if (r && r.error) { bad.push({ d: d, why: r.error.message }); if (r.error.code === '42501') { idx = dates.length; } }
+                    else { ok.push(d); }
+                    next();
+                });
+            };
+            next();
         });
     }
     function schedDeleteShift() {
