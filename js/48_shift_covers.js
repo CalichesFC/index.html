@@ -13,7 +13,7 @@
     // Server calls: app_my_capabilities, app_cover_candidates, app_cover_request,
     // app_cover_respond, app_cover_withdraw, app_cover_cancel, app_cover_ask_more,
     // app_cover_decide, app_cover_mine, app_cover_manage_list, app_cover_rules_get,
-    // app_cover_rules_set, app_swap_create ("Send to my manager instead").
+    // app_cover_rules_set, app_cover_week_status, app_swap_create ("Send to my manager instead").
     // ============================================================
     var _cov = { caps: null, capsUser: null, capsWait: [], pick: null, home: null, mgr: null, rules: null, homeSeq: 0 };
     var COV_REASONS = [['Sick','🤒'],['Injury','🩹'],['School / exam','🎓'],['Family','👪'],['Other','📌']];
@@ -150,7 +150,9 @@
     function covPickReason(r){ if(!_cov.pick) return; _cov.pick.reason=r; _cov.pick.err=''; covRenderPick(); }
     function covNoteInput(v){ if(_cov.pick) _cov.pick.note=v; }
     function covToggle(id, on){ if(!_cov.pick) return; _cov.pick.checked[id]=!!on; covPaintAskBtn(); }
-    function covSelectAll(){ var P=_cov.pick; if(!P) return; covCanList().forEach(function(c){ P.checked[c.id]=true; }); covRenderPick(); }
+    // "Select everyone who can" never sweeps in managers; tap them on purpose if you want them.
+    function covSelectAll(){ var P=_cov.pick; if(!P) return; covCanList().forEach(function(c){ if(!c.leader) P.checked[c.id]=true; }); covRenderPick(); }
+    function covToggleCant(){ var P=_cov.pick; if(!P) return; P.showCant=!P.showCant; covRenderPick(); }
     function covErr(t){ if(_cov.pick) _cov.pick.err=t||''; var el=document.getElementById('covMsg'); if(el) el.textContent=t||''; }
     function covPaintAskBtn(){
         var b=document.getElementById('covAskBtn'); if(!b) return; var n=covCheckedIds().length; var P=_cov.pick;
@@ -159,26 +161,42 @@
         b.textContent = (P && P.busy) ? 'Asking…' : (n ? ('Ask '+covPlural(n,'person','people')) : 'Pick who to ask');
     }
 
+    function covRowHtml(c, i, already){
+        var P=_cov.pick, can=c.ok && !already, on=can && !!P.checked[c.id], line, col=COV_GREY;
+        if(already) line='Already asked';
+        else if(!c.ok) line=c.why||'Can’t take this shift';
+        else if(c.warn){ line=c.warn; col='#b35c00'; }
+        else line = 'Free' + (c.alerts ? '' : ' · no phone alerts yet, give them a text too');
+        var tag=function(t, fg, bg){ return ' <span style="font-size:10.5px;font-weight:800;color:'+fg+';background:'+bg+';border-radius:6px;padding:1px 6px;margin-left:3px;">'+t+'</span>'; };
+        return '<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;'+(i?'border-top:1px solid #f0f2f6;':'')+(can?'cursor:pointer;':'opacity:.55;')+'">'+
+            '<input type="checkbox" '+(on?'checked ':'')+(can?'':'disabled ')+'onchange="covToggle('+Number(c.id)+',this.checked)" style="width:19px;height:19px;flex:0 0 auto;">'+
+            '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;color:#26242b;">'+covEsc(c.name)+
+              (c.same_role?tag('usual role', COV_GREEN, '#e7f6ec'):'')+(c.leader?tag('manager', '#5b6675', '#eef0f3'):'')+'</div>'+
+            '<div style="font-size:12px;color:'+col+';">'+covEsc(line)+'</div></div>'+
+            (c.hours!=null ? '<span title="Hours already scheduled this week" style="font-size:11.5px;color:#5b6675;white-space:nowrap;">'+covEsc(String(c.hours))+' hrs</span>' : '')+
+            '</label>';
+    }
     function covListHtml(){
         var P=_cov.pick, d=P.data||{}, list=d.candidates||[], asked=covAskedMap();
         if(!list.length) return '<div style="padding:12px;color:'+COV_GREY+';font-size:13px;">Nobody else is set up to work at this store yet.</div>';
-        var okCount=0, h='<div style="border:1px solid #edf0f4;border-radius:12px;overflow:hidden;">';
-        list.forEach(function(c, i){
-            var already=!!asked[c.id], can=c.ok && !already; if(can) okCount++;
-            var on=can && !!P.checked[c.id], line, col=COV_GREY;
-            if(already) line='Already asked';
-            else if(!c.ok) line=c.why||'Can’t take it';
-            else if(c.warn){ line=c.warn; col='#b35c00'; }
-            else line = 'Free' + (c.alerts ? '' : ' · no phone alerts yet, give them a text too');
-            h+='<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;'+(i?'border-top:1px solid #f0f2f6;':'')+(can?'cursor:pointer;':'opacity:.55;')+'">'+
-               '<input type="checkbox" '+(on?'checked ':'')+(can?'':'disabled ')+'onchange="covToggle('+Number(c.id)+',this.checked)" style="width:19px;height:19px;flex:0 0 auto;">'+
-               '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;color:#26242b;">'+covEsc(c.name)+
-                 (c.same_role?' <span style="font-size:10.5px;font-weight:800;color:'+COV_GREEN+';background:#e7f6ec;border-radius:6px;padding:1px 6px;margin-left:3px;">usual role</span>':'')+'</div>'+
-               '<div style="font-size:12px;color:'+col+';">'+covEsc(line)+'</div></div>'+
-               '<span title="Hours already scheduled this week" style="font-size:11.5px;color:#5b6675;white-space:nowrap;">'+covEsc(String(c.hours))+' hrs</span></label>';
-        });
-        h+='</div>';
-        if(!okCount) h+='<div style="font-size:12.5px;color:#8a5200;background:#fff6e6;border-radius:10px;padding:9px 11px;margin-top:8px;">Nobody else can take this shift right now'+(P.mode==='self'?'. Send it to your manager instead.':'.')+'</div>';
+        var canL=list.filter(function(c){ return c.ok && !asked[c.id]; }), cantL=list.filter(function(c){ return !(c.ok && !asked[c.id]); });
+        var h='';
+        if(canL.length){
+            h+='<div style="border:1px solid #edf0f4;border-radius:12px;overflow:hidden;">';
+            canL.forEach(function(c, i){ h+=covRowHtml(c, i, false); });
+            h+='</div>';
+        } else {
+            h+='<div style="font-size:12.5px;color:#8a5200;background:#fff6e6;border-radius:10px;padding:9px 11px;">Nobody else can take this shift right now'+(P.mode==='self'?'. Send it to your manager instead.':'.')+'</div>';
+        }
+        if(cantL.length){
+            h+='<a href="javascript:void(0)" onclick="covToggleCant()" style="display:inline-block;margin-top:8px;font-size:12.5px;color:'+COV_GREY+';font-weight:700;text-decoration:none;">'+
+               (P.showCant ? 'Hide' : 'Show')+' '+covPlural(cantL.length,'person','people')+' who can’t take it '+(P.showCant?'&#9650;':'&#9660;')+'</a>';
+            if(P.showCant){
+                h+='<div style="border:1px solid #edf0f4;border-radius:12px;overflow:hidden;margin-top:6px;">';
+                cantL.forEach(function(c, i){ h+=covRowHtml(c, i, !!asked[c.id]); });
+                h+='</div>';
+            }
+        }
         return h;
     }
 
@@ -220,7 +238,7 @@
         }
 
         h+='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 0 6px;"><b style="font-size:14px;color:#1f2a44;">Who can cover?</b>';
-        if(!P.loading && !P.loadErr && covCanList().length > 1) h+='<a href="javascript:void(0)" onclick="covSelectAll()" style="font-size:12.5px;color:'+COV_BLUE+';font-weight:700;text-decoration:none;">Select everyone who can</a>';
+        if(!P.loading && !P.loadErr && covCanList().filter(function(c){ return !c.leader; }).length > 1) h+='<a href="javascript:void(0)" onclick="covSelectAll()" style="font-size:12.5px;color:'+COV_BLUE+';font-weight:700;text-decoration:none;">Select everyone who can</a>';
         h+='</div>';
         if(P.loading) h+='<div style="padding:16px;text-align:center;color:'+COV_GREY+';font-size:13px;">Finding who can cover&hellip;</div>';
         else if(P.loadErr) h+='<div style="padding:12px;color:'+COV_RED+';font-size:13px;background:#fdeef2;border-radius:10px;">'+covEsc(P.loadErr)+'</div>';
@@ -302,7 +320,7 @@
         try{ var v=document.getElementById('employeeHomeView'); if(v && v.style.display!=='none' && typeof loadEmployeeHome==='function') loadEmployeeHome(); }catch(e){}
         try{ covRenderHome(); }catch(e){}
         try{ if(document.getElementById('covMgrBox')) covLoadManager(); }catch(e){}
-        try{ if(document.getElementById('schedGrid') && typeof fetchScheduleWeek==='function') fetchScheduleWeek(); }catch(e){}
+        try{ _covWeek.at=0; if(document.getElementById('schedGrid') && typeof fetchScheduleWeek==='function') fetchScheduleWeek(); }catch(e){}
     }
 
     // ============================================================
@@ -398,11 +416,32 @@
         if(b) b.innerHTML = mine.length ? ('<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">'+
               '<h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#128257; My cover requests</h3>'+mine.map(covMineHtml).join('')+'</div>') : '';
         // Home tab card: only what needs attention right now
-        var need = mine.filter(function(m){ return m.status!=='cancelled' || /manager|schedule/i.test(m.closed_reason||''); });
+        var dayAgo = Date.now() - 24*3600*1000;
+        var need = mine.filter(function(m){
+            if(m.status==='open' || m.status==='accepted') return true;
+            if(m.status==='cancelled' && !/manager|schedule/i.test(m.closed_reason||'')) return false;
+            var t = m.decided_at ? Date.parse(m.decided_at) : 0; return t && t > dayAgo;
+        });
         var inner = covApproverHtml(d) + asks.map(covAskHtml).join('') + need.map(covMineHtml).join('');
         var card=document.getElementById('covHomeCard');
         if(!inner){ if(card && card.parentNode) card.parentNode.removeChild(card); return; }
         card=covHomeCardEl(); if(card) card.innerHTML=inner;
+    }
+    // My Upcoming Shifts: a shift with a cover going shows where it stands instead of "Can't work this?".
+    function covDecorateMyShifts(){
+        var host=document.getElementById('empHomeContent'); if(!host) return;
+        var byShift={}; (((_cov.home&&_cov.home.mine)||[])).forEach(function(m){ if(m.status==='open'||m.status==='accepted') byShift[Number(m.shift_id)]=m; });
+        [].forEach.call(host.querySelectorAll('button[onclick^="openCantWork("]'), function(b){
+            var mm=String(b.getAttribute('onclick')).match(/^openCantWork\((\d+),/); if(!mm) return;
+            if(!b.getAttribute('data-orig')) b.setAttribute('data-orig', b.innerHTML);
+            var m=byShift[Number(mm[1])];
+            if(m){
+                b.innerHTML = m.status==='accepted' ? ('&#128588; '+covEsc(m.taker||'Someone')+' said yes') : ('&#128257; Cover asked');
+                b.style.background='#fff'; b.style.color=COV_BLUE; b.style.border='1.5px solid #cfe0f1';
+            } else {
+                b.innerHTML=b.getAttribute('data-orig'); b.style.background='#0d6eaf'; b.style.color='#fff'; b.style.border='none';
+            }
+        });
     }
     function covHomeCardEl(){
         var anchor=document.getElementById('homeTodayCard') || document.getElementById('homeTasksCard');
@@ -418,7 +457,7 @@
         covLoadCaps(function(){
             covRpc('app_cover_mine', {}, function(d){
                 if(seq!==_cov.homeSeq) return;
-                _cov.home=d||{}; covPaintBoxes();
+                _cov.home=d||{}; covPaintBoxes(); covDecorateMyShifts();
             }, function(){ /* quiet: Home never shows an error for this card */ });
         });
     }
@@ -551,6 +590,33 @@
             if(ed.shiftId===shiftId) w.style.display='block';
         });
     }
+    // Badges on the schedule builder: shifts with a cover going get a small icon (hover for details).
+    var _covWeek = { key:'', at:0, rows:[] };
+    function covDecorateGrid(){
+        try{
+            if(typeof schedState==='undefined' || !schedState.location || !schedState.weekStart || typeof schedFmt!=='function') return;
+            if(!_cov.caps){ if(covHasPin()) covLoadCaps(function(){ if(_cov.caps) covDecorateGrid(); }); return; }
+            if(!(covCan('approve_cover') || covCan('manage_schedule'))) return;
+            var ws=schedFmt(schedState.weekStart), key=schedState.location+'|'+ws;
+            var paint=function(rows){
+                (rows||[]).forEach(function(r){
+                    [].forEach.call(document.querySelectorAll('[data-shiftid="'+Number(r.shift_id)+'"]'), function(el){
+                        if(el.querySelector('.cov-badge')) return;
+                        var sp=document.createElement('span'); sp.className='cov-badge';
+                        sp.title = r.status==='accepted' ? ((r.taker||'Someone')+' said yes. Waiting for an OK in Requests.') : ('Cover asked. '+Number(r.waiting||0)+' not answered yet.');
+                        sp.textContent = r.status==='accepted' ? ' \uD83D\uDE4C' : ' \uD83D\uDD01';
+                        sp.style.cssText='font-size:11px;margin-left:3px;';
+                        el.appendChild(sp);
+                    });
+                });
+            };
+            if(_covWeek.key===key && Date.now()-_covWeek.at < 60000){ paint(_covWeek.rows); return; }
+            if(!covHasPin()) return;
+            covRpc('app_cover_week_status', { p_location:schedState.location, p_week_start:ws }, function(rows){
+                _covWeek={ key:key, at:Date.now(), rows:rows||[] }; paint(_covWeek.rows);
+            }, function(){});
+        }catch(e){}
+    }
     function covOpenFromShiftModal(){
         var ed=(typeof schedState!=='undefined' && schedState.editing) || {};
         if(ed.shiftId) covOpenForShift(ed.shiftId);
@@ -568,6 +634,16 @@
             })(switchMenuTab);
             switchMenuTab=_covWrapped;
             try{ window.switchMenuTab=_covWrapped; }catch(e){}
+        }
+    }catch(e){}
+    try{
+        if(typeof renderScheduleGrid==='function' && !renderScheduleGrid.__covWrapped){
+            var _covGridWrapped=(function(orig){
+                function w(){ var r=orig.apply(this,arguments); try{ setTimeout(covDecorateGrid,0); }catch(e){} return r; }
+                w.__covWrapped=true; return w;
+            })(renderScheduleGrid);
+            renderScheduleGrid=_covGridWrapped;
+            try{ window.renderScheduleGrid=_covGridWrapped; }catch(e){}
         }
     }catch(e){}
     try{ var _covHome=document.getElementById('tab-content-home'); if(_covHome && _covHome.classList && _covHome.classList.contains('tab-visible')) covRenderHome(); }catch(e){}
