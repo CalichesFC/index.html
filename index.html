@@ -322,7 +322,7 @@
             </div>
             <div id="schedPaneBuild" class="sched-pane" style="display:none;">
                 <button id="btn-scheduling" class="menu-btn" onclick="openScheduling()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#129389;</span><b>Open Schedule Builder</b><small>Build &amp; publish weekly shifts</small></button>
-                <button id="requestsBtn" class="menu-btn" style="display:none;" onclick="openRequests()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128197;</span><b>Time-Off &amp; Swap Approvals</b><small>Review &amp; decide requests</small></button>
+                <button id="requestsBtn" class="menu-btn" style="display:none;" onclick="openRequests()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128197;</span><b>Time-Off &amp; Cover Approvals</b><small>Review &amp; decide requests</small></button>
                 <button id="assignTaskBtn" class="menu-btn" style="display:none;" onclick="openTaskAssign()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128203;</span><b>Assign Task</b><small>Send tasks to the crew</small></button>
             </div>
             <div class="sec-title" style="margin-top:8px;"><h2 style="font-size:15px;">More in scheduling</h2></div>
@@ -666,7 +666,7 @@
     <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
     <div class="header" style="background:#0d6eaf;">
         <h1 style="font-size:40px;margin:10px 0;">&#128197;</h1>
-        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Time-Off &amp; Swap Requests</p>
+        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Time-Off &amp; Cover Requests</p>
     </div>
     <div class="container" style="max-width:760px;">
         <div id="requestsContent"><p style="text-align:center;padding:30px;color:#6b7686;">Loading requests...</p></div>
@@ -1647,6 +1647,7 @@
             <button class="save-btn blue-btn" style="flex:1;margin:0;" onclick="schedSaveShift()">Save</button>
             <button id="shiftDeleteBtn" class="save-btn red-btn" style="flex:0 0 90px;margin:0;display:none;" onclick="schedDeleteShift()">Delete</button>
         </div>
+        <div id="shiftCoverWrap" style="display:none;margin-top:10px;"><button type="button" onclick="covOpenFromShiftModal()" style="width:100%;background:#eef5fc;color:#0d6eaf;border:1.5px solid #cfe0f1;border-radius:10px;padding:11px;font-size:14px;font-weight:800;cursor:pointer;">&#128587; Find someone to cover this shift</button></div>
         <span class="text-link" style="display:block;margin-top:12px;text-align:center;" onclick="schedCloseModal()">Cancel</span>
     </div>
 </div>
@@ -2271,6 +2272,7 @@
 <script src="js/45_catering_crew.js"></script>
 <script src="js/46_event_detail.js"></script>
 <script src="js/47_form_suggestions.js"></script>
+<script src="js/48_shift_covers.js"></script>
 
 <!-- AI KNOWLEDGE BASE VIEW -->
 <div id="kbView" class="app-view">

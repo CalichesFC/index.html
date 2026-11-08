@@ -941,6 +941,7 @@
         document.getElementById('shiftModal').style.display = 'flex';
         schedValidateShift();
         schedShowAvailBadge(empId, date);
+        if (typeof covSyncShiftModal === 'function') covSyncShiftModal(shiftId || null, s || null);
     }
     function schedShowAvailBadge(empId, date){
         var am=document.getElementById('shiftAvailMsg'); if(!am) return; am.style.display='none';

@@ -533,7 +533,7 @@
         const primeCostBtn = document.getElementById('primeCostBtn');
         if (primeCostBtn) primeCostBtn.style.display = permAllow('prime_cost', (devOverride || isManager)) ? 'block' : 'none';
         const requestsBtn = document.getElementById('requestsBtn');
-        if (requestsBtn) requestsBtn.style.display = permAllow('requests', (devOverride || isManager)) ? 'block' : 'none';
+        if (requestsBtn) requestsBtn.style.display = permAllow('requests', (devOverride || isManager || !!(currentUser.caps && currentUser.caps.approve_cover))) ? 'block' : 'none';
         const assignTaskBtn = document.getElementById('assignTaskBtn');
         if (assignTaskBtn) assignTaskBtn.style.display = permAllow('assign_task', (devOverride || isManager)) ? 'block' : 'none';
         // ── Disciplinary Actions: Shift Lead and above ──
@@ -921,6 +921,7 @@
             '<h2 style="margin:0;color:var(--caliches-blue);font-size:20px;">Hi, ' + escapeHtml(name) + '! &#128075;</h2>' +
             (d.employee && d.employee.home_location ? '<p style="margin:4px 0 0;color:#6b7686;font-size:13px;">Home store: ' + escapeHtml(d.employee.home_location) + '</p>' : '') + '</div>';
         html += '<div id="empTasksCard"></div>';
+        html += '<div id="covAsksBox"></div>';
 
         // PIP banner (own status, supportive tone)
         if (d.pip && d.pip.active) {
@@ -960,7 +961,8 @@
         }
         html += '</div>';
 
-        // Swaps
+        // Cover requests (js/48) then can't-work requests
+        html += '<div id="covMineBox"></div>';
         html += '<div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
             '<h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#128260; My can’t-work requests</h3>';
         var sw = d.swaps || [];
@@ -987,6 +989,7 @@
         }
         html += '</div>';
         c.innerHTML = html;
+        if (typeof covRefreshEmpHome === 'function') covRefreshEmpHome();
     }
 
     // Time-off modal
@@ -1047,12 +1050,13 @@
             '<a href="tel:' + digits + '" style="flex:1;text-align:center;background:#1f7a3d;color:#fff;text-decoration:none;border-radius:8px;padding:9px;font-size:12.5px;font-weight:800;">&#128222; Call ' + first + '</a></div>';
     }
 
-    // ===== "CAN'T WORK THIS SHIFT" — respectful coverage request with a reason =====
-    // Deliberately NOT a marketplace: employees never grab hours or beg coworkers. When someone
-    // genuinely can't work a shift (sick, injury, school, family) they flag it with a reason, as
-    // early as possible, and it goes to a MANAGER to arrange coverage. Backed by the existing
-    // app_swap_create; the reason rides in the note so the manager sees why.
+    // ===== "CAN'T WORK THIS SHIFT" =====
+    // Now opens the cover picker in js/48 (covOpenAsk): pick a reason, ask the coworkers who can
+    // take it (directed asks, not an open marketplace), first yes wins, and someone with
+    // "Approve shift covers" OKs it. "Send to my manager instead" still uses app_swap_create.
+    // The modal below is the fallback if js/48 isn't loaded.
     function openCantWork(shiftId, idx){
+        if(typeof covOpenAsk==='function'){ covOpenAsk(shiftId, idx); return; }
         var s=empHomeState.shifts[idx]||{};
         var lbl=(s.date||'')+'  '+(s.start||'')+'-'+(s.end||'')+(s.location?('  @ '+s.location):'');
         window._cwShiftId=shiftId; window._cwReason='';
@@ -1124,6 +1128,7 @@
         c.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading requests...</p>';
         withPin(function(pin){
             supabaseClient.rpc('app_requests_pending',{p_username:currentUser.username,p_password:pin}).then(function(res){
+                if(res.error && /^unauthorized$/i.test(String(res.error.message||'')) && currentUser.caps && currentUser.caps.approve_cover && typeof covLoadManager==='function'){ c.innerHTML='<div id="covMgrBox"></div>'; covLoadManager(); return; }
                 if(res.error){ if(res.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;padding:20px;">Could not load: '+escapeHtml(res.error.message)+'</p>'; return; }
                 requestsRender(res.data||{});
             }).catch(function(){ c.innerHTML='<p style="color:red;text-align:center;padding:20px;">Connection error.</p>'; });
@@ -1132,7 +1137,7 @@
     function requestsRender(d) {
         var c=document.getElementById('requestsContent');
         var to=d.time_off||[], sw=d.swaps||[];
-        var html='<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
+        var html='<div id="covMgrBox"></div><div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
             '<h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#127796; Pending Time-Off ('+to.length+')</h3>';
         if(!to.length){ html+='<p style="color:#6b7686;font-size:13px;margin:0;">None pending. &#127881;</p>'; }
         else to.forEach(function(t,i){
@@ -1156,6 +1161,7 @@
         });
         html+='</div>';
         c.innerHTML=html;
+        if(typeof covLoadManager==='function') covLoadManager();
     }
     function reqDecide(type, id, approve) {
         var note='';
