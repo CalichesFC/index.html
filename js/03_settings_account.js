@@ -293,6 +293,9 @@
 
     function schedMondayOf(d){ const dt=new Date(d); const day=(dt.getDay()+6)%7; dt.setDate(dt.getDate()-day); dt.setHours(0,0,0,0); return dt; }
     function schedFmt(dt){ const m=String(dt.getMonth()+1).padStart(2,'0'); const da=String(dt.getDate()).padStart(2,'0'); return dt.getFullYear()+'-'+m+'-'+da; }
+    // Week label: one year when the week stays in one year (11/2 – 11/8, 2026); each side gets its own year
+    // when the week crosses New Year (12/28/2026 – 1/3/2027).
+    function schedWeekText(ws, we){ const md = d => (d.getMonth()+1)+'/'+d.getDate(); return ws.getFullYear()===we.getFullYear() ? (md(ws)+' – '+md(we)+', '+ws.getFullYear()) : (md(ws)+'/'+ws.getFullYear()+' – '+md(we)+'/'+we.getFullYear()); }
     function schedAddDays(dt,n){ const x=new Date(dt); x.setDate(x.getDate()+n); return x; }
 
     function initScheduleBuilder() {
@@ -593,7 +596,7 @@
         // Events row map (additive, fail-safe): a bad payload can only yield {}.
         var eventsByDay = {}; try { eventsByDay = schedEventsByDay(days); } catch(e) { eventsByDay = {}; }
         const lbl = document.getElementById('schedWeekLabel');
-        if (lbl) lbl.innerText = (ws.getMonth()+1)+'/'+ws.getDate()+' – '+(days[6].getMonth()+1)+'/'+days[6].getDate()+', '+ws.getFullYear();
+        if (lbl) lbl.innerText = schedWeekText(ws, days[6]);
         const shifts = schedState.data.shifts || [];
         const emps = schedState.data.employees || [];
         const wageOf = {}; emps.forEach(e => wageOf[e.id] = Number(e.hourly_wage)||0);
@@ -633,7 +636,8 @@
             const role = (p ? p.name : 'Shift') + (s.note ? (' · ' + s.note) : '');
             const empArg = (s.employee_id != null ? s.employee_id : 'null');
             var sw = (typeof shiftWarnings==='function') ? shiftWarnings(s) : [];
-            return '<div class="hbg-blk'+(conflict?' hbg-conf':'')+(sw.length?' avail-flag':'')+'" data-shiftid="'+s.id+'" tabindex="0" role="button" style="position:relative;background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+(sw.length?'<span class="avail-badge" title="'+escapeHtml(sw.join('; '))+'">&#9888;</span>':'')+hbTime(s.start_time)+'&ndash;'+hbTime(s.end_time)+(s.published?'':' *')+'<br>'+escapeHtml(role)+(conflict?' &#9888;':'')+'</div>';
+            const full = hbTime(s.start_time)+'–'+hbTime(s.end_time)+' · '+role+(s.published?'':' (not posted yet)');
+            return '<div class="hbg-blk'+(conflict?' hbg-conf':'')+(sw.length?' avail-flag':'')+'" data-shiftid="'+s.id+'" tabindex="0" role="button" title="'+escapeHtml(full)+'" style="position:relative;background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+(sw.length?'<span class="avail-badge" title="'+escapeHtml(sw.join('; '))+'">&#9888;</span>':'')+'<span class="hbg-t">'+hbTime(s.start_time)+'&ndash;'+hbTime(s.end_time)+(s.published?'':' *')+'</span><span class="hbg-r">'+escapeHtml(role)+(conflict?' &#9888;':'')+'</span></div>';
         };
         const q = (document.getElementById('schedSearch') ? document.getElementById('schedSearch').value : '').toLowerCase().trim();
         let shownEmps = schedSortedEmps(emps);
@@ -784,7 +788,7 @@
         const days = []; for (let i=0;i<7;i++) days.push(schedAddDays(ws,i));
         const dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
         const lbl = document.getElementById('schedWeekLabel');
-        if (lbl) lbl.innerText = (ws.getMonth()+1)+'/'+ws.getDate()+' – '+(days[6].getMonth()+1)+'/'+days[6].getDate()+', '+ws.getFullYear();
+        if (lbl) lbl.innerText = schedWeekText(ws, days[6]);
         const hbTime = t => { if(!t) return ''; const p=String(t).split(':'); let h=+p[0]||0; const m=+p[1]||0; const ap=h<12?'a':'p'; let hh=h%12; if(hh===0) hh=12; return hh+(m?(':'+String(m).padStart(2,'0')):'')+ap; };
         const mine = schedState.mine || { shifts: [], time_off: [] };
         const byDay = {}; (mine.shifts||[]).forEach(s => { (byDay[s.shift_date]=byDay[s.shift_date]||[]).push(s); });

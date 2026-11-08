@@ -1204,6 +1204,12 @@
   .hbg-conf { outline:2px solid #e24b4a; }
   .hbg tfoot td { position:sticky; bottom:0; background:#f6f8fb; font-weight:700; text-align:center; border-top:2px solid #dde3ea; font-size:11px; }
   .hbg tfoot td.hbg-e { text-align:left; }
+  /* Even columns: every day gets the same width; long notes are cut off with … (full text on hover). */
+  table.hbg { table-layout:fixed; min-width:900px; }
+  .hbg th.hbg-e { width:230px; }
+  .hbg thead th:last-child { width:84px; }
+  .hbg-blk .hbg-t, .hbg-blk .hbg-r { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hbg-loc, .hbg-off { overflow:hidden; text-overflow:ellipsis; }
   .sp-weekbar { background:#185FA5; color:#fff; padding:11px 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; font-size:14px; }
   .sp-weekbar b { font-size:17px; }
   .sp-banner { display:flex; align-items:center; gap:8px; background:#FCEBEB; border:1px solid #e24b4a; color:#a32d2d; border-radius:8px; padding:9px 12px; margin:10px 14px 0; font-size:12.5px; }

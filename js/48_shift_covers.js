@@ -606,7 +606,7 @@
                         sp.title = r.status==='accepted' ? ((r.taker||'Someone')+' said yes. Waiting for an OK in Requests.') : ('Cover asked. '+Number(r.waiting||0)+' not answered yet.');
                         sp.textContent = r.status==='accepted' ? ' \uD83D\uDE4C' : ' \uD83D\uDD01';
                         sp.style.cssText='font-size:11px;margin-left:3px;';
-                        el.appendChild(sp);
+                        (el.querySelector('.hbg-t') || el).appendChild(sp);
                     });
                 });
             };
