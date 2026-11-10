@@ -33,8 +33,8 @@
     function rqStores(){ return (typeof HUB_STORES!=='undefined'&&HUB_STORES&&HUB_STORES.length?HUB_STORES.slice():['Roadrunner','Valley','Lenox','Alamogordo','Roswell']); }
     function rqEsc(s){ return (typeof escapeHtml==='function')?escapeHtml(s==null?'':String(s)):String(s==null?'':s); }
     function rqAttr(s){ return rqEsc(s).replace(/'/g,'&#39;'); }
-    function rqDate(s){ if(!s) return ''; try{ var p=String(s).slice(0,10).split('-'); var dt=new Date(+p[0],+p[1]-1,+p[2]); if(!isNaN(dt.getTime())) return dt.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}); }catch(e){} return String(s).slice(0,10); }
-    function rqWhen(s){ if(!s) return ''; try{ return new Date(s).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){ return String(s); } }
+    function rqDate(s){ if(!s) return ''; try{ var p=String(s).slice(0,10).split('-'); var dt=new Date(+p[0],+p[1]-1,+p[2]); if(!isNaN(dt.getTime())) return hubDay(dt); }catch(e){} return String(s).slice(0,10); }
+    function rqWhen(s){ if(!s) return ''; return hubWhen(s); }
     var RQ_ICON={hr:'🗂️',party_pack:'🎉',gift_card:'💳'};
     var RQ_LABEL={hr:'HR / W-2',party_pack:'Party Pack',gift_card:'Gift Cards'};
     function rqChip(st){ var m={requested:['#9a5b00','#fff4e0'],in_progress:['#185FA5','#eef3fb'],fulfilled:['#1b7a3d','#e8f5ec'],cancelled:['#6b7686','#eef0f3']}; var c=m[st]||['#5b6472','#eef0f3']; return '<span style="background:'+c[1]+';color:'+c[0]+';font-size:11px;font-weight:800;padding:2px 9px;border-radius:99px;white-space:nowrap;">'+rqEsc(String(st||'').replace(/_/g,' '))+'</span>'; }

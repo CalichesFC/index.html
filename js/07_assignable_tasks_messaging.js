@@ -20,7 +20,7 @@
                 // Admin managers can view every store, not just their assigned ones
                 var locs=isAdmin?SCHED_LOCATIONS.slice():myStores.map(function(s){return s.location;});
                 var saved=null; try{ saved=localStorage.getItem('calichesActiveStore'); }catch(e){}
-                currentUser.activeStore=(saved&&locs.indexOf(saved)>-1)?saved:(locs[0]||'');
+                var _own=(myStores[0]&&locs.indexOf(myStores[0].location)>-1)?myStores[0].location:''; currentUser.activeStore=(saved&&locs.indexOf(saved)>-1)?saved:(_own||locs[0]||'');
                 var sel=document.getElementById('storeSelect'); if(sel) sel.innerHTML=locs.map(function(l){return '<option value="'+l.replace(/"/g,'')+'"'+(l===currentUser.activeStore?' selected':'')+'>'+escapeHtml(l)+'</option>';}).join('');
                 var sw=document.getElementById('storeSwitcher'); if(sw) sw.style.display=(locs.length>1)?'flex':'none';
                 if(currentUser.isStoreManager){ var mt=document.getElementById('tab-management'); if(mt) mt.style.display='flex';

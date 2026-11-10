@@ -96,9 +96,9 @@
     function covDateLabel(ds){
         var p=String(ds||'').split('-'); if(p.length<3) return String(ds||'');
         var d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2])); if(isNaN(d.getTime())) return String(ds);
-        return d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+        return hubDay(d);
     }
-    function covTime(t){ if(!t) return ''; var p=String(t).split(':'); var h=+p[0]||0, m=+p[1]||0, ap=h<12?'am':'pm', hh=h%12; if(hh===0) hh=12; return hh+(m?(':'+String(m).padStart(2,'0')):'')+ap; }
+    function covTime(t){ return hubTime(t); }
 
     // ============================================================
     // 1) THE PICKER: crew "Can't work this?", manager "Find someone to cover", "Ask more people"
@@ -217,7 +217,7 @@
     function covRenderPick(){
         var P=_cov.pick; if(!P) return; var m=covModal(), d=P.data||{}, sh=d.shift||{};
         var isMgr=(P.mode==='manager'), more=(P.kind==='more');
-        var title = more ? 'Ask more people' : (isMgr ? 'Find someone to cover' : 'Can’t work this shift?');
+        var title = more ? 'Ask more people' : (isMgr ? 'Find someone to cover' : 'Request a cover');
         var label = sh.label || P.label || '';
         var h='<div style="display:flex;align-items:flex-start;gap:10px;"><div style="flex:1;min-width:0;">'+
               '<h3 style="margin:0 0 3px;color:#1f2a44;font-size:18px;">'+title+'</h3>'+
@@ -481,7 +481,7 @@
         var card=function(inner){ return '<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">'+inner+'</div>'; };
         var h='<h3 style="margin:0 0 4px;color:var(--caliches-blue);font-size:16px;">&#128257; Covers waiting for your OK ('+waiting.length+')</h3>'+
               '<p style="margin:0 0 8px;font-size:12px;color:'+COV_GREY+';">A coworker said yes to covering a shift. Approve and the schedule updates itself.'+(req?' <b>You need to add a reason.</b>':'')+'</p>';
-        if(!waiting.length) h+='<p style="color:'+COV_GREY+';font-size:13px;margin:0;">None right now. &#127881;</p>';
+        if(!waiting.length) h+='<p style="color:'+COV_GREY+';font-size:13px;margin:0;">Nothing waiting on you. &#127881;</p>';
         waiting.forEach(function(w, i){
             var id=Number(w.id);
             h+='<div style="padding:11px 0;'+(i?'border-top:1px solid #eee;':'')+'">'+
@@ -554,7 +554,7 @@
         var box=document.getElementById('covRulesBox'); if(!box) return; var r=_cov.rules||{};
         var ot=Number(r.ot_hours||40), lm=Number(r.last_minute_hours||12), rm=Number(r.remind_hours||2);
         if(!editing){
-            box.innerHTML='<div style="font-size:12px;color:'+COV_GREY+';text-align:center;margin:4px 0 14px;line-height:1.6;">Cover rules: overtime warning at '+ot+' hrs/week &middot; last-minute alert '+lm+' hrs before &middot; reminders every '+rm+' hrs'+
+            box.innerHTML='<div style="font-size:12.5px;color:'+COV_GREY+';text-align:left;margin:0 0 14px;line-height:1.5;background:#f6f8fb;border:1px solid #e6ebf2;border-radius:10px;padding:9px 12px;"><b style="color:#3d4757;">Cover rules:</b> overtime warning at '+ot+' hrs/week &middot; last-minute alert '+lm+' hrs before &middot; reminders every '+rm+' hrs'+
                 (r.can_edit?' &middot; <a href="javascript:void(0)" onclick="covPaintRules(true)" style="color:'+COV_BLUE+';font-weight:700;">Change</a>':'')+'</div>';
             return;
         }

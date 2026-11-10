@@ -33,7 +33,7 @@
             showScheduleGate(r.data);
         }).catch(function(){});
     }
-    function gateTime(t){ if(!t) return ''; var p=String(t).split(':'); var h=+p[0]||0; var m=+p[1]||0; var ap=h<12?'a':'p'; var hh=h%12; if(hh===0) hh=12; return hh+(m?(':'+String(m).padStart(2,'0')):'')+ap; }
+    function gateTime(t){ return hubTime(t); }
     function showScheduleGate(d){
         window._gateWeek=d.week_start;
         var ov=document.getElementById('scheduleGate');
@@ -50,13 +50,13 @@
         var shifts=d.shifts||[];
         var rows = shifts.length ? shifts.map(function(s){
             var dn=s.shift_date||''; try{ var dt=new Date(s.shift_date+'T00:00:00'); dn=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()]+' '+(dt.getMonth()+1)+'/'+dt.getDate(); }catch(e){}
-            return '<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #edf0f5;"><span style="width:74px;flex:none;color:#6b7686;font-size:13px;font-weight:700;">'+escapeHtml(dn)+'</span><span style="flex:1;color:#1f2a44;font-size:13.5px;">'+gateTime(s.start)+'&ndash;'+gateTime(s.end)+' &middot; '+escapeHtml(s.position||'Shift')+' <span style="color:#5b6675;">@ '+escapeHtml(s.location||'')+'</span></span></div>';
+            return '<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #edf0f5;"><span style="width:74px;flex:none;color:#6b7686;font-size:13px;font-weight:700;">'+escapeHtml(dn)+'</span><span style="flex:1;color:#1f2a44;font-size:13.5px;">'+escapeHtml(hubTimeRange(s.start,s.end))+(s.position?' &middot; '+escapeHtml(s.position):'')+' <span style="color:#5b6675;">at '+escapeHtml(s.location||'')+'</span></span></div>';
         }).join('') : '<div style="color:#5b6675;font-size:13px;">No shifts listed for this week.</div>';
         ov.innerHTML='<div onclick="event.stopPropagation();" style="position:relative;background:#fff;border-radius:18px;max-width:460px;width:100%;max-height:90vh;overflow:auto;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.5);">'+
             '<button onclick="dismissScheduleGate()" aria-label="Close" style="position:absolute;top:12px;right:12px;background:#f2f3f6;border:none;color:#6b7686;width:30px;height:30px;border-radius:50%;font-size:16px;font-weight:700;cursor:pointer;line-height:1;">&times;</button>'+
             '<div style="text-align:center;font-size:34px;line-height:1;">&#128197;</div>'+
             '<h2 style="margin:8px 0 4px;text-align:center;color:#1f2a44;font-size:20px;">Confirm your schedule</h2>'+
-            '<p style="text-align:center;color:#6b7686;font-size:13.5px;margin:0 0 14px;">Please review your shifts for the week of <b>'+escapeHtml(String(d.week_start||''))+'</b> before you continue.</p>'+
+            '<p style="text-align:center;color:#6b7686;font-size:13.5px;margin:0 0 14px;">Please review your shifts for <b>'+escapeHtml(hubWeek(d.week_start))+'</b> before you continue.</p>'+
             '<div style="background:#f6f8fb;border:1px solid #e6ebf2;border-radius:12px;padding:8px 14px;margin-bottom:16px;">'+rows+'</div>'+
             '<button id="scheduleGateBtn" onclick="confirmScheduleGate()" style="width:100%;background:#1f7a3d;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;">&#9989; I&rsquo;ve seen my schedule &mdash; Confirm</button>'+
             '<button onclick="schedGateFlagConflict()" style="width:100%;background:none;border:1px solid #e6c200;color:#8a6d00;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;margin-top:10px;">Something is wrong &mdash; tell my manager</button>'+

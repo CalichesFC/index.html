@@ -2,7 +2,7 @@
     // AVAILABILITY (Phase 2) — submit, approve, schedule warnings
     // ============================================================
     var AVAIL_ORDER = [['Mon',1],['Tue',2],['Wed',3],['Thu',4],['Fri',5],['Sat',6],['Sun',0]];
-    function availFmt(t){ if(!t) return ''; var p=String(t).split(':'); var h=+p[0]||0,m=+p[1]||0,ap=h<12?'a':'p',hh=h%12; if(hh===0)hh=12; return hh+(m?(':'+String(m).padStart(2,'0')):'')+ap; }
+    function availFmt(t){ return hubTime(t); }
     function availDowOf(ds){ var p=String(ds).split('-'); var d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2])); return d.getDay(); }
     function availDescDay(d){ if(!d||!d.mode||d.mode==='all') return 'All day'; if(d.mode==='off') return 'Off'; return availFmt(d.from)+'–'+availFmt(d.to); }
     function availSummary(days){ if(!days||!days.length) return 'Not set'; return AVAIL_ORDER.map(function(o){ return o[0]+' '+availDescDay(days[o[1]]); }).join(' · '); }
@@ -120,7 +120,7 @@
                       (rq.note?'<div style="font-size:12.5px;color:#6b6275;margin-bottom:6px;">Note: “'+escapeHtml(rq.note)+'”</div>':'')+
                       '<input id="availCmt'+rq.id+'" type="text" placeholder="Comment (optional, sent to them)" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:12.5px;box-sizing:border-box;margin-bottom:8px;">'+
                       '<div style="display:flex;gap:8px;"><button onclick="availDecide('+rq.id+',true)" style="flex:1;background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:8px;font-size:13px;font-weight:700;cursor:pointer;">Approve</button>'+
-                      '<button onclick="availDecide('+rq.id+',false)" style="flex:1;background:#fdeaea;color:#c0264b;border:none;border-radius:8px;padding:8px;font-size:13px;font-weight:700;cursor:pointer;">Deny</button></div></div>';
+                      '<button onclick="availDecide('+rq.id+',false)" style="flex:1;background:#fff;color:#a01b3e;border:1.5px solid #f3c2cb;border-radius:8px;padding:8px;font-size:13px;font-weight:700;cursor:pointer;">Deny</button></div></div>';
                 }).join('');
             });
         });

@@ -145,7 +145,7 @@
     function shcTodayIso(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
     function shcNowMin(){ var n=new Date(); return n.getHours()*60+n.getMinutes(); }
     function shcHMtoMin(hm){ var p=String(hm||'').split(':'); var h=parseInt(p[0],10), m=parseInt(p[1],10); if(isNaN(h)) return null; return h*60+(isNaN(m)?0:m); }
-    function shcTimeFmt(s){ if(!s) return ''; try{ return new Date(s).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } }
+    function shcTimeFmt(s){ if(!s) return ''; return hubTime(new Date(s)); }
     function shcStoreLoc(){ return (typeof tempStoreLoc==='function' && tempStoreLoc()) || (currentUser && currentUser.home_location) || ''; }
     function shcSess(){ return _shc.session||{}; }
     function shcEvents(kind){ var ev=(shcSess().events)||[]; return kind?ev.filter(function(e){return e.kind===kind;}):ev; }

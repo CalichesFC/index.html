@@ -295,7 +295,7 @@
     function schedFmt(dt){ const m=String(dt.getMonth()+1).padStart(2,'0'); const da=String(dt.getDate()).padStart(2,'0'); return dt.getFullYear()+'-'+m+'-'+da; }
     // Week label: one year when the week stays in one year (11/2 – 11/8, 2026); each side gets its own year
     // when the week crosses New Year (12/28/2026 – 1/3/2027).
-    function schedWeekText(ws, we){ const md = d => (d.getMonth()+1)+'/'+d.getDate(); return ws.getFullYear()===we.getFullYear() ? (md(ws)+' – '+md(we)+', '+ws.getFullYear()) : (md(ws)+'/'+ws.getFullYear()+' – '+md(we)+'/'+we.getFullYear()); }
+    function schedWeekText(ws, we){ return ws.getFullYear()===we.getFullYear() ? (hubWeek(ws, we)+', '+ws.getFullYear()) : (HUB_MON[ws.getMonth()]+' '+ws.getDate()+', '+ws.getFullYear()+' \u2013 '+HUB_MON[we.getMonth()]+' '+we.getDate()+', '+we.getFullYear()); }
     function schedAddDays(dt,n){ const x=new Date(dt); x.setDate(x.getDate()+n); return x; }
 
     function initScheduleBuilder() {
@@ -343,7 +343,7 @@
     }
 
     // ===== SCHED TOOLS: auto-fill (option 3) + scheduled-vs-actual (option 4) =====
-    function schedVT(t){ if(!t) return ''; var p=String(t).split(':'); var h=+p[0]||0,m=p[1]||'00'; var ap=h<12?'a':'p'; var hh=h%12; if(hh===0)hh=12; return hh+(m!=='00'?(':'+m):'')+ap; }
+    function schedVT(t){ return hubTime(t); }
     function schedVTile(lbl,val,color,sub){ return '<div style="flex:1;min-width:88px;background:#fff;border:1px solid #eef0f5;border-radius:10px;padding:9px 11px;"><div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#5b6675;">'+lbl+'</div><div style="font-size:18px;font-weight:800;color:'+(color||'#1f2a44')+';">'+val+'</div>'+(sub?'<div style="font-size:10.5px;color:#6b6275;">'+sub+'</div>':'')+'</div>'; }
     function schedModal(title, body){ var m=document.getElementById('schedToolModal'); if(!m){ m=document.createElement('div'); m.id='schedToolModal'; m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100062;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:16px;box-sizing:border-box;'; document.body.appendChild(m); } m.innerHTML='<div style="background:#fff;border-radius:14px;max-width:560px;width:100%;margin-top:16px;box-shadow:0 16px 50px rgba(0,0,0,.3);"><div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:13px 16px;border-radius:14px 14px 0 0;display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:15px;">'+title+'</b><button onclick="schedModalClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:15px;">&times;</button></div><div id="schedToolBody" style="padding:16px;">'+body+'</div></div>'; m.style.display='flex'; return m; }
     function schedModalBody(html){ var b=document.getElementById('schedToolBody'); if(b) b.innerHTML=html; }
@@ -357,8 +357,8 @@
                 var d=res.data||{}; var asg=d.assigned||[], open=d.still_open||[]; var c=d.counts||{};
                 var h='<div style="display:flex;gap:9px;margin-bottom:12px;"><div style="flex:1;background:#e8f5ec;border-radius:10px;padding:10px;text-align:center;"><div style="font-size:22px;font-weight:800;color:#1b7a3d;">'+(c.assigned||0)+'</div><div style="font-size:11px;color:#5b6675;">will be filled</div></div><div style="flex:1;background:#fdeaea;border-radius:10px;padding:10px;text-align:center;"><div style="font-size:22px;font-weight:800;color:#a01b3e;">'+(c.still_open||0)+'</div><div style="font-size:11px;color:#5b6675;">still open</div></div></div>';
                 if(!asg.length && !open.length){ h+='<p style="color:#6b7686;font-size:13px;">No open shifts to fill this week. Lay out open shifts first (or Copy last week), then auto-fill.</p>'; }
-                if(asg.length){ h+='<div style="font-weight:800;font-size:13px;color:#1f2a44;margin:6px 0;">Proposed assignments</div>'; asg.forEach(function(a){ h+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px;"><span>'+escapeHtml(String(a.shift_date))+' '+schedVT(a.start_time)+'-'+schedVT(a.end_time)+'</span><b style="color:#185FA5;">'+escapeHtml(a.employee_name||'')+'</b></div>'; }); }
-                if(open.length){ h+='<div style="font-weight:800;font-size:13px;color:#a01b3e;margin:12px 0 6px;">Couldn’t fill ('+open.length+')</div>'; open.forEach(function(o){ h+='<div style="padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:12px;color:#5b6675;">'+escapeHtml(String(o.shift_date))+' '+schedVT(o.start_time)+'-'+schedVT(o.end_time)+' &mdash; '+escapeHtml(o.reason||'')+'</div>'; }); }
+                if(asg.length){ h+='<div style="font-weight:800;font-size:13px;color:#1f2a44;margin:6px 0;">Proposed assignments</div>'; asg.forEach(function(a){ h+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px;"><span>'+escapeHtml(hubDay(a.shift_date)+' · '+hubTimeRange(a.start_time,a.end_time))+'</span><b style="color:#185FA5;">'+escapeHtml(a.employee_name||'')+'</b></div>'; }); }
+                if(open.length){ h+='<div style="font-weight:800;font-size:13px;color:#a01b3e;margin:12px 0 6px;">Couldn’t fill ('+open.length+')</div>'; open.forEach(function(o){ h+='<div style="padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:12px;color:#5b6675;">'+escapeHtml(hubDay(o.shift_date)+' · '+hubTimeRange(o.start_time,o.end_time))+' &mdash; '+escapeHtml(o.reason||'')+'</div>'; }); }
                 if(asg.length) h+='<button onclick="schedAutoApply()" style="width:100%;margin-top:14px;background:#1f7a3d;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;">Apply these '+asg.length+' assignment'+(asg.length>1?'s':'')+'</button>';
                 schedModalBody(h);
             }).catch(function(){ schedModalBody('<div style="color:#c0264b;padding:8px;">Connection error.</div>'); });
@@ -386,15 +386,15 @@
                 if(v.error){ schedModalBody('<div style="color:#c0264b;padding:8px;">'+escapeHtml(v.error.message)+'</div>'); return; }
                 var d=v.data||{}; var days=d.days||[]; var wt=d.week_totals||{};
                 var h='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">'+
-                   schedVTile('Sched hrs',(wt.scheduled_hours||0))+
-                   schedVTile('Actual hrs',(wt.actual_hours||0),((wt.hours_variance||0)>0?'#a01b3e':((wt.hours_variance||0)<0?'#1b7a3d':'#1f2a44')),(wt.hours_variance!=null?((wt.hours_variance>0?'+':'')+wt.hours_variance+' vs sched'):''))+
-                   schedVTile('Sched $','$'+Math.round(wt.scheduled_labor||0))+
-                   schedVTile('Actual $','$'+Math.round(wt.actual_labor||0),((wt.labor_variance||0)>0?'#a01b3e':'#1b7a3d'),(wt.labor_variance!=null?((wt.labor_variance>0?'+$':'-$')+Math.abs(Math.round(wt.labor_variance))):''))+
+                   schedVTile('Scheduled hrs',(wt.scheduled_hours||0))+
+                   schedVTile('Worked hrs',(wt.actual_hours||0),((wt.hours_variance||0)>0?'#a01b3e':((wt.hours_variance||0)<0?'#1b7a3d':'#1f2a44')),(wt.hours_variance!=null?((wt.hours_variance>0?'+':'')+wt.hours_variance+' vs sched'):''))+
+                   schedVTile('Scheduled $','$'+Math.round(wt.scheduled_labor||0))+
+                   schedVTile('Worked $','$'+Math.round(wt.actual_labor||0),((wt.labor_variance||0)>0?'#a01b3e':'#1b7a3d'),(wt.labor_variance!=null?((wt.labor_variance>0?'+$':'-$')+Math.abs(Math.round(wt.labor_variance))):''))+
                    '</div>';
-                h+='<table style="width:100%;border-collapse:collapse;font-size:12.5px;"><tr style="color:#5b6675;text-transform:uppercase;font-size:10px;"><td style="text-align:left;padding:4px 2px;">Day</td><td style="text-align:right;">Sched h</td><td style="text-align:right;">Act h</td><td style="text-align:right;">Var</td><td style="text-align:right;">Lbr% sc</td><td style="text-align:right;">Lbr% act</td></tr>';
+                h+='<table style="width:100%;border-collapse:collapse;font-size:12.5px;"><tr style="color:#5b6675;font-size:11.5px;font-weight:700;vertical-align:bottom;"><td style="text-align:left;padding:4px 2px;">Day</td><td style="text-align:right;padding-left:8px;">Scheduled hrs</td><td style="text-align:right;padding-left:8px;">Worked hrs</td><td style="text-align:right;padding-left:8px;">Difference</td><td style="text-align:right;padding-left:8px;">Labor % planned</td><td style="text-align:right;padding-left:8px;">Labor % actual</td></tr>';
                 days.forEach(function(dy){ h+='<tr style="border-top:1px solid #f3f4f8;"><td style="padding:5px 2px;color:#26242b;font-weight:600;">'+escapeHtml(dy.dow||'')+'</td><td style="text-align:right;">'+(dy.scheduled_hours||0)+'</td><td style="text-align:right;">'+(dy.actual_hours||0)+'</td><td style="text-align:right;color:'+((dy.hours_variance||0)>0?'#a01b3e':((dy.hours_variance||0)<0?'#1b7a3d':'#5b6675'))+';">'+((dy.hours_variance>0?'+':'')+(dy.hours_variance||0))+'</td><td style="text-align:right;color:#5b6675;">'+(dy.labor_pct_scheduled!=null?dy.labor_pct_scheduled+'%':'—')+'</td><td style="text-align:right;">'+(dy.labor_pct_actual!=null?dy.labor_pct_actual+'%':'—')+'</td></tr>'; });
                 h+='</table>';
-                if(a && !a.error && a.data){ var rows=(a.data.rows||[]); var noshow=rows.filter(function(r){return !r.punched;}); h+='<div style="font-weight:800;font-size:13px;color:'+(noshow.length?'#a01b3e':'#1b7a3d')+';margin:14px 0 6px;">'+(noshow.length?('&#9888;&#65039; Possible no-shows ('+noshow.length+')'):'&#9989; No missed shifts this week')+'</div>'; noshow.forEach(function(r){ h+='<div style="padding:5px 0;border-bottom:1px solid #f0f0f0;font-size:12.5px;color:#5b6675;">'+escapeHtml(r.employee_name||'')+' &mdash; '+escapeHtml(String(r.shift_date))+' '+schedVT(r.start_time)+' <span style="color:#a01b3e;">(no punch found)</span></div>'; }); }
+                if(a && !a.error && a.data){ var rows=(a.data.rows||[]); var noshow=rows.filter(function(r){return !r.punched;}); h+='<div style="font-weight:800;font-size:13px;color:'+(noshow.length?'#a01b3e':'#1b7a3d')+';margin:14px 0 6px;">'+(noshow.length?('&#9888;&#65039; Possible no-shows ('+noshow.length+')'):'&#9989; No missed shifts this week')+'</div>'; noshow.forEach(function(r){ h+='<div style="padding:5px 0;border-bottom:1px solid #f0f0f0;font-size:12.5px;color:#5b6675;">'+escapeHtml(r.employee_name||'')+' &mdash; '+escapeHtml(hubDay(r.shift_date)+' · '+hubTime(r.start_time))+' <span style="color:#a01b3e;">(no punch found)</span></div>'; }); }
                 h+='<p style="font-size:11px;color:#8a93a2;margin-top:12px;">Actual hours come from the time clock. Sales are actual where recorded, otherwise forecast.</p>';
                 schedModalBody(h);
             }).catch(function(){ schedModalBody('<div style="color:#c0264b;padding:8px;">Connection error.</div>'); });
@@ -585,6 +585,7 @@
     function schedPosById(id){ return (schedState.data.positions || []).find(p => p.id === id); }
     function schedShiftHours(s){ if(!s.start_time||!s.end_time) return 0; const a=s.start_time.split(':').map(Number); const b=s.end_time.split(':').map(Number); let h=(b[0]*60+b[1]-(a[0]*60+a[1]))/60; if(h<0) h+=24; return h; }
     // pick black or white text for legibility on a colored chip (WCAG-ish luminance)
+    function hbIsLight(hex){ if(!hex||hex[0]!=='#'||hex.length<7) return false; const r=parseInt(hex.substr(1,2),16),g=parseInt(hex.substr(3,2),16),b=parseInt(hex.substr(5,2),16); return ((0.299*r+0.587*g+0.114*b)/255) > 0.93; }
     function hbTextOn(hex){ if(!hex||hex[0]!=='#'||hex.length<7) return '#fff'; const r=parseInt(hex.substr(1,2),16),g=parseInt(hex.substr(3,2),16),b=parseInt(hex.substr(5,2),16); return ((0.299*r+0.587*g+0.114*b)/255) > 0.5 ? '#1f2a44' : '#fff'; }
     function renderScheduleGrid() {
         var OT_THRESH=(typeof cfgNum==='function'?cfgNum('targets','ot_threshold_hrs',40):40);
@@ -627,7 +628,7 @@
             const empArg = (s.employee_id != null ? s.employee_id : 'null');
             return '<div class="sched-chip'+(conflict?' sched-chip-conflict':'')+'" data-shiftid="'+s.id+'" tabindex="0" role="button" style="background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+(s.start_time||'')+'-'+(s.end_time||'')+'<br>'+escapeHtml(lblTxt)+(conflict?' &#9888;':'')+(s.published?'':' *')+'</div>';
         };
-        const hbTime = t => { if(!t) return ''; const p=String(t).split(':'); let h=+p[0]||0; const m=+p[1]||0; const ap=h<12?'a':'p'; let hh=h%12; if(hh===0) hh=12; return hh+(m?(':'+String(m).padStart(2,'0')):'')+ap; };
+        const hbTime = t => hubTime(t);
         const initialsOf = nm => { const parts=String(nm||'').replace(/\([^)]*\)/g,' ').replace(/["\u201C][^"\u201D]*["\u201D]/g,' ').replace(/[^A-Za-z\u00C0-\u024F\s'-]/g,' ').trim().split(/\s+/).filter(Boolean); if(!parts.length) return '?'; return (parts[0][0]+(parts.length>1?parts[parts.length-1][0]:'')).toUpperCase(); };
         const avatarColor = e => { const p=schedPosById(e.default_position_id); return (p && p.color) ? p.color : '#185FA5'; };
         const blockHtml = (s, conflict) => {
@@ -636,8 +637,8 @@
             const role = (p ? p.name : 'Shift') + (s.note ? (' · ' + s.note) : '');
             const empArg = (s.employee_id != null ? s.employee_id : 'null');
             var sw = (typeof shiftWarnings==='function') ? shiftWarnings(s) : [];
-            const full = hbTime(s.start_time)+'–'+hbTime(s.end_time)+' · '+role+(s.published?'':' (not posted yet)');
-            return '<div class="hbg-blk'+(conflict?' hbg-conf':'')+(sw.length?' avail-flag':'')+'" data-shiftid="'+s.id+'" tabindex="0" role="button" title="'+escapeHtml(full)+'" style="position:relative;background:'+col+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+(sw.length?'<span class="avail-badge" title="'+escapeHtml(sw.join('; '))+'">&#9888;</span>':'')+'<span class="hbg-t">'+hbTime(s.start_time)+'&ndash;'+hbTime(s.end_time)+(s.published?'':' *')+'</span><span class="hbg-r">'+escapeHtml(role)+(conflict?' &#9888;':'')+'</span></div>';
+            const full = hubTimeRange(s.start_time,s.end_time)+' · '+role+(s.published?'':' (not posted yet)');
+            return '<div class="hbg-blk'+(conflict?' hbg-conf':'')+(sw.length?' avail-flag':'')+(s.published?'':' hbg-draft')+(hbIsLight(col)?' hbg-light':'')+'" data-shiftid="'+s.id+'" tabindex="0" role="button" title="'+escapeHtml(full)+'" style="position:relative;background:'+(hbIsLight(col)?'#f1f3f6':col)+';color:'+txt+';" onclick="event.stopPropagation();schedOpenModal('+empArg+",'"+s.shift_date+"',"+s.id+')">'+(sw.length?'<span class="avail-badge" title="'+escapeHtml(sw.join('; '))+'">&#9888;</span>':'')+'<span class="hbg-t">'+hubTimeRange(s.start_time,s.end_time)+'</span><span class="hbg-r">'+escapeHtml(role)+(conflict?' &#9888;':'')+'</span></div>';
         };
         const q = (document.getElementById('schedSearch') ? document.getElementById('schedSearch').value : '').toLowerCase().trim();
         let shownEmps = schedSortedEmps(emps);
@@ -710,7 +711,7 @@
                     } else {
                         html += '<td class="hbg-cell" data-emp="'+e.id+'" data-date="'+ds+'" onclick="schedOpenModal('+e.id+",'"+ds+"',null)\" oncontextmenu=\"schedCtx(event,"+e.id+",'"+ds+"',"+(cell[0]?cell[0].id:'null')+')">';
                         cell.forEach(s=>{html+=blockHtml(s,conflict);});
-                        elsw.forEach(x=>{html+='<div class="hbg-loc">&#128205; '+escapeHtml(x.location)+'<br>'+hbTime(x.start_time)+'&ndash;'+hbTime(x.end_time)+'</div>';});
+                        elsw.forEach(x=>{html+='<div class="hbg-loc">&#128205; '+escapeHtml(x.location)+'<br>'+hubTimeRange(x.start_time,x.end_time)+'</div>';});
                         if(!cell.length&&!elsw.length)html+='<div class="hbg-add">+</div>';
                         html += '</td>';
                     }
@@ -730,8 +731,10 @@
         const pb = document.getElementById('schedPublishBtn');
         if (conflicts>0) {
             html = '<div class="sp-banner">&#9888; '+conflicts+' double-book'+(conflicts>1?'s':'')+' across stores — resolve before publishing.</div>' + html;
-            if (pb){ pb.disabled=true; pb.style.opacity=.5; pb.style.cursor='not-allowed'; pb.title='Resolve cross-store conflicts to publish'; }
-        } else if (pb){ pb.disabled=false; pb.style.opacity=1; pb.style.cursor='pointer'; pb.title=''; }
+            if (pb){ pb.disabled=false; pb.classList.add('is-blocked'); pb.style.opacity=''; pb.style.cursor=''; pb.title='Fix the double-book first'; }
+        } else if (pb){ pb.disabled=false; pb.classList.remove('is-blocked'); pb.style.opacity=''; pb.style.cursor=''; pb.title=''; }
+        var _drafts=(schedState.data.shifts||[]).filter(function(s){ return !s.published; }).length;
+        if (_drafts) html = '<div class="sp-key"><i></i> Dashed outline = draft, not posted yet ('+_drafts+')</div>' + html;
         document.getElementById('schedGrid').innerHTML = html;
         if (typeof schedAlignLaborBar === 'function') schedAlignLaborBar();
         schedInitDragReorder();
@@ -789,7 +792,7 @@
         const dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
         const lbl = document.getElementById('schedWeekLabel');
         if (lbl) lbl.innerText = schedWeekText(ws, days[6]);
-        const hbTime = t => { if(!t) return ''; const p=String(t).split(':'); let h=+p[0]||0; const m=+p[1]||0; const ap=h<12?'a':'p'; let hh=h%12; if(hh===0) hh=12; return hh+(m?(':'+String(m).padStart(2,'0')):'')+ap; };
+        const hbTime = t => hubTime(t);
         const mine = schedState.mine || { shifts: [], time_off: [] };
         const byDay = {}; (mine.shifts||[]).forEach(s => { (byDay[s.shift_date]=byDay[s.shift_date]||[]).push(s); });
         const offMap = {}; (mine.time_off||[]).forEach(t => { days.forEach(d => { const ds=schedFmt(d); if(ds>=t.start_date && ds<=t.end_date) offMap[ds]=t.reason||'Time off'; }); });
@@ -806,12 +809,12 @@
             if (off && !list.length) { html += '<div class="hbg-off" style="display:inline-block;">&#128197; Time off &middot; '+escapeHtml(off)+'</div>'; }
             else if (!list.length) { html += '<div style="color:#b3bcc7;font-size:13px;">Off</div>'; }
             else { list.forEach(s => { const col=s.color||'#185FA5'; const h=((function(x){if(!x.start_time||!x.end_time)return 0;const a=x.start_time.split(":").map(Number),b=x.end_time.split(":").map(Number);let hh=(b[0]*60+b[1]-(a[0]*60+a[1]))/60;if(hh<0)hh+=24;return hh;})(s)); total+=h;
-                html += '<div style="background:'+col+';color:'+hbTextOn(col)+';border-radius:7px;padding:7px 10px;margin-bottom:5px;font-size:13px;"><b>'+hbTime(s.start_time)+'&ndash;'+hbTime(s.end_time)+'</b> &middot; '+escapeHtml(s.position_name||'Shift')+' <span style="opacity:.85;">@ '+escapeHtml(s.location||'')+'</span></div>'; }); }
+                html += '<div style="background:'+col+';color:'+hbTextOn(col)+';border-radius:7px;padding:7px 10px;margin-bottom:5px;font-size:13px;"><b>'+hubTimeRange(s.start_time,s.end_time)+'</b>'+(s.position_name?' &middot; '+escapeHtml(s.position_name):'')+' <span style="opacity:.85;">at '+escapeHtml(s.location||'')+'</span></div>'; }); }
             html += '</div></div>';
         });
         html += '<div class="sp-weekbar" style="margin-top:14px;border-radius:10px;"><span>This week</span><span><b>'+total.toFixed(1)+' hrs</b> scheduled</span></div>';
         html += '<div id="weekConfirmBar" style="margin-top:10px;"></div>';
-        html += '<button onclick="if(typeof openEmployeeHome===\'function\')openEmployeeHome();" style="width:100%;margin-top:12px;background:#fff;border:1.5px solid #cfe0f5;color:#185FA5;border-radius:11px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;">Can&rsquo;t make a shift? &rarr;</button>';
+        html += '<button onclick="if(typeof openEmployeeHome===\'function\')openEmployeeHome();" style="width:100%;margin-top:12px;background:#fff;border:1.5px solid #cfe0f5;color:#185FA5;border-radius:11px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;">Time off &amp; covers &rarr;</button>';
         html += '<p style="font-size:12px;color:#5b6675;margin-top:10px;">Only published shifts are shown &mdash; if your week looks empty, your manager may not have posted it yet. Need a day off? Use <b>Request time off</b> in the menu.</p></div>';
         document.getElementById('schedGrid').innerHTML = html;
         loadWeekConfirm(schedFmt(schedState.weekStart), (mine.shifts||[]).length>0);
@@ -839,7 +842,7 @@
         ov.style.display='flex';
         ov.innerHTML='<div style="background:var(--surface,#fff);border-radius:14px;max-width:460px;width:100%;max-height:85vh;overflow:auto;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.2);">'+
           '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><b style="flex:1;font-size:16px;color:var(--txt,#26242b);">Schedule confirmations</b><button onclick="closeWeekConfirms()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7686;line-height:1;">&times;</button></div>'+
-          '<div style="font-size:12.5px;color:var(--txt2,#8a8594);margin-bottom:10px;">Week of '+escapeHtml(ws)+(loc?(' &middot; '+escapeHtml(loc)):'')+'</div>'+
+          '<div style="font-size:12.5px;color:var(--txt2,#8a8594);margin-bottom:10px;">'+escapeHtml(hubWeek(ws))+(loc?(' &middot; '+escapeHtml(loc)):'')+'</div>'+
           '<div id="weekConfirmsBody"><p style="text-align:center;color:#6b7686;padding:20px;">Loading&hellip;</p></div></div>';
         withPin(function(pin){
           supabaseClient.rpc('app_week_confirm_roster',{p_username:currentUser.username,p_password:pin,p_location:loc,p_week_start:ws}).then(function(r){
@@ -859,8 +862,8 @@
         });
     }
     // ---- Publish history + Resend schedule (batch 2) ----
-    function schedFmtWhen(ts){ try { var d=new Date(ts); if(isNaN(d)) return String(ts||''); return d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})+', '+d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}); } catch(e){ return String(ts||''); } }
-    function schedFmtWeekOf(ws){ try { var d=new Date(String(ws).slice(0,10)+'T00:00:00'); if(isNaN(d)) return String(ws||''); return d.toLocaleDateString(undefined,{month:'short',day:'numeric'}); } catch(e){ return String(ws||''); } }
+    function schedFmtWhen(ts){ return hubWhen(ts); }
+    function schedFmtWeekOf(ws){ return hubWeek(String(ws||'').slice(0,10)); }
     var SCHED_BTN_LIGHT='background:#fff;border:1px solid #cfd6e0;color:#26242b;border-radius:10px;padding:10px 18px;font-size:14.5px;font-weight:700;cursor:pointer;';
     var SCHED_BTN_PINK='background:#ec3e7e;border:none;color:#fff;border-radius:10px;padding:10px 18px;font-size:14.5px;font-weight:800;cursor:pointer;';
     function openPublishHistory(){
@@ -876,7 +879,7 @@
                     var pub=(x.action==='publish'); var sc=x.shift_count||0, pc=x.people_count||0;
                     var right=(pub?(sc+' shift'+(sc===1?'':'s')+' &middot; '):'')+pc+' '+(pc===1?'person':'people');
                     h+='<div style="border:1px solid #e6ebf2;border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start;">'+
-                       '<div style="flex:1;min-width:0;"><div style="font-size:15px;color:#26242b;"><b style="color:'+(pub?'#1f7a3d':'#185FA5')+';">'+(pub?'Posted':'Re-sent')+'</b> &middot; Week of '+escapeHtml(schedFmtWeekOf(x.week_start))+'</div>'+
+                       '<div style="flex:1;min-width:0;"><div style="font-size:15px;color:#26242b;"><b style="color:'+(pub?'#1f7a3d':'#185FA5')+';">'+(pub?'Posted':'Re-sent')+'</b> &middot; '+escapeHtml(schedFmtWeekOf(x.week_start))+'</div>'+
                        '<div style="font-size:12.5px;color:#5b6675;margin-top:2px;">by '+escapeHtml(x.by_name||'')+' &middot; '+escapeHtml(schedFmtWhen(x.at))+'</div></div>'+
                        '<div style="font-size:12.5px;color:#26242b;white-space:nowrap;">'+right+'</div></div>';
                 });
@@ -891,10 +894,10 @@
             supabaseClient.rpc('app_sched_resend_preview',{p_username:currentUser.username,p_password:pin,p_location:loc,p_week_start:ws}).then(function(r){
                 if(r.error){ schedModalBody('<p style="color:#c0264b;text-align:center;padding:12px;">'+(r.error.code==='42501'?'Only admin managers can re-send the schedule.':escapeHtml(r.error.message))+'</p>'); return; }
                 var list=r.data||[];
-                if(!list.length){ schedModalBody('<p style="color:#5b6675;text-align:center;padding:10px 6px;font-size:14px;">No shifts are posted at <b>'+escapeHtml(loc)+'</b> for the week of <b>'+escapeHtml(schedFmtWeekOf(ws))+'</b> yet, so there&rsquo;s no one to send it to. Publish the week first.</p><div style="text-align:right;"><button onclick="schedModalClose()" style="'+SCHED_BTN_LIGHT+'">Close</button></div>'); return; }
+                if(!list.length){ schedModalBody('<p style="color:#5b6675;text-align:center;padding:10px 6px;font-size:14px;">No shifts are posted at <b>'+escapeHtml(loc)+'</b> for <b>'+escapeHtml(schedFmtWeekOf(ws))+'</b> yet, so there&rsquo;s no one to send it to. Publish the week first.</p><div style="text-align:right;"><button onclick="schedModalClose()" style="'+SCHED_BTN_LIGHT+'">Close</button></div>'); return; }
                 var on=list.filter(function(x){ return x.alerts_on; }).length, n=list.length;
                 var names=list.map(function(x){ return escapeHtml(x.name||''); }).join(', ');
-                var h='<div style="font-size:14.5px;line-height:1.45;color:#26242b;">Send the <b>&ldquo;schedule posted&rdquo;</b> alert again to everyone with shifts at <b>'+escapeHtml(loc)+'</b> for the week of <b>'+escapeHtml(schedFmtWeekOf(ws))+'</b>?</div>'+
+                var h='<div style="font-size:14.5px;line-height:1.45;color:#26242b;">Send the <b>&ldquo;schedule posted&rdquo;</b> alert again to everyone with shifts at <b>'+escapeHtml(loc)+'</b> for <b>'+escapeHtml(schedFmtWeekOf(ws))+'</b>?</div>'+
                       '<div style="background:#f3f6fb;border-radius:10px;padding:10px 12px;margin:12px 0;font-size:13.5px;color:#3b4656;">'+n+' '+(n===1?'person':'people')+' will get it: '+names+'</div>'+
                       (on<n?'<div style="font-size:12.5px;color:#854F0B;background:#fdf3e8;border-radius:8px;padding:8px 10px;margin-bottom:12px;">'+(on===0?'Heads up: none of them have turned on Hub phone alerts yet, so no one will actually get buzzed.':('Heads up: only '+on+' of '+n+' have turned on Hub phone alerts. The rest won&rsquo;t get buzzed.'))+'</div>':'')+
                       '<div style="display:flex;gap:10px;justify-content:flex-end;"><button onclick="schedModalClose()" style="'+SCHED_BTN_LIGHT+'">Cancel</button><button id="schedResendGo" onclick="schedDoResend()" style="'+SCHED_BTN_PINK+'">Send again</button></div>'+
@@ -928,17 +931,18 @@
     function schedOpenModal(empId, date, shiftId) {
         schedState.editing = { employeeId: empId, date: date, shiftId: shiftId };
         const posSel = document.getElementById('shiftPosition');
-        posSel.innerHTML = '<option value="">&mdash; position &mdash;</option>' + (schedState.data.positions||[]).map(p => '<option value="'+p.id+'">'+escapeHtml(p.name)+'</option>').join('');
+        posSel.innerHTML = '<option value="">&mdash; role &mdash;</option>' + (schedState.data.positions||[]).map(p => '<option value="'+p.id+'">'+escapeHtml(p.name)+'</option>').join('');
         var empSel=document.getElementById('shiftEmployee'); if(empSel){ var _curE = (typeof shiftId!=='undefined' && shiftId && (schedState.data.shifts||[]).find(x=>x.id===shiftId)) ? (schedState.data.shifts||[]).find(x=>x.id===shiftId).employee_id : empId; empSel.innerHTML='<option value="">&mdash; Open shift (no one yet) &mdash;</option>'+(schedState.data.employees||[]).map(function(e){return '<option value="'+e.id+'">'+escapeHtml(e.name||('#'+e.id))+'</option>';}).join(''); empSel.value=(_curE!=null&&_curE!=='')?String(_curE):''; }
         let s = shiftId ? (schedState.data.shifts||[]).find(x => x.id === shiftId) : null;
-        document.getElementById('shiftModalTitle').innerText = shiftId ? 'Edit Shift' : (empId == null ? 'Add Open Shift' : 'Add Shift');
+        document.getElementById('shiftModalTitle').innerText = (shiftId ? 'Edit Shift' : (empId == null ? 'Add Open Shift' : 'Add Shift')) + ' \u00b7 ' + hubDay(s ? s.shift_date : date) + ' \u00b7 ' + (schedState.location || '');
         document.getElementById('shiftStart').value = s ? (s.start_time||'') : '';
         document.getElementById('shiftEnd').value = s ? (s.end_time||'') : '';
         document.getElementById('shiftNote').value = s ? (s.note||'') : '';
         var _prefilled = false;
         if (!s) { try { var _lt = JSON.parse(localStorage.getItem('calichesLastShiftTimes:'+schedState.location)||'null'); if (_lt && _lt.start && _lt.end) { document.getElementById('shiftStart').value=_lt.start; document.getElementById('shiftEnd').value=_lt.end; _prefilled = true; } } catch(e) {} }
         schedRenderDayChips(shiftId ? null : date, _prefilled);
-        posSel.value = (s && s.position_id) ? String(s.position_id) : '';
+        var _emp = (!s && empId != null) ? (schedState.data.employees||[]).find(function(x){ return x.id === empId; }) : null;
+        posSel.value = (s && s.position_id) ? String(s.position_id) : ((_emp && _emp.default_position_id && schedPosById(_emp.default_position_id)) ? String(_emp.default_position_id) : '');
         document.getElementById('shiftDeleteBtn').style.display = shiftId ? 'block' : 'none';
         var _rw=document.getElementById('shiftRepeatWrap'); if(_rw) _rw.style.display = shiftId ? 'none' : 'block';
         var _rs=document.getElementById('shiftRepeat'); if(_rs) _rs.value='0';
@@ -952,7 +956,7 @@
         if(empId!=null && (schedState.avail||{})){ var days=(schedState.avail||{})[empId]||(schedState.avail||{})[String(empId)];
             if(days&&days.length){ var dd=days[availDowOf(date)]; if(dd){ am.style.display='block';
                 if(dd.mode==='off'){ am.style.background='#fdeaea'; am.style.color='#c0264b'; am.innerHTML='&#9888; Marked <b>unavailable</b> this day'; }
-                else if(dd.mode==='window'){ am.style.background='#eef3fb'; am.style.color='#185FA5'; am.innerHTML='&#128337; Available '+availFmt(dd.from)+'&ndash;'+availFmt(dd.to)+' this day'; }
+                else if(dd.mode==='window'){ am.style.background='#eef3fb'; am.style.color='#185FA5'; am.innerHTML='&#128337; Available '+hubTimeRange(dd.from,dd.to)+' this day'; }
                 else { am.style.background='#e7f6ec'; am.style.color='#1f7a3d'; am.innerHTML='&#10003; Available all day'; }
             } }
         }
@@ -1136,19 +1140,27 @@
             g.addEventListener('click', function(e){ if(window._schedDragJustHappened){ e.preventDefault(); e.stopPropagation(); } }, true);
         };
     })();
-    function schedDayName(ds){ var dn=['Sun','Mon','Tue','Wed','Thu','Fri','Sat']; return dn[availDowOf(ds)]+' '+String(ds).slice(5); }
+    function schedDayName(ds){ return hubDay(ds); }
     function schedPublish() {
+        var _pb=document.getElementById('schedPublishBtn');
+        if(_pb && _pb.classList.contains('is-blocked')){ schedToast('Fix the double-book first. It\u2019s in red at the top of the schedule.'); try{ var _bn=document.querySelector('#schedGrid .sp-banner'); if(_bn) _bn.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} return; }
         var conflicts=[];
         (schedState.data.shifts||[]).forEach(function(s){ if(s.employee_id!=null){ var w=(typeof shiftWarnings==='function')?shiftWarnings(s):[]; if(w.length){ var e=(schedState.data.employees||[]).find(function(x){return x.id===s.employee_id;}); conflicts.push({s:s,name:e?e.name:'Employee',why:w.join('; ')}); } } });
         if(conflicts.length){ schedShowPublishGate(conflicts); return; }
         schedDoPublish();
     }
     function schedDoPublish(){
-        if (!confirm('Publish this week’s schedule for ' + schedState.location + '? Staff with shifts who have Hub phone alerts on will be notified.')) return;
+        var _dr=(schedState.data.shifts||[]).filter(function(s){ return !s.published; }), _pp={};
+        _dr.forEach(function(s){ if(s.employee_id!=null) _pp[s.employee_id]=1; });
+        var _n=_dr.length, _p=Object.keys(_pp).length;
+        hubAsk({ title:'Publish '+hubWeek(schedState.weekStart)+' at '+schedState.location+'?',
+                 html:(_n ? ('<b>'+_n+' shift'+(_n===1?'':'s')+'</b> not posted yet'+(_p?(' for <b>'+_p+' '+(_p===1?'person':'people')+'</b>'):'')+'. ') : 'Everything on this week is already posted. ')+'Anyone on it with Hub phone alerts on gets an alert.',
+                 yes:'Publish', no:'Not yet' }, function(){
         const ws = schedFmt(schedState.weekStart);
         withPin(function(pin){
             supabaseClient.rpc('app_sched_publish_week', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_week_start: ws })
-            .then(({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } alert('Published ' + (data||0) + ' shift(s) for ' + schedState.location + '. Phone alerts went to everyone on it who has Hub alerts turned on.'); fetchScheduleWeek(); });
+            .then(({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } schedToast('Published ' + (data||0) + ' shift' + ((data||0)===1?'':'s') + ' for ' + schedState.location + '.'); fetchScheduleWeek(); });
+        });
         });
     }
     function schedShowPublishGate(conflicts){
@@ -1156,7 +1168,7 @@
         var hard=conflicts.filter(function(c){return isHard(c.why);});
         var soft=conflicts.filter(function(c){return !isHard(c.why);});
         window._pubHard=hard; window._pubSoft=soft;
-        function row(c,col){ return '<div style="font-size:12.5px;color:'+col+';padding:3px 0;"><b>'+escapeHtml(c.name)+'</b> · '+escapeHtml(schedDayName(c.s.shift_date))+' '+escapeHtml((c.s.start_time||'')+'-'+(c.s.end_time||''))+' · '+escapeHtml(c.why)+'</div>'; }
+        function row(c,col){ return '<div style="font-size:12.5px;color:'+col+';padding:3px 0;"><b>'+escapeHtml(c.name)+'</b> · '+escapeHtml(hubDay(c.s.shift_date)+' · '+hubTimeRange(c.s.start_time,c.s.end_time))+' · '+escapeHtml(c.why)+'</div>'; }
         var h='';
         if(hard.length){ h+='<div style="background:#fdeaea;border:1px solid #f3c2cb;border-radius:10px;padding:10px 12px;margin-bottom:10px;"><div style="font-weight:800;color:#a01b3e;font-size:13px;margin-bottom:6px;">&#9940; Must be fixed before publishing</div>'+hard.map(function(c){return row(c,'#7a1f33');}).join('')+'<div style="font-size:11.5px;color:#a01b3e;margin-top:6px;">These are legal or food-safety limits and cannot be overridden. Fix the shifts, then publish.</div></div>'; }
         if(soft.length){ h+='<div style="background:#fff8ec;border:1px solid #f1d9a8;border-radius:10px;padding:10px 12px;margin-bottom:10px;"><div style="font-weight:800;color:#854F0B;font-size:13px;margin-bottom:6px;">&#9888;&#65039; Warnings &mdash; you can override with a reason</div>'+soft.map(function(c){return row(c,'#6b5320');}).join('')+'<label style="display:block;font-size:12px;color:#6b5320;margin-top:8px;">Reason for overriding (required &mdash; saved for the record)</label><textarea id="pubGateReason" oninput="schedPubReasonInput()" rows="2" style="width:100%;padding:8px;border:1px solid #e0c896;border-radius:8px;box-sizing:border-box;font-size:13px;"></textarea></div>'; }
@@ -1189,10 +1201,11 @@
     }
     function schedCopyLastWeek() {
         const to = schedFmt(schedState.weekStart); const from = schedFmt(schedAddDays(schedState.weekStart,-7));
-        if (!confirm("Copy last week's shifts into this week?")) return;
+        hubAsk({ title:'Copy last week?', text:'Copy the shifts from '+hubWeek(schedAddDays(schedState.weekStart,-7))+' into '+hubWeek(schedState.weekStart)+' at '+schedState.location+'.', yes:'Copy shifts', no:'Cancel' }, function(){
         withPin(function(pin){
             supabaseClient.rpc('app_sched_copy_week', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_from_week: from, p_to_week: to })
-            .then(({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } alert('Copied ' + (data||0) + ' shift(s) into this week.'); fetchScheduleWeek(); });
+            .then(({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } schedToast('Copied ' + (data||0) + ' shift' + ((data||0)===1?'':'s') + ' into ' + hubWeek(schedState.weekStart) + '.'); fetchScheduleWeek(); });
+        });
         });
     }
     /* ===== Scheduler: named templates ===== */
@@ -1240,7 +1253,7 @@
     }
     function applySchedTemplate(i){
         var t=(window._schedTpls||[])[i]; if(!t) return;
-        if(!confirm('Load "'+(t.name||'')+'" into the week of '+schedFmt(schedState.weekStart)+'? It adds the template shifts to this week.')) return;
+        if(!confirm('Load "'+(t.name||'')+'" into '+hubWeek(schedState.weekStart)+'? It adds the template shifts to this week.')) return;
         var msg=document.getElementById('schedTplMsg'); msg.style.color='#5b6472'; msg.textContent='Loading template&hellip;';
         withPin(function(pin){
             supabaseClient.rpc('app_template_get',{p_username:currentUser.username,p_password:pin,p_id:t.id}).then(function(r){

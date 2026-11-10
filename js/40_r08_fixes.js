@@ -109,11 +109,11 @@
     // 1) SCHEDULE CONFLICTS — reader UI for the write-only table
     // ============================================================
     function conflictRowHtml(c){
-        var when=''; try{ when=c.created_at?new Date(c.created_at).toLocaleDateString():''; }catch(e){}
+        var when=''; try{ when=c.created_at?hubDay(new Date(c.created_at)):''; }catch(e){}
         return '<div style="padding:8px 0;border-bottom:1px solid #f0eef4;">'
             + '<div style="display:flex;align-items:center;gap:8px;">'
             +   '<b style="flex:1;font-size:13.5px;color:#1f2a44;">'+esc(c.employee_name||('#'+c.employee_id))+'</b>'
-            +   '<span style="font-size:11px;color:#8a94a6;">week of '+esc(String(c.week_start||'').slice(0,10))+(when?(' &middot; sent '+esc(when)):'')+'</span>'
+            +   '<span style="font-size:11px;color:#8a94a6;">'+esc(hubWeek(String(c.week_start||'').slice(0,10)))+(when?(' &middot; sent '+esc(when)):'')+'</span>'
             +   '<button onclick="r08.resolveConflict('+(parseInt(c.id,10)||0)+')" style="background:#e8f5ec;color:#1b7a3d;border:none;border-radius:8px;padding:5px 10px;font-size:11.5px;font-weight:800;cursor:pointer;">Resolved</button>'
             + '</div>'
             + '<div style="font-size:13px;color:#33404e;margin-top:3px;">'+(c.note?esc(c.note):'<i style="color:#8a94a6;">(no details typed)</i>')+'</div>'

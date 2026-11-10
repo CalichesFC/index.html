@@ -1078,7 +1078,8 @@
 
         function showScoopyOnboarding() {
             // Don't show once KB has been completed at least once
-            if (localStorage.getItem('scoopy_kb_completed')) return;
+            if (localStorage.getItem('scoopy_kb_completed') || localStorage.getItem('scoopy_kb_prompted')) return;
+            try { localStorage.setItem('scoopy_kb_prompted', '1'); } catch (e) {}
             // Respect "Maybe Later" snooze (3 days)
             const snoozed = localStorage.getItem('scoopy_kb_snoozed');
             if (snoozed && (Date.now() - parseInt(snoozed)) < 3*24*60*60*1000) return;

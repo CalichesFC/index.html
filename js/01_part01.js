@@ -5,6 +5,65 @@
     const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
     const APP_VERSION = '2026.07.25.1044';
+
+    /* ── One way to write dates and times across scheduling (Nov 2026) ──
+       hubDay('2026-11-11') -> "Wed 11/11"     hubTime('17:00:00') -> "5pm"
+       hubTimeRange('17:00','22:30') -> "5–10:30pm"   hubWeek('2026-11-09') -> "Nov 9–15"
+       hubWhen(timestamp) -> "Wed 11/11, 5:04pm"
+       hubAsk({title, text|html, yes, no}, onYes) -> the Hub's own yes/no sheet (no browser pop-up) */
+    var HUB_DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], HUB_MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    function hubParseDate(v){
+        if(v instanceof Date) return isNaN(v.getTime())?null:v;
+        var s=String(v==null?'':v).trim(); if(!s) return null;
+        var m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/); if(m) return new Date(+m[1],+m[2]-1,+m[3]);
+        var d=new Date(s); return isNaN(d.getTime())?null:d;
+    }
+    function hubDay(v){ var d=hubParseDate(v); return d ? HUB_DOW[d.getDay()]+' '+(d.getMonth()+1)+'/'+d.getDate() : String(v==null?'':v); }
+    function hubTime(t){
+        if(t==null||t==='') return '';
+        var h,m,p;
+        if(t instanceof Date){ if(isNaN(t.getTime())) return ''; h=t.getHours(); m=t.getMinutes(); }
+        else if((p=String(t).match(/^\s*(\d{1,2}):(\d{2})/))){ h=+p[1]; m=+p[2]; }
+        else { var d=new Date(t); if(isNaN(d.getTime())) return String(t); h=d.getHours(); m=d.getMinutes(); }
+        var hh=h%12; if(hh===0) hh=12;
+        return hh+(m?':'+(m<10?'0':'')+m:'')+(h<12?'am':'pm');
+    }
+    function hubTimeRange(a,b){
+        var x=hubTime(a), y=hubTime(b); if(!x||!y) return x||y;
+        return (x.slice(-2)===y.slice(-2) ? x.slice(0,-2) : x)+'–'+y;
+    }
+    function hubWeek(ws,we){
+        var a=hubParseDate(ws); if(!a) return String(ws==null?'':ws);
+        var b=hubParseDate(we); if(!b) b=new Date(a.getFullYear(),a.getMonth(),a.getDate()+6);
+        return HUB_MON[a.getMonth()]+' '+a.getDate()+'–'+(b.getMonth()===a.getMonth()?'':HUB_MON[b.getMonth()]+' ')+b.getDate();
+    }
+    function hubWhen(ts){ var d=hubParseDate(ts); return d ? hubDay(d)+', '+hubTime(d) : String(ts==null?'':ts); }
+    function hubAsk(o, onYes){
+        o=o||{}; var old=document.getElementById('hubAskSheet'); if(old&&old.parentNode) old.parentNode.removeChild(old);
+        var wide=(window.innerWidth||0)>600;
+        var ov=document.createElement('div'); ov.id='hubAskSheet';
+        ov.style.cssText='position:fixed;inset:0;background:rgba(18,20,28,.45);z-index:2147483000;display:flex;justify-content:center;align-items:'+(wide?'center':'flex-end')+';padding:'+(wide?'16px':'0')+';box-sizing:border-box;';
+        ov.innerHTML='<div role="dialog" aria-modal="true" aria-labelledby="hubAskTitle" style="background:#fff;width:100%;max-width:460px;box-sizing:border-box;border-radius:'+(wide?'18px':'18px 18px 0 0')+';padding:20px 18px calc(16px + env(safe-area-inset-bottom,0px));box-shadow:0 -8px 30px rgba(0,0,0,.18);text-align:left;">'
+            +'<div id="hubAskTitle" style="font-size:17px;font-weight:800;color:#1f2a44;margin-bottom:6px;"></div>'
+            +'<div id="hubAskBody" style="font-size:14px;line-height:1.45;color:#3d4757;margin-bottom:16px;"></div>'
+            +'<div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;">'
+            +'<button type="button" id="hubAskNo" style="background:none;border:none;color:#5b6675;font-size:14px;font-weight:700;padding:12px 14px;cursor:pointer;min-height:44px;font-family:inherit;"></button>'
+            +'<button type="button" id="hubAskYes" style="background:var(--caliches-pink,#ec3e7e);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;padding:12px 18px;cursor:pointer;min-height:44px;font-family:inherit;"></button>'
+            +'</div></div>';
+        document.body.appendChild(ov);
+        ov.querySelector('#hubAskTitle').textContent=o.title||'Are you sure?';
+        var body=ov.querySelector('#hubAskBody'); if(o.html) body.innerHTML=o.html; else body.textContent=o.text||'';
+        var yes=ov.querySelector('#hubAskYes'), no=ov.querySelector('#hubAskNo');
+        yes.textContent=o.yes||'OK'; no.textContent=o.no||'Cancel';
+        function key(e){ if(e.key==='Escape') close(); }
+        function close(){ document.removeEventListener('keydown',key); if(ov.parentNode) ov.parentNode.removeChild(ov); }
+        document.addEventListener('keydown',key);
+        ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+        no.onclick=close;
+        yes.onclick=function(){ close(); try{ if(onYes) onYes(ov); }catch(e){ console.error(e); } };
+        setTimeout(function(){ try{ var f=o.focus&&ov.querySelector(o.focus); (f||yes).focus(); }catch(e){} },30);
+    }
+
     // Which database migration level this code expects. Stamped by stamp.ps1
     // from the highest file in migrations/. Lets you tell, from the running
     // app, which database state it was built against -- not just which code.
@@ -231,8 +290,8 @@
     }
     function maintSeg(which) {
         var rep = (which === 'report');
-        var pr = document.getElementById('maintPaneReport'); if (pr) pr.style.display = rep ? 'block' : 'none';
-        var pb = document.getElementById('maintPaneBoard'); if (pb) pb.style.display = rep ? 'none' : 'block';
+        var pr = document.getElementById('maintPaneReport'); if (pr) pr.style.display = rep ? '' : 'none';
+        var pb = document.getElementById('maintPaneBoard'); if (pb) pb.style.display = rep ? 'none' : '';
         var br = document.getElementById('maintSegReport'); if (br) br.classList.toggle('on', rep);
         var bb = document.getElementById('maintSegBoard'); if (bb) bb.classList.toggle('on', !rep);
     }
@@ -461,6 +520,7 @@
         var admin = (r === 'Admin Manager') || (currentUser && currentUser.is_developer === true);
         var setD = function(id, on, disp) { var e = document.getElementById(id); if (e) e.style.display = on ? (disp || 'block') : 'none'; };
         setD('schedSegBuild', mgr, 'block');
+        setD('schedSegBar', mgr, 'flex');
         setD('btn-scheduling', mgr, 'block');
         setD('schedTimesheetsBtn', mgr, 'block');
         setD('schedRosterBtn', (typeof permAllow==='function' ? permAllow('roster', admin) : admin), 'block');
@@ -470,8 +530,8 @@
     }
     function schedSeg(which) {
         var mine = (which === 'mine');
-        var pm = document.getElementById('schedPaneMine'); if (pm) pm.style.display = mine ? 'block' : 'none';
-        var pb = document.getElementById('schedPaneBuild'); if (pb) pb.style.display = mine ? 'none' : 'block';
+        var pm = document.getElementById('schedPaneMine'); if (pm) pm.style.display = mine ? '' : 'none';
+        var pb = document.getElementById('schedPaneBuild'); if (pb) pb.style.display = mine ? 'none' : '';
         var bm = document.getElementById('schedSegMine'); if (bm) bm.classList.toggle('on', mine);
         var bb = document.getElementById('schedSegBuild'); if (bb) bb.classList.toggle('on', !mine);
     }
@@ -485,11 +545,11 @@
                 var sh = d.shifts || [];
                 if (typeof empHomeState === 'object' && empHomeState) empHomeState.shifts = sh;
                 if (!sh.length) { c.innerHTML = '<div class="home-card"><p style="margin:0;color:#445;font-size:13px;">No upcoming shifts scheduled &mdash; enjoy the break! &#127846;</p></div>'; return; }
-                var h = '<div class="home-card"><div class="home-card-label">MY UPCOMING SHIFTS</div>';
+                var h = '<div class="home-card" style="text-align:left;"><div class="home-card-label">MY UPCOMING SHIFTS</div>';
                 sh.forEach(function(s, i) {
                     h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;' + (i < sh.length - 1 ? 'border-bottom:1px solid #eee;' : '') + '">' +
-                        '<span style="font-size:14px;color:#333;">' + escapeHtml((s.date || '') + '  ' + (s.start || '') + '-' + (s.end || '') + (s.location ? ('  @ ' + s.location) : '')) + '</span>' +
-                        '<button onclick="openSwap(' + s.id + ',' + i + ')" style="background:#0d6eaf;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:bold;cursor:pointer;white-space:nowrap;">Request cover</button></div>';
+                        '<span style="flex:1;min-width:0;text-align:left;"><b style="display:block;font-size:14.5px;color:#1f2a44;">' + escapeHtml(hubDay(s.date) + ' \u00b7 ' + hubTimeRange(s.start, s.end)) + '</b>' + (s.location ? '<span style="font-size:12.5px;color:#6b7686;">' + escapeHtml(s.location) + '</span>' : '') + '</span>' +
+                        '<button onclick="openSwap(' + s.id + ',' + i + ')" style="background:#0d6eaf;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:bold;cursor:pointer;white-space:nowrap;">Request a cover</button></div>';
                 });
                 h += '</div>'; c.innerHTML = h;
             }).catch(function() { c.innerHTML = '<p style="color:#6b7686;font-size:13px;text-align:center;padding:10px;">Connection error.</p>'; });
@@ -1180,7 +1240,7 @@
             } else {
                 var s = shifts[0];
                 h = '<div class="home-card"><div style="display:flex;justify-content:space-between;align-items:center;"><div class="home-card-label">YOUR NEXT SHIFT</div><span style="font-size:18px;">&#128197;</span></div>' +
-                    '<div style="font-size:17px;font-weight:800;color:var(--caliches-blue);margin-top:4px;">' + escapeHtml(s.date || '') + ' &middot; ' + escapeHtml((s.start || '') + '-' + (s.end || '')) + '</div>' +
+                    '<div style="font-size:17px;font-weight:800;color:var(--caliches-blue);margin-top:4px;">' + escapeHtml(hubDay(s.date)) + ' &middot; ' + escapeHtml(hubTimeRange(s.start, s.end)) + '</div>' +
                     (s.location ? '<div style="font-size:13px;color:#7a8aa0;">' + escapeHtml(s.location) + '</div>' : '') + '</div>';
             }
         }
