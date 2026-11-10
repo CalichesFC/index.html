@@ -301,6 +301,9 @@
         }catch(e){}
     }
     function loadPermMatrix(){
+        // RETIRED (2026-11-09): this advisory matrix never changed a live gate and sat right next to
+        // the real "Access & permissions" editor (js/39). One place to set access now -- keep it hidden.
+        paint('opuPermPanel',''); adminSettle('perm',false); return;
         paint('opuPermPanel', card('&#128272; Permission Matrix (advisory)', '<div style="font-size:12.5px;color:#6b7686;">Loading&hellip;</div>', '#3b2f6b'));
         rpc('app_perm_matrix_get', {}, function(d){
             try{

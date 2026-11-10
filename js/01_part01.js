@@ -152,6 +152,8 @@
         // Hard gate: only a real leadership/owner/dev account may set an override.
         if(!canUseViewAs()){ window._viewAsRole=null; }
         else { window._viewAsRole = (r && r!==((currentUser&&currentUser.role)||'')) ? r : null; }
+        // Load that role's Roles & Permissions switches; the menu redraws again when they arrive.
+        try{ if(window._viewAsRole && typeof loadViewAsCaps==='function') loadViewAsCaps(window._viewAsRole); }catch(e){}
         try{ if(typeof applyRoleUI==='function') applyRoleUI(); }catch(e){}
         try{ if(typeof applyFormPermissions==='function') applyFormPermissions(); }catch(e){}
         try{ renderViewAsBanner(); }catch(e){}
@@ -461,7 +463,7 @@
         setD('schedSegBuild', mgr, 'block');
         setD('btn-scheduling', mgr, 'block');
         setD('schedTimesheetsBtn', mgr, 'block');
-        setD('schedRosterBtn', admin, 'block');
+        setD('schedRosterBtn', (typeof permAllow==='function' ? permAllow('roster', admin) : admin), 'block');
         schedSeg('mine');
         loadSchedMyShifts();
         schedInitDragReorder();

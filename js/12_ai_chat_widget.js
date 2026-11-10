@@ -1167,7 +1167,7 @@
     /* ---------- TILE VISIBILITY + REGISTRY ---------- */
     function p4ApplyVis(){
         try{
-            var lb=document.getElementById('btn-logbook'); if(lb) lb.style.display=p4Mgr()?'block':'none';
+            var lb=document.getElementById('btn-logbook'); if(lb) lb.style.display=((typeof permAllow==='function')?permAllow('logbook', p4Mgr()):p4Mgr())?'block':'none'; /* follows Roles & Permissions (see_logbook) */
             p4MyAttMount();
         }catch(e){}
     }

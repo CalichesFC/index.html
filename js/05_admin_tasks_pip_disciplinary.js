@@ -527,13 +527,14 @@
         DASH_ALLOW.live = permAllow('admin_dash', (devOverride || role === 'Admin Manager'));
         var adminDashBtn = document.getElementById('adminDashBtn'); if (adminDashBtn) adminDashBtn.style.display = 'none';
         var _adminConsoleBtn = document.getElementById('btn-admin-console'); if (_adminConsoleBtn) _adminConsoleBtn.style.display = permAllow('admin_console', (devOverride || role === 'Admin Manager' || role === 'Vice President/Co-Owner')) ? 'block' : 'none';
-        var _permMxBtn=document.getElementById('btn-permMatrix'); if(_permMxBtn) _permMxBtn.style.display=(devOverride || role === 'Admin Manager' || role === 'Vice President/Co-Owner') ? 'block' : 'none';
+        /* Roles & Permissions: only people given "Change roles & permissions" (a per-person switch; Aaron as owner always has it). Hidden in a "View as" preview. */
+        var _permMxBtn=document.getElementById('btn-permMatrix'); if(_permMxBtn){ var _canPerm = window._viewAsRole ? false : ((currentUser.caps && Object.prototype.hasOwnProperty.call(currentUser.caps,'edit_permissions')) ? currentUser.caps.edit_permissions===true : (devOverride || role === 'Admin Manager' || role === 'Vice President/Co-Owner')); _permMxBtn.style.display=_canPerm ? 'block' : 'none'; }
         const salesBtn = document.getElementById('salesBtn');
         if (salesBtn) salesBtn.style.display = permAllow('sales', (devOverride || isManager)) ? 'block' : 'none';
         const primeCostBtn = document.getElementById('primeCostBtn');
         if (primeCostBtn) primeCostBtn.style.display = permAllow('prime_cost', (devOverride || isManager)) ? 'block' : 'none';
         const requestsBtn = document.getElementById('requestsBtn');
-        if (requestsBtn) requestsBtn.style.display = permAllow('requests', (devOverride || isManager || !!(currentUser.caps && currentUser.caps.approve_cover))) ? 'block' : 'none';
+        if (requestsBtn) requestsBtn.style.display = (permAllow('requests', (devOverride || isManager)) || permCap('approve_cover')) ? 'block' : 'none';
         const assignTaskBtn = document.getElementById('assignTaskBtn');
         if (assignTaskBtn) assignTaskBtn.style.display = permAllow('assign_task', (devOverride || isManager)) ? 'block' : 'none';
         // ── Disciplinary Actions: Shift Lead and above ──
@@ -544,7 +545,9 @@
         const preshiftBtn = document.getElementById('btn-preshift');
         if (preshiftBtn) preshiftBtn.style.display = permAllow('preshift', (devOverride || isManager || role === 'Shift Lead')) ? 'block' : 'none';
         const crewTrainerBtn = document.getElementById('btn-crewtrainer');
-        if (crewTrainerBtn) crewTrainerBtn.style.display = permAllow('crew_trainer', (devOverride || isManager || role === 'Shift Lead' || /trainer/i.test(role||''))) ? 'block' : 'none';
+        /* Training stays hidden until it's ready (Issac 2026-11-10): leadership only unless a role or person is switched on. */
+        if (crewTrainerBtn) crewTrainerBtn.style.display = permAllow('crew_trainer', (devOverride || role === 'Admin Manager')) ? 'block' : 'none';
+        var _trnBtn=document.getElementById('btn-training'); if(_trnBtn) _trnBtn.style.display=permAllow('training', (devOverride || role === 'Admin Manager'))?'block':'none';
         const availApprBtn = document.getElementById('btn-availApprovals');
         if (availApprBtn) availApprBtn.style.display = permAllow('avail_approvals', (devOverride || isManager || role === 'Shift Lead')) ? 'block' : 'none';
         // ── Pop-In & Inventory: management only (Shift Lead and above / store managers) ──
@@ -559,6 +562,7 @@
         if (kbBtn) kbBtn.style.display = permAllow('knowledge_base', (devOverride || role === 'Admin Manager')) ? 'block' : 'none';
         const rosterBtn = document.getElementById('rosterBtn');
         if (rosterBtn) rosterBtn.style.display = permAllow('roster', (devOverride || role === 'Admin Manager')) ? 'block' : 'none';
+        var _srBtn=document.getElementById('schedRosterBtn'); if(_srBtn) _srBtn.style.display = permAllow('roster', (devOverride || role === 'Admin Manager')) ? 'block' : 'none';
         const celebrationsBtn = document.getElementById('celebrationsBtn');
         if (celebrationsBtn) celebrationsBtn.style.display = permAllow('celebrations', (devOverride || isManager || role === 'Shift Lead')) ? 'block' : 'none';
         const shortageTrendsBtn = document.getElementById('shortageTrendsBtn');
@@ -566,15 +570,15 @@
         var _teamDevBtn=document.getElementById('teamDevBtn'); if(_teamDevBtn) _teamDevBtn.style.display=permAllow('team_dev', (devOverride||isManager))?'block':'none';
         var _frBtn=document.getElementById('btn-fundraiserHub'); if(_frBtn) _frBtn.style.display=permAllow('fundraiser', (devOverride||isManager))?'block':'none';
         /* Single marketing door (2026-07-13): role union of the old v1 + v2 tiles ('Office' added from v2). */
-        var _mktBtn=document.getElementById('btn-marketingHub'); if(_mktBtn) _mktBtn.style.display=(permAllow('marketing', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Marketing Manager','Designer/Creative'].indexOf(role)>=0))||permAllow('marketing_v2', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Marketing Manager','Office'].indexOf(role)>=0)))?'block':'none';
-        var _asBtn=document.getElementById('tileAppSettings'); if(_asBtn) _asBtn.style.display=(devOverride||isManager||role==='Admin Manager'||role==='Vice President/Co-Owner')?'block':'none';
+        var _mktBtn=document.getElementById('btn-marketingHub'); if(_mktBtn){ var _mkOn=permAllow('marketing', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Marketing Manager','Designer/Creative'].indexOf(role)>=0)); if(!_mkOn && permSwitch('marketing')===undefined) _mkOn=permAllow('marketing_v2', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Marketing Manager','Office'].indexOf(role)>=0)); _mktBtn.style.display=_mkOn?'block':'none'; } /* one switch (see_marketing) once Roles & Permissions has loaded */
+        var _asBtn=document.getElementById('tileAppSettings'); if(_asBtn) _asBtn.style.display=permAllow('app_settings', (devOverride||isManager||role==='Admin Manager'||role==='Vice President/Co-Owner'))?'block':'none';
         var _tgBtn=document.getElementById('btn-teamGrowth'); if(_tgBtn) _tgBtn.style.display=permAllow('team_growth', true)?'block':'none';
         var _drBtn=document.getElementById('btn-dailyReport'); if(_drBtn) _drBtn.style.display=permAllow('daily_report', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Shift Lead','Shift Leader','Office'].indexOf(role)>=0))?'block':'none';
         var _mbBtn=document.getElementById('btn-maintBilling'); if(_mbBtn) _mbBtn.style.display=permAllow('maint_billing', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Finance Approver','Maintenance Lead'].indexOf(role)>=0))?'block':'none';
         var _scBtn=document.getElementById('btn-shiftConsole'); if(_scBtn) _scBtn.style.display=permAllow('shift_console', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Shift Lead','Shift Leader','Office'].indexOf(role)>=0))?'block':'none';
         var _siBtn=document.getElementById('btn-siteInspection'); if(_siBtn) _siBtn.style.display=permAllow('site_inspection', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Shift Lead','Shift Leader'].indexOf(role)>=0))?'block':'none';
         var _omBtn=document.getElementById('btn-opsMeeting'); if(_omBtn) _omBtn.style.display=permAllow('ops_meeting', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Office'].indexOf(role)>=0))?'block':'none';
-        var _thBtn=document.getElementById('btn-trainingHub'); if(_thBtn) _thBtn.style.display=permAllow('training_hub', true)?'block':'none';
+        var _thBtn=document.getElementById('btn-trainingHub'); if(_thBtn) _thBtn.style.display=permAllow('training_hub', (devOverride || role === 'Admin Manager'))?'block':'none'; /* hidden until training is ready */
         var _wtBtn=document.getElementById('btn-writeupTemplates'); if(_wtBtn) _wtBtn.style.display=permAllow('writeup_templates', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Shift Lead','Shift Leader'].indexOf(role)>=0))?'block':'none';
         var _rrBtn=document.getElementById('btn-requestsRails'); if(_rrBtn) _rrBtn.style.display=permAllow('requests_rails', true)?'block':'none';
         var _ccBtn=document.getElementById('btn-commandCenter'); if(_ccBtn) _ccBtn.style.display='none'; // duplicate Store Intelligence tile retired — reach it via the Dashboards hub
@@ -601,7 +605,7 @@
 
         // ── Buttons within Maintenance tab ──
         document.getElementById('maintBoardBtn').style.display = 'none'; /* retired: Work Orders replaces the Maintenance Board (kept in code, hidden) */
-        var _vehBtn=document.getElementById('btn-vehicles'); if(_vehBtn) _vehBtn.style.display=((devOverride||isManager)&&maintBoardAllowed)?'block':'none'; /* Vehicles & Service: managers only, honors the old board's per-user access switch */
+        var _vehBtn=document.getElementById('btn-vehicles'); if(_vehBtn) _vehBtn.style.display=(permAllow('vehicles', (devOverride||isManager))&&maintBoardAllowed)?'block':'none'; /* Vehicles & Service: managers only, honors the old board's per-user access switch */
         var _woBtn=document.getElementById('btn-workorders'); if(_woBtn){ _woBtn.style.display='block'; /* Work Orders is now the single repair flow for all staff */ }
         document.getElementById('mySubmissionsBtn').style.display = (!devOverride && role === 'Maintenance') ? 'none' : 'block';
 
@@ -615,9 +619,9 @@
         const heroNameEl = document.getElementById('heroName');
         if (heroNameEl) heroNameEl.textContent = (currentUser.name || '').trim().split(' ')[0] || 'team';
         const quickAdminCard = document.getElementById('quickAdminCard');
-        if (quickAdminCard) quickAdminCard.style.display = (devOverride || isManager) ? 'block' : 'none';
+        if (quickAdminCard) quickAdminCard.style.display = permAllow('mgmt_tab', (devOverride || isManager)) ? 'block' : 'none';
         const sectionsAdminCard = document.getElementById('sectionsAdminCard');
-        if (sectionsAdminCard) sectionsAdminCard.style.display = (devOverride || isManager) ? 'block' : 'none';
+        if (sectionsAdminCard) sectionsAdminCard.style.display = permAllow('mgmt_tab', (devOverride || isManager)) ? 'block' : 'none';
         updateBioToggleBtn();
         updatePreviewToggleBtn();
         // Keep the "View as" role-preview control + banner in sync (gated to real

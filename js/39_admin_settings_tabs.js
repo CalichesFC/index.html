@@ -286,7 +286,7 @@
                 try{
                     var m=(err&&err.message)||'';
                     host.innerHTML='<div style="font-size:12.5px;color:#c0264b;">'
-                        + (/forbidden/i.test(m) ? 'Roles &amp; permissions is for Admin Managers.' : 'Could not load permissions right now.')
+                        + (/forbidden/i.test(m) ? 'Only people given “Change roles &amp; permissions” can open this.' : 'Could not load permissions right now.')
                         + '</div>';
                 }catch(e){}
             });
@@ -305,6 +305,57 @@
         return null;
     }
 
+    // Small "Saved" / "Not saved" note at the bottom of the screen, so it's seen wherever you scrolled.
+    function astToast(text, ok){
+        try{
+            var t=byId('astToast');
+            if(!t){ t=document.createElement('div'); t.id='astToast'; t.setAttribute('role','status');
+                t.style.cssText='position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:100070;padding:9px 16px;border-radius:999px;font-size:13px;font-weight:800;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.22);max-width:86vw;text-align:center;pointer-events:none;transition:opacity .2s;';
+                document.body.appendChild(t); }
+            t.style.background = ok ? GREEN : '#c0264b';
+            t.textContent = text; t.style.opacity='1'; t.style.display='block';
+            clearTimeout(t._h); t._h=setTimeout(function(){ try{ t.style.opacity='0'; setTimeout(function(){ t.style.display='none'; },220); }catch(e){} }, ok?1400:3600);
+        }catch(e){}
+    }
+
+    // One row = one switch. Menu switches are grouped by the tab their button lives on.
+    function permRow(cap, on, first){
+        return '<label style="display:flex;align-items:center;gap:10px;padding:10px 13px;'+(first?'':'border-top:1px solid #f3f4f8;')+'cursor:pointer;">'
+             + '<input type="checkbox" '+(on?'checked':'')+' onchange="ast.permToggle('+q(cap.key)+',this.checked)" style="width:17px;height:17px;cursor:pointer;flex:0 0 auto;">'
+             + '<span style="flex:1;min-width:0;">'
+             +   '<span style="font-size:13.5px;color:#26242b;">'+esc(cap.label)+'</span>'
+             +   (cap.descr? '<span style="display:block;font-size:11px;color:'+GREY+';line-height:1.35;">'+esc(cap.descr)+'</span>':'')
+             + '</span></label>';
+    }
+    function permBlock(title, sub, list, role, grouped){
+        if(!list.length) return '';
+        var onCount=0; for(var i=0;i<list.length;i++){ if(grantOf(role,list[i].key)) onCount++; }
+        var h='<div style="display:flex;align-items:baseline;gap:8px;margin:14px 2px 6px;">'
+             + '<b style="flex:1;font-size:13.5px;color:#1F2A44;">'+esc(title)+'</b>'
+             + '<span style="font-size:11px;color:'+GREY+';">'+onCount+' of '+list.length+' on</span></div>'
+             + (sub? '<div style="font-size:11.5px;color:'+GREY+';margin:-2px 2px 8px;line-height:1.45;">'+esc(sub)+'</div>' : '');
+        if(!grouped){
+            h+='<div style="background:#fff;border:1px solid #eef0f5;border-radius:10px;overflow:hidden;">';
+            for(var j=0;j<list.length;j++) h+=permRow(list[j], grantOf(role,list[j].key), j===0);
+            return h+'</div>';
+        }
+        var groups=[], byG={};
+        for(var k=0;k<list.length;k++){ var g=list[k].grp||'Other'; if(!byG[g]){ byG[g]=[]; groups.push(g); } byG[g].push(list[k]); }
+        // Buttons switched on inside the Admin tab do nothing while the Admin tab itself is off -- say so.
+        var adminTabOff = !grantOf(role,'see_mgmt_tab');
+        for(var gi=0;gi<groups.length;gi++){
+            var items=byG[groups[gi]];
+            var stranded=0;
+            if(adminTabOff && /admin tab/i.test(groups[gi])){ for(var x=0;x<items.length;x++){ if(items[x].key!=='see_mgmt_tab' && grantOf(role,items[x].key)) stranded++; } }
+            h+='<div style="font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:'+BLUE+';margin:10px 4px 5px;">'+esc(groups[gi])+'</div>'
+             + (stranded ? '<div style="background:#fff7e6;border:1px solid #f3d9a4;color:#8a5a00;border-radius:9px;padding:8px 11px;font-size:11.5px;line-height:1.45;margin:0 0 6px;">&#9888;&#65039; '+stranded+' button'+(stranded>1?'s are':' is')+' on here, but the Admin tab itself is off, so they can’t get to '+(stranded>1?'them':'it')+'. Turn on “The Admin tab itself” or move these off.</div>' : '')
+             + '<div style="background:#fff;border:1px solid #eef0f5;border-radius:10px;overflow:hidden;">';
+            for(var m=0;m<items.length;m++) h+=permRow(items[m], grantOf(role,items[m].key), m===0);
+            h+='</div>';
+        }
+        return h;
+    }
+
     function renderPerm(){
         try{
             var host=byId('ast-perm-host'); if(!host||!S.perm) return;
@@ -315,32 +366,32 @@
             }
             var body='';
             if(ro && ro.admin){
-                body = '<div style="background:#e8f5ec;border:1px solid #bfe6cc;border-radius:10px;padding:13px;color:'+GREEN+';font-size:13px;">'
-                     + esc(ro.label)+' always has full access. This protects admins from being locked out of the system. Pick another role to adjust its access.</div>';
+                body = '<div style="background:#e8f5ec;border:1px solid #bfe6cc;border-radius:10px;padding:13px;color:'+GREEN+';font-size:13px;line-height:1.5;">'
+                     + esc(ro.label)+' always sees and can do everything, so the people running the Hub can never be locked out. Pick another role to change it.</div>';
             } else {
-                body = '<div style="background:#fff;border:1px solid #eef0f5;border-radius:10px;overflow:hidden;">';
+                var menu=[], acts=[];
                 for(var c=0;c<caps.length;c++){
-                    var cap=caps[c], on=grantOf(role,cap.key);
-                    body += '<label style="display:flex;align-items:center;gap:10px;padding:10px 13px;'+(c?'border-top:1px solid #f3f4f8;':'')+'cursor:pointer;">'
-                          + '<input type="checkbox" '+(on?'checked':'')+' onchange="ast.permToggle('+q(cap.key)+',this.checked)" style="width:17px;height:17px;cursor:pointer;">'
-                          + '<span style="flex:1;min-width:0;">'
-                          +   '<span style="font-size:13.5px;color:#26242b;">'+esc(cap.label)+'</span>'
-                          +   (cap.descr? '<span style="display:block;font-size:11px;color:'+GREY+';">'+esc(cap.descr)+'</span>':'')
-                          + '</span></label>';
+                    var kind=caps[c].kind||'action';
+                    if(kind==='person') continue;            // given to a person on their profile, never to a role
+                    if(kind==='menu') menu.push(caps[c]); else acts.push(caps[c]);
                 }
-                body += '</div>';
+                body = permBlock('Buttons they see', 'Each switch shows or hides one button on their menu.', menu, role, true)
+                     + permBlock('What they’re allowed to do', 'The server checks these every time, so turning one off really stops it.', acts, role, true);
             }
+            // In the full-screen editor the top bar already says "Roles & Permissions" -- don't say it twice.
+            var inModal = !!(host.closest && host.closest('#astPermModal'));
             host.innerHTML =
                 '<div style="background:#fff;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.05);overflow:hidden;">'
-              + '<div style="background:'+BLUE+';color:#fff;padding:10px 14px;"><b style="font-size:14.5px;">Access &amp; permissions</b></div>'
+              + (inModal ? '' : '<div style="background:'+BLUE+';color:#fff;padding:10px 14px;"><b style="font-size:14.5px;">Roles &amp; Permissions</b></div>')
               + '<div style="padding:12px 14px;">'
-              +   '<p style="font-size:12.5px;color:'+GREY+';margin:0 0 10px;line-height:1.5;">Roles and what each one can do. These are enforced on the server, not just hidden on the screen. Changes take effect at that person’s next screen refresh and every change is written to an audit log.</p>'
-              +   '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
+              +   '<p style="font-size:12.5px;color:'+GREY+';margin:0 0 10px;line-height:1.5;">Pick a role, then switch on what they see and what they can do. It saves as you tap, shows up the next time that person opens the Hub, and every change is logged.</p>'
+              +   '<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">'
               +     '<label style="font-size:12.5px;font-weight:800;color:#33303a;">Role</label>'
               +     '<select onchange="ast.permRole(this.value)" style="flex:1;min-width:150px;padding:8px;border:1px solid #d6deea;border-radius:8px;font-size:13.5px;">'+opts+'</select>'
               +   '</div>'
-              +   body
               +   (S.permMsg? note(S.permMsg.text, S.permMsg.ok?GREEN:'#c0264b') : '')
+              +   body
+              +   '<p style="font-size:11.5px;color:'+GREY+';margin:14px 2px 0;line-height:1.5;">To give or take something from just one person, open their profile in the Employee Roster.</p>'
               + '</div></div>';
         }catch(e){}
     }
@@ -354,17 +405,18 @@
                     var g=S.perm.grants||[], found=false;
                     for(var i=0;i<g.length;i++){ if(g[i].role===role && g[i].cap===capKey){ g[i].allowed=!!checked; found=true; break; } }
                     if(!found) g.push({role:role, cap:capKey, allowed:!!checked});
-                    S.permMsg={ok:true, text:'Saved.'};
-                    // this may have changed OUR own capabilities — drop the cache
-                    CAP = {};
+                    S.permMsg=null; astToast('Saved', true);
+                    // this may have changed OUR own capabilities — drop the caches ("View as" previews too)
+                    CAP = {}; try{ window._viewAsCaps = {}; }catch(e){}
                     renderPerm();
                 }catch(e){}
             }, function(err){
                 var m=(err&&err.message)||'';
-                S.permMsg={ok:false, text: /lockout|admin-tier/i.test(m) ? 'Admin roles can’t have access removed — that would lock everyone out.'
-                                        : /forbidden/i.test(m) ? 'The server refused this change.'
-                                        : 'Could not save that change.'};
-                renderPerm();
+                astToast(/lockout|admin-tier/i.test(m) ? 'Admin roles can’t have access removed — that would lock everyone out.'
+                       : /person_only/i.test(m) ? 'That one is given to a person on their profile, not to a role.'
+                       : /forbidden/i.test(m) ? 'Not saved — the server refused this change.'
+                       : 'Not saved — check your connection and try again.', false);
+                renderPerm();   // the switch flips back to what's really saved
             });
         }catch(e){}
     }
@@ -393,7 +445,7 @@
             }
             ov.style.display='block';
             ov.innerHTML='<div style="background:'+BLUE+';color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;">'
-                       +   '<b style="flex:1;font-size:16px;">Access &amp; permissions</b>'
+                       +   '<b style="flex:1;font-size:16px;">Roles &amp; Permissions</b>'
                        +   '<button onclick="ast.closePerm()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;font-size:15px;">&times;</button>'
                        + '</div><div style="max-width:660px;margin:0 auto;padding:16px 16px 60px;"><div id="ast-perm-host"></div></div>';
             loadPerm();
@@ -507,40 +559,57 @@
         try{
             var host=byId('ast-prof-host'); if(!host||!P.data) return;
             var caps=P.data.capabilities||[];
-            var rows='';
-            for(var i=0;i<caps.length;i++){
-                var c=caps[i];
-                var ov = c.override;                       // true / false / null(follow role)
-                var eff = c.effective===true;
-                var state = (ov===true)?'allow':(ov===false)?'deny':'role';
-                var pill = (state==='role')
-                    ? '<span style="font-size:10.5px;color:'+GREY+';">follows role ('+(c.from_role?'on':'off')+')</span>'
-                    : (state==='allow'
-                        ? '<span style="font-size:10.5px;font-weight:800;color:'+GREEN+';">ALWAYS ALLOW</span>'
-                        : '<span style="font-size:10.5px;font-weight:800;color:#c0264b;">ALWAYS DENY</span>');
-                function btn(val,label,active,col){
-                    return '<button onclick="ast.profSet('+q(c.key)+','+val+')" style="background:'+(active?col:'#fff')+';color:'+(active?'#fff':GREY)+';border:1px solid '+(active?col:'#d7dbe2')+';border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:800;cursor:pointer;">'+label+'</button>';
-                }
-                rows += '<div style="display:flex;align-items:center;gap:8px;padding:9px 4px;'+(i?'border-top:1px solid #f0f2f6;':'')+'">'
-                      +   '<div style="flex:1;min-width:0;">'
-                      +     '<div style="font-size:13px;color:#26242b;">'+esc(c.label)+' '+pill+'</div>'
-                      +     (c.descr? '<div style="font-size:11px;color:'+GREY+';">'+esc(c.descr)+'</div>':'')
-                      +   '</div>'
-                      +   '<span style="font-size:11px;color:'+(eff?GREEN:GREY)+';font-weight:800;min-width:34px;text-align:right;">'+(eff?'CAN':'no')+'</span>'
-                      +   btn('null','Role', state==='role', '#5b6675')
-                      +   btn('true','Allow', state==='allow', GREEN)
-                      +   btn('false','Deny', state==='deny', '#c0264b')
-                      + '</div>';
+            var isOwner=(P.data.owner===true), isAdminRole=(P.data.admin_role===true);
+            var person=[], acts=[], menu=[];
+            for(var i=0;i<caps.length;i++){ var k=caps[i].kind||'action'; (k==='person'?person:(k==='menu'?menu:acts)).push(caps[i]); }
+
+            function btn(c,val,label,active,col){
+                return '<button onclick="ast.profSet('+q(c.key)+','+val+')" style="background:'+(active?col:'#fff')+';color:'+(active?'#fff':GREY)+';border:1px solid '+(active?col:'#d7dbe2')+';border-radius:7px;padding:5px 9px;font-size:11.5px;font-weight:800;cursor:pointer;">'+label+'</button>';
             }
+            function row(c, first){
+                var ov=c.override, eff=(c.effective===true), kind=c.kind||'action';
+                var state=(ov===true)?'allow':(ov===false)?'deny':'role';
+                // Owner: everything, always. Leadership / Admin role: everything except per-person switches.
+                var locked = isOwner || (isAdminRole && kind!=='person');
+                var pill;
+                if(locked) pill='<span style="font-size:10.5px;color:'+GREY+';">'+(isOwner?'owner':'from their role')+'</span>';
+                else if(kind==='person') pill = eff ? '<span style="font-size:10.5px;font-weight:800;color:'+GREEN+';">GIVEN</span>' : '';
+                else pill = (state==='role')
+                    ? '<span style="font-size:10.5px;color:'+GREY+';">follows role ('+(c.from_role?'on':'off')+')</span>'
+                    : (state==='allow' ? '<span style="font-size:10.5px;font-weight:800;color:'+GREEN+';">ALWAYS ALLOW</span>'
+                                       : '<span style="font-size:10.5px;font-weight:800;color:#c0264b;">ALWAYS DENY</span>');
+                var ctl='';
+                if(!locked){
+                    ctl = (kind==='person')
+                        ? btn(c,'true','Give', eff, GREEN) + btn(c,'null','Take away', !eff, '#5b6675')
+                        : btn(c,'null','Role', state==='role', '#5b6675') + btn(c,'true','Allow', state==='allow', GREEN) + btn(c,'false','Deny', state==='deny', '#c0264b');
+                }
+                return '<div style="display:flex;align-items:center;gap:8px;padding:9px 10px;flex-wrap:wrap;'+(first?'':'border-top:1px solid #f0f2f6;')+'">'
+                     +   '<div style="flex:1;min-width:150px;">'
+                     +     '<div style="font-size:13px;color:#26242b;">'+esc(c.label)+' '+pill+'</div>'
+                     +     (c.descr? '<div style="font-size:11px;color:'+GREY+';line-height:1.35;">'+esc(c.descr)+'</div>':'')
+                     +   '</div>'
+                     +   '<span style="font-size:11px;color:'+(eff?GREEN:GREY)+';font-weight:800;min-width:34px;text-align:right;">'+(eff?'YES':'no')+'</span>'
+                     +   ctl
+                     + '</div>';
+            }
+            function list(arr){ var h='<div style="background:#fff;border:1px solid #eef0f5;border-radius:10px;overflow:hidden;">'; for(var j=0;j<arr.length;j++) h+=row(arr[j], j===0); return h+'</div>'; }
+            function head(t){ return '<div style="font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:'+BLUE+';margin:12px 2px 6px;">'+esc(t)+'</div>'; }
+            var menuOn=0; for(var m=0;m<menu.length;m++){ if(menu[m].effective===true) menuOn++; }
+
+            var intro = isOwner ? 'Owner — always sees and can do everything. Nothing here can turn that off.'
+                      : isAdminRole ? 'Their role (Leadership / Admin) already gives them everything except the switches given to a person, below.'
+                      : 'Their role decides this by default. Use Allow or Deny to change it for this one person only — everyone else with the same role is unaffected.';
             host.innerHTML =
                 '<div style="background:#fff;border:1px solid #e6ebf2;border-radius:16px;overflow:hidden;">'
               + '<div style="background:'+BLUE+';color:#fff;padding:10px 14px;display:flex;align-items:center;gap:8px;">'
               +   '<b style="flex:1;font-size:14px;">&#128274; Access for this person</b>'
-              +   '<span style="font-size:10.5px;opacity:.85;">admins only &middot; logged</span></div>'
-              + '<div style="padding:10px 14px;">'
-              +   '<p style="font-size:12px;color:'+GREY+';margin:0 0 8px;line-height:1.5;">Their role decides this by default. Use <b>Allow</b> or <b>Deny</b> to change it for this one person only — everyone else with the same role is unaffected.</p>'
-              +   rows
-              +   (P.msg? note(P.msg.text, P.msg.ok?GREEN:'#c0264b') : '')
+              +   '<span style="font-size:10.5px;opacity:.85;">logged</span></div>'
+              + '<div style="padding:10px 14px 12px;">'
+              +   '<p style="font-size:12px;color:'+GREY+';margin:0 0 4px;line-height:1.5;">'+esc(intro)+'</p>'
+              +   (person.length ? head('Given to this person') + list(person) : '')
+              +   (acts.length ? head('What they’re allowed to do') + list(acts) : '')
+              +   (menu.length ? '<details style="margin-top:12px;"><summary style="cursor:pointer;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:'+BLUE+';padding:4px 2px;">Buttons they see &middot; '+menuOn+' of '+menu.length+'</summary><div style="margin-top:6px;">'+list(menu)+'</div></details>' : '')
               + '</div></div>';
         }catch(e){}
     }
@@ -554,17 +623,18 @@
                     P.busy[capKey]=false;
                     var caps=(P.data&&P.data.capabilities)||[];
                     for(var i=0;i<caps.length;i++){ if(caps[i].key===capKey){
-                        caps[i].override = val;
-                        caps[i].effective = (val===null||val===undefined) ? (caps[i].from_role===true) : (val===true);
+                        caps[i].override = (val===undefined) ? null : val;
+                        caps[i].effective = (caps[i].kind==='person') ? (val===true)
+                                          : (val===null||val===undefined) ? (caps[i].from_role===true) : (val===true);
                     } }
-                    P.msg={ok:true, text:'Saved for this person.'};
+                    P.msg=null; astToast('Saved for this person', true);
                     CAP = {};   // their change may affect what WE can see
                     renderProfileAccess();
                 }catch(e){}
             }, function(err){
                 P.busy[capKey]=false;
                 var m=(err&&err.message)||'';
-                P.msg={ok:false, text: /forbidden/i.test(m)? 'Not saved — the server refused this change.' : 'Not saved — try again.'};
+                astToast(/owner/i.test(m) ? 'The owner always has full access.' : /forbidden/i.test(m)? 'Not saved — the server refused this change.' : 'Not saved — try again.', false);
                 renderProfileAccess();
             });
         }catch(e){}

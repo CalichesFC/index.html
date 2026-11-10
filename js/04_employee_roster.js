@@ -945,11 +945,62 @@
     // Added 'Assistant Manager' (2026-07-17) -- it's a real rung on the Roster's own promotion
     // ladder but had no row here, so an Admin Manager had no way to configure its tool access at all.
     var PERM_ROLES=['Manager','Store Manager','Assistant Manager','Finance Approver','Maintenance Lead','Shift Lead','Crew Trainer','Maintenance','Blue Apron','Crew Member'];
+    // MENU BUTTONS FOLLOW ROLES & PERMISSIONS (2026-11-09): every menu button has a switch
+    // ('see_<feature>') in Roles & Permissions, per role, saved on the server. Once this person's
+    // switches have loaded they decide; until then (or offline) the old job-title defaults below
+    // still apply, and those defaults are exactly what the switches were seeded with.
+    function permCapsNow(){
+        try{
+            if(window._viewAsRole){ var pv=window._viewAsCaps&&window._viewAsCaps[window._viewAsRole]; return (pv&&typeof pv==='object')?pv:null; }
+            return (currentUser&&currentUser.caps&&typeof currentUser.caps==='object')?currentUser.caps:null;
+        }catch(e){ return null; }
+    }
+    // true / false when the switch is known, undefined when it hasn't loaded.
+    function permSwitch(fid){
+        var c=permCapsNow(), k='see_'+fid;
+        if(c && Object.prototype.hasOwnProperty.call(c,k)) return c[k]===true;
+        return undefined;
+    }
+    // An "allowed to do" switch (approve_cover, manage_schedule...) for whoever the screen is showing.
+    function permCap(key){ var c=permCapsNow(); return !!(c && c[key]===true); }
+    function permCapPin(){
+        try{ if(typeof sessionPin!=='undefined' && sessionPin) return sessionPin; }catch(e){}
+        try{ if(localStorage.getItem('calichesKeep')!=='0'){ var p=sessionStorage.getItem('calichesPin'); if(p) return p; } }catch(e){}
+        return null;
+    }
+    // This person's switches, straight after login. Never asks for a PIN on its own.
+    function loadMyCaps(){
+        try{
+            var pin=permCapPin(); if(!currentUser||!currentUser.username||!pin) return;
+            var who=currentUser.username;
+            supabaseClient.rpc('app_my_capabilities',{p_username:who,p_password:pin}).then(function(r){
+                if(!r||r.error||!r.data||typeof r.data!=='object') return;
+                if(!currentUser||currentUser.username!==who) return;
+                currentUser.caps=r.data;
+                if(typeof applyRoleUI==='function'){ try{ applyRoleUI(); }catch(e){} }
+            }).catch(function(){});
+        }catch(e){}
+    }
+    // "View as": load that role's switches so the preview shows exactly what they'd see.
+    window._viewAsCaps = window._viewAsCaps || {};
+    function loadViewAsCaps(title){
+        try{
+            if(!title || window._viewAsCaps[title]) return;
+            var pin=permCapPin(); if(!currentUser||!currentUser.username||!pin) return;
+            supabaseClient.rpc('app_role_caps_for_title',{p_username:currentUser.username,p_password:pin,p_title:title}).then(function(r){
+                if(!r||r.error||!r.data||typeof r.data!=='object') return;
+                if(!r.data._role_key) return;            // a title the switches don't know: keep the old defaults
+                window._viewAsCaps[title]=r.data;
+                if(window._viewAsRole===title && typeof applyRoleUI==='function'){ try{ applyRoleUI(); }catch(e){} }
+            }).catch(function(){});
+        }catch(e){}
+    }
     function permAllow(fid, def){
         // Dev "allow everything" is suppressed while a "View as" preview is active, so
         // previewing as a lower role honestly reflects that role. Read path uses
         // effectiveRole(); with no override it equals currentUser.role (unchanged).
         try{ if(currentUser && currentUser.is_developer===true && (typeof isPreviewMode!=='function'||!isPreviewMode()) && !window._viewAsRole) return true; }catch(e){}
+        var sw=permSwitch(fid); if(sw!==undefined) return sw;
         var role=(typeof effectiveRole==='function' ? effectiveRole() : ((currentUser&&currentUser.role)||''));
         if(PERM_PROTECTED_ROLES.indexOf(role)>=0) return true;
         var o=PERM_OVR[role];
@@ -995,6 +1046,7 @@
                 if(r&&!r.error&&r.data){ var m={}; (r.data||[]).forEach(function(row){ try{ m[row.key]=JSON.parse(row.value||'{}')||{}; }catch(e){ m[row.key]={}; } }); PERM_OVR=m; if(typeof applyRoleUI==='function'){ try{ applyRoleUI(); }catch(e){} } }
             }).catch(function(){});
         }catch(e){}
+        loadMyCaps();
     }
     function pmxOv(){ var o=document.getElementById('permMatrixModal'); if(!o){ o=document.createElement('div'); o.id='permMatrixModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100050;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
     function pmxClose(){ var o=document.getElementById('permMatrixModal'); if(o) o.style.display='none'; }
