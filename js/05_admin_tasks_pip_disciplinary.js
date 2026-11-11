@@ -537,7 +537,7 @@
         const primeCostBtn = document.getElementById('primeCostBtn');
         if (primeCostBtn) primeCostBtn.style.display = permAllow('prime_cost', (devOverride || isManager)) ? 'block' : 'none';
         const requestsBtn = document.getElementById('requestsBtn');
-        if (requestsBtn) requestsBtn.style.display = (permAllow('requests', (devOverride || isManager)) || permCap('approve_cover')) ? 'block' : 'none';
+        if (requestsBtn) requestsBtn.style.display = (permAllow('requests', (devOverride || isManager)) || permCap('approve_cover') || permCap('approve_time_off')) ? 'block' : 'none';
         const assignTaskBtn = document.getElementById('assignTaskBtn');
         if (assignTaskBtn) assignTaskBtn.style.display = permAllow('assign_task', (devOverride || isManager)) ? 'block' : 'none';
         // ── Disciplinary Actions: Shift Lead and above ──
@@ -1135,7 +1135,8 @@
         c.innerHTML='<p style="text-align:center;padding:30px;color:#6b7686;">Loading requests...</p>';
         withPin(function(pin){
             supabaseClient.rpc('app_requests_pending',{p_username:currentUser.username,p_password:pin}).then(function(res){
-                if(res.error && /^unauthorized$/i.test(String(res.error.message||'')) && currentUser.caps && currentUser.caps.approve_cover && typeof covLoadManager==='function'){ c.innerHTML='<div id="covMgrBox"></div>'; covLoadManager(); return; }
+                // No time-off or cover switch: the page still opens and shows whatever this person can approve (availability).
+                if(res.error && /^unauthorized$/i.test(String(res.error.message||''))){ requestsRender({time_off:[],swaps:[],can_time_off:false}); return; }
                 if(res.error){ if(res.error.code==='42501') sessionPin=null; c.innerHTML='<p style="color:red;text-align:center;padding:20px;">Could not load: '+escapeHtml(res.error.message)+'</p>'; return; }
                 requestsRender(res.data||{});
             }).catch(function(){ c.innerHTML='<p style="color:red;text-align:center;padding:20px;">Connection error.</p>'; });
@@ -1144,8 +1145,12 @@
     function requestsRender(d) {
         var c=document.getElementById('requestsContent');
         var to=d.time_off||[], sw=d.swaps||[];
-        var html='<div id="covMgrBox"></div><div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
-            '<h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#127796; Pending Time-Off ('+to.length+')</h3>';
+        // Time off shows only for people with the "Approve time off" switch (the server sends can_time_off).
+        var showTO=(d.can_time_off!==false);
+        var html='<div id="covMgrBox"></div>';
+        if(showTO){
+        html+='<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
+            '<h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#127796; Time off ('+to.length+')</h3>';
         if(!to.length){ html+='<p style="color:#6b7686;font-size:13px;margin:0;">Nothing waiting on you. &#127881;</p>'; }
         else to.forEach(function(t,i){
             html+='<div style="padding:10px 0;'+(i<to.length-1?'border-bottom:1px solid #eee;':'')+'">' +
@@ -1155,6 +1160,7 @@
                 '<button onclick="reqDecide(\'time_off\','+t.id+',false)" style="background:#fff;color:#a01b3e;border:1.5px solid #f3c2cb;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Deny</button></div></div>';
         });
         html+='</div>';
+        }
         // Old can't-work list retired 2026-11-10: it only shows when a cover ask found nobody and was sent to the manager.
         if(sw.length){
         html+='<div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
@@ -1170,7 +1176,14 @@
         });
         html+='</div>';
         }
+        // Availability changes are approved here too (the same list the Availability Requests button opens).
+        var _ab=document.getElementById('btn-availApprovals');
+        var showAv=!!(_ab && _ab.style.display!=='none' && typeof loadAvailPending==='function');
+        if(showAv){ html+='<div id="availApprCard" style="background:#fff;border-radius:12px;padding:16px;margin-top:14px;box-shadow:0 4px 6px rgba(0,0,0,0.05);"><h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#128587; Availability changes</h3><div id="availPendingPage"></div></div>'; }
+        if(!showTO && !showAv && !sw.length && !(typeof permCap==='function' && permCap('approve_cover'))){ html+='<p style="text-align:center;color:#6b7686;padding:26px 10px;">Nothing here for you to approve.</p>'; }
         c.innerHTML=html;
+        if(showAv) loadAvailPending('availPendingPage');
+        if(window._reqScrollToAvail){ window._reqScrollToAvail=false; try{ var _ac=document.getElementById('availApprCard'); if(_ac) _ac.scrollIntoView({block:'start'}); }catch(e){} }
         if(typeof covLoadManager==='function') covLoadManager();
     }
     function reqDecide(type, id, approve, _note) {

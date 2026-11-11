@@ -588,7 +588,7 @@
     // Admin entry (#sectionsAdminCard) stays manager-gated in code, not just here.
     function hubNav(dest) {
         if (dest === 'home') { ensureMenuVisible(); switchMenuTab('home'); window.scrollTo(0,0); }
-        else if (dest === 'schedule') { if (typeof openScheduling === 'function') { openScheduling(); } else { ensureMenuVisible(); switchMenuTab('scheduling'); } window.scrollTo(0,0); }
+        else if (dest === 'schedule') { ensureMenuVisible(); switchMenuTab('scheduling'); window.scrollTo(0,0); }
         else if (dest === 'tasks') { openTasks(); }
         else if (dest === 'more') { ensureMenuVisible(); switchMenuTab('sections'); window.scrollTo(0,0); }
         else if (dest === 'work') { ensureMenuVisible(); switchMenuTab('operations'); window.scrollTo(0,0); }

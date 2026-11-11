@@ -352,12 +352,12 @@
             sum.parentNode.insertBefore(d,sum);
         }
         document.getElementById('p4tsCards').innerHTML=
-            p4CardO('&#9201; Overtime watch — over 38 hrs this week','Catch overtime before it happens. Open punches count as time-so-far.')+'<div id="p4tsOt" style="margin-top:4px;"><p style="color:#6b7686;font-size:13px;">Loading&hellip;</p></div></div>'+
+            p4CardO('&#9201; Overtime watch: '+(typeof cfgNum==='function'?cfgNum('targets','ot_near_hrs',36):36)+' hours or more this week','Catch overtime before it happens. It starts over '+(typeof cfgNum==='function'?cfgNum('targets','ot_threshold_hrs',40):40)+' hours. Open punches count as time so far.')+'<div id="p4tsOt" style="margin-top:4px;"><p style="color:#6b7686;font-size:13px;">Loading&hellip;</p></div></div>'+
             p4CardO('&#128564; Possible forgotten clock-outs','Punches still open 14+ hours after clock-in (last 30 days). Fix them in Punches.')+'<div id="p4tsOpen" style="margin-top:4px;"><p style="color:#6b7686;font-size:13px;">Loading&hellip;</p></div></div>'+
             '<div style="height:14px;"></div>';
         p4Rpc('app_ot_watch',{},function(d){
             var rows=d||[]; var el=document.getElementById('p4tsOt'); if(!el) return;
-            el.innerHTML=rows.length?rows.map(function(r){ return '<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:4px 0;border-bottom:1px solid var(--bd,#f0f0f0);"><span>'+p4Esc(r.name||'')+'</span><b style="color:'+(Number(r.hours)>=40?'#c0392b':'#854F0B')+';">'+Number(r.hours||0).toFixed(1)+' h</b></div>'; }).join(''):'<p style="color:#1f7a3d;font-size:13px;font-weight:700;">&#9989; No one is over 38 hours this week.</p>';
+            el.innerHTML=rows.length?rows.map(function(r){ return '<div style="display:flex;justify-content:space-between;font-size:13.5px;padding:4px 0;border-bottom:1px solid var(--bd,#f0f0f0);"><span>'+p4Esc(r.name||'')+'</span><b style="color:'+(Number(r.hours)>(typeof cfgNum==='function'?cfgNum('targets','ot_threshold_hrs',40):40)?'#c0392b':'#854F0B')+';">'+Number(r.hours||0).toFixed(1)+' h</b></div>'; }).join(''):'<p style="color:#1f7a3d;font-size:13px;font-weight:700;">&#9989; No one is over 38 hours this week.</p>';
         },function(m){ var el=document.getElementById('p4tsOt'); if(el) el.innerHTML='<p style="color:#c0392b;font-size:12.5px;">'+p4Esc(m)+'</p>'; });
         p4Rpc('app_open_punches',{},function(d){
             var rows=d||[]; var el=document.getElementById('p4tsOpen'); if(!el) return;

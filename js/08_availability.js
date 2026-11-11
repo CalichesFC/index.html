@@ -4,13 +4,13 @@
     var AVAIL_ORDER = [['Mon',1],['Tue',2],['Wed',3],['Thu',4],['Fri',5],['Sat',6],['Sun',0]];
     function availFmt(t){ return hubTime(t); }
     function availDowOf(ds){ var p=String(ds).split('-'); var d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2])); return d.getDay(); }
-    function availDescDay(d){ if(!d||!d.mode||d.mode==='all') return 'All day'; if(d.mode==='off') return 'Off'; return availFmt(d.from)+'–'+availFmt(d.to); }
+    function availDescDay(d){ if(!d||!d.mode||d.mode==='all') return 'All day'; if(d.mode==='off') return 'Off'; return (typeof hubTimeRange==='function') ? hubTimeRange(d.from,d.to) : (availFmt(d.from)+'–'+availFmt(d.to)); }
     function availSummary(days){ if(!days||!days.length) return 'Not set'; return AVAIL_ORDER.map(function(o){ return o[0]+' '+availDescDay(days[o[1]]); }).join(' · '); }
     function availCheck(empId, ds, st, en){
         var map=schedState.avail||{}; var days=map[empId]||map[String(empId)]; if(!days||!days.length) return null;
         var d=days[availDowOf(ds)]; if(!d) return null;
         if(d.mode==='off') return 'unavailable';
-        if(d.mode==='window'){ if(!d.from||!d.to) return null; if(st<d.from || en>d.to) return 'outside '+availFmt(d.from)+'–'+availFmt(d.to); }
+        if(d.mode==='window'){ if(!d.from||!d.to) return null; if(st<d.from || en>d.to) return 'outside '+((typeof hubTimeRange==='function') ? hubTimeRange(d.from,d.to) : (availFmt(d.from)+'–'+availFmt(d.to))); }
         return null;
     }
     // ----- Phase 3 compliance: readiness + NM teen-hours + cert -----
@@ -103,10 +103,14 @@
             }).catch(function(){ msg.style.color='#c0264b'; msg.textContent='Could not submit.'; });
         });
     }
-    function openAvailApprovals(){ document.getElementById('availApprovalsModal').style.display='flex'; loadAvailPending(); }
+    // Availability requests are approved on the Approvals page with time off and covers (one place for every approval).
+    function openAvailApprovals(){
+        if(typeof openRequests==='function' && document.getElementById('requestsView')){ window._reqScrollToAvail=true; openRequests(); return; }
+        document.getElementById('availApprovalsModal').style.display='flex'; loadAvailPending();
+    }
     function closeAvailApprovals(){ document.getElementById('availApprovalsModal').style.display='none'; }
-    function loadAvailPending(){
-        var box=document.getElementById('availPendingList'); if(!box) return;
+    function loadAvailPending(boxId){
+        var box=document.getElementById(boxId||'availPendingList'); if(!box) return;
         box.innerHTML='<p style="text-align:center;color:#6b7686;padding:18px;">Loading&hellip;</p>';
         withPin(function(pin){
             supabaseClient.rpc('app_availability_pending',{p_username:currentUser.username,p_password:pin}).then(function(r){
@@ -130,7 +134,9 @@
         withPin(function(pin){
             supabaseClient.rpc('app_availability_decide',{p_username:currentUser.username,p_password:pin,p_id:id,p_approve:approve,p_comment:cmt}).then(function(r){
                 if(r.error){ alert('Error: '+r.error.message); return; }
-                loadAvailPending(); if(typeof loadAvailBadge==='function') loadAvailBadge();
+                if(document.getElementById('availPendingPage')) loadAvailPending('availPendingPage');
+                var _am=document.getElementById('availApprovalsModal'); if(_am && _am.style.display==='flex') loadAvailPending();
+                if(typeof loadAvailBadge==='function') loadAvailBadge();
             });
         });
     }
