@@ -165,9 +165,8 @@
             <label style="display:flex;align-items:center;gap:8px;margin:-4px 0 18px;font-size:14px;color:#555;cursor:pointer;user-select:none;"><input type="checkbox" id="keepLoggedIn" checked style="width:18px;height:18px;accent-color:var(--caliches-blue);"> Keep me logged in on this device</label>
             <button type="button" id="loginBtn" class="save-btn blue-btn" style="margin-bottom:0;padding:18px;" onclick="attemptLogin()">ENTER HUB</button>
             <p id="loginError" style="color:var(--fail-red);display:none;margin-top:15px;font-weight:bold;font-size:14px;"></p>
-            <div style="margin-top:15px;display:flex;justify-content:space-between;padding:0 10px;">
+            <div style="margin-top:15px;display:flex;justify-content:center;padding:0 10px;">
                 <span class="text-link" onclick="openForgotPin()">Forgot PIN?</span>
-                <span class="text-link" onclick="toggleRegister()">Create Account</span>
             </div>
             <div style="text-align:center;margin-top:10px;"><span class="text-link" onclick="frOrgGate('','')" style="font-size:13px;color:#6b7686;">&#127991; Fundraiser organizer? Check your event</span></div>
         </form>
@@ -258,7 +257,7 @@
             <div id="homeDayCard" style="margin-top:2px;"><p style="text-align:center;color:#6b7686;font-size:13px;padding:14px;">Loading your day&hellip;</p></div>
 
             <!-- one-tap time clock -->
-            <button class="home-clock-btn" onclick="openTimeClock()"><span style="font-size:20px;">&#128337;</span> Time Clock</button>
+            <button id="homeClockBtn" class="home-clock-btn" style="display:none;" onclick="openTimeClock()"><span style="font-size:20px;">&#128337;</span> Time Clock</button>
 
             <!-- My Tasks (front and center) -->
             <div id="homeTasksCard" style="margin-top:14px;"></div>
@@ -325,8 +324,8 @@
                 <button id="requestsBtn" class="menu-btn" style="display:none;" onclick="openRequests()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128229;</span><b>Time-Off &amp; Cover Approvals</b><small>Review &amp; decide requests</small></button>
                 <button id="assignTaskBtn" class="menu-btn" style="display:none;" onclick="openTaskAssign()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128203;</span><b>Assign Task</b><small>Send tasks to the crew</small></button>
             </div>
-            <div class="sec-title" style="margin-top:8px;"><span class="tag">More in scheduling</span></div>
-            <button class="menu-btn" onclick="openTimeClock()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128337;</span><b>Time Clock</b><small>Clock in &amp; out</small></button>
+            <div id="schedMoreLbl" class="sec-title" style="margin-top:8px;display:none;"><span class="tag">More in scheduling</span></div>
+            <button id="btn-timeClock" class="menu-btn" style="display:none;" onclick="openTimeClock()"><span class="rchip staff">Staff</span><span class="tile-ic">&#128337;</span><b>Time Clock</b><small>Clock in &amp; out</small></button>
             <button id="schedTimesheetsBtn" class="menu-btn" style="display:none;" onclick="openTimesheets()"><span class="rchip mgr">Manager</span><span class="tile-ic">&#128202;</span><b>Timesheets</b><small>Hours &amp; overtime</small></button>
             <button id="schedRosterBtn" class="menu-btn" style="display:none;" onclick="openRoster()"><span class="rchip admin">Admin</span><span class="tile-ic">&#128101;</span><b>Employee Roster</b><small>Staff, logins &amp; stores</small></button>
         </div>
@@ -517,13 +516,12 @@
 
 <!-- EMPLOYEE HOME -->
 <div id="employeeHomeView" class="app-view">
-    <button class="back-btn" onclick="openMenu()">&#128281; Back to Hub Menu</button>
-    <div class="header" style="background:linear-gradient(135deg,var(--caliches-pink) 0%,var(--caliches-blue) 100%);">
-        <h1 style="font-size:40px;margin:10px 0;">&#127796;</h1>
-        <p style="font-size:18px;margin:0;font-weight:bold;text-transform:uppercase;">Time Off &amp; Covers</p>
+    <div class="hb-head">
+        <button class="hb-back" onclick="goBack()">&#8249; Back</button>
+        <div class="hb-ico">&#127796;</div>
+        <div><h2>Time Off &amp; Covers</h2><div class="hb-sub">Ask for time off and keep up with your cover requests</div></div>
     </div>
     <div class="container" style="max-width:760px;">
-        <div class="home-card" style="margin-bottom:12px;text-align:left;"><span class="home-card-label">HEADS UP</span><p style="margin:4px 0 0;font-size:13.5px;color:#444;">Your day now lives on the main <b>&#127968; Home</b> tab. <a href="#" onclick="hubNav('home');return false;" style="color:var(--caliches-blue);font-weight:800;">Take me there &rsaquo;</a></p></div>
         <div id="empHomeContent"><p style="text-align:center;padding:30px;color:#6b7686;">Loading your info...</p></div>
     </div>
 </div>
@@ -1176,7 +1174,8 @@
   .sp-nav a { box-sizing:border-box; display:flex; align-items:center; gap:9px; padding:10px 14px; color:#9fb0c9; text-decoration:none; cursor:pointer; border:0; background:none; font-size:13px; text-align:left; width:100%; }
   .sp-nav a.active { background:var(--caliches-pink); color:#fff; border-radius:0 18px 18px 0; margin-right:10px; width:calc(100% - 10px); font-weight:700; }
   .sp-nav a:hover:not(.active) { color:#fff; }
-  .sp-toolhdr { margin:10px 12px 4px; border-top:1px solid #28344f; padding-top:9px; font-size:10px; color:#7e90ad; text-transform:uppercase; letter-spacing:.4px; }
+  .sp-toolhdr { margin:10px 12px 4px; border-top:1px solid #28344f; padding-top:9px; font-size:11px; font-weight:700; color:#8fa1bd; text-transform:uppercase; letter-spacing:.5px; }
+  .sp-toolhdr.sp-first { border-top:0; margin-top:0; padding-top:2px; }
   .sp-back { margin-top:auto; padding:10px 14px 2px; color:#7e90ad; cursor:pointer; display:flex; align-items:center; gap:8px; background:none; border:0; font-size:13px; text-align:left; }
   .sp-main { flex:1; min-width:0; display:flex; flex-direction:column; }
   .sp-top { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 14px; border-bottom:1px solid var(--line,#e3e8ef); background:#fff; position:sticky; top:0; z-index:30; }
@@ -1245,23 +1244,35 @@
   .sp-daypick button.on { background:var(--caliches-pink); color:#fff; border-color:var(--caliches-pink); font-weight:700; }
   .sp-mrow { display:flex; align-items:center; gap:10px; padding:9px 12px; border-bottom:1px solid #eef1f5; }
   .sp-addbtn { border:1px dashed #c2cbd6; color:#7a828f; background:#fff; border-radius:8px; padding:7px 12px; font-size:12px; cursor:pointer; }
-  .sp-laborbar { position:sticky; bottom:0; background:#0f1830; color:#fff; padding:9px 14px; display:flex; justify-content:space-between; align-items:center; gap:10px; z-index:8; }
+  .sp-laborbar { position:sticky; bottom:0; background:#f6f8fb; color:#1f2a44; border-top:1px solid #d7dde6; box-shadow:0 -2px 8px rgba(15,24,48,.07); padding:9px 14px; display:flex; justify-content:space-between; align-items:center; gap:10px; z-index:8; }
   .sp-laborbar.wide { overflow-x:auto; }
   .sp-laborbar.wide.aligned { overflow-x:visible; justify-content:flex-start; gap:0; padding-left:0; padding-right:0; box-sizing:border-box; }
   .sp-laborbar.wide.aligned > * { box-sizing:border-box; padding-left:8px; padding-right:8px; }
   .shift-daychip { border:1.5px solid #185FA5; background:#fff; color:#185FA5; border-radius:999px; padding:6px 12px; font-size:13px; font-weight:700; line-height:1.2; cursor:pointer; }
   .shift-daychip.on { background:#185FA5; color:#fff; }
+  .shift-usualrow { display:flex; flex-wrap:wrap; gap:6px; }
+  .shift-usual { border:1.5px solid #c9d2de; background:#f6f8fb; color:#1f2a44; border-radius:999px; padding:8px 13px; font-size:13.5px; font-weight:700; line-height:1.2; cursor:pointer; font-family:inherit; min-height:36px; }
+  .shift-usual:hover { border-color:#106ab3; }
+  .shift-usual.on { background:#106ab3; border-color:#106ab3; color:#fff; }
+  .shift-usual:focus-visible { outline:2px solid #ec3e7e; outline-offset:2px; }
+  @media (max-width:480px){ .shift-usualrow { flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px; } .shift-usual { flex:none; white-space:nowrap; } }
   .shift-daychip:focus-visible { outline:2px solid #ec3e7e; outline-offset:2px; }
-  .sp-laborbar .lbl { font-size:10px; color:#9fb0c9; }
-  .sp-laborbar b { font-size:14px; }
-  .sp-laborbar .lcell { flex:1; min-width:84px; text-align:center; border-left:1px solid #28344f; padding:0 4px; }
-  .sp-pred { width:64px; background:#1b2742; border:1px solid #2c3a5c; border-radius:6px; color:#fff; font-size:12px; padding:3px 6px; text-align:center; }
+  .sp-laborbar .lbl { font-size:12px; color:#5b6675; }
+  .sp-laborbar b { font-size:14px; color:#1f2a44; }
+  .sp-laborbar .lrow { height:26px; display:flex; align-items:center; justify-content:center; gap:5px; font-size:13px; white-space:nowrap; }
+  .sp-laborbar .lhead .lrow { justify-content:flex-start; font-size:12.5px; color:#5b6675; font-weight:700; }
+  .sp-laborbar .lweek .lrow { justify-content:flex-end; }
+  .sp-laborbar .lpct { font-size:12.5px; font-weight:800; }
+  .sp-laborbar .ldash { color:#9aa3b0; }
+  .sp-tgt { width:46px; padding:3px 4px; font-size:12.5px; border:1px solid #c9d2de; border-radius:6px; text-align:center; background:#fff; color:#1f2a44; box-sizing:border-box; }
+  .sp-laborbar .lcell { flex:1; min-width:84px; text-align:center; border-left:1px solid #e3e8ef; padding:0 4px; }
+  .sp-pred { width:74px; max-width:100%; background:#fff; border:1px solid #c9d2de; border-radius:6px; color:#1f2a44; font-size:13px; padding:3px 6px; text-align:center; box-sizing:border-box; }
   .sched-ctx { position:fixed; z-index:99999; background:#fff; border:1px solid #d7dde6; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.18); width:168px; overflow:hidden; }
   .sched-ctx button { display:block; width:100%; text-align:left; border:0; border-bottom:1px solid #f0f2f5; background:#fff; padding:10px 13px; font-size:13px; cursor:pointer; color:#1f2a44; }
   .sched-ctx button:last-child { border-bottom:0; }
   .sched-ctx button:hover { background:#f5f7fa; }
   @media (max-width:820px){
-    .sp-rail { position:fixed; left:0; top:0; bottom:0; z-index:120; transform:translateX(-100%); transition:transform .2s; box-shadow:4px 0 24px rgba(0,0,0,.3); }
+    .sp-rail { position:fixed; left:0; top:0; bottom:0; z-index:120; transform:translateX(-100%); transition:transform .2s; box-shadow:4px 0 24px rgba(0,0,0,.3); overflow-y:auto; -webkit-overflow-scrolling:touch; }
     .sp.railopen .sp-rail { transform:translateX(0); }
     .sp.railopen::after { content:''; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:110; }
     .sp-ham { display:inline-block; }
@@ -1293,24 +1304,26 @@
         <select id="schedLocation" onchange="schedChangeLocation()" aria-label="Store location"></select>
       </div>
       <nav class="sp-nav" id="schedNavMgr">
+        <div class="sp-toolhdr sp-first">Build</div>
         <a class="active" data-nav="schedule" onclick="schedRailNav('schedule',this)">&#128197; Schedule</a>
-        <a data-nav="timesheets" onclick="schedRailNav('timesheets',this)">&#128347; Timesheets</a>
-        <a data-nav="live" onclick="schedRailNav('live',this)">&#128994; On the clock</a>
-        <a data-nav="clock" onclick="schedRailNav('clock',this)">&#9201;&#65039; Time clock</a>
-        <a data-nav="roster" onclick="schedRailNav('roster',this)">&#128101; Roster</a>
-        <a data-nav="requests" onclick="openRequests()">&#128229; Approvals</a>
-        <a data-nav="availreq" onclick="openAvailApprovals()">&#128467;&#65039; Availability</a>
-        <div class="sp-toolhdr">Tools</div>
         <a data-nav="buildnext" onclick="schedRailNav('buildnext',this)">&#9889; Auto-fill open shifts</a>
         <a data-nav="copy" onclick="schedRailNav('copy',this)">&#128203; Copy last week</a>
         <a data-nav="templates" onclick="schedRailNav('templates',this)">&#128209; Templates</a>
-        <a data-nav="schedvsactual" onclick="schedRailNav('schedvsactual',this)">&#128202; Scheduled vs actual</a>
+        <div class="sp-toolhdr">Review</div>
+        <a data-nav="requests" onclick="openRequests()">&#128229; Approvals</a>
         <a data-nav="confirms" onclick="schedRailNav('confirms',this)">&#9989; Confirmations</a>
+        <a data-nav="schedvsactual" onclick="schedRailNav('schedvsactual',this)">&#128202; Scheduled vs actual</a>
         <a data-nav="pubhistory" onclick="schedRailNav('pubhistory',this)">&#128338; Publish history</a>
+        <div class="sp-toolhdr">Tools</div>
         <a data-nav="resend" onclick="schedRailNav('resend',this)">&#128227; Resend schedule</a>
+        <a data-nav="print" onclick="schedRailNav('print',this)">&#128424;&#65039; Print</a>
+        <a data-nav="roster" onclick="schedRailNav('roster',this)">&#128101; Roster</a>
         <a data-nav="addemp" onclick="schedRailNav('addemp',this)">&#10133; Add employee</a>
         <a data-nav="roles" onclick="schedRailNav('roles',this)">&#127912; Manage roles</a>
-        <a data-nav="print" onclick="schedRailNav('print',this)">&#128424;&#65039; Print</a>
+        <div class="sp-toolhdr">Time clock</div>
+        <a data-nav="timesheets" onclick="schedRailNav('timesheets',this)">&#128347; Timesheets</a>
+        <a data-nav="live" onclick="schedRailNav('live',this)">&#128994; On the clock</a>
+        <a data-nav="clock" onclick="schedRailNav('clock',this)">&#9201;&#65039; Time clock</a>
       </nav>
       <nav class="sp-nav" id="schedNavStaff" style="display:none;">
         <a class="active" data-nav="myshifts" onclick="schedRailNav('myshifts',this)">&#128197; My shifts</a>
@@ -1669,9 +1682,10 @@
         <select id="shiftEmployee" onchange="schedModalEmpChanged()" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;margin-bottom:12px;"></select>
         <label class="form-label">Role</label>
         <select id="shiftPosition" onchange="schedShiftComplianceMsg()" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;margin-bottom:12px;"></select>
+        <div id="shiftUsualWrap" style="display:none;margin-bottom:12px;"><label class="form-label" style="margin-bottom:6px;">Usual shifts <span style="font-weight:400;color:#6b7686;font-size:12px;">(tap one to fill the times)</span></label><div id="shiftUsual" class="shift-usualrow"></div></div>
         <div style="display:flex;gap:10px;">
-            <div style="flex:1;"><label class="form-label">Start</label><input type="time" id="shiftStart" oninput="schedValidateShift()" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;"></div>
-            <div style="flex:1;"><label class="form-label">End</label><input type="time" id="shiftEnd" oninput="schedValidateShift()" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;"></div>
+            <div style="flex:1;"><label class="form-label" for="shiftStart">Start</label><select id="shiftStart" onchange="schedValidateShift()" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;background:#fff;"></select></div>
+            <div style="flex:1;"><label class="form-label" for="shiftEnd">End</label><select id="shiftEnd" onchange="schedValidateShift()" style="width:100%;padding:12px;border:2px solid #eee;border-radius:8px;font-size:15px;box-sizing:border-box;background:#fff;"></select></div>
         </div>
         <div id="shiftValMsg" style="display:none;font-size:12.5px;margin-top:8px;"></div>
         <div id="shiftAvailMsg" style="display:none;font-size:12.5px;margin-top:6px;padding:7px 10px;border-radius:7px;"></div>

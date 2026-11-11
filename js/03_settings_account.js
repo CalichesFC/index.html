@@ -301,20 +301,70 @@
     function initScheduleBuilder() {
         const mgr = (typeof schedIsMgr==='function' ? schedIsMgr() : isAdminManager());
         schedState.mode = mgr ? 'mgr' : 'staff';
+        if (mgr && schedNeedBuildStores()) { schedLoadBuildStores(initScheduleBuilder); return; }
         document.getElementById('schedNavMgr').style.display = mgr ? 'flex' : 'none';
         document.getElementById('schedNavStaff').style.display = mgr ? 'none' : 'flex';
         document.getElementById('schedPublishBtn').style.display = mgr ? '' : 'none';
         document.getElementById('schedLocation').parentElement.style.display = mgr ? '' : 'none';
         document.getElementById('schedSearch').parentElement.style.display = mgr ? '' : 'none';
         const sel = document.getElementById('schedLocation');
-        if (sel && !sel.options.length) sel.innerHTML = SCHED_LOCATIONS.map(l => '<option>'+l+'</option>').join('');
+        // The store list is the stores this person may build: every store with the cross-store switch (or an admin),
+        // otherwise only the stores they work at. Rebuilt each time so a role change or View-as is picked up.
+        if (sel) { var _locs = schedBuildStores(), _had = sel.value; var _sig = _locs.join('|'); if (sel.getAttribute('data-sig') !== _sig) { sel.innerHTML = _locs.map(l => '<option>'+escapeHtml(l)+'</option>').join(''); sel.setAttribute('data-sig', _sig); if (_had && _locs.indexOf(_had) > -1) sel.value = _had; } }
+        schedRailGate(mgr);
         try { const _hs = document.getElementById('storeSelect'); const _want = (_hs && _hs.value) || localStorage.getItem('calichesActiveStore');
               if (sel && _want && Array.prototype.some.call(sel.options, o => o.value === _want)) sel.value = _want; } catch (e) {}
         schedState.location = sel ? sel.value : 'Roadrunner';
         if (!schedState.weekStart) schedState.weekStart = schedMondayOf(new Date());
+        if (mgr && sel && !sel.options.length) {
+            // Has the Build switch, but this login isn't tied to a store on the roster, so there is nothing to open.
+            document.getElementById('schedPublishBtn').style.display = 'none';
+            document.getElementById('schedGrid').innerHTML = '<div style="max-width:420px;margin:40px auto;text-align:center;padding:0 16px;"><div style="font-size:34px;">&#128205;</div><div style="font-size:16px;font-weight:800;color:#1f2a44;margin-top:6px;">No store to build yet</div><p style="font-size:14px;color:#5b6675;line-height:1.5;">Your login can build schedules, but it isn&rsquo;t linked to a store on the roster. Ask an admin to link you to your store, then come back.</p></div>';
+            return;
+        }
         if (mgr) fetchScheduleWeek(); else fetchMyShifts();
     }
     function schedChangeLocation(){ schedState.location = document.getElementById('schedLocation').value; fetchScheduleWeek(); }
+    // Which stores can this person build a schedule for?
+    function schedBuildStores(){
+        var all = SCHED_LOCATIONS.slice();
+        try {
+            if (window._viewAsRole) return all;                       // previewing a role: no real person, show every store
+            if (isAdminManager()) return all;
+            if (Array.isArray(schedState.buildStores)) return all.filter(function(l){ return schedState.buildStores.indexOf(l) > -1; });
+        } catch(e) {}
+        return all;
+    }
+    // Admins build every store. Anyone else: ask the server once which stores this login may build.
+    function schedNeedBuildStores(){ return !window._viewAsRole && !isAdminManager() && !Array.isArray(schedState.buildStores); }
+    function schedLoadBuildStores(then){
+        var grid = document.getElementById('schedGrid');
+        if (grid) grid.innerHTML = '<p style="text-align:center;padding:30px;color:#6b7686;">Loading&hellip;</p>';
+        withPin(function(pin){
+            supabaseClient.rpc('app_sched_build_stores', { p_username: currentUser.username, p_password: pin, p_locations: SCHED_LOCATIONS })
+            .then(function(r){
+                if (r && r.error && r.error.code === '42501') sessionPin = null;
+                // If the answer can't be read, fall back to every store: the server still refuses any store that isn't theirs.
+                schedState.buildStores = (r && !r.error && Array.isArray(r.data)) ? r.data : SCHED_LOCATIONS.slice();
+                then();
+            }, function(){ schedState.buildStores = SCHED_LOCATIONS.slice(); then(); });
+        }, function(){ if (grid) grid.innerHTML = '<p style="text-align:center;padding:20px;color:#6b7686;">PIN required.</p>'; });
+    }
+    // Rail items that only work for some people are hidden for everyone else, so nobody taps into an error.
+    function schedRailGate(mgr){
+        try {
+            var nav = document.getElementById('schedNavMgr'); if (!nav) return;
+            var show = function(key, on){ var a = nav.querySelector('a[data-nav="'+key+'"]'); if (a) a.style.display = on ? '' : 'none'; };
+            var admin = isAdminManager() && !window._viewAsRole;
+            show('addemp', admin); show('roles', admin);               // adding people and roles is admin-only on the server
+            var vis = function(id){ var e = document.getElementById(id); return !!(e && e.style.display !== 'none'); };
+            show('roster', vis('schedRosterBtn') || vis('rosterBtn'));
+            show('requests', vis('requestsBtn') || vis('btn-availApprovals'));
+            var clockOn = (typeof hubClockOn === 'function') && hubClockOn();
+            show('clock', clockOn);
+            var st = document.querySelector('#schedNavStaff a[data-nav="clockin"]'); if (st) st.style.display = clockOn ? '' : 'none';
+        } catch(e) {}
+    }
     function schedShiftWeek(days){ schedState.weekStart = schedAddDays(schedState.weekStart, days); if(schedState.mode==='staff') fetchMyShifts(); else fetchScheduleWeek(); }
     function schedToday(){ schedState.weekStart = schedMondayOf(new Date()); if(schedState.mode==='staff') fetchMyShifts(); else fetchScheduleWeek(); }
     function toggleSchedRail(){ document.getElementById('schedPortal').classList.toggle('railopen'); }
@@ -411,6 +461,7 @@
         schedState.calEvents = []; schedState.cvEvents = []; schedState._weekLoaded = false;
         withPin(function(pin){
             try { schedFetchWeekEvents(pin, ws, loc); } catch(e) {}
+            try { schedFetchUsual(pin, loc); } catch(e) {}
             Promise.all([
                 supabaseClient.rpc('app_sched_week_context', { p_username: currentUser.username, p_password: pin, p_location: loc, p_week_start: ws }),
                 supabaseClient.rpc('app_emp_photos', { p_username: currentUser.username, p_password: pin, p_location: loc }),
@@ -574,12 +625,35 @@
     function schedSetLaborTarget(v){ var t=parseFloat(v); if(!isNaN(t)&&t>0){ try{ localStorage.setItem('laborTargetPct',t); }catch(e){} renderScheduleGrid(); } }
     // Shared with the Command Center: green ok / amber near-target / red over. near = points below target that still counts as "near".
     function schedPctCol(pct,tgt,near){ if(pct==null) return '#5b6675'; near=near||2; if(pct>tgt) return '#c0392b'; if(pct>=tgt-near) return '#b06a00'; return '#1f7a3d'; }
+    // One labor % reading: coloured against the target, or a dash until there is a sales forecast to compare with.
+    function schedLaborPct(cost, pred, tgt, near, words){
+        if (!(pred > 0)) return words ? '' : '<span class="ldash" title="Add a sales forecast to see labor %">&ndash;</span>';
+        var pct = cost / pred * 100;
+        return '<span class="lpct" style="color:'+schedPctCol(pct,tgt,near)+';" title="'+((pct-tgt)>=0?'+':'')+(pct-tgt).toFixed(1)+' pts vs '+tgt+'% target">'+pct.toFixed(0)+'%'+(words?' labor':'')+'</span>';
+    }
+    // After a forecast changes, repaint the labor % cells where they stand (no grid rebuild, so the cursor stays put).
+    function schedLaborRefresh(){
+        try {
+            var L = schedState._labor; if (!L) return;
+            var fc = schedState.forecast || {}, wp = 0, phone = !document.querySelector('.sp-laborbar.wide');
+            L.days.forEach(function(ds){ var pred = parseFloat(fc[ds]) || 0; wp += pred; var el = document.getElementById('lpct-'+ds); if (el) el.innerHTML = schedLaborPct(L.dayCost[ds]||0, pred, L.tgt, L.near, phone); });
+            var wf = document.getElementById('lweekfc'); if (wf) wf.innerHTML = wp > 0 ? ('$'+Math.round(wp).toLocaleString()) : '<span class="ldash">&ndash;</span>';
+            var wpe = document.getElementById('lweekpct'); if (wpe) wpe.innerHTML = schedLaborPct(L.weekCost, wp, L.tgt, L.near);
+        } catch(e) {}
+    }
     function schedSetForecast(ds, val){
         const amt = parseFloat(val); if (isNaN(amt)) return;
-        schedState.forecast = schedState.forecast || {}; schedState.forecast[ds] = amt;
+        schedState.forecast = schedState.forecast || {};
+        const had = Object.prototype.hasOwnProperty.call(schedState.forecast, ds), prev = schedState.forecast[ds];
+        schedState.forecast[ds] = amt;
+        schedLaborRefresh();
+        // If the save fails, put the old number back (the box and the labor %) and say so plainly.
+        const revert = function(){ try { if (had) schedState.forecast[ds] = prev; else delete schedState.forecast[ds]; if (typeof renderScheduleGrid === 'function') renderScheduleGrid(); } catch(e) {} };
         withPin(function(pin){
-            supabaseClient.rpc('app_labor_set', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_date: ds, p_amount: amt }).then(function(){});
-        });
+            supabaseClient.rpc('app_labor_set', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_date: ds, p_amount: amt }).then(function(r){
+                if (r && r.error) { revert(); alert('Forecast NOT saved: ' + (r.error.message || 'error') + '. The number was put back \u2014 try again.'); }
+            }, function(){ revert(); alert('Forecast NOT saved (connection problem). The number was put back \u2014 try again.'); });
+        }, function(){ revert(); });
     }
 
     function schedPosById(id){ return (schedState.data.positions || []).find(p => p.id === id); }
@@ -681,8 +755,7 @@
                 html += '<div class="sp-mrow" data-empid="'+e.id+'" oncontextmenu="schedCtx(event,'+e.id+",'"+ds+"',"+(cell[0]?cell[0].id:'null')+')">'+DRAG_GRIP+avatarHtml(e)+'<div style="flex:1;min-width:0;"><div class="hbg-nm" title="'+escapeHtml(e.name)+'" onclick="schedToast(this.title,2500)">'+escapeHtml(schedShortName(e.name))+'</div><div class="hbg-sub">'+tagOf(e)+(empRole[e.id]?escapeHtml(empRole[e.id]):'')+'</div></div><div style="text-align:right;max-width:48%;">'+right+'</div></div>';
             });
             const pv=(ds in fc)?fc[ds]:'';
-            var _mpct=(parseFloat(pv)||0)>0?((dayCost[ds]||0)/(parseFloat(pv)||0)*100):null;
-            html += '<div class="sp-laborbar"><div><div class="lbl">'+dayNames[di]+' labor</div><b>'+money(dayCost[ds]||0)+'</b>'+(_mpct!=null?'<div style="font-size:10px;font-weight:700;color:'+schedPctCol(_mpct,_tgt,_near)+';">'+_mpct.toFixed(0)+'% labor</div>':'')+'</div><div style="text-align:center;"><div class="lbl">Predicted</div><input type="number" class="sp-pred" value="'+pv+'" placeholder="$" onchange="schedSetForecast(\''+ds+'\',this.value)"></div><div style="text-align:right;"><div class="lbl">Week</div><b>'+money(weekCost)+'</b></div></div>';
+            html += '<div class="sp-laborbar"><div><div class="lbl">'+dayNames[di]+' labor</div><b>'+money(dayCost[ds]||0)+'</b> <span id="lpct-'+ds+'">'+schedLaborPct(dayCost[ds]||0,parseFloat(pv)||0,_tgt,_near,true)+'</span></div><div style="text-align:center;"><label class="lbl" for="spPredDay" style="display:block;">Sales forecast</label><input type="number" id="spPredDay" class="sp-pred" value="'+pv+'" placeholder="$" onchange="schedSetForecast(\''+ds+'\',this.value)"></div><div style="text-align:right;"><div class="lbl">Week</div><b>'+money(weekCost)+'</b></div></div>';
         } else {
             html += '<table class="hbg"><thead><tr><th class="hbg-e">Team member <span style="font-weight:400;color:#5b6675;font-size:10px;">(drag &#8942;&#8942; to reorder)</span></th>';
             days.forEach((d,i) => { html += '<th>'+dayNames[i]+'<br><span style="font-weight:400;color:#5b6675;">'+(d.getMonth()+1)+'/'+d.getDate()+'</span></th>'; });
@@ -722,11 +795,10 @@
             html += '</tbody><tfoot><tr><td class="hbg-e">Hours <span style="color:#185FA5;">'+weekHrs.toFixed(1)+'</span></td>';
             days.forEach(d => { const ds=schedFmt(d); const hh=dayHrs[ds]||0; const n=dayStaff[ds]?Object.keys(dayStaff[ds]).length:0; html += '<td>&#128100; '+n+'<br><span style="font-weight:400;font-size:10px;color:#7a828f;">'+hh.toFixed(1)+'h</span></td>'; });
             html += '<td></td></tr></tfoot></table>';
-            html += '<div class="sp-laborbar wide"><div class="lbl" style="min-width:96px;">Labor / day<br><span style="font-weight:400;font-size:10px;color:#5b6675;">target <input type="number" value="'+_tgt+'" onchange="schedSetLaborTarget(this.value)" style="width:34px;padding:1px 3px;font-size:10px;">%</span></div>';
+            html += '<div class="sp-laborbar wide"><div class="lhead" style="min-width:150px;"><div class="lrow">Labor cost</div><div class="lrow">Sales forecast</div><div class="lrow">Labor % &middot; target <input type="number" class="sp-tgt" value="'+_tgt+'" onchange="schedSetLaborTarget(this.value)" aria-label="Labor target percent">%</div></div>';
             var _weekPred=0;
-            days.forEach((d,di2)=>{ const ds=schedFmt(d); const pv=(ds in fc)?fc[ds]:''; const cst=dayCost[ds]||0; const pred=parseFloat(pv)||0; _weekPred+=pred; const pct=pred>0?(cst/pred*100):null; const ph=(pct!=null)?'<div style="font-size:10px;font-weight:700;color:'+schedPctCol(pct,_tgt,_near)+';" title="'+((pct-_tgt)>=0?'+':'')+(pct-_tgt).toFixed(1)+' pts vs '+_tgt+'% target">'+pct.toFixed(0)+'% labor</div>':''; html += '<div class="lcell"><div class="lbl">'+dayNames[di2]+' &middot; '+money(cst)+'</div><input type="number" class="sp-pred" value="'+pv+'" placeholder="pred" onchange="schedSetForecast(\''+ds+'\',this.value)">'+ph+'</div>'; });
-            var _wpct=_weekPred>0?(weekCost/_weekPred*100):null;
-            html += '<div style="text-align:right;min-width:78px;"><div class="lbl">Week</div><b>'+money(weekCost)+'</b>'+(_wpct!=null?'<div style="font-size:10px;font-weight:700;color:'+schedPctCol(_wpct,_tgt,_near)+';" title="week labor vs '+_tgt+'% target">'+_wpct.toFixed(0)+'%</div>':'')+'</div></div>';
+            days.forEach((d,di2)=>{ const ds=schedFmt(d); const pv=(ds in fc)?fc[ds]:''; const cst=dayCost[ds]||0; const pred=parseFloat(pv)||0; _weekPred+=pred; html += '<div class="lcell"><div class="lrow"><span class="lbl">'+dayNames[di2]+'</span> <b>'+money(cst)+'</b></div><div class="lrow"><input type="number" class="sp-pred" value="'+pv+'" placeholder="$" aria-label="Sales forecast for '+dayNames[di2]+'" onchange="schedSetForecast(\''+ds+'\',this.value)"></div><div class="lrow" id="lpct-'+ds+'">'+schedLaborPct(cst,pred,_tgt,_near)+'</div></div>'; });
+            html += '<div class="lweek" style="min-width:78px;"><div class="lrow"><span class="lbl">Week</span> <b>'+money(weekCost)+'</b></div><div class="lrow" id="lweekfc">'+(_weekPred>0?money(_weekPred):'<span class="ldash">&ndash;</span>')+'</div><div class="lrow" id="lweekpct">'+schedLaborPct(weekCost,_weekPred,_tgt,_near)+'</div></div></div>';
         }
         const pb = document.getElementById('schedPublishBtn');
         if (conflicts>0) {
@@ -735,6 +807,7 @@
         } else if (pb){ pb.disabled=false; pb.classList.remove('is-blocked'); pb.style.opacity=''; pb.style.cursor=''; pb.title=''; }
         var _drafts=(schedState.data.shifts||[]).filter(function(s){ return !s.published; }).length;
         if (_drafts) html = '<div class="sp-key"><i></i> Dashed outline = draft, not posted yet ('+_drafts+')</div>' + html;
+        schedState._labor = { days: days.map(schedFmt), dayCost: dayCost, weekCost: weekCost, tgt: _tgt, near: _near };
         document.getElementById('schedGrid').innerHTML = html;
         if (typeof schedAlignLaborBar === 'function') schedAlignLaborBar();
         schedInitDragReorder();
@@ -928,6 +1001,53 @@
         });
     }
 
+    // ---- Shift form times: a plain list in 15-minute steps, written the Hub way ("5pm", "10:30am"). ----
+    // The list starts at 5am so the usual times come first; midnight to 4:45am sit at the end.
+    // A saved time that is off the 15-minute grid is added to the list, so opening an old shift never changes it.
+    function schedTimeNorm(t){ if (!t) return ''; var m = String(t).match(/^\s*(\d{1,2}):(\d{2})/); if (!m) return ''; return ('0'+parseInt(m[1],10)).slice(-2)+':'+m[2]; }
+    function schedTimeOrder(v){ var q = String(v).split(':'), n = parseInt(q[0],10)*60 + parseInt(q[1],10); return (n < 300) ? n + 1440 : n; }
+    function schedTimeOptions(){
+        var o = '<option value="">&mdash;</option>';
+        for (var i = 0; i < 96; i++) { var n = (300 + i*15) % 1440; var v = ('0'+Math.floor(n/60)).slice(-2)+':'+('0'+(n%60)).slice(-2); o += '<option value="'+v+'">'+hubTime(v)+'</option>'; }
+        return o;
+    }
+    function schedSetTime(id, val){
+        var sel = document.getElementById(id); if (!sel) return;
+        if (sel.tagName !== 'SELECT') { sel.value = val || ''; return; }
+        if (sel.options.length < 90 || sel.getAttribute('data-custom')) { sel.innerHTML = schedTimeOptions(); sel.removeAttribute('data-custom'); }
+        var v = schedTimeNorm(val);
+        if (v && !Array.prototype.some.call(sel.options, function(o){ return o.value === v; })) {
+            var opt = document.createElement('option'); opt.value = v; opt.textContent = hubTime(v);
+            var ord = schedTimeOrder(v), before = null;
+            for (var i = 1; i < sel.options.length; i++) { if (schedTimeOrder(sel.options[i].value) > ord) { before = sel.options[i]; break; } }
+            sel.insertBefore(opt, before); sel.setAttribute('data-custom', '1');
+        }
+        sel.value = v;
+    }
+    // ---- Usual shifts: the store's most-used start/end pairs as one-tap chips. ----
+    // Comes from the last 8 weeks at this store (server) plus whatever is already on the week being built.
+    function schedFetchUsual(pin, loc){
+        schedState.usual = schedState.usual || {}; schedState._usualAt = schedState._usualAt || {};
+        if (schedState.usual[loc] && (Date.now() - (schedState._usualAt[loc]||0) < 10*60*1000)) return;
+        supabaseClient.rpc('app_sched_usual_shifts', { p_username: currentUser.username, p_password: pin, p_location: loc })
+            .then(function(r){ if (r && !r.error && Array.isArray(r.data)) { schedState.usual[loc] = r.data; schedState._usualAt[loc] = Date.now(); } }, function(){});
+    }
+    function schedUsualPairs(){
+        var count = {}, add = function(a, b, n){ a = schedTimeNorm(a); b = schedTimeNorm(b); if (!a || !b) return; var k = a+'|'+b; count[k] = (count[k]||0) + (n||1); };
+        try { ((schedState.usual||{})[schedState.location]||[]).forEach(function(u){ add(u.start, u.end, u.n||1); }); } catch(e) {}
+        try { (schedState.data.shifts||[]).forEach(function(x){ add(x.start_time, x.end_time, 1); }); } catch(e) {}
+        var byUse = function(x, y){ return (count[y]-count[x]) || (x < y ? -1 : 1); };
+        var byClock = function(x, y){ var a = x.split('|'), b = y.split('|'); return (schedTimeOrder(a[0])-schedTimeOrder(b[0])) || (schedTimeOrder(a[1])-schedTimeOrder(b[1])); };
+        return Object.keys(count).sort(byUse).slice(0, 6).sort(byClock).map(function(k){ var q = k.split('|'); return { start: q[0], end: q[1] }; });
+    }
+    function schedRenderUsual(){
+        var wrap = document.getElementById('shiftUsualWrap'), box = document.getElementById('shiftUsual'); if (!wrap || !box) return;
+        var list = schedUsualPairs(); if (!list.length) { wrap.style.display = 'none'; box.innerHTML = ''; return; }
+        var st = schedTimeNorm((document.getElementById('shiftStart')||{}).value), en = schedTimeNorm((document.getElementById('shiftEnd')||{}).value);
+        box.innerHTML = list.map(function(u){ return '<button type="button" class="shift-usual'+((u.start===st && u.end===en)?' on':'')+'" onclick="schedPickUsual(\''+u.start+'\',\''+u.end+'\')">'+hubTimeRange(u.start, u.end)+'</button>'; }).join('');
+        wrap.style.display = 'block';
+    }
+    function schedPickUsual(a, b){ schedSetTime('shiftStart', a); schedSetTime('shiftEnd', b); schedValidateShift(); }
     function schedOpenModal(empId, date, shiftId) {
         schedState.editing = { employeeId: empId, date: date, shiftId: shiftId };
         const posSel = document.getElementById('shiftPosition');
@@ -935,11 +1055,11 @@
         var empSel=document.getElementById('shiftEmployee'); if(empSel){ var _curE = (typeof shiftId!=='undefined' && shiftId && (schedState.data.shifts||[]).find(x=>x.id===shiftId)) ? (schedState.data.shifts||[]).find(x=>x.id===shiftId).employee_id : empId; empSel.innerHTML='<option value="">&mdash; Open shift (no one yet) &mdash;</option>'+(schedState.data.employees||[]).map(function(e){return '<option value="'+e.id+'">'+escapeHtml(e.name||('#'+e.id))+'</option>';}).join(''); empSel.value=(_curE!=null&&_curE!=='')?String(_curE):''; }
         let s = shiftId ? (schedState.data.shifts||[]).find(x => x.id === shiftId) : null;
         document.getElementById('shiftModalTitle').innerText = (shiftId ? 'Edit Shift' : (empId == null ? 'Add Open Shift' : 'Add Shift')) + ' \u00b7 ' + hubDay(s ? s.shift_date : date) + ' \u00b7 ' + (schedState.location || '');
-        document.getElementById('shiftStart').value = s ? (s.start_time||'') : '';
-        document.getElementById('shiftEnd').value = s ? (s.end_time||'') : '';
+        schedSetTime('shiftStart', s ? s.start_time : '');
+        schedSetTime('shiftEnd', s ? s.end_time : '');
         document.getElementById('shiftNote').value = s ? (s.note||'') : '';
         var _prefilled = false;
-        if (!s) { try { var _lt = JSON.parse(localStorage.getItem('calichesLastShiftTimes:'+schedState.location)||'null'); if (_lt && _lt.start && _lt.end) { document.getElementById('shiftStart').value=_lt.start; document.getElementById('shiftEnd').value=_lt.end; _prefilled = true; } } catch(e) {} }
+        if (!s) { try { var _lt = JSON.parse(localStorage.getItem('calichesLastShiftTimes:'+schedState.location)||'null'); if (_lt && _lt.start && _lt.end) { schedSetTime('shiftStart', _lt.start); schedSetTime('shiftEnd', _lt.end); _prefilled = true; } } catch(e) {} }
         schedRenderDayChips(shiftId ? null : date, _prefilled);
         var _emp = (!s && empId != null) ? (schedState.data.employees||[]).find(function(x){ return x.id === empId; }) : null;
         posSel.value = (s && s.position_id) ? String(s.position_id) : ((_emp && _emp.default_position_id && schedPosById(_emp.default_position_id)) ? String(_emp.default_position_id) : '');
@@ -1126,6 +1246,7 @@
     function schedValidateShift(){
         var st=(document.getElementById('shiftStart')||{}).value, en=(document.getElementById('shiftEnd')||{}).value;
         if(typeof schedShiftComplianceMsg==='function') schedShiftComplianceMsg();
+        if(typeof schedRenderUsual==='function') schedRenderUsual();
         var m=document.getElementById('shiftValMsg'); if(!m) return;
         if(!st||!en){ m.style.display='none'; return; }
         var a=st.split(':').map(Number), b=en.split(':').map(Number);
@@ -1302,8 +1423,10 @@
     }
     function applySchedTemplate(i){
         var t=(window._schedTpls||[])[i]; if(!t) return;
-        if(!confirm('Load "'+(t.name||'')+'" into '+hubWeek(schedState.weekStart)+'? It adds the template shifts to this week.')) return;
-        var msg=document.getElementById('schedTplMsg'); msg.style.color='#5b6472'; msg.textContent='Loading template&hellip;';
+        hubAsk({ title:'Load this template?', text:'"'+(t.name||'')+'" adds its shifts to '+hubWeek(schedState.weekStart)+' as drafts. Nothing already on the week is removed.', yes:'Load template', no:'Cancel' }, function(){ applySchedTemplateGo(t); });
+    }
+    function applySchedTemplateGo(t){
+        var msg=document.getElementById('schedTplMsg'); msg.style.color='#5b6472'; msg.textContent='Loading template\u2026';
         withPin(function(pin){
             supabaseClient.rpc('app_template_get',{p_username:currentUser.username,p_password:pin,p_id:t.id}).then(function(r){
                 if(r.error||!r.data){ msg.style.color='#c0264b'; msg.textContent='Could not load template.'; return; }
@@ -1318,20 +1441,24 @@
     }
     function renameSchedTemplate(i){
         var t=(window._schedTpls||[])[i]; if(!t) return;
-        var nn=prompt('Rename template:', t.name||''); if(nn===null) return; nn=(nn||'').trim(); if(!nn) return;
-        withPin(function(pin){
-            supabaseClient.rpc('app_template_save',{p_username:currentUser.username,p_password:pin,p_id:t.id,p_name:nn,p_location:t.location||null,p_pattern:null}).then(function(r){
-                if(r.error){ alert('Error: '+r.error.message); return; } openSchedTemplates();
-            }).catch(function(){ alert('Could not rename.'); });
+        hubAsk({ title:'Rename template', html:'<input type="text" id="hubAskInput" maxlength="60" aria-label="Template name" style="width:100%;box-sizing:border-box;padding:12px;border:2px solid #e3e8ef;border-radius:8px;font-size:15px;font-family:inherit;">', yes:'Save name', no:'Cancel', focus:'#hubAskInput' }, function(ov){
+            var nn=((ov.querySelector('#hubAskInput')||{}).value||'').trim(); if(!nn || nn===(t.name||'')) return;
+            withPin(function(pin){
+                supabaseClient.rpc('app_template_save',{p_username:currentUser.username,p_password:pin,p_id:t.id,p_name:nn,p_location:t.location||null,p_pattern:null}).then(function(r){
+                    if(r.error){ schedToast('Could not rename: '+(r.error.message||'error'), 4500); return; } openSchedTemplates();
+                }, function(){ schedToast('Could not rename the template.', 4500); });
+            });
         });
+        try{ var inp=document.getElementById('hubAskInput'); inp.value=t.name||''; inp.select(); inp.addEventListener('keydown', function(e){ if(e.key==='Enter'){ var y=document.querySelector('#hubAskSheet #hubAskYes'); if(y) y.click(); } }); }catch(e){}
     }
     function deleteSchedTemplate(i){
         var t=(window._schedTpls||[])[i]; if(!t) return;
-        if(!confirm('Delete template "'+(t.name||'')+'"?')) return;
-        withPin(function(pin){
-            supabaseClient.rpc('app_template_delete',{p_username:currentUser.username,p_password:pin,p_id:t.id}).then(function(r){
-                if(r.error){ alert('Error: '+r.error.message); return; } openSchedTemplates();
-            }).catch(function(){ alert('Could not delete.'); });
+        hubAsk({ title:'Delete this template?', text:'"'+(t.name||'')+'" will be removed from the list. Shifts already on a schedule stay where they are.', yes:'Delete template', no:'Keep it' }, function(){
+            withPin(function(pin){
+                supabaseClient.rpc('app_template_delete',{p_username:currentUser.username,p_password:pin,p_id:t.id}).then(function(r){
+                    if(r.error){ schedToast('Could not delete: '+(r.error.message||'error'), 4500); return; } openSchedTemplates();
+                }, function(){ schedToast('Could not delete the template.', 4500); });
+            });
         });
     }
     function schedAddEmployee() {

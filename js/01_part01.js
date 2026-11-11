@@ -196,7 +196,8 @@
         try{
             if(currentUser && currentUser.is_developer===true) return true;
             var r=(currentUser && currentUser.role)||'';
-            return ['Vice President/Co-Owner','Admin Manager','Store Manager','Manager'].indexOf(r)>=0;
+            // Admins only. (Store managers used to get this preview too, but it shows admin screens they can't actually use.)
+            return ['Vice President/Co-Owner','Admin Manager'].indexOf(r)>=0;
         }catch(e){ return false; }
     }
     // The role the UI should render for. Real role unless a real leader has an
@@ -531,6 +532,8 @@
         setD('btn-scheduling', mgr, 'block');
         setD('schedTimesheetsBtn', mgr, 'block');
         setD('schedRosterBtn', (typeof permAllow==='function' ? permAllow('roster', admin) : admin), 'block');
+        // The "More in scheduling" label only shows when there is a tile under it for this person.
+        try { var _ml=document.getElementById('schedMoreLbl'); if(_ml){ _ml.style.display = ['btn-timeClock','schedTimesheetsBtn','schedRosterBtn'].some(function(id){ var e=document.getElementById(id); return !!(e && e.style.display!=='none'); }) ? '' : 'none'; } } catch(e) {}
         schedSeg('mine');
         loadSchedMyShifts();
         schedInitDragReorder();
@@ -628,7 +631,10 @@
             var u={p_username:currentUser.username,p_password:pin};
             var _aiErr=false;
             function rc(fn,extra){ return supabaseClient.rpc(fn,Object.assign({},u,extra||{})).then(function(r){ if(r.error){ _aiErr=true; return null; } return r.data; }).catch(function(){ _aiErr=true; return null; }); }
-            var jobs=[ rc('app_pending_schedule_confirm'), rc('app_supply_list',{p_scope:'incoming'}), rc('app_wo_list',{p_scope:'queue'}), rc('app_lp_my'), rc('app_my_support_notes'), (_aiIsFinance()?rc('wo_invoice_list'):Promise.resolve(null)) ];
+            // Training stays out of sight until its switch is on for this person (same switch as the Training tile).
+            var _trnRole=(typeof effectiveRole==='function')?effectiveRole():((currentUser&&currentUser.role)||'');
+            var _trnOn=(typeof permAllow==='function')?permAllow('training', (_trnRole==='Admin Manager'||_trnRole==='Vice President/Co-Owner'||(currentUser&&currentUser.is_developer===true&&!window._viewAsRole))):false;
+            var jobs=[ rc('app_pending_schedule_confirm'), rc('app_supply_list',{p_scope:'incoming'}), rc('app_wo_list',{p_scope:'queue'}), (_trnOn?rc('app_lp_my'):Promise.resolve(null)), rc('app_my_support_notes'), (_aiIsFinance()?rc('wo_invoice_list'):Promise.resolve(null)) ];
             Promise.all(jobs).then(function(res){
                 var sched=res[0], supply=res[1]||[], wo=res[2]||[], lp=res[3]||{}, notes=res[4], inv=res[5];
                 var items=[];
@@ -638,7 +644,7 @@
                 var wCount=(wo||[]).filter(function(x){ return String(x.status||'').toLowerCase().indexOf('complet')<0; }).length;
                 if(wCount>0){ items.push(aiRow('&#128295;','Work orders assigned to you',wCount,'#185FA5','openWorkOrders()')); }
                 if(Array.isArray(inv)){ var iCount=inv.filter(function(x){ var s=String(x.status||''); return s==='submitted'||s==='operational_verified'; }).length; if(iCount>0){ items.push(aiRow('&#129534;','Invoices awaiting your approval',iCount,'#5b3aa6','openMaintBilling()')); } }
-                var tCount=((lp&&lp.enrollments)||[]).filter(function(e){ return String(e.status||'')!=='completed'; }).length;
+                var tCount=_trnOn?((lp&&lp.enrollments)||[]).filter(function(e){ return String(e.status||'')!=='completed'; }).length:0;
                 if(tCount>0){ items.push(aiRow('&#127891;','Training to finish',tCount,'#1f7a3d','openTrainingPortal()')); }
                 var nCount=(notes&&notes.notes)?notes.notes.length:0;
                 if(nCount>0){ items.push(aiRow('&#128172;','New coaching notes for you',nCount,'#5b3aa6','openMyNotes()')); }

@@ -96,9 +96,9 @@
         ov.innerHTML='<div style="background:#fff;border-radius:16px;max-width:360px;width:100%;padding:22px 20px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.25);">'+
             '<div style="font-size:40px;">&#9200;</div>'+
             '<h3 style="margin:8px 0 4px;color:#1f2a44;">Clock in to start your shift</h3>'+
-            '<p style="font-size:13px;color:#6b7686;margin:0 0 16px;">'+(label?(escapeHtml(label)+' is a workday feature. '):'')+'Clock in first &mdash; then everything opens up.</p>'+
-            '<button onclick="(function(){var g=document.getElementById(&quot;hubClockGate&quot;);if(g)g.remove();if(typeof openTimeClock===&quot;function&quot;)openTimeClock();})()" style="background:#1f7a3d;color:#fff;border:none;border-radius:10px;padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer;width:100%;">Go to Time Clock</button>'+
-            '<button onclick="var g=document.getElementById(&quot;hubClockGate&quot;);if(g)g.remove();" style="background:none;border:none;color:#8a91a0;font-size:13px;margin-top:10px;cursor:pointer;">Not now</button>'+
+            '<p style="font-size:13px;color:#6b7686;margin:0 0 16px;">'+(label?(escapeHtml(label)+' is a workday feature. '):'')+'Clock in at the register first &mdash; then everything opens up.</p>'+
+            (((typeof hubClockOn==='function')&&hubClockOn())?'<button onclick="(function(){var g=document.getElementById(&quot;hubClockGate&quot;);if(g)g.remove();if(typeof openTimeClock===&quot;function&quot;)openTimeClock();})()" style="background:#1f7a3d;color:#fff;border:none;border-radius:10px;padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer;width:100%;">Go to Time Clock</button>':'')+
+            '<button onclick="var g=document.getElementById(&quot;hubClockGate&quot;);if(g)g.remove();" style="background:none;border:none;color:#8a91a0;font-size:13px;margin-top:10px;cursor:pointer;">OK</button>'+
         '</div>';
         ov.style.display='flex';
     }

@@ -553,6 +553,7 @@
         var _trnBtn=document.getElementById('btn-training'); if(_trnBtn) _trnBtn.style.display=permAllow('training', (devOverride || role === 'Admin Manager'))?'block':'none';
         const availApprBtn = document.getElementById('btn-availApprovals');
         if (availApprBtn) availApprBtn.style.display = permAllow('avail_approvals', (devOverride || isManager || role === 'Shift Lead')) ? 'block' : 'none';
+        var _tcOn=(typeof hubClockOn==='function')&&hubClockOn(); ['homeClockBtn','btn-timeClock'].forEach(function(id){ var _e=document.getElementById(id); if(_e) _e.style.display=_tcOn?'':'none'; });
         // ── Pop-In & Inventory: management only (Shift Lead and above / store managers) ──
         const mgmtTools = (devOverride || isManager || role === 'Shift Lead');
         const popInBtn = document.getElementById('btn-popIn');
@@ -968,13 +969,13 @@
         }
         html += '</div>';
 
-        // Cover requests (js/48) then can't-work requests
+        // Cover requests (js/48). Below them: covers nobody could take that were handed to the manager.
+        // (The old stand-alone "can't work" request is retired, so this card only shows when there is something in it.)
         html += '<div id="covMineBox"></div>';
-        html += '<div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
-            '<h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#128260; My can’t-work requests</h3>';
         var sw = d.swaps || [];
-        if (!sw.length) { html += '<p style="color:#6b7686;font-size:13px;margin:0;">None &mdash; use "Request a cover" on a shift above if something comes up.</p>'; }
-        else {
+        if (sw.length) {
+            html += '<div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
+                '<h3 style="margin:0 0 10px;color:var(--caliches-blue);font-size:16px;">&#128232; Sent to your manager</h3>';
             sw.forEach(function(w, i) {
                 var st = (w.status || '').toLowerCase();
                 var head = escapeHtml(hubDay(w.date) + ' \u00b7 ' + hubTimeRange(w.start, w.end) + (w.location ? ' at ' + w.location : ''));
@@ -993,8 +994,8 @@
                     '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><span style="font-size:14px;color:#333;">' + head + '</span>' + ehChip(st === 'open' ? 'Pending' : (w.status || '')) + '</div>' +
                     reason + sub + mnote + actions + '</div>';
             });
+            html += '</div>';
         }
-        html += '</div>';
         c.innerHTML = html;
         if (typeof covRefreshEmpHome === 'function') covRefreshEmpHome();
     }
@@ -1184,7 +1185,9 @@
         c.innerHTML=html;
         if(showAv) loadAvailPending('availPendingPage');
         if(window._reqScrollToAvail){ window._reqScrollToAvail=false; try{ var _ac=document.getElementById('availApprCard'); if(_ac) _ac.scrollIntoView({block:'start'}); }catch(e){} }
-        if(typeof covLoadManager==='function') covLoadManager();
+        // Covers card: only for someone with the "Approve covers" switch (if the switches haven't loaded yet, ask the server and let it decide).
+        var _capsNow=(typeof permCapsNow==='function')?permCapsNow():null;
+        if(typeof covLoadManager==='function' && (!_capsNow || _capsNow.approve_cover===true)) covLoadManager();
     }
     function reqDecide(type, id, approve, _note) {
         var note=_note||'';

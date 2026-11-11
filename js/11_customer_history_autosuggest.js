@@ -11,7 +11,11 @@
         if (query.length < 2) { box.style.display = 'none'; box.innerHTML = ''; return; }
         quoteSuggestTimer = setTimeout(() => {
             const myReqId = ++quoteSuggestReqId;
-            supabaseClient.rpc('app_quote_search_contacts', { p_query: query })
+            // Round 2: customer names sit behind the login now. Use the PIN already in hand; never ask for it mid-typing.
+            let sugPin = null;
+            try { sugPin = sessionPin || ((localStorage.getItem('calichesKeep') !== '0') ? sessionStorage.getItem('calichesPin') : null); } catch (e) { sugPin = null; }
+            if (!sugPin || typeof currentUser === 'undefined' || !currentUser || !currentUser.username) { box.style.display = 'none'; box.innerHTML = ''; return; }
+            supabaseClient.rpc('app_quote_contact_suggest', { p_username: currentUser.username, p_password: sugPin, p_query: query })
             .then(({ data, error }) => {
                 // Wave 2 fix (2026-07-18): stale-response guard -- a slower earlier request can
                 // resolve after a newer one; discard it instead of letting it overwrite the current,
@@ -1113,7 +1117,7 @@
                 { img:'scoopy-hero.png', title:'Your Home base',
                   body:"Tap \uD83C\uDFE0 My Home to see your upcoming shifts, any tasks assigned to you, and team updates. Check it at the start of every shift so nothing slips by." },
                 { img:'scoopy-thumbsup.png', title:'Clocking in & out',
-                  body:"Go to Schedule \u2192 \u23F1\uFE0F Time Clock to clock in and out. Your ID is the last 4 digits of your SSN. Clock in within 5 minutes of your shift start (or when a manager tells you to)." },
+                  body:"Clock in and out at the register, the same way you do today. Clock in within 5 minutes of your shift start (or when a manager tells you to)." },
                 { img:'scoopy-point.png', title:'Requesting time off',
                   body:"Schedule \u2192 \uD83C\uDF34 Request Time Off. Submit at least 14 days ahead and always include a reason. You'll see your requests update once a manager reviews them." },
                 { img:'scoopy-cheer.png', title:'Daily store tasks',

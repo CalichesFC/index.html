@@ -963,6 +963,9 @@
     }
     // An "allowed to do" switch (approve_cover, manage_schedule...) for whoever the screen is showing.
     function permCap(key){ var c=permCapsNow(); return !!(c && c[key]===true); }
+    // The Hub's own time clock. Axial is the time clock for now, so this stays off for everyone unless the
+    // "Time Clock (Hub)" switch is turned on in Roles & Permissions (two clocks would mean two answers for payroll).
+    function hubClockOn(){ try{ return permSwitch('time_clock')===true; }catch(e){ return false; } }
     function permCapPin(){
         try{ if(typeof sessionPin!=='undefined' && sessionPin) return sessionPin; }catch(e){}
         try{ if(localStorage.getItem('calichesKeep')!=='0'){ var p=sessionStorage.getItem('calichesPin'); if(p) return p; } }catch(e){}
