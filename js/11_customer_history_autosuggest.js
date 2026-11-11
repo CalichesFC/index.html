@@ -235,10 +235,24 @@
             } else {
                 var cargs = { p_order_num: orderNum, p_submitted_by: currentUser.name || null };
                 Object.keys(qfields).forEach(function(k){ cargs[k] = qfields[k]; });
-                supabaseClient.rpc('app_quote_create', cargs).then(({ data, error }) => {
-                    if (error) { console.error('[Quote] Supabase insert error:', error.code, error.message); alert('The PDF was made, but saving the quote failed: ' + error.message); }
+                var _quoteSaved = function ({ data, error }) {
+                    if (error) { if (error.code === '42501') sessionPin = null; console.error('[Quote] Supabase insert error:', error.code, error.message); alert('The PDF was made, but saving the quote failed: ' + error.message); }
                     else { afterSaved(data && data[0] && data[0].accept_token); }
-                }).catch(err => console.error('[Quote] Unexpected Supabase error:', err));
+                };
+                // Safety update: saving a new quote needs the login now (same as editing one). The older open
+                // save is used only when the server piece is not there yet, so a quote is never lost.
+                withPin(function (pin) {
+                    var vargs = { p_username: currentUser.username, p_password: pin };
+                    Object.keys(cargs).forEach(function(k){ vargs[k] = cargs[k]; });
+                    supabaseClient.rpc('app_quote_create_v2', vargs).then(function (res) {
+                        if (res && res.error && typeof hubRpcMissing === 'function' && hubRpcMissing(res.error)) {
+                            return supabaseClient.rpc('app_quote_create', cargs).then(_quoteSaved);
+                        }
+                        _quoteSaved(res);
+                    }).catch(err => console.error('[Quote] Unexpected Supabase error:', err));
+                }, function () {
+                    alert('The PDF was made, but the quote was NOT saved because no PIN was entered. Press Generate again and enter your PIN to save it.');
+                });
             }
         })
         .catch(err => { console.error('[Quote] GAS error:', err); alert('Could not reach PDF server: ' + err.message); btn.disabled = false; btn.innerText = '\u{1F680} GENERATE QUOTE PDF'; });
@@ -1219,10 +1233,18 @@
             // Format as a clear KB question and insert into Supabase
             const kbQ = 'How should we respond when staff asks: "' + userQuestion + '"?';
             try {
-                const { data, error } = await supabaseClient.rpc('insert_kb_question', {
+                // Safety update: adding a question needs the login now. Uses the PIN already in hand and never asks for it.
+                let gapPin = null;
+                try { gapPin = sessionPin || ((localStorage.getItem('calichesKeep') !== '0') ? sessionStorage.getItem('calichesPin') : null); } catch (e) { gapPin = null; }
+                if (!gapPin || typeof currentUser === 'undefined' || !currentUser || !currentUser.username) return;
+                let { data, error } = await supabaseClient.rpc('app_kb_ask', {
+                    p_username: currentUser.username, p_password: gapPin,
                     p_question: kbQ,
                     p_category: 'Employee Questions'
                 });
+                if (error && typeof hubRpcMissing === 'function' && hubRpcMissing(error)) {
+                    ({ data, error } = await supabaseClient.rpc('insert_kb_question', { p_question: kbQ, p_category: 'Employee Questions' }));
+                }
                 if (!error && data === true) {
                     // New question inserted — increment badge count
                     const n = parseInt(localStorage.getItem('scoopy_gap_count') || '0') + 1;

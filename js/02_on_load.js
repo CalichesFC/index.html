@@ -509,9 +509,20 @@
     // ============================================================
     // ACTIVITY LOGGING
     // ============================================================
+    // Safety update: true when the server piece being called is not there yet (so an older open call may be used once).
+    function hubRpcMissing(e) { return !!e && (e.code === 'PGRST202' || e.code === '42883' || /could not find the function/i.test(String(e.message || ''))); }
     function logActivity(username, name, action) {
-        supabaseClient.rpc('app_log_activity', { p_username: username, p_name: name, p_action: action })
-        .then(({ error }) => { if(error) console.log('[Activity] Log error:', error.message); });
+        // Safety update: the activity log needs the login now. The name comes from the server, not from the browser.
+        var pin = null; try { pin = sessionPin || null; } catch (e) { pin = null; }
+        if (!pin || !username) return;
+        supabaseClient.rpc('app_activity_log', { p_username: username, p_password: pin, p_action: action })
+        .then(({ error }) => {
+            if (!error) return;
+            if (hubRpcMissing(error)) {
+                supabaseClient.rpc('app_log_activity', { p_username: username, p_name: name, p_action: action })
+                .then(({ error }) => { if (error) console.log('[Activity] Log error:', error.message); });
+            } else { console.log('[Activity] Log error:', error.message); }
+        }).catch(function () {});
     }
 
     function fetchActivityLog(btnElement) {

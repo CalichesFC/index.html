@@ -365,8 +365,7 @@
         // genuine failure is unchanged for them.
         insertObj.PDF_Archive = (pdfUrl === null) ? 'Pending' : (pdfUrl || 'PDF Failed to Generate');
         console.log('[Supabase] Inserting into ' + tableName + ':', insertObj);
-        supabaseClient.rpc('app_form_insert', { p_table: tableName, p_data: insertObj })
-        .then(({ data, error }) => {
+        var _saved = function ({ data, error }) {
             console.log('[Supabase] Response from ' + tableName + ':', { data, error });
             if (error) {
                 console.error('[Supabase] Error:', error.code, error.message);
@@ -379,11 +378,28 @@
                 return;
             }
             onSuccess();
-        }).catch(err => {
+        };
+        var _crashed = function (err) {
             console.error('[Supabase] Unexpected error:', err);
             var _errMsg = 'Unexpected error: ' + (err && err.message ? err.message : err);
             if (typeof onError === 'function') { onError(_errMsg); }
             else { alert(_errMsg); }
+        };
+        // Safety update: saving a form needs the login now. The older open save is used only when the
+        // server piece is not there yet, so a report is never lost.
+        withPin(function (pin) {
+            supabaseClient.rpc('app_form_submit', { p_username: currentUser.username, p_password: pin, p_table: tableName, p_data: insertObj })
+            .then(function (res) {
+                if (res && res.error && typeof hubRpcMissing === 'function' && hubRpcMissing(res.error)) {
+                    return supabaseClient.rpc('app_form_insert', { p_table: tableName, p_data: insertObj }).then(_saved);
+                }
+                if (res && res.error && res.error.code === '42501') { sessionPin = null; }
+                _saved(res);
+            }).catch(_crashed);
+        }, function () {
+            var _noPin = 'Not saved yet: no PIN was entered. Send it again and enter your PIN.';
+            if (typeof onError === 'function') { onError(_noPin); }
+            else { alert(_noPin); }
         });
     }
 
