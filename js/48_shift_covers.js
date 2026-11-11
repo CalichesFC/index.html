@@ -64,7 +64,7 @@
     }
     function covCan(k){ return !!(_cov.caps && _cov.caps[k] === true); }
     function covApplyCaps(){
-        try{ if(covCan('approve_cover')){ var b=document.getElementById('requestsBtn'); if(b) b.style.display='block'; } }catch(e){}
+        try{ if(!window._viewAsRole && covCan('approve_cover')){ var b=document.getElementById('requestsBtn'); if(b) b.style.display='block'; } }catch(e){}
     }
 
     // ---------- Small UI pieces ----------
@@ -246,7 +246,7 @@
 
         h+='<div id="covMsg" style="min-height:16px;font-size:12.5px;color:'+COV_RED+';margin-top:8px;">'+covEsc(P.err||'')+'</div>';
         if(!P.loadErr) h+='<button type="button" id="covAskBtn" onclick="covSubmit()" style="width:100%;margin-top:4px;color:#fff;border:none;border-radius:11px;padding:12px;font-size:15px;font-weight:800;"></button>';
-        if(!isMgr && !more) h+=covBtn('Send to my manager instead','covSendToManager()','', 'width:100%;margin-top:8px;');
+        // "Send to my manager instead" retired 2026-11-10: ask coworkers first; if nobody can, it goes to the manager from there.
         if(more) h+=covBtn('Back','covBackFromMore()','', 'width:100%;margin-top:8px;');
         h+='<div style="font-size:11.5px;color:#8a93a0;margin-top:10px;text-align:center;line-height:1.45;">'+
            (isMgr ? 'The first person who says yes gets the shift right away.' : 'The first person who says yes takes it once a manager approves. You’re still on the shift until then.')+'</div>';

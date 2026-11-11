@@ -507,15 +507,22 @@
 
     // ── Merged Schedule screen (My Shifts / Build) ──
     function schedIsMgr() {
-        var r = currentUser && currentUser.role;
+        // Follows the "Build & publish the schedule" switch (manage_schedule) once this person's
+        // switches (or the previewed role's) have loaded; job-title defaults only until then.
+        try {
+            var c = (typeof permCapsNow === 'function') ? permCapsNow() : null;
+            if (c && Object.prototype.hasOwnProperty.call(c, 'manage_schedule')) return c.manage_schedule === true;
+        } catch (e) {}
+        var r = window._viewAsRole || (currentUser && currentUser.role);
         if (r === 'Vice President/Co-Owner') r = 'Admin Manager';
+        if (window._viewAsRole) return /manager/i.test(String(r));
         return (r === 'Admin Manager' || r === 'Manager') ||
                (currentUser && currentUser.is_developer === true) ||
                (currentUser && currentUser.isStoreManager === true);
     }
     function schedInit() {
         var mgr = schedIsMgr();
-        var r = currentUser && currentUser.role;
+        var r = window._viewAsRole || (currentUser && currentUser.role);
         if (r === 'Vice President/Co-Owner') r = 'Admin Manager';
         var admin = (r === 'Admin Manager') || (currentUser && currentUser.is_developer === true);
         var setD = function(id, on, disp) { var e = document.getElementById(id); if (e) e.style.display = on ? (disp || 'block') : 'none'; };

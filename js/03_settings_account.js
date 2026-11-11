@@ -1153,9 +1153,18 @@
         var _dr=(schedState.data.shifts||[]).filter(function(s){ return !s.published; }), _pp={};
         _dr.forEach(function(s){ if(s.employee_id!=null) _pp[s.employee_id]=1; });
         var _n=_dr.length, _p=Object.keys(_pp).length;
+        // Overtime: anyone over the weekly limit on this schedule. Publishing is the approval,
+        // and leadership gets a notice (server side).
+        var _otLim=(typeof cfgNum==='function'?cfgNum('targets','ot_threshold_hrs',40):40), _hrs={}, _ot=[];
+        (schedState.data.shifts||[]).forEach(function(s){ if(s.employee_id==null) return;
+            var a=String(s.start_time||'').split(':'), b=String(s.end_time||'').split(':');
+            var h=(Number(b[0])+Number(b[1]||0)/60)-(Number(a[0])+Number(a[1]||0)/60); if(h<=0) h+=24;
+            if(isFinite(h)) _hrs[s.employee_id]=(_hrs[s.employee_id]||0)+h; });
+        Object.keys(_hrs).forEach(function(id){ if(_hrs[id]>_otLim){ var e=(schedState.data.employees||[]).find(function(x){return String(x.id)===String(id);}); _ot.push(escapeHtml(e?e.name:'Employee')+' ('+(Math.round(_hrs[id]*10)/10)+'h)'); } });
+        var _otHtml=_ot.length ? ('<div style="background:#fff6e6;border:1px solid #f0d9a8;border-radius:10px;padding:10px 12px;margin-top:10px;color:#6b5220;"><b>Overtime (over '+_otLim+' hours):</b> '+_ot.join(', ')+'.<br>Publishing means you approve this overtime. Leadership gets a notice.</div>') : '';
         hubAsk({ title:'Publish '+hubWeek(schedState.weekStart)+' at '+schedState.location+'?',
-                 html:(_n ? ('<b>'+_n+' shift'+(_n===1?'':'s')+'</b> not posted yet'+(_p?(' for <b>'+_p+' '+(_p===1?'person':'people')+'</b>'):'')+'. ') : 'Everything on this week is already posted. ')+'Anyone on it with Hub phone alerts on gets an alert.',
-                 yes:'Publish', no:'Not yet' }, function(){
+                 html:(_n ? ('<b>'+_n+' shift'+(_n===1?'':'s')+'</b> not posted yet'+(_p?(' for <b>'+_p+' '+(_p===1?'person':'people')+'</b>'):'')+'. ') : 'Everything on this week is already posted. ')+'Anyone on it with Hub phone alerts on gets an alert.'+_otHtml,
+                 yes:(_ot.length?'Approve overtime & publish':'Publish'), no:'Not yet' }, function(){
         const ws = schedFmt(schedState.weekStart);
         withPin(function(pin){
             supabaseClient.rpc('app_sched_publish_week', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_week_start: ws })

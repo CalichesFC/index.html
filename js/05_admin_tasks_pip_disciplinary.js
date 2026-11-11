@@ -1155,9 +1155,11 @@
                 '<button onclick="reqDecide(\'time_off\','+t.id+',false)" style="background:#fff;color:#a01b3e;border:1.5px solid #f3c2cb;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Deny</button></div></div>';
         });
         html+='</div>';
+        // Old can't-work list retired 2026-11-10: it only shows when a cover ask found nobody and was sent to the manager.
+        if(sw.length){
         html+='<div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 6px rgba(0,0,0,0.05);">' +
-            '<h3 style="margin:0 0 4px;color:var(--caliches-blue);font-size:16px;">&#128260; Can’t-work / cover requests ('+sw.length+')</h3>' +
-            '<p style="margin:0 0 8px;font-size:12px;color:#6b7686;">A team member can’t work a shift — the reason is shown. Approve to acknowledge; arrange coverage as usual.</p>';
+            '<h3 style="margin:0 0 4px;color:var(--caliches-blue);font-size:16px;">&#128260; Nobody could cover ('+sw.length+')</h3>' +
+            '<p style="margin:0 0 8px;font-size:12px;color:#6b7686;">These were sent to you because nobody could take the shift. The reason is shown. Approve to acknowledge, then arrange coverage.</p>';
         if(!sw.length){ html+='<p style="color:#6b7686;font-size:13px;margin:0;">Nothing waiting on you. &#127881;</p>'; }
         else sw.forEach(function(w,i){
             html+='<div style="padding:10px 0;'+(i<sw.length-1?'border-bottom:1px solid #eee;':'')+'">' +
@@ -1167,6 +1169,7 @@
                 '<button onclick="reqDecide(\'swap\','+w.id+',false)" style="background:#fff;color:#a01b3e;border:1.5px solid #f3c2cb;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Deny</button></div></div>';
         });
         html+='</div>';
+        }
         c.innerHTML=html;
         if(typeof covLoadManager==='function') covLoadManager();
     }

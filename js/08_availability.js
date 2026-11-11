@@ -252,6 +252,7 @@
     var NOTIF_TYPES=[
         {k:'equipment_maintenance',l:'Equipment maintenance due'},
         {k:'schedule_published',l:'New schedule published'},
+        {k:'schedule_changed',l:'Posted shift changed or removed'},
         {k:'schedule_confirm',l:'Confirm-your-schedule reminder'},
         {k:'task_assigned',l:'Task assigned to you'},
         {k:'recognition',l:'Recognition / shout-outs'},

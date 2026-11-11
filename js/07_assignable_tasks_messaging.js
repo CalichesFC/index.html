@@ -28,7 +28,7 @@
                     var inb=document.getElementById('btn-inventory'); if(inb) inb.style.display='block';
                     var atb2=document.getElementById('btn-attendance'); if(atb2) atb2.style.display='block'; }
                 var atb=document.getElementById('assignTaskBtn'); if(atb&&currentUser.isStoreManager) atb.style.display='block';
-                var rqb=document.getElementById('requestsBtn'); if(rqb&&currentUser.isStoreManager) rqb.style.display='block';
+                var rqb=document.getElementById('requestsBtn'); if(rqb&&currentUser.isStoreManager&&!window._viewAsRole&&(typeof permAllow!=='function'||permAllow('requests',true))) rqb.style.display='block';
             });
         });
     }
