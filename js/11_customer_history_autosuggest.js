@@ -68,10 +68,12 @@
         row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;';
         row.innerHTML =
             '<div style="flex:0 0 70px;"><input type="number" min="0" step="1" value="' + (qty != null ? qty : 1) + '" class="quote-qty" onchange="recalcQuoteTotals()" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:8px;"></div>' +
-            '<div style="flex:1 1 200px;"><input type="text" value="' + (desc || '') + '" class="quote-desc" placeholder="e.g., Custard Cart Service (2 hrs)" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:8px;"></div>' +
+            '<div style="flex:1 1 200px;"><input type="text" value="" class="quote-desc" placeholder="e.g., Custard Cart Service (2 hrs)" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:8px;"></div>' +
             '<div style="flex:0 0 100px;"><input type="number" min="0" step="0.01" value="' + (price != null ? price : '') + '" class="quote-price" placeholder="0.00" onchange="recalcQuoteTotals()" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:8px;"></div>' +
             '<div style="flex:0 0 100px;"><div class="quote-line-subtotal" style="padding:10px;font-weight:bold;color:#7b2d8b;">$0.00</div></div>' +
             '<button type="button" onclick="removeQuoteRow(' + id + ')" style="flex:0 0 36px;background:#fceceb;color:var(--damage-red);border:2px solid var(--damage-red);border-radius:8px;padding:9px;cursor:pointer;font-weight:bold;">&times;</button>';
+        // Set the description from code, not inside the HTML text: a quote mark (") in it used to cut the line short.
+        row.querySelector('.quote-desc').value = (desc == null ? '' : String(desc));
         document.getElementById('quoteItemsContainer').appendChild(row);
         recalcQuoteTotals();
     }
@@ -137,12 +139,27 @@
         const _name0 = (_form0.querySelector('input[name="ContactName"]').value || '').trim();
         const _date0 = _form0.querySelector('input[name="EventDate"]').value;
         if (!_name0 || !_date0) { return alert('Please enter the contact name and event date!'); }
+        // Check the line items BEFORE a quote number is taken, so a missing line never uses up a number.
+        if (_quoteValidRows().length === 0) { return alert('Add at least one line item (a description and a price over $0) before sending the quote.'); }
         if (_btn0) { _btn0.innerText = 'Getting quote number...'; _btn0.disabled = true; }
         withQuoteOrderNum(window._editingQuote || null, function (num) {
-            if (!num) { if (_btn0) { _btn0.innerText = 'Send Quote'; _btn0.disabled = false; } return; }
+            if (!num) { _quoteBtnRestore(_btn0); return; }
             window.__quoteOrderNum = num;
             _submitQuoteWithNumber();
         });
+    }
+
+    // The line items that count: a description and a price over $0.
+    function _quoteValidRows() {
+        return [].slice.call(document.querySelectorAll('#quoteItemsContainer .quote-row')).filter(function(r){ return (r.querySelector('.quote-desc').value||'').trim() && (parseFloat(r.querySelector('.quote-price').value)||0)>0; });
+    }
+    // Put the Generate button back the way it was, so one mistake never leaves it greyed out.
+    function _quoteBtnRestore(btn) {
+        if (!btn) return;
+        btn.disabled = false;
+        var e = window._editingQuote;
+        if (e && e.order_num) { btn.innerHTML = '\u{1F504} UPDATE &amp; RESEND QUOTE #' + escapeHtml(String(e.order_num)); }
+        else { btn.innerHTML = '\u{1F680} GENERATE QUOTE PDF'; }
     }
 
     function _submitQuoteWithNumber() {
@@ -150,9 +167,9 @@
         const form = document.getElementById('quoteForm');
         const contactName = form.querySelector('input[name="ContactName"]').value.trim();
         const eventDate = form.querySelector('input[name="EventDate"]').value;
-        if (!contactName || !eventDate) { return alert('Please enter the contact name and event date!'); }
-        var _qValid=[].slice.call(document.querySelectorAll('#quoteItemsContainer .quote-row')).filter(function(r){ return (r.querySelector('.quote-desc').value||'').trim() && (parseFloat(r.querySelector('.quote-price').value)||0)>0; });
-        if(_qValid.length===0){ return alert('Add at least one line item (a description and a price over $0) before sending the quote.'); }
+        if (!contactName || !eventDate) { _quoteBtnRestore(btn); return alert('Please enter the contact name and event date!'); }
+        var _qValid=_quoteValidRows();
+        if(_qValid.length===0){ _quoteBtnRestore(btn); return alert('Add at least one line item (a description and a price over $0) before sending the quote.'); }
         btn.innerText = 'Generating PDF...'; btn.disabled = true;
 
         const company = form.querySelector('input[name="Company"]').value;
@@ -218,6 +235,7 @@
                 if (!token) return;
                 const acceptUrl = publicLinkBase() + '?accept=' + token;
                 const linkBtn = document.createElement('button');
+                linkBtn.type = 'button'; // this button sits inside the quote form: without this it acts as Submit and restarts the app
                 linkBtn.className = 'save-btn blue-btn'; linkBtn.style.marginTop = '12px'; linkBtn.style.marginBottom = '0';
                 linkBtn.innerText = '\u{1F517} Copy Customer Acceptance Link';
                 linkBtn.onclick = function() { navigator.clipboard.writeText(acceptUrl).then(() => { linkBtn.innerText = '✅ Link Copied!'; setTimeout(() => { linkBtn.innerText = '\u{1F517} Copy Customer Acceptance Link'; }, 2000); }).catch(() => { alert('Acceptance link:\n' + acceptUrl); }); };
@@ -1330,22 +1348,37 @@
         }
 
 
+// Read an amount the way a person types it: "$1,000.50" -> 1000.5.
+// Blank -> null (the server then uses the quote total). Anything that is not a plain
+// amount over $0 -> NaN, so a typo never records the full total by mistake.
+window.hubReadAmount = function(text){
+  var s = String(text==null?'':text).trim().replace(/^\$\s*/,'').replace(/,/g,'');
+  if (s==='') return null;
+  if (!/^\d+(\.\d{0,2})?$/.test(s) && !/^\.\d{1,2}$/.test(s)) return NaN;
+  var n = parseFloat(s);
+  return (n>0) ? n : NaN;
+};
+window.hubAmountBad = function(typed){
+  return '"'+String(typed).trim()+'" is not an amount, so nothing was recorded.\n\nType it like 450 or 450.00, or leave it blank to use the quote total.';
+};
 // ── Catering: manual Mark Paid + printable Receipt (added for Square paid-status) ──
 window.markQuotePaid = function(id){
   var q = (window._qCache||{})[id] || {};
   var amt = prompt('Amount received for '+(q.company||q.contact_name||('quote #'+id))+'?\nLeave blank to use the quote total ($'+(Number(q.total)||0).toFixed(2)+').');
   if (amt === null) return; // cancelled
+  var amtNum = window.hubReadAmount(amt);
+  if (amtNum !== null && isNaN(amtNum)) { alert(window.hubAmountBad(amt)); return; }
   var method = prompt('Payment method? (Square, Cash, Card, Check, Other)', 'Square');
   if (method === null) return;
   var ref = prompt('Reference / confirmation # (optional):', '') || '';
   withPin(function(pin){
     supabaseClient.rpc('app_quote_mark_paid_manual', {
       p_username: currentUser.username, p_password: pin, p_id: id,
-      p_amount: amt.trim()===''? null : (parseFloat(amt)||null),
+      p_amount: amtNum,
       p_method: method || 'Manual', p_reference: ref
     }).then(function(r){
       if (r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers/office only.':r.error.message); return; }
-      alert('Marked paid. A receipt is now available on this quote.');
+      alert('Marked paid: $'+(amtNum===null?(Number(q.total)||0):amtNum).toFixed(2)+'. A receipt is now available on this quote.');
       // H1 fix: this used to call loadSalesPipeline()/searchCustomerHistory(), neither of
       // which exists anywhere in the codebase (dead reference), so the pipeline never
       // refreshed after a successful Mark Paid. fetchSalesPipeline() is the real pipeline
@@ -1364,12 +1397,15 @@ window.showQuoteReceipt = function(id){
   var items = [];
   try { items = Array.isArray(q.line_items) ? q.line_items : (q.line_items ? JSON.parse(q.line_items) : []); } catch(e){ items = []; }
   var rows = items.map(function(it){
-    var name = it.name||it.label||it.item||it.description||'Item';
+    var name = it.desc||it.name||it.label||it.item||it.description||'Item'; // quotes store the line's words as "desc"
     var qty  = it.qty||it.quantity||1;
     var line = (it.amount!=null)? it.amount : ((Number(it.price||it.unit||0))*(Number(qty)||1));
     return '<tr><td style="padding:4px 0;">'+esc(name)+' &times; '+esc(qty)+'</td><td style="padding:4px 0;text-align:right;">'+money(line)+'</td></tr>';
   }).join('');
   var paidLine = q.paid_at ? new Date(q.paid_at).toLocaleDateString() : new Date().toLocaleDateString();
+  // The event date is a plain day (2026-10-20). Read it as that day here, not as midnight in London,
+  // which printed the day before on the customer's receipt.
+  var evDay = (function(v){ var m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})/); var d = m ? new Date(+m[1],+m[2]-1,+m[3]) : new Date(v); return isNaN(d.getTime()) ? String(v||'') : d.toLocaleDateString(); })(q.event_date);
   var rc = '<div id="qReceipt" style="font-family:Georgia,serif;color:#222;max-width:420px;margin:0 auto;">'
     + '<div style="text-align:center;border-bottom:2px solid #185FA5;padding-bottom:8px;margin-bottom:10px;">'
     + '<div style="font-size:20px;font-weight:800;color:#185FA5;">Caliche’s Frozen Custard</div>'
@@ -1377,7 +1413,7 @@ window.showQuoteReceipt = function(id){
     + '<div style="font-size:11px;color:#666;">'+esc(q.invoice_number||q.order_num||('Quote #'+id))+'</div></div>'
     + '<div style="font-size:12.5px;color:#333;">'
     + '<div><b>Customer:</b> '+esc(q.company||q.contact_name||'')+(q.company&&q.contact_name?(' ('+esc(q.contact_name)+')'):'')+'</div>'
-    + (q.event_date?'<div><b>Event:</b> '+esc(q.event_type||'')+' &middot; '+new Date(q.event_date).toLocaleDateString()+'</div>':'')
+    + (q.event_date?'<div><b>Event:</b> '+esc(q.event_type||'')+' &middot; '+esc(evDay)+'</div>':'')
     + '<div><b>Paid:</b> '+paidLine+(q.payment_method?(' &middot; '+esc(q.payment_method)):'')+(q.payment_reference?(' &middot; ref '+esc(q.payment_reference)):'')+'</div>'
     + '</div>'
     + '<table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px;border-top:1px solid #e5e5e5;">'+rows+'</table>'

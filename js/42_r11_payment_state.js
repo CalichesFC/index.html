@@ -236,6 +236,9 @@
                         + 'If the customer pays through the Square pay link, the Hub records "confirmed by Square" automatically — you do not need this button for that.')) return;
                     var amt = prompt('Amount received?\nLeave blank to use the quote total ($'+(Number(q.total)||0).toFixed(2)+').');
                     if(amt===null) return;
+                    // "$450" and "1,200" are read as amounts; anything that is not an amount stops here, nothing recorded.
+                    var amtNum = (typeof window.hubReadAmount==='function') ? window.hubReadAmount(amt) : (amt.trim()===''? null : (parseFloat(amt)||NaN));
+                    if(amtNum!==null && isNaN(amtNum)){ alert((typeof window.hubAmountBad==='function')?window.hubAmountBad(amt):'That is not an amount. Nothing was recorded.'); return; }
                     var method = prompt('How did the customer actually pay? (Cash, Check, Card in person, Zelle, Other)','Cash');
                     if(method===null) return;
                     var ref = prompt('Reference / confirmation # (optional):','') || '';
@@ -246,7 +249,7 @@
                         try{
                             supabaseClient.rpc('app_quote_mark_paid_manual', {
                                 p_username: currentUser.username, p_password: pinVal, p_id: id,
-                                p_amount: amt.trim()===''? null : (parseFloat(amt)||null),
+                                p_amount: amtNum,
                                 p_method: (method||'Manual'), p_reference: ref
                             }).then(function(r){
                                 if(r && r.error){
@@ -260,6 +263,7 @@
                                 var d = (r && r.data) || {};
                                 alert('Recorded as a MANUAL payment entry'
                                     + (d.paid_marked_by ? ' by '+d.paid_marked_by : '')
+                                    + '.\nAmount recorded: $'+(amtNum===null?(Number(q.total)||0):amtNum).toFixed(2)
                                     + '.\nThe pipeline will show it as "manual entry — not verified by Square".');
                                 invalidatePay();
                                 try{ if(typeof fetchSalesPipeline==='function') fetchSalesPipeline(); }catch(e){}

@@ -18,6 +18,9 @@
     function edDate(s){ if(!s) return '—'; var p=String(s).slice(0,10).split('-'); if(p.length<3) return String(s); var d=new Date(+p[0],+p[1]-1,+p[2]); return ED_DOW[d.getDay()]+' '+ED_MON[d.getMonth()]+' '+(+p[2])+', '+p[0]; }
     function edDS(s){ if(!s) return ''; try{ var d=new Date(s); return ED_MON[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear(); }catch(e){ return String(s).slice(0,10); } }
     function edVal(id){ var e=document.getElementById(id); return e?e.value:''; }
+    // Tax-exempt is ticked but the quote was built with tax in it. Ticking the box does not change the total,
+    // so the screen must not say $0.00 tax while the total (and the customer's invoice) still carries it.
+    function edTaxStill(q){ return !!(q&&q.tax_exempt&&Number(q.tax)>0); }
 
     function edOv(){ var o=document.getElementById('edModal'); if(!o){ o=document.createElement('div'); o.id='edModal'; o.style.cssText='position:fixed;inset:0;background:#eef1f6;z-index:100060;overflow:auto;'; document.body.appendChild(o);} o.style.display='block'; return o; }
     function edClose(){ var o=document.getElementById('edModal'); if(o)o.style.display='none'; }
@@ -54,15 +57,20 @@
     }
 
     function edSave(){
-        if(_ed.saving||!_ed.q) return; _ed.saving=true; edRender();
+        if(_ed.saving||!_ed.q) return;
+        // Read what was typed FIRST. edRender() rebuilds every field from the last saved copy,
+        // so reading after it sent the old values to the server and threw the typing away.
         var payload={ event_time:edVal('edTime'), event_location:edVal('edLocation'), event_type:edVal('edType'), po_number:edVal('edPO'), tax_exempt:(document.getElementById('edTaxx')?document.getElementById('edTaxx').checked:false) };
+        // Keep the typed values on the screen while it saves, and if the save does not go through.
+        [['edTime','event_time'],['edLocation','event_location'],['edType','event_type'],['edPO','po_number'],['edTaxx','tax_exempt']].forEach(function(p){ if(document.getElementById(p[0])) _ed.q[p[1]]=payload[p[1]]; });
+        _ed.saving=true; edRender();
         withPin(function(pin){
             supabaseClient.rpc('app_quote_details_set',{p_admin_username:currentUser.username,p_admin_password:pin,p_id:_ed.id,p_payload:payload}).then(function(r){
                 _ed.saving=false;
                 if(r.error){ alert(r.error.message||'Could not save.'); edRender(); return; }
                 edLoad();
             }).catch(function(){ _ed.saving=false; alert('Connection error.'); edRender(); });
-        });
+        }, function(){ _ed.saving=false; edRender(); });
     }
     window.edSave=edSave; window.edClose=edClose; window.openEventDetail=openEventDetail;
 
@@ -110,7 +118,7 @@
             money+='<tr><td style="padding:6px 0;border-bottom:1px solid #f1f3f7;color:#3a4353;">'+edEsc(d)+'</td><td style="padding:6px 0;border-bottom:1px solid #f1f3f7;text-align:right;white-space:nowrap;font-weight:700;">'+edMoney(sub)+'</td></tr>'; }
         money+='</table>';
         money+='<div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;color:#6b7686;"><span>Subtotal</span><span>'+edMoney(q.subtotal)+'</span></div>';
-        money+='<div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0;color:#6b7686;"><span>Tax'+(q.tax_exempt?' (exempt)':'')+'</span><span>'+edMoney(q.tax_exempt?0:q.tax)+'</span></div>';
+        money+='<div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0;color:#6b7686;"><span>Tax'+(q.tax_exempt?(edTaxStill(q)?' (marked exempt — still in the total)':' (exempt)'):'')+'</span><span>'+edMoney((q.tax_exempt&&!edTaxStill(q))?0:q.tax)+'</span></div>';
         money+='<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;color:#106ab3;border-top:2px solid #eef0f5;margin-top:5px;padding-top:8px;"><span>Total</span><span>'+edMoney(q.total)+'</span></div>';
         // status line
         var statusLine=''; if(q.invoice_status==='Paid'||q.payment_source){ statusLine='<div style="color:#0f7a3d;font-weight:800;font-size:12.5px;margin-top:8px;">&#128179; Paid'+(q.paid_at?(' on '+edDS(q.paid_at)):'')+'</div>'; }
