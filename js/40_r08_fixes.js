@@ -133,7 +133,7 @@
         pinRpc('app_week_conflict_resolve', {p_id:id}, function(){
             try{ paintConflicts('r08ConflictsBody'); }catch(e){}
             try{ mountSchedBanner(); }catch(e){}
-        }, function(err){ try{ alert('Could not mark it resolved: '+((err&&err.message)||'connection problem')+'. Nothing was changed — try again.'); }catch(e){} });
+        }, function(err){ try{ hubTell('Could not mark it resolved: '+((err&&err.message)||'connection problem')+'. Nothing was changed — try again.'); }catch(e){} });
     };
     // (a) inside the Schedule confirmations modal
     function mountConfirmsPanel(){
@@ -433,8 +433,8 @@
                             var onBreak=false; try{ onBreak=!!(clockState && clockState.status && clockState.status.open_punch && clockState.status.open_punch.open_break_start); }catch(e){}
                             withPin(function(pin){
                                 var params={p_username:currentUser.username,p_password:pin,p_employee_id:emp};
-                                var handle=function(res){ done(); try{ var data=res?res.data:null, error=res?res.error:null; if(error){ alert('Error: '+error.message); return; } if(data && data.ok===false){ alert(data.error||'Could not complete.'); } if(typeof clockRefreshStatus==='function') clockRefreshStatus(); }catch(e){} };
-                                var fail=function(){ done(); alert('Connection problem — the break was NOT recorded. Check the Wi-Fi and tap it again.'); };
+                                var handle=function(res){ done(); try{ var data=res?res.data:null, error=res?res.error:null; if(error){ hubTell('Error: '+error.message); return; } if(data && data.ok===false){ hubTell(data.error||'Could not complete.'); } if(typeof clockRefreshStatus==='function') clockRefreshStatus(); }catch(e){} };
+                                var fail=function(){ done(); hubTell('Connection problem — the break was NOT recorded. Check the Wi-Fi and tap it again.'); };
                                 if(onBreak) supabaseClient.rpc('app_break_end',params).then(handle).catch(fail);
                                 else supabaseClient.rpc('app_break_start',params).then(handle).catch(fail);
                             }, function(){ done(); });
@@ -467,8 +467,8 @@
                             var revert=function(){ try{ if(had) schedState.forecast[ds]=prev; else delete schedState.forecast[ds]; if(typeof renderScheduleGrid==='function') renderScheduleGrid(); }catch(e){} };
                             withPin(function(pin){
                                 supabaseClient.rpc('app_labor_set',{p_username:currentUser.username,p_password:pin,p_location:schedState.location,p_date:ds,p_amount:amt}).then(function(r){
-                                    if(r&&r.error){ revert(); alert('Forecast NOT saved: '+(r.error.message||'error')+'. The number was put back — try again.'); }
-                                }).catch(function(){ revert(); alert('Forecast NOT saved (connection problem). The number was put back — try again.'); });
+                                    if(r&&r.error){ revert(); hubTell('Forecast NOT saved: '+(r.error.message||'error')+'. The number was put back — try again.'); }
+                                }).catch(function(){ revert(); hubTell('Forecast NOT saved (connection problem). The number was put back — try again.'); });
                             }, function(){ revert(); });
                         }catch(e){ try{ orig(ds,val); }catch(_){} }
                     };

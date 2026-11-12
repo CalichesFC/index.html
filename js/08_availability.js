@@ -133,7 +133,7 @@
         var cmt=(document.getElementById('availCmt'+id)||{}).value||'';
         withPin(function(pin){
             supabaseClient.rpc('app_availability_decide',{p_username:currentUser.username,p_password:pin,p_id:id,p_approve:approve,p_comment:cmt}).then(function(r){
-                if(r.error){ alert('Error: '+r.error.message); return; }
+                if(r.error){ hubTell('Error: '+r.error.message); return; }
                 if(document.getElementById('availPendingPage')) loadAvailPending('availPendingPage');
                 var _am=document.getElementById('availApprovalsModal'); if(_am && _am.style.display==='flex') loadAvailPending();
                 if(typeof loadAvailBadge==='function') loadAvailBadge();

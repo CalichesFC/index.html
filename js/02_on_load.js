@@ -68,23 +68,27 @@
     function dismissScheduleGate(){ var ov=document.getElementById('scheduleGate'); if(ov) ov.style.display='none'; }
     function schedFlagConflict(){
         var ws=(typeof schedFmt==='function' && schedState && schedState.weekStart)?schedFmt(schedState.weekStart):null; if(!ws) return;
-        var note=prompt('What is the conflict with this schedule? Your manager will be notified.'); if(note===null) return; note=(note||'').trim();
-        withPin(function(pin){
-            supabaseClient.rpc('app_week_flag_conflict',{p_username:currentUser.username,p_password:pin,p_week_start:ws,p_note:note}).then(function(r){
-                if(r&&r.error){ alert('Could not send: '+r.error.message); return; }
-                if(typeof showUndo==='function') showUndo('Sent to your manager.'); else alert('Sent to your manager.');
-            }).catch(function(){ alert('Could not send right now.'); });
+        hubAsk({ title:'Flag a conflict with this schedule', html:'<div style="margin-bottom:10px;">Your manager will be notified.</div><textarea id="hubAskInput" rows="3" maxlength="500" aria-label="What is the conflict" placeholder="What is the conflict?" style="width:100%;box-sizing:border-box;padding:12px;border:2px solid #e3e8ef;border-radius:8px;font-size:15px;font-family:inherit;resize:vertical;"></textarea>', yes:'Send to my manager', no:'Cancel', focus:'#hubAskInput' }, function(ov){
+            var note=((ov.querySelector('#hubAskInput')||{}).value||'').trim();
+            withPin(function(pin){
+                supabaseClient.rpc('app_week_flag_conflict',{p_username:currentUser.username,p_password:pin,p_week_start:ws,p_note:note}).then(function(r){
+                    if(r&&r.error){ hubTell('Could not send: '+r.error.message); return; }
+                    if(typeof showUndo==='function') showUndo('Sent to your manager.'); else hubTell('Sent to your manager.');
+                }).catch(function(){ hubTell('Could not send right now.'); });
+            });
         });
     }
     function schedGateFlagConflict(){
         var ws=window._gateWeek;
-        var note=prompt('What is the conflict with this schedule? Your manager will be notified.'); if(note===null) return; note=(note||'').trim();
-        var pin=window._gatePin||sessionPin;
-        supabaseClient.rpc('app_week_flag_conflict',{p_username:currentUser.username,p_password:pin,p_week_start:ws,p_note:note}).then(function(r){
-            if(r&&r.error){ alert('Could not send: '+r.error.message); return; }
-            var ov=document.getElementById('scheduleGate'); if(ov) ov.style.display='none';
-            alert('Thanks - your manager has been notified about the conflict.');
-        }).catch(function(){ alert('Could not send right now.'); });
+        hubAsk({ title:'Flag a conflict with this schedule', html:'<div style="margin-bottom:10px;">Your manager will be notified.</div><textarea id="hubAskInput" rows="3" maxlength="500" aria-label="What is the conflict" placeholder="What is the conflict?" style="width:100%;box-sizing:border-box;padding:12px;border:2px solid #e3e8ef;border-radius:8px;font-size:15px;font-family:inherit;resize:vertical;"></textarea>', yes:'Send to my manager', no:'Cancel', focus:'#hubAskInput' }, function(sheet){
+            var note=((sheet.querySelector('#hubAskInput')||{}).value||'').trim();
+            var pin=window._gatePin||sessionPin;
+            supabaseClient.rpc('app_week_flag_conflict',{p_username:currentUser.username,p_password:pin,p_week_start:ws,p_note:note}).then(function(r){
+                if(r&&r.error){ hubTell('Could not send: '+r.error.message); return; }
+                var ov=document.getElementById('scheduleGate'); if(ov) ov.style.display='none';
+                hubTell('Your manager has been notified about the conflict.', { title:'Sent' });
+            }).catch(function(){ hubTell('Could not send right now.'); });
+        });
     }
     function confirmScheduleGate(){
         var ws=window._gateWeek; var btn=document.getElementById('scheduleGateBtn');
@@ -92,7 +96,7 @@
         var pin=window._gatePin||sessionPin;
         if(!pin){ if(btn){ btn.disabled=false; btn.textContent='Try again'; } return; }
         supabaseClient.rpc('app_week_confirm',{p_username:currentUser.username,p_password:pin,p_week_start:ws}).then(function(r){
-            if(r.error){ if(btn){ btn.disabled=false; btn.textContent='Try again'; } alert('Could not confirm: '+r.error.message+'\n\nYou can tap the X or "Not now" to close this and keep using the app — we\'ll ask again next time.'); return; }
+            if(r.error){ if(btn){ btn.disabled=false; btn.textContent='Try again'; } hubTell('Could not confirm: '+r.error.message+'\n\nYou can tap the X or "Not now" to close this and keep using the app — we\'ll ask again next time.'); return; }
             var ov=document.getElementById('scheduleGate'); if(ov) ov.style.display='none';
         }).catch(function(){ if(btn){ btn.disabled=false; btn.textContent='Try again'; } });
     }

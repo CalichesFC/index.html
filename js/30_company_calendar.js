@@ -37,10 +37,10 @@
     //   announcement_missing_ack_feed(p_username,p_password,p_store) ->
     //     { ok, store, feed:[ {announcement_id,title,ann_type,ack_due,overdue,targeted,acked,missing} ] }
     // ============================================================
-    var _cal = { tab:'calendar', store:'', data:null, inbox:null, ann:null, feed:null, cats:[], newOpen:false, statusFor:null };
+    var _cal = { tab:'calendar', store:'', data:null, inbox:null, ann:null, feed:null, cats:[], newOpen:false, editId:null, statusFor:null };
 
     // Credential wrapper — identical pattern to shsRpc/scRpc/macRpc.
-    function calRpc(name,args,cb,onerr){ withPin(function(pin){ supabaseClient.rpc(name,Object.assign({p_username:currentUser.username,p_password:pin},args||{})).then(function(r){ if(r.error){ if(onerr)onerr(r.error); else alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':r.error.message); return; } cb(r.data); }).catch(function(){ if(onerr)onerr({message:'Connection error'}); else alert('Connection error.'); }); }); }
+    function calRpc(name,args,cb,onerr){ withPin(function(pin){ supabaseClient.rpc(name,Object.assign({p_username:currentUser.username,p_password:pin},args||{})).then(function(r){ if(r.error){ if(onerr)onerr(r.error); else hubTell(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':r.error.message); return; } cb(r.data); }).catch(function(){ if(onerr)onerr({message:'Connection error'}); else hubTell('Connection error.'); }); }); }
 
     function calOv(){ var o=document.getElementById('calModal'); if(!o){ o=document.createElement('div'); o.id='calModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100050;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
     function calClose(){ var o=document.getElementById('calModal'); if(o) o.style.display='none'; }
@@ -102,47 +102,69 @@
         var badges='';
         if(e.store) badges+='<span style="font-size:10px;color:#5b6675;background:#eef0f3;border-radius:99px;padding:1px 8px;">'+calEmoji(e.store)+' '+calEsc(e.store)+'</span>';
         else badges+='<span style="font-size:10px;color:#106AB3;background:#eef3fb;border-radius:99px;padding:1px 8px;">Company-wide</span>';
-        if(e.source_module&&e.source_module!=='manual') badges+=' <span style="font-size:10px;color:#8a6d3b;background:#fbf4e8;border-radius:99px;padding:1px 8px;">from '+calEsc(e.source_module)+'</span>';
-        if(e.visibility&&e.visibility!=='all') badges+=' <span style="font-size:10px;color:#5b3ea8;background:#f0ecfb;border-radius:99px;padding:1px 8px;">'+calEsc(e.visibility)+'</span>';
+        if(e.source_module&&e.source_module!=='manual') badges+=' <span style="font-size:10px;color:#8a6d3b;background:#fbf4e8;border-radius:99px;padding:1px 8px;">Added automatically</span>';
+        var canEdit=!!((_cal.data||{}).can_create);
+        if(canEdit || (e.visibility&&e.visibility!=='all')) badges+=' <span style="font-size:12px;color:#5b3ea8;background:#f0ecfb;border-radius:99px;padding:1px 8px;">'+(canEdit?'Seen by: ':'')+calEsc(calWhoLabel(e.visibility))+'</span>';
         if(e.status&&e.status!=='scheduled'&&e.status!=='active') badges+=' <span style="font-size:10px;color:#9a5b00;background:#fff4e0;border-radius:99px;padding:1px 8px;">'+calEsc(e.status)+'</span>';
         var h='<div style="background:#fff;border:1px solid #eef0f5;border-left:4px solid '+col+';border-radius:12px;padding:11px 13px;margin-bottom:8px;">';
         h+='<div style="display:flex;align-items:baseline;gap:8px;"><b style="flex:1;font-size:14px;color:#1f2a44;">'+calEsc(e.title)+'</b><span style="font-size:12px;font-weight:700;color:'+col+';white-space:nowrap;">'+span+'</span></div>';
         h+='<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:5px;"><span style="font-size:10px;font-weight:800;color:#fff;background:'+col+';border-radius:99px;padding:2px 8px;">'+calEsc(calCatLabel(e.category))+'</span>'+badges+'</div>';
         if(e.notes) h+='<div style="font-size:12px;color:#6b6275;margin-top:6px;">'+calEsc(e.notes)+'</div>';
+        if(canEdit) h+='<div style="margin-top:8px;text-align:right;"><button type="button" onclick="calEdit('+Number(e.id)+')" style="background:none;border:none;color:#106AB3;font-size:13px;font-weight:700;cursor:pointer;padding:6px 2px;min-height:32px;font-family:inherit;">Edit</button></div>';
         return h+'</div>';
     }
     function calRenderCalendar(){
         var d=_cal.data||{}; var h=calControls(d);
-        if(_cal.newOpen) h+=calNewEventForm();
+        if(_cal.newOpen || _cal.editId) h+=calNewEventForm();
         var ev=d.events||[];
         if(!ev.length){ h+='<div style="background:#fff;border:1px dashed #cdd5e0;border-radius:14px;padding:28px 18px;text-align:center;color:#5b6675;"><div style="font-size:30px;">&#128197;</div><b style="display:block;color:#1f2a44;margin:6px 0 3px;">No upcoming events in your view</b><div style="font-size:12.5px;">You see only the calendar items for your role and store. '+(d.can_create?'Add one with <b>+ New event</b>.':'Managers add company events here.')+'</div></div>'; }
         else { h+=ev.map(calEventCard).join(''); }
-        h+='<div style="font-size:10.5px;color:#98a2b0;text-align:center;margin-top:16px;">role/store/sensitivity-filtered &middot; '+calEsc(d.from||'')+' &rarr; '+calEsc(d.to||'')+' &middot; categories &amp; colors adjustable in Business Settings (calendar_config)</div>';
+        h+='<div style="font-size:12px;color:#7a8594;text-align:center;margin-top:16px;">Showing '+calEsc(calPrettyDate(d.from))+' to '+calEsc(calPrettyDate(d.to))+'. You see the events meant for your role and store.</div>';
         return h;
     }
-    function calToggleNew(){ _cal.newOpen=!_cal.newOpen; calRender(); }
+    var CAL_WHO={ all:'Everyone', managers:'Managers only', leadership:'Leadership only' };
+    function calWhoLabel(v){ return CAL_WHO[v]||CAL_WHO.all; }
+    function calToggleNew(){ _cal.editId=null; _cal.newOpen=!_cal.newOpen; calRender(); }
+    function calEdit(id){ _cal.newOpen=false; _cal.editId=id; calRender(); try{ var f=document.getElementById('calEventForm'); if(f&&f.scrollIntoView) f.scrollIntoView({block:'start'}); }catch(e){} }
+    function calCancelForm(){ _cal.newOpen=false; _cal.editId=null; calRender(); }
+    // One form for a new event and for changing one. "Who sees this" is enforced on the server.
     function calNewEventForm(){
-        var opts=(_cal.cats||[]).map(function(c){ return '<option value="'+c.key+'">'+calEsc(c.label)+'</option>'; }).join('');
-        var stores=calStores().map(function(s){ return '<option value="'+calEsc(s)+'">'+calEsc(s)+'</option>'; }).join('');
-        var h='<div style="background:#fff;border:1px solid #cfe0f5;border-radius:12px;padding:14px;margin-bottom:12px;">';
-        h+='<b style="font-size:13px;color:#106AB3;">New calendar event</b>';
-        h+='<input id="calNewTitle" placeholder="Event title" style="width:100%;box-sizing:border-box;margin-top:8px;padding:9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;">';
-        h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">';
-        h+='<select id="calNewCat" style="padding:8px;border:1px solid #cdd5e0;border-radius:8px;font-size:12.5px;">'+opts+'</select>';
-        h+='<label style="font-size:11px;color:#5b6675;">Date <input id="calNewDate" type="date" value="'+calTodayIso()+'" style="border:1px solid #cdd5e0;border-radius:8px;padding:6px;font-size:12px;"></label>';
-        h+='<label style="font-size:11px;color:#5b6675;">End <input id="calNewEnd" type="date" style="border:1px solid #cdd5e0;border-radius:8px;padding:6px;font-size:12px;"></label>';
-        h+='<select id="calNewStore" style="padding:8px;border:1px solid #cdd5e0;border-radius:8px;font-size:12.5px;"><option value="">Company-wide</option>'+stores+'</select>';
-        h+='<select id="calNewVis" style="padding:8px;border:1px solid #cdd5e0;border-radius:8px;font-size:12.5px;"><option value="all">Everyone</option><option value="managers">Managers only</option><option value="leadership">Leadership only</option></select>';
+        var d=_cal.data||{}; var ev=null;
+        if(_cal.editId){ ev=(d.events||[]).filter(function(x){ return String(x.id)===String(_cal.editId); })[0]||null; if(!ev){ _cal.editId=null; if(!_cal.newOpen) return ''; } }
+        var v=ev||{};
+        function sel(a,b){ return String(a||'')===String(b||'')?' selected':''; }
+        var lab='display:block;font-size:12px;font-weight:700;color:#5b6675;margin:10px 0 4px;';
+        var box='width:100%;box-sizing:border-box;padding:10px;border:1px solid #cdd5e0;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;';
+        var opts=(_cal.cats||[]).map(function(c){ return '<option value="'+calEsc(c.key)+'"'+sel(c.key,v.category||'company')+'>'+calEsc(c.label)+'</option>'; }).join('');
+        var stores=calStores().map(function(s){ return '<option value="'+calEsc(s)+'"'+sel(s,v.store)+'>'+calEsc(s)+'</option>'; }).join('');
+        var who=['all','managers'].concat(d.can_leadership||v.visibility==='leadership'?['leadership']:[]).map(function(k){ return '<option value="'+k+'"'+sel(k,v.visibility||'all')+'>'+CAL_WHO[k]+'</option>'; }).join('');
+        var h='<div id="calEventForm" style="background:#fff;border:1px solid #cfe0f5;border-radius:12px;padding:14px;margin-bottom:12px;">';
+        h+='<b style="font-size:16px;color:#1f2a44;">'+(ev?'Change this event':'New calendar event')+'</b>';
+        h+='<label for="calNewTitle" style="'+lab+'">Title</label><input id="calNewTitle" maxlength="140" value="'+calEsc(v.title||'')+'" style="'+box+'">';
+        h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0 10px;">';
+        h+='<div><label for="calNewCat" style="'+lab+'">Type</label><select id="calNewCat" style="'+box+'">'+opts+'</select></div>';
+        h+='<div><label for="calNewStore" style="'+lab+'">Store</label><select id="calNewStore" style="'+box+'"><option value="">Company-wide</option>'+stores+'</select></div>';
+        h+='<div><label for="calNewDate" style="'+lab+'">Date</label><input id="calNewDate" type="date" value="'+calEsc(String(v.event_date||calTodayIso()).slice(0,10))+'" style="'+box+'"></div>';
+        h+='<div><label for="calNewEnd" style="'+lab+'">Last day (if more than one)</label><input id="calNewEnd" type="date" value="'+calEsc(String(v.end_date||'').slice(0,10))+'" style="'+box+'"></div>';
         h+='</div>';
-        h+='<textarea id="calNewNotes" placeholder="Notes (optional)" style="width:100%;box-sizing:border-box;margin-top:8px;padding:9px;border:1px solid #cdd5e0;border-radius:8px;font-size:12.5px;min-height:52px;"></textarea>';
-        h+='<label style="display:block;font-size:12px;color:#5b6675;margin-top:6px;"><input id="calNewTask" type="checkbox"> Create a follow-up prep task (Task Engine)</label>';
-        h+='<div style="margin-top:10px;display:flex;gap:8px;"><button onclick="calCreateEvent()" style="background:#106AB3;color:#fff;border:none;border-radius:8px;padding:9px 14px;font-size:12.5px;font-weight:800;cursor:pointer;">Create event</button><button onclick="calToggleNew()" style="background:#eef0f3;border:none;border-radius:8px;padding:9px 14px;font-size:12.5px;font-weight:700;cursor:pointer;">Cancel</button></div>';
+        h+='<label for="calNewVis" style="'+lab+'">Who sees this</label><select id="calNewVis" style="'+box+'">'+who+'</select>';
+        h+='<div style="font-size:12px;color:#7a8594;margin-top:4px;">Who counts as a manager or leadership is set in Roles &amp; Permissions.</div>';
+        h+='<label for="calNewNotes" style="'+lab+'">Notes</label><textarea id="calNewNotes" style="'+box+'min-height:56px;">'+calEsc(v.notes||'')+'</textarea>';
+        if(!ev) h+='<label style="display:block;font-size:13px;color:#3d4757;margin-top:10px;"><input id="calNewTask" type="checkbox"> Also make a prep task for this</label>';
+        h+='<div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;align-items:center;"><button type="button" onclick="calCancelForm()" style="background:none;border:none;color:#5b6675;font-size:14px;font-weight:700;padding:12px 14px;cursor:pointer;min-height:44px;font-family:inherit;">Cancel</button><button type="button" onclick="calCreateEvent()" style="background:var(--caliches-pink,#ec3e7e);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;padding:12px 18px;cursor:pointer;min-height:44px;font-family:inherit;">'+(ev?'Save changes':'Add event')+'</button></div>';
         return h+'</div>';
     }
     function calCreateEvent(){
-        var t=(document.getElementById('calNewTitle')||{}).value||''; if(!t.trim()){ alert('A title is required.'); return; }
-        var payload={ title:t.trim(), category:(document.getElementById('calNewCat')||{}).value||'company', event_date:(document.getElementById('calNewDate')||{}).value||calTodayIso(), end_date:(document.getElementById('calNewEnd')||{}).value||null, store:(document.getElementById('calNewStore')||{}).value||null, visibility:(document.getElementById('calNewVis')||{}).value||'all', notes:(document.getElementById('calNewNotes')||{}).value||null, requires_task:!!((document.getElementById('calNewTask')||{}).checked) };
-        calRpc('cal_event_create',{p_payload:payload},function(){ _cal.newOpen=false; calLoad(); },function(e){ alert(String((e&&e.message)||'').indexOf('forbidden')>=0?'Managers only.':(e&&e.message)||'Could not create.'); });
+        var g=function(id){ return (document.getElementById(id)||{}).value||''; };
+        var t=g('calNewTitle'); if(!t.trim()){ hubTell('A title is required.'); return; }
+        var payload={ title:t.trim(), category:g('calNewCat')||'company', event_date:g('calNewDate')||calTodayIso(), end_date:g('calNewEnd')||null, store:g('calNewStore')||null, visibility:g('calNewVis')||'all', notes:g('calNewNotes')||null };
+        var fail=function(e){ var m=String((e&&e.message)||''); hubTell(m.indexOf('forbidden')>=0?'You don’t have the switch for that. Ask an admin to check Roles & Permissions.':(m||'Could not save the event.')); };
+        if(_cal.editId){
+            calRpc('cal_event_save',{p_id:_cal.editId,p_payload:payload},function(){ _cal.editId=null; calLoad(); },fail);
+        } else {
+            payload.requires_task=!!((document.getElementById('calNewTask')||{}).checked);
+            calRpc('cal_event_create',{p_payload:payload},function(){ _cal.newOpen=false; calLoad(); },fail);
+        }
     }
 
     // (retired 2026-09-22) The Inbox and Announcements tabs moved to Messages > Announcements (js/09). Calendar keeps the calendar.

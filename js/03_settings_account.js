@@ -388,7 +388,7 @@
             case 'schedvsactual': openSchedVariance(); break;
             case 'print': schedPrint(); break;
             case 'timeoff': openTimeOff(); break;
-            case 'availability': if(typeof openAvailability==='function'){ openAvailability(); } else { alert('Open Availability from the main menu.'); } break;
+            case 'availability': if(typeof openAvailability==='function'){ openAvailability(); } else { hubTell('Open Availability from the main menu.'); } break;
         }
     }
 
@@ -420,7 +420,7 @@
         withPin(function(pin){
             supabaseClient.rpc('app_sched_generate',{p_username:currentUser.username,p_password:pin,p_location:loc,p_week_start:ws,p_dry_run:false,p_shift_ids:null}).then(function(res){
                 if(res.error){ schedModalBody('<div style="color:#c0264b;padding:8px;">'+escapeHtml(res.error.message)+'</div>'); return; }
-                var c=(res.data&&res.data.counts)||{}; schedModalClose(); alert('Filled '+(c.assigned||0)+' shift'+((c.assigned||0)===1?'':'s')+'.'+((c.still_open||0)?(' '+c.still_open+' still open.'):'')); fetchScheduleWeek();
+                var c=(res.data&&res.data.counts)||{}; schedModalClose(); hubTell('Filled '+(c.assigned||0)+' shift'+((c.assigned||0)===1?'':'s')+'.'+((c.still_open||0)?(' '+c.still_open+' still open.'):'')); fetchScheduleWeek();
             }).catch(function(){ schedModalBody('<div style="color:#c0264b;padding:8px;">Connection error.</div>'); });
         });
     }
@@ -651,8 +651,8 @@
         const revert = function(){ try { if (had) schedState.forecast[ds] = prev; else delete schedState.forecast[ds]; if (typeof renderScheduleGrid === 'function') renderScheduleGrid(); } catch(e) {} };
         withPin(function(pin){
             supabaseClient.rpc('app_labor_set', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_date: ds, p_amount: amt }).then(function(r){
-                if (r && r.error) { revert(); alert('Forecast NOT saved: ' + (r.error.message || 'error') + '. The number was put back \u2014 try again.'); }
-            }, function(){ revert(); alert('Forecast NOT saved (connection problem). The number was put back \u2014 try again.'); });
+                if (r && r.error) { revert(); hubTell('Forecast NOT saved: ' + (r.error.message || 'error') + '. The number was put back \u2014 try again.'); }
+            }, function(){ revert(); hubTell('Forecast NOT saved (connection problem). The number was put back \u2014 try again.'); });
         }, function(){ revert(); });
     }
 
@@ -841,8 +841,8 @@
         m.style.left=x+'px'; m.style.top=y+'px';
     }
     function schedCopyShift(id){ var s=(schedState.data.shifts||[]).find(x=>x.id===id); if(s){ schedState.clip={start_time:s.start_time,end_time:s.end_time,position_id:s.position_id,note:s.note}; } schedCloseCtx(); }
-    function schedPasteShift(empId, ds){ var c=schedState.clip; if(!c) return; schedCloseCtx(); withPin(function(pin){ supabaseClient.rpc('app_sched_upsert_shift',{p_username:currentUser.username,p_password:pin,p_id:null,p_location:schedState.location,p_shift_date:ds,p_employee_id:empId,p_position_id:c.position_id||null,p_start:c.start_time,p_end:c.end_time,p_note:c.note||null}).then(function(r){ if(r.error){alert('Error: '+r.error.message);return;} fetchScheduleWeek(); }); }); }
-    function schedClearShift(id){ schedCloseCtx(); var s=(schedState.data.shifts||[]).find(function(x){return x.id===id;}); withPin(function(pin){ supabaseClient.rpc('app_sched_delete_shift',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){ if(r.error){alert('Error: '+r.error.message);return;} fetchScheduleWeek(); if(s) showUndo('Shift cleared.', function(){ schedRecreateShift(s); }); }); }); }
+    function schedPasteShift(empId, ds){ var c=schedState.clip; if(!c) return; schedCloseCtx(); withPin(function(pin){ supabaseClient.rpc('app_sched_upsert_shift',{p_username:currentUser.username,p_password:pin,p_id:null,p_location:schedState.location,p_shift_date:ds,p_employee_id:empId,p_position_id:c.position_id||null,p_start:c.start_time,p_end:c.end_time,p_note:c.note||null}).then(function(r){ if(r.error){hubTell('Error: '+r.error.message);return;} fetchScheduleWeek(); }); }); }
+    function schedClearShift(id){ schedCloseCtx(); var s=(schedState.data.shifts||[]).find(function(x){return x.id===id;}); withPin(function(pin){ supabaseClient.rpc('app_sched_delete_shift',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(r){ if(r.error){hubTell('Error: '+r.error.message);return;} fetchScheduleWeek(); if(s) showUndo('Shift cleared.', function(){ schedRecreateShift(s); }); }); }); }
     document.addEventListener('click', schedCloseCtx);
     window.addEventListener('resize', function(){ var v=document.getElementById('scheduleBuilderView'); if(v && v.style.display==='block' && schedState.mode==='mgr'){ clearTimeout(schedState._rt); schedState._rt=setTimeout(renderScheduleGrid, 200); } });
     function fetchMyShifts() {
@@ -1145,7 +1145,7 @@
         const st = document.getElementById('shiftStart').value;
         const en = document.getElementById('shiftEnd').value;
         const note = document.getElementById('shiftNote').value;
-        if (!st || !en) { alert('Please enter start and end times.'); return; }
+        if (!st || !en) { hubTell('Please enter start and end times.'); return; }
         var _empSel=document.getElementById('shiftEmployee'); if(_empSel){ ed.employeeId = _empSel.value!=='' ? parseInt(_empSel.value,10) : null; }
         var repeat = (!ed.shiftId) ? (parseInt((document.getElementById('shiftRepeat')||{}).value,10)||0) : 0;
         // New shifts can go on several days of this week in one save (day chips), plus "Repeat weekly".
@@ -1167,7 +1167,7 @@
                 var _cur = ed.shiftId ? (schedState.data.shifts||[]).find(function(x){ return x.id === ed.shiftId; }) : null;
                 schedOvertimeGate(_cur, ed.employeeId, st, en, function(){
                     supabaseClient.rpc('app_sched_upsert_shift', args(dates[0]))
-                    .then(({ error }) => { if (error) { alert('Error: ' + error.message); return; } schedCloseModal(); fetchScheduleWeek(); });
+                    .then(({ error }) => { if (error) { hubTell('Error: ' + error.message); return; } schedCloseModal(); fetchScheduleWeek(); });
                 });
                 return;
             }
@@ -1207,7 +1207,7 @@
         const s = (schedState.data.shifts||[]).find(x => x.id === id);
         withPin(function(pin){
             supabaseClient.rpc('app_sched_delete_shift', { p_username: currentUser.username, p_password: pin, p_id: id })
-            .then(({ error }) => { if (error) { alert('Error: ' + error.message); return; } schedCloseModal(); fetchScheduleWeek(); if(s) showUndo('Shift deleted.', function(){ schedRecreateShift(s); }); });
+            .then(({ error }) => { if (error) { hubTell('Error: ' + error.message); return; } schedCloseModal(); fetchScheduleWeek(); if(s) showUndo('Shift deleted.', function(){ schedRecreateShift(s); }); });
         });
     }
     // ---- Undo toast + shift move/copy/validate (Phase 1 ergonomics) ----
@@ -1227,7 +1227,7 @@
         if(!copy && !_skipGate){ schedOvertimeGate(s, newEmpId, s.start_time, s.end_time, function(){ schedMoveShiftTo(shiftId, newEmpId, newDate, copy, true); }); return; }
         withPin(function(pin){
             supabaseClient.rpc('app_sched_upsert_shift',{ p_username:currentUser.username, p_password:pin, p_id:(copy?null:shiftId), p_location:schedState.location, p_shift_date:newDate, p_employee_id:newEmpId, p_position_id:s.position_id||null, p_start:s.start_time, p_end:s.end_time, p_note:s.note||null })
-            .then(function(r){ if(r.error){ alert('Error: '+r.error.message); return; }
+            .then(function(r){ if(r.error){ hubTell('Error: '+r.error.message); return; }
                 fetchScheduleWeek();
                 if(copy){ var nid=r.data&&(r.data.id||(Array.isArray(r.data)?(r.data[0]&&r.data[0].id):null)); showUndo('Shift copied.', nid?function(){ schedClearShift(nid); }:null); }
                 else { showUndo('Shift moved.', function(){ schedMoveShiftTo(shiftId, origEmp, origDate, false, true); }); }
@@ -1329,7 +1329,7 @@
         const ws = schedFmt(schedState.weekStart);
         withPin(function(pin){
             supabaseClient.rpc('app_sched_publish_week', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_week_start: ws })
-            .then(({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } schedToast('Published ' + (data||0) + ' shift' + ((data||0)===1?'':'s') + ' for ' + schedState.location + '.'); fetchScheduleWeek(); });
+            .then(({ data, error }) => { if (error) { hubTell('Error: ' + error.message); return; } schedToast('Published ' + (data||0) + ' shift' + ((data||0)===1?'':'s') + ' for ' + schedState.location + '.'); fetchScheduleWeek(); });
         });
         });
     }
@@ -1374,7 +1374,7 @@
         hubAsk({ title:'Copy last week?', text:'Copy the shifts from '+hubWeek(schedAddDays(schedState.weekStart,-7))+' into '+hubWeek(schedState.weekStart)+' at '+schedState.location+'.', yes:'Copy shifts', no:'Cancel' }, function(){
         withPin(function(pin){
             supabaseClient.rpc('app_sched_copy_week', { p_username: currentUser.username, p_password: pin, p_location: schedState.location, p_from_week: from, p_to_week: to })
-            .then(({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } schedToast('Copied ' + (data||0) + ' shift' + ((data||0)===1?'':'s') + ' into ' + hubWeek(schedState.weekStart) + '.'); fetchScheduleWeek(); });
+            .then(({ data, error }) => { if (error) { hubTell('Error: ' + error.message); return; } schedToast('Copied ' + (data||0) + ' shift' + ((data||0)===1?'':'s') + ' into ' + hubWeek(schedState.weekStart) + '.'); fetchScheduleWeek(); });
         });
         });
     }
@@ -1467,10 +1467,12 @@
             else { loadRosterMeta(); setTimeout(function(){ openRosterModal(null); }, 600); }
             return;
         }
-        const name = prompt('New employee name (test roster):'); if (!name) return;
-        withPin(function(pin){
-            supabaseClient.rpc('app_sched_add_employee', { p_username: currentUser.username, p_password: pin, p_name: name, p_linked_username: '' })
-            .then(({ error }) => { if (error) { alert('Error: ' + error.message); return; } fetchScheduleWeek(); });
+        hubAsk({ title:'Add an employee', html:'<input type="text" id="hubAskInput" maxlength="80" aria-label="Employee name" placeholder="First and last name" style="width:100%;box-sizing:border-box;padding:12px;border:2px solid #e3e8ef;border-radius:8px;font-size:15px;font-family:inherit;">', yes:'Add employee', no:'Cancel', focus:'#hubAskInput' }, function(ov){
+            const name = ((ov.querySelector('#hubAskInput')||{}).value||'').trim(); if (!name) return;
+            withPin(function(pin){
+                supabaseClient.rpc('app_sched_add_employee', { p_username: currentUser.username, p_password: pin, p_name: name, p_linked_username: '' })
+                .then(({ error }) => { if (error) { hubTell('Error: ' + error.message); return; } fetchScheduleWeek(); });
+            });
         });
     }
     // Print: a clean week for the wall. Names, times and roles only. No pay, no buttons, no manager-only numbers.

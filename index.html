@@ -1651,14 +1651,19 @@
     <div class="hb-head">
         <button class="hb-back" onclick="openScheduling()">&#8249; Back</button>
         <div class="hb-ico">&#128202;</div>
-        <div><h2>Timesheets</h2><div class="hb-sub">Regular vs OT (over 40h/week) &mdash; for payroll</div></div>
+        <div><h2>Timesheets</h2><div class="hb-sub">Hub clock hours for payroll</div></div>
     </div>
     <div class="container" style="max-width:900px;">
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">
-            <div><label class="form-label">From:</label><input type="date" id="tsFrom" style="padding:10px;border:2px solid #ddd;border-radius:8px;"></div>
-            <div><label class="form-label">To:</label><input type="date" id="tsTo" style="padding:10px;border:2px solid #ddd;border-radius:8px;"></div>
-            <button class="sched-btn" style="background:var(--caliches-blue);color:#fff;" onclick="loadTimesheet()">Load</button>
-            <button class="sched-btn" style="background:#fff;color:#185FA5;border:1.5px solid #cfe0f1;" onclick="downloadTimesheetCSV()">&#11015; Download CSV</button>
+        <div id="tsPresets" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;">
+            <div><label class="form-label" for="tsFrom">From</label><input type="date" id="tsFrom" onchange="tsRangeChanged()" style="padding:10px;border:2px solid #ddd;border-radius:8px;min-height:44px;box-sizing:border-box;"></div>
+            <div><label class="form-label" for="tsTo">To</label><input type="date" id="tsTo" onchange="tsRangeChanged()" style="padding:10px;border:2px solid #ddd;border-radius:8px;min-height:44px;box-sizing:border-box;"></div>
+            <div><label class="form-label" for="tsStore">Store</label><select id="tsStore" onchange="loadTimesheet()" style="padding:10px;border:2px solid #ddd;border-radius:8px;min-height:44px;box-sizing:border-box;font-size:14px;"></select></div>
+        </div>
+        <div id="tsSourceNote" style="font-size:13px;color:#5b6675;line-height:1.45;margin:-2px 0 12px;">These hours come from the Hub clock only. Store crews clock in at the register, so their hours are in Aloha, not here.</div>
+        <div id="tsActions" style="display:none;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+            <button class="sched-btn" style="background:var(--caliches-blue);color:#fff;" onclick="downloadTimesheetCSV()">&#11015; Download for payroll</button>
+            <button class="sched-btn" style="background:#fff;color:#106ab3;border:1.5px solid #cfe0f1;" onclick="printTimesheet()">&#128424; Print</button>
         </div>
         <div id="timesheetSummary"></div>
         <div id="timesheetTable"></div>
@@ -1667,8 +1672,11 @@
 
 <!-- PUNCH EDIT MODAL -->
 <div id="punchModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;padding:16px;">
-    <div style="background:#fff;border-radius:16px;padding:20px;max-width:560px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,0.3);">
-        <h2 id="punchModalTitle" style="color:var(--caliches-blue);margin-top:0;font-size:19px;">Punches</h2>
+    <div style="background:#fff;border-radius:16px;padding:0 20px 20px;max-width:560px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,0.3);">
+        <div class="hubwin-head" style="margin:0 -20px 12px;position:sticky;top:0;background:inherit;z-index:2;border-radius:16px 16px 0 0;">
+            <b class="hubwin-title" id="punchModalTitle">Punches</b>
+            <button type="button" class="hubwin-x" aria-label="Close" onclick="document.getElementById('punchModal').style.display='none'">&times;</button>
+        </div>
         <div id="punchList"></div>
         <span class="text-link" style="display:block;margin-top:14px;text-align:center;" onclick="document.getElementById('punchModal').style.display='none'">Close</span>
     </div>

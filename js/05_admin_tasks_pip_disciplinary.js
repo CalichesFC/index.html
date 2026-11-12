@@ -261,7 +261,7 @@
     }
 
     function clockToggle() {
-        const emp = clockSelectedEmp(); if (!emp) { alert('Pick an employee first.'); return; }
+        const emp = clockSelectedEmp(); if (!emp) { hubTell('Pick an employee first.'); return; }
         if (window._clockBusy) return;
         const open = clockState.status && clockState.status.open_punch;
         const loc = document.getElementById('clockLocSelect').value;
@@ -271,8 +271,8 @@
                                 : { p_username: currentUser.username, p_password: pin, p_employee_id: emp, p_location: loc };
             const onClockDone = ({ data, error }) => {
                 _clkDone();
-                if (error) { alert('Error: ' + error.message); return; }
-                if (data && data.ok === false) { alert(data.error || 'Could not complete.'); }
+                if (error) { hubTell('Error: ' + error.message); return; }
+                if (data && data.ok === false) { hubTell(data.error || 'Could not complete.'); }
                 clockRefreshStatus();
             };
             // Literal RPC names (not a variable) so the pre-deploy manifest checker can see them.
@@ -286,7 +286,7 @@
         const onBreak = clockState.status && clockState.status.open_punch && clockState.status.open_punch.open_break_start;
         withPin(function(pin){
             const params = { p_username: currentUser.username, p_password: pin, p_employee_id: emp };
-            const onBreakDone = ({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } if (data && data.ok === false) { alert(data.error); } clockRefreshStatus(); };
+            const onBreakDone = ({ data, error }) => { if (error) { hubTell('Error: ' + error.message); return; } if (data && data.ok === false) { hubTell(data.error); } clockRefreshStatus(); };
             // Literal RPC names (not a variable) so the pre-deploy manifest checker can see them.
             if (onBreak) supabaseClient.rpc('app_break_end', params).then(onBreakDone);
             else supabaseClient.rpc('app_break_start', params).then(onBreakDone);
@@ -326,11 +326,43 @@
         });
     }
 
+    // ---- Timesheets: hours for payroll. One line per person, week by week (Monday to Sunday). ----
+    var tsState = { data:null, preset:'', pp:null, old:false, picked:false };
+    function tsMonday(d){ var x=new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x; }
+    function tsAdd(d,n){ var x=new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate()+n); return x; }
+    function tsDayNum(d){ return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())/86400000); }
+    function tsHrs(n){ n=Number(n||0); return (Math.round(n*100)/100).toFixed(2); }
+    function tsPresetRange(kind){
+        var today=new Date(), mon=tsMonday(today), pp=tsState.pp;
+        if(kind==='this_week') return [mon, tsAdd(mon,6)];
+        if(kind==='last_week') return [tsAdd(mon,-7), tsAdd(mon,-1)];
+        if(kind==='last_2') return [tsAdd(mon,-14), tsAdd(mon,-1)];
+        if((kind==='this_pp'||kind==='last_pp') && pp){
+            var a=hubParseDate(pp.start); if(!a||!(pp.days>0)) return null;
+            var n=Math.floor((tsDayNum(today)-tsDayNum(a))/pp.days) - (kind==='last_pp'?1:0);
+            var st=tsAdd(a, n*pp.days); return [st, tsAdd(st, pp.days-1)];
+        }
+        return null;
+    }
+    function tsRenderPresets(){
+        var el=document.getElementById('tsPresets'); if(!el) return;
+        var list = tsState.pp ? [['this_pp','This pay period'],['last_pp','Last pay period'],['this_week','This week'],['last_week','Last week']]
+                              : [['this_week','This week'],['last_week','Last week'],['last_2','Last 2 weeks']];
+        el.innerHTML = list.map(function(x){ var on=(tsState.preset===x[0]);
+            return '<button type="button" onclick="tsPreset(\''+x[0]+'\')" aria-pressed="'+(on?'true':'false')+'" style="min-height:40px;padding:0 14px;border-radius:99px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;border:1.5px solid '+(on?'var(--caliches-blue)':'#cfd8e3')+';background:'+(on?'var(--caliches-blue)':'#fff')+';color:'+(on?'#fff':'#1f2a44')+';">'+x[1]+'</button>'; }).join('');
+    }
+    function tsPreset(kind){
+        var r=tsPresetRange(kind); if(!r) return;
+        tsState.picked=true; tsState.preset=kind; document.getElementById('tsFrom').value=schedFmt(r[0]); document.getElementById('tsTo').value=schedFmt(r[1]);
+        tsRenderPresets(); loadTimesheet();
+    }
+    function tsRangeChanged(){ tsState.picked=true; tsState.preset=''; tsRenderPresets(); loadTimesheet(); }
     function tsDefaultRange() {
-        const to = new Date(); const from = new Date(); from.setDate(from.getDate()-13);
         const f = document.getElementById('tsFrom'), t = document.getElementById('tsTo');
-        if (f && !f.value) f.value = schedFmt(from);
-        if (t && !t.value) t.value = schedFmt(to);
+        if (f && t && (!f.value || !t.value)) { var r=tsPresetRange(tsState.pp?'this_pp':'this_week'); tsState.preset=tsState.pp?'this_pp':'this_week'; f.value=schedFmt(r[0]); t.value=schedFmt(r[1]); }
+        var st=document.getElementById('tsStore');
+        if (st && !st.options.length) { st.innerHTML='<option value="">All my stores</option>'+(typeof SCHED_LOCATIONS!=='undefined'?SCHED_LOCATIONS:[]).map(function(l){ return '<option value="'+escapeHtml(l)+'">'+escapeHtml(l)+'</option>'; }).join(''); }
+        tsRenderPresets();
     }
     function openTimesheets() {
         triggerTransition(() => {
@@ -340,40 +372,117 @@
             loadTimesheet();
         });
     }
+    function tsPeriodLabel(){ var d=tsState.data||{}; var a=hubParseDate(d.start), b=hubParseDate(d.end); if(!a||!b) return ''; return hubWeek(d.start, d.end)+', '+b.getFullYear(); }
     function loadTimesheet() {
         const from = document.getElementById('tsFrom').value, to = document.getElementById('tsTo').value;
-        if (!from || !to) { alert('Pick a date range.'); return; }
-        const tbl = document.getElementById('timesheetTable'); const sum = document.getElementById('timesheetSummary');
-        tbl.innerHTML = '<p style="text-align:center;color:#6b7686;padding:20px;">Loading&hellip;</p>'; sum.innerHTML = '';
+        if (!from || !to) { hubTell('Pick a date range.'); return; }
+        if (to < from) { hubTell('The end date is before the start date.'); return; }
+        var stSel=document.getElementById('tsStore'); var store=(stSel&&stSel.value)||'';
+        const tbl = document.getElementById('timesheetTable'); const sum = document.getElementById('timesheetSummary'); const act=document.getElementById('tsActions');
+        tbl.innerHTML = '<p style="text-align:center;color:#6b7686;padding:20px;">Loading&hellip;</p>'; sum.innerHTML = ''; if(act) act.style.display='none';
         withPin(function(pin){
-            supabaseClient.rpc('app_timesheet', { p_username: currentUser.username, p_password: pin, p_start: from, p_end: to })
+            var fail=function(error){ if (error && error.code === '42501') sessionPin = null; tbl.innerHTML = '<p style="color:#b3261e;">' + escapeHtml((error&&error.message)||'Could not load the hours.') + '</p>'; };
+            supabaseClient.rpc('app_payroll_report', { p_username: currentUser.username, p_password: pin, p_start: from, p_end: to, p_location: store||null })
             .then(({ data, error }) => {
-                if (error && error.code === '42501') sessionPin = null;
-                if (error) { tbl.innerHTML = '<p style="color:red;">' + error.message + '</p>'; return; }
-                const d = data || {}; tsRows = d.rows || [];
-                let warn = '';
-                if (d.open_count) warn += '<span style="background:#fff3cd;color:#854F0B;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:bold;margin-right:8px;">&#9888; '+d.open_count+' open punch(es) &mdash; not clocked out</span>';
-                if (d.flagged_count) warn += '<span style="background:#fdecea;color:#c0392b;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:bold;">&#9873; '+d.flagged_count+' flagged</span>';
-                sum.innerHTML = warn ? '<div style="margin-bottom:12px;">'+warn+'</div>' : '';
-                if (!tsRows.length) { tbl.innerHTML = '<p style="text-align:center;color:#6b7686;padding:20px;">No hours in this range.</p>'; return; }
-                let tot = 0, totOt = 0;
-                let h = '<div style="overflow-x:auto;"><table class="sched-table"><thead><tr><th class="sched-emp">Employee</th><th>Regular</th><th>OT</th><th>Total</th><th></th></tr></thead><tbody>';
-                tsRows.forEach(function(r){
-                    tot += r.total_hours; totOt += r.ot_hours;
-                    h += '<tr><td class="sched-emp">'+escapeHtml(r.name)+'</td><td style="text-align:center;">'+r.regular_hours.toFixed(2)+'</td><td style="text-align:center;color:'+(r.ot_hours>0?'#c0392b':'#333')+';font-weight:'+(r.ot_hours>0?'bold':'normal')+';">'+r.ot_hours.toFixed(2)+'</td><td style="text-align:center;font-weight:bold;">'+r.total_hours.toFixed(2)+'</td><td style="text-align:center;"><button class="update-action-btn" onclick="openPunchEditor('+r.employee_id+')">Punches</button></td></tr>';
-                });
-                h += '</tbody><tfoot><tr><td class="sched-emp">Totals</td><td></td><td style="text-align:center;color:#c0392b;font-weight:bold;">'+totOt.toFixed(2)+'</td><td style="text-align:center;font-weight:900;">'+tot.toFixed(2)+'</td><td></td></tr></tfoot></table></div>';
-                tbl.innerHTML = h;
-            });
+                if (error && typeof hubRpcMissing === 'function' && hubRpcMissing(error)) {
+                    // the newer server piece is not there: fall back to the plain totals
+                    return supabaseClient.rpc('app_timesheet', { p_username: currentUser.username, p_password: pin, p_start: from, p_end: to }).then(({ data, error }) => {
+                        if (error) { fail(error); return; }
+                        var d=data||{}; tsState.old=true; tsState.data={ start:from, end:to, weeks:[], rows:(d.rows||[]), open_count:d.open_count||0, flagged_count:d.flagged_count||0, overtime_after:40, no_punch_days:[], partial_weeks:false };
+                        tsRows=tsState.data.rows; tsRender();
+                    });
+                }
+                if (error) { fail(error); return; }
+                var d = data || {}; tsState.old=false; tsState.data = d; tsRows = d.rows || [];
+                if (d.pay_period && d.pay_period.start && Number(d.pay_period.days) > 0) {
+                    var had=!!tsState.pp; tsState.pp={ start:d.pay_period.start, days:Number(d.pay_period.days) };
+                    // first time we learn the pay period and nothing was picked yet: open on this pay period
+                    if (!had && !tsState.picked) { var r=tsPresetRange('this_pp'); if (r) { tsState.preset='this_pp'; document.getElementById('tsFrom').value=schedFmt(r[0]); document.getElementById('tsTo').value=schedFmt(r[1]); tsRenderPresets(); if (schedFmt(r[0])!==from || schedFmt(r[1])!==to) { loadTimesheet(); return; } } }
+                    else if (!had) tsRenderPresets();
+                }
+                tsRender();
+            }).catch(function(){ fail({message:'Connection error. Check the Wi-Fi and try again.'}); });
         });
     }
+    function tsNotes(){
+        var d=tsState.data||{}, out=[];
+        if (d.open_count) out.push(d.open_count+' punch'+(d.open_count===1?' has':'es have')+' no clock-out. Those hours are not counted yet.');
+        if (d.flagged_count) out.push(d.flagged_count+' punch'+(d.flagged_count===1?' is':'es are')+' flagged for a second look.');
+        if (d.partial_weeks) out.push('These dates cut a week in half, so overtime may be off. Pick Monday to Sunday.');
+        var miss=(d.no_punch_days||[]); if (miss.length) out.push('No punches on file for '+(miss.length>6 ? miss.length+' days ('+hubDay(miss[0])+' to '+hubDay(miss[miss.length-1])+')' : miss.map(function(x){ return hubDay(x); }).join(', '))+'.');
+        if (d.today && d.end && String(d.end) >= String(d.today)) out.push('This period is still running. Hours are through today.');
+        return out;
+    }
+    function tsRender(){
+        var d=tsState.data||{}; const tbl = document.getElementById('timesheetTable'); const sum = document.getElementById('timesheetSummary'); const act=document.getElementById('tsActions');
+        var notes=tsNotes();
+        sum.innerHTML = '<div style="font-size:16px;font-weight:800;color:#1f2a44;margin-bottom:6px;">'+escapeHtml(tsPeriodLabel())+'</div>'
+            + (notes.length ? '<div style="background:#fff8e6;border:1px solid #f1d899;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#6b4a00;line-height:1.5;">'+notes.map(function(n){ return '<div>&#9888; '+escapeHtml(n)+'</div>'; }).join('')+'</div>' : '');
+        if (!tsRows.length) { tbl.innerHTML = '<p style="text-align:center;color:#6b7686;padding:20px;">No Hub clock-ins for these dates.</p>'; if(act) act.style.display='none'; return; }
+        var weeks=(d.weeks||[]); var wide=(window.innerWidth||0)>640; var showWk=wide && weeks.length>1 && weeks.length<=3;
+        var cols=4+(showWk?weeks.length:0)+(wide?1:0);
+        var multiStore={}; tsRows.forEach(function(r){ multiStore[r.store||'']=1; }); var grouped=Object.keys(multiStore).length>1;
+        let tot = 0, totOt = 0, totReg = 0, wkTot={};
+        let h = '<div style="overflow-x:auto;"><table class="sched-table"><thead><tr><th class="sched-emp">Employee</th>'
+              + (showWk ? weeks.map(function(w){ return '<th>'+escapeHtml(hubWeek(w.start, w.end))+'</th>'; }).join('') : '')
+              + '<th>'+(wide?'Regular':'Reg')+'</th><th>'+(wide?'Overtime':'OT')+'</th><th>Total</th>'+(wide?'<th><span style="position:absolute;left:-9999px;">Punches</span></th>':'')+'</tr></thead><tbody>';
+        var lastStore=null;
+        tsRows.forEach(function(r){
+            if (grouped && (r.store||'') !== lastStore) { lastStore=(r.store||''); h += '<tr><td colspan="'+cols+'" style="background:#eef2f7;font-weight:800;color:#1f2a44;text-align:left;padding:6px 8px;">'+escapeHtml(lastStore||'No home store')+'</td></tr>'; }
+            tot += Number(r.total_hours||0); totOt += Number(r.ot_hours||0); totReg += Number(r.regular_hours||0);
+            var wk=r.weeks||{}; var small='';
+            if (!showWk && weeks.length>1) small = weeks.map(function(w){ return hubWeek(w.start, w.end)+': '+tsHrs(wk[w.start]); }).join(' · ');
+            h += '<tr><td class="sched-emp" style="white-space:normal;">'+escapeHtml(r.name)+(r.salaried?' <span style="font-size:12px;font-weight:700;color:#5b6675;">(salaried)</span>':'')+(small?'<small>'+escapeHtml(small)+'</small>':'')
+               + (wide?'':'<button type="button" onclick="openPunchEditor('+r.employee_id+')" style="display:block;background:none;border:none;color:#106ab3;font-size:13px;font-weight:700;padding:6px 0 2px;cursor:pointer;font-family:inherit;">See punches</button>')+'</td>'
+               + (showWk ? weeks.map(function(w){ var v=Number(wk[w.start]||0); wkTot[w.start]=(wkTot[w.start]||0)+v; return '<td style="text-align:center;">'+tsHrs(v)+'</td>'; }).join('') : '')
+               + '<td style="text-align:center;">'+tsHrs(r.regular_hours)+'</td>'
+               + '<td style="text-align:center;color:'+(r.ot_hours>0?'#b3261e':'#333')+';font-weight:'+(r.ot_hours>0?'bold':'normal')+';">'+tsHrs(r.ot_hours)+'</td>'
+               + '<td style="text-align:center;font-weight:bold;">'+tsHrs(r.total_hours)+'</td>'
+               + (wide?'<td style="text-align:center;"><button class="update-action-btn" onclick="openPunchEditor('+r.employee_id+')">Punches</button></td>':'')+'</tr>';
+        });
+        h += '</tbody><tfoot><tr><td class="sched-emp">Totals ('+tsRows.length+' '+(tsRows.length===1?'person':'people')+')</td>'
+           + (showWk ? weeks.map(function(w){ return '<td style="text-align:center;font-weight:bold;">'+tsHrs(wkTot[w.start])+'</td>'; }).join('') : '')
+           + '<td style="text-align:center;font-weight:bold;">'+tsHrs(totReg)+'</td><td style="text-align:center;color:#b3261e;font-weight:bold;">'+tsHrs(totOt)+'</td><td style="text-align:center;font-weight:900;">'+tsHrs(tot)+'</td>'+(wide?'<td></td>':'')+'</tr></tfoot></table></div>'
+           + '<div style="font-size:12px;color:#6b7686;margin-top:8px;">Overtime is anything over '+escapeHtml(String(d.overtime_after||40))+' hours in a week, Monday to Sunday.</div>';
+        tbl.innerHTML = h; if(act) act.style.display='flex';
+    }
+    function tsTable(){
+        // the same numbers as the screen, as plain rows: [header, ...people, totals]
+        var d=tsState.data||{}, weeks=(d.weeks||[]), useWk=weeks.length>1 && weeks.length<=5;
+        var head=['Employee','Store'].concat(useWk?weeks.map(function(w){ return 'Week of '+hubWeek(w.start, w.end); }):[]).concat(['Regular hours','Overtime hours','Total hours']);
+        var rows=[head], tReg=0, tOt=0, tTot=0, tWk={};
+        tsRows.forEach(function(r){ var wk=r.weeks||{};
+            tReg+=Number(r.regular_hours||0); tOt+=Number(r.ot_hours||0); tTot+=Number(r.total_hours||0);
+            rows.push([ (r.name||'')+(r.salaried?' (salaried)':''), r.store||'' ].concat(useWk?weeks.map(function(w){ var v=Number(wk[w.start]||0); tWk[w.start]=(tWk[w.start]||0)+v; return tsHrs(v); }):[]).concat([tsHrs(r.regular_hours), tsHrs(r.ot_hours), tsHrs(r.total_hours)])); });
+        rows.push(['Totals','' ].concat(useWk?weeks.map(function(w){ return tsHrs(tWk[w.start]); }):[]).concat([tsHrs(tReg), tsHrs(tOt), tsHrs(tTot)]));
+        return rows;
+    }
     function downloadTimesheetCSV() {
-        if (!tsRows.length) { alert('Load a timesheet first.'); return; }
-        const from = document.getElementById('tsFrom').value, to = document.getElementById('tsTo').value;
-        let csv = 'Employee,Regular Hours,OT Hours,Total Hours\n';
-        tsRows.forEach(function(r){ csv += '"'+(r.name||'').replace(/"/g,'""')+'",'+r.regular_hours+','+r.ot_hours+','+r.total_hours+'\n'; });
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'timesheet_'+from+'_to_'+to+'.csv'; a.click();
+        if (!tsRows.length) { hubTell('Load a timesheet first.'); return; }
+        var d=tsState.data||{};
+        var csv = tsTable().map(function(r){ return r.map(function(c){ c=String(c==null?'':c); return /[",\n]/.test(c) ? '"'+c.replace(/"/g,'""')+'"' : c; }).join(','); }).join('\n')+'\n';
+        const blob = new Blob(['﻿'+csv], { type: 'text/csv;charset=utf-8' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'payroll_hours_'+(d.start||'')+'_to_'+(d.end||'')+'.csv'; document.body.appendChild(a); a.click(); setTimeout(function(){ try{ URL.revokeObjectURL(a.href); a.remove(); }catch(e){} }, 500);
+    }
+    // Print: a clean page for payroll. Hours only. No pay rates, no buttons.
+    function printTimesheet() {
+        if (!tsRows.length) { hubTell('Load a timesheet first.'); return; }
+        var d=tsState.data||{}, esc=escapeHtml, rows=tsTable(), notes=tsNotes();
+        var stSel=document.getElementById('tsStore'); var store=(stSel&&stSel.value)||'';
+        var title='Payroll hours · '+tsPeriodLabel();
+        var body=rows.slice(1,-1).map(function(r){ return '<tr>'+r.map(function(c,i){ return '<td'+(i>1?' class="n"':'')+'>'+esc(c)+'</td>'; }).join('')+'</tr>'; }).join('');
+        var foot='<tr>'+rows[rows.length-1].map(function(c,i){ return '<td'+(i>1?' class="n"':'')+'>'+esc(c)+'</td>'; }).join('')+'</tr>';
+        var css='@page{margin:12mm;}*{box-sizing:border-box;}body{font-family:Arial,Helvetica,sans-serif;color:#1f2a44;margin:0;padding:12px;}h1{font-size:20px;margin:0 0 2px;}.sub{font-size:12px;color:#5b6472;margin:0 0 10px;}'
+              +'table{width:100%;border-collapse:collapse;font-size:12px;}th,td{border:1px solid #9aa3af;padding:5px 6px;text-align:left;}thead th{background:#eef2f7;}td.n,th.n{text-align:right;}tfoot td{font-weight:700;background:#f6f8fb;}tr{page-break-inside:avoid;}'
+              +'.note{font-size:12px;color:#6b4a00;margin:0 0 8px;}.foot{font-size:10px;color:#6b7686;margin-top:8px;}';
+        var html='<!doctype html><html><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>'+css+'</style></head><body><h1>'+esc(title)+'</h1>'
+              +'<div class="sub">Caliche’s Frozen Custard · Hub clock-ins only · '+esc(store||'All stores')+' · overtime after '+esc(String(d.overtime_after||40))+' hours a week (Monday to Sunday)</div>'
+              +notes.map(function(n){ return '<div class="note">'+esc(n)+'</div>'; }).join('')
+              +'<table><thead><tr>'+rows[0].map(function(c,i){ return '<th'+(i>1?' class="n"':'')+'>'+esc(c)+'</th>'; }).join('')+'</tr></thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table>'
+              +'<div class="foot">Printed '+esc(hubWhen(new Date().toISOString()))+' from the Caliche’s Hub.</div></body></html>';
+        var w = window.open('', '_blank');
+        if (!w) { hubTell('Your browser blocked the print window. Allow pop-ups for the Hub and try again.'); return; }
+        w.document.write(html); w.document.close(); w.focus(); setTimeout(function(){ try{ w.print(); }catch(e){} }, 300);
     }
 
     function openPunchEditor(empId) {
@@ -389,18 +498,28 @@
         withPin(function(pin){
             supabaseClient.rpc('app_punch_list', { p_username: currentUser.username, p_password: pin, p_employee_id: empId, p_start: from, p_end: to })
             .then(({ data, error }) => {
-                if (error) { c.innerHTML = '<p style="color:red;">' + error.message + '</p>'; return; }
+                if (error) { c.innerHTML = '<p style="color:#b3261e;">' + escapeHtml(error.message) + '</p>'; return; }
                 const list = data || [];
                 if (!list.length) { c.innerHTML = '<p style="color:#6b7686;">No punches in this range.</p>'; return; }
+                var inS='padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;font-family:inherit;min-height:40px;box-sizing:border-box;';
                 c.innerHTML = list.map(function(p){
                     const io = 'p' + p.id;
-                    return '<div style="border:1px solid #eee;border-radius:10px;padding:10px;margin-bottom:10px;font-size:13px;">'
-                      + (p.flagged ? '<div style="color:#c0392b;font-size:11px;margin-bottom:4px;">&#9888; '+escapeHtml(p.flag_reason||'flagged')+'</div>' : '')
-                      + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">In <input type="date" id="'+io+'_id" value="'+(p.in_date||'')+'" style="padding:5px;border:1px solid #ccc;border-radius:6px;"> <input type="time" id="'+io+'_it" value="'+(p.in_time||'')+'" style="padding:5px;border:1px solid #ccc;border-radius:6px;"></div>'
-                      + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px;">Out <input type="date" id="'+io+'_od" value="'+(p.out_date||'')+'" style="padding:5px;border:1px solid #ccc;border-radius:6px;"> <input type="time" id="'+io+'_ot" value="'+(p.out_time||'')+'" style="padding:5px;border:1px solid #ccc;border-radius:6px;"></div>'
-                      + '<div style="margin-top:6px;"><input type="text" id="'+io+'_r" placeholder="reason for edit" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;"></div>'
-                      + '<div style="display:flex;gap:6px;margin-top:8px;"><button class="update-action-btn" onclick="savePunch('+p.id+','+empId+')">Save</button><button class="update-action-btn" style="background:var(--fail-red);" onclick="deletePunch('+p.id+','+empId+')">Delete</button>'
-                      + (p.edited_by ? '<span style="font-size:11px;color:#6b7686;align-self:center;">edited by '+escapeHtml(p.edited_by)+'</span>' : '') + '</div></div>';
+                    var axial = (p.source === 'axial');
+                    var when = hubDay(p.in_date) + ' · ' + (p.out_time ? hubTimeRange(p.in_time, p.out_time) : hubTime(p.in_time) + ' – still clocked in');
+                    var brk = Number(p.break_hours||0);
+                    var hrs = (p.hours!=null) ? (Math.round((Number(p.hours)-brk)*100)/100).toFixed(2)+' h' : '';
+                    var head = '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap;"><b style="font-size:14px;color:#1f2a44;">'+escapeHtml(when)+'</b><span style="font-size:13px;font-weight:700;color:#1f2a44;">'+hrs+'</span></div>'
+                      + '<div style="font-size:12px;color:#5b6675;margin-top:2px;">'+escapeHtml(p.location||'')+(p.location?' · ':'')+(axial?'From Axial':'Hub clock')+(brk>0?' · '+brk.toFixed(2)+' h unpaid break':'')+(p.edited_by?' · changed by '+escapeHtml(p.edited_by_name||p.edited_by)+(p.edit_reason?' ('+escapeHtml(p.edit_reason)+')':''):'')+'</div>';
+                    var flag = p.flagged ? '<div style="color:#b3261e;font-size:12px;margin-bottom:4px;">&#9888; '+escapeHtml(p.flag_reason||'flagged')+'</div>' : '';
+                    if (axial) {
+                        return '<div style="border:1px solid #e6eaf0;border-radius:10px;padding:10px;margin-bottom:10px;background:#f8fafc;">'+flag+head
+                          + '<div style="font-size:12px;color:#5b6675;margin-top:6px;">To fix this punch, fix it in Axial. It updates here on its own.</div></div>';
+                    }
+                    return '<div style="border:1px solid #e6eaf0;border-radius:10px;padding:10px;margin-bottom:10px;font-size:13px;">'+flag+head
+                      + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px;"><label for="'+io+'_id" style="min-width:30px;font-weight:700;color:#5b6675;">In</label><input type="date" id="'+io+'_id" value="'+(p.in_date||'')+'" style="'+inS+'"> <input type="time" id="'+io+'_it" aria-label="Clock-in time" value="'+(p.in_time||'')+'" style="'+inS+'"></div>'
+                      + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px;"><label for="'+io+'_od" style="min-width:30px;font-weight:700;color:#5b6675;">Out</label><input type="date" id="'+io+'_od" value="'+(p.out_date||'')+'" style="'+inS+'"> <input type="time" id="'+io+'_ot" aria-label="Clock-out time" value="'+(p.out_time||'')+'" style="'+inS+'"></div>'
+                      + '<div style="margin-top:6px;"><input type="text" id="'+io+'_r" maxlength="200" aria-label="Reason for the change" placeholder="Why are you changing it?" style="width:100%;'+inS+'"></div>'
+                      + '<div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end;"><button type="button" onclick="deletePunch('+p.id+','+empId+')" style="background:#fff;color:#b3261e;border:1.5px solid #e3b4b0;border-radius:8px;padding:0 14px;min-height:40px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">Delete</button><button type="button" class="update-action-btn" onclick="savePunch('+p.id+','+empId+')">Save</button></div></div>';
                 }).join('');
             });
         });
@@ -409,21 +528,32 @@
         const io = 'p' + id;
         const inD = document.getElementById(io+'_id').value, inT = document.getElementById(io+'_it').value;
         const outD = document.getElementById(io+'_od').value, outT = document.getElementById(io+'_ot').value;
-        const reason = document.getElementById(io+'_r').value;
-        if (!inD || !inT) { alert('Clock-in date & time required.'); return; }
+        const reason = (document.getElementById(io+'_r').value||'').trim();
+        if (!inD || !inT) { hubTell('Clock-in date & time required.'); return; }
         const pIn = inD + ' ' + inT;
         const pOut = (outD && outT) ? (outD + ' ' + outT) : '';
-        if(pOut && new Date(pOut.replace(' ','T')) <= new Date(pIn.replace(' ','T'))){ alert('Clock-out must be after clock-in.'); return; }
+        if(pOut && new Date(pOut.replace(' ','T')) <= new Date(pIn.replace(' ','T'))){ hubTell('Clock-out must be after clock-in.'); return; }
+        if (!reason) { hubTell('Add a short reason for the change.'); try{ document.getElementById(io+'_r').focus(); }catch(e){} return; }
         withPin(function(pin){
             supabaseClient.rpc('app_punch_edit', { p_username: currentUser.username, p_password: pin, p_id: id, p_in: pIn, p_out: pOut, p_reason: reason })
-            .then(({ data, error }) => { if (error) { alert('Error: ' + error.message); return; } if (data && data.ok === false) { alert(data.error); return; } loadPunchList(empId); loadTimesheet(); });
+            .then(({ data, error }) => { if (error) { hubTell('Error: ' + error.message); return; } if (data && data.ok === false) { hubTell(data.error); return; } loadPunchList(empId); loadTimesheet(); });
         });
     }
     function deletePunch(id, empId) {
-        if (!confirm('Delete this punch?')) return;
-        withPin(function(pin){
-            supabaseClient.rpc('app_punch_delete', { p_username: currentUser.username, p_password: pin, p_id: id })
-            .then(({ error }) => { if (error) { alert('Error: ' + error.message); return; } loadPunchList(empId); loadTimesheet(); });
+        hubAsk({ title:'Delete this punch?', html:'<div style="margin-bottom:10px;">The punch comes off the timesheet and the hours are taken out of the totals. A record of it is kept.</div><input type="text" id="hubAskInput" maxlength="200" aria-label="Reason for deleting" placeholder="Why are you deleting it?" style="width:100%;box-sizing:border-box;padding:12px;border:2px solid #e3e8ef;border-radius:8px;font-size:15px;font-family:inherit;">', yes:'Delete punch', no:'Keep it', focus:'#hubAskInput' }, function(ov){
+            var reason=((ov.querySelector('#hubAskInput')||{}).value||'').trim();
+            if (!reason) { hubTell('Add a short reason for deleting it.', { then:function(){ deletePunch(id, empId); } }); return; }
+            withPin(function(pin){
+                var done=function(res){ var data=res&&res.data, error=res&&res.error; if (error) { hubTell('Error: ' + error.message); return; } if (data && data.ok === false) { hubTell(data.error); return; } loadPunchList(empId); loadTimesheet(); };
+                supabaseClient.rpc('app_punch_remove', { p_username: currentUser.username, p_password: pin, p_id: id, p_reason: reason })
+                .then(function(res){
+                    if (res && res.error && typeof hubRpcMissing === 'function' && hubRpcMissing(res.error)) {
+                        // the newer server piece is not there yet: use the older one-step delete
+                        return supabaseClient.rpc('app_punch_delete', { p_username: currentUser.username, p_password: pin, p_id: id }).then(done);
+                    }
+                    done(res);
+                });
+            });
         });
     }
 
@@ -1005,23 +1135,24 @@
     function closeTimeOff() { document.getElementById('timeOffModal').style.display='none'; }
     function saveTimeOff() {
         var st=document.getElementById('toStart').value, en=document.getElementById('toEnd').value, rs=document.getElementById('toReason').value;
-        if(!st||!en){ alert('Please pick a start and end date.'); return; }
-        if(en<st){ alert('End date can\'t be before the start date.'); return; }
+        if(!st||!en){ hubTell('Please pick a start and end date.'); return; }
+        if(en<st){ hubTell('End date can\'t be before the start date.'); return; }
         var btn=document.getElementById('toSubmitBtn'); btn.disabled=true; btn.innerText='Submitting...';
         withPin(function(pin){
             supabaseClient.rpc('app_time_off_create',{p_username:currentUser.username,p_password:pin,p_start:st,p_end:en,p_reason:rs}).then(function(res){
                 btn.disabled=false; btn.innerText='Send request';
-                if(res.error){ if(res.error.code==='42501') sessionPin=null; alert('Could not submit: '+res.error.message); return; }
+                if(res.error){ if(res.error.code==='42501') sessionPin=null; hubTell('Could not submit: '+res.error.message); return; }
                 closeTimeOff(); loadEmployeeHome();
-            }).catch(function(){ btn.disabled=false; btn.innerText='Send request'; alert('Connection error.'); });
+            }).catch(function(){ btn.disabled=false; btn.innerText='Send request'; hubTell('Connection error.'); });
         }, function(){ btn.disabled=false; btn.innerText='Send request'; });
     }
     function cancelTimeOff(id) {
-        if(!confirm('Cancel this time-off request?')) return;
-        withPin(function(pin){
-            supabaseClient.rpc('app_time_off_cancel',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(res){
-                if(res.error){ if(res.error.code==='42501') sessionPin=null; alert('Error: '+res.error.message); return; }
-                loadEmployeeHome();
+        hubAsk({ title:'Cancel this time-off request?', text:'This takes your request back.', yes:'Cancel request', no:'Keep it' }, function(){
+            withPin(function(pin){
+                supabaseClient.rpc('app_time_off_cancel',{p_username:currentUser.username,p_password:pin,p_id:id}).then(function(res){
+                    if(res.error){ if(res.error.code==='42501') sessionPin=null; hubTell('Error: '+res.error.message); return; }
+                    loadEmployeeHome();
+                });
             });
         });
     }
@@ -1041,9 +1172,9 @@
         withPin(function(pin){
             supabaseClient.rpc('app_swap_create',{p_username:currentUser.username,p_password:pin,p_shift_id:window._swapShiftId,p_note:note}).then(function(res){
                 btn.disabled=false; btn.innerText='Send request';
-                if(res.error){ if(res.error.code==='42501') sessionPin=null; alert('Could not submit: '+res.error.message); return; }
+                if(res.error){ if(res.error.code==='42501') sessionPin=null; hubTell('Could not submit: '+res.error.message); return; }
                 closeSwap(); loadEmployeeHome();
-            }).catch(function(){ btn.disabled=false; btn.innerText='Send request'; alert('Connection error.'); });
+            }).catch(function(){ btn.disabled=false; btn.innerText='Send request'; hubTell('Connection error.'); });
         }, function(){ btn.disabled=false; btn.innerText='Send request'; });
     }
 
@@ -1198,14 +1329,14 @@
         }
         withPin(function(pin){
             var onDecideDone=function(res){
-                if(res.error){ if(res.error.code==='42501') sessionPin=null; alert('Error: '+res.error.message); return; }
+                if(res.error){ if(res.error.code==='42501') sessionPin=null; hubTell('Error: '+res.error.message); return; }
                 loadRequests();
             };
             var u=currentUser.username;
             // Literal RPC names (not a variable) so the pre-deploy manifest checker can see them.
-            if(type==='swap') supabaseClient.rpc('app_swap_decide',{p_username:u,p_password:pin,p_id:id,p_approve:approve,p_note:note}).then(onDecideDone).catch(function(){ alert('Connection error.'); });
-            else if(type==='claim') supabaseClient.rpc('app_claim_decide',{p_username:u,p_password:pin,p_claim_id:id,p_approve:approve}).then(onDecideDone).catch(function(){ alert('Connection error.'); });
-            else if(type==='offer') supabaseClient.rpc('app_offer_decide',{p_username:u,p_password:pin,p_offer_id:id,p_approve:approve}).then(onDecideDone).catch(function(){ alert('Connection error.'); });
-            else supabaseClient.rpc('app_time_off_decide',{p_username:u,p_password:pin,p_id:id,p_approve:approve,p_note:note}).then(onDecideDone).catch(function(){ alert('Connection error.'); });
+            if(type==='swap') supabaseClient.rpc('app_swap_decide',{p_username:u,p_password:pin,p_id:id,p_approve:approve,p_note:note}).then(onDecideDone).catch(function(){ hubTell('Connection error.'); });
+            else if(type==='claim') supabaseClient.rpc('app_claim_decide',{p_username:u,p_password:pin,p_claim_id:id,p_approve:approve}).then(onDecideDone).catch(function(){ hubTell('Connection error.'); });
+            else if(type==='offer') supabaseClient.rpc('app_offer_decide',{p_username:u,p_password:pin,p_offer_id:id,p_approve:approve}).then(onDecideDone).catch(function(){ hubTell('Connection error.'); });
+            else supabaseClient.rpc('app_time_off_decide',{p_username:u,p_password:pin,p_id:id,p_approve:approve,p_note:note}).then(onDecideDone).catch(function(){ hubTell('Connection error.'); });
         });
     }

@@ -63,6 +63,47 @@
         yes.onclick=function(){ close(); try{ if(onYes) onYes(ov); }catch(e){ console.error(e); } };
         setTimeout(function(){ try{ var f=o.focus&&ov.querySelector(o.focus); (f||yes).focus(); }catch(e){} },30);
     }
+    // One Hub sheet for a plain message (used in place of the browser's own pop-up). Messages wait
+    // their turn: a second one shows after the first is closed. o = { title, ok, then }.
+    var _hubTellQ=[];
+    function hubTell(msg, o){
+        o=o||{}; var text=String(msg==null?'':msg).replace(/^\s+|\s+$/g,''), title=o.title||'';
+        var m=text.match(/^Error:\s*([\s\S]*)$/);
+        if(m && !title){ title='That didn’t go through'; text=m[1]||'Please try again.'; }
+        if(!title && text.length<=70 && text.indexOf('\n')<0){ title=text; text=''; }
+        if(!document.body){ return; }
+        for(var i=0;i<_hubTellQ.length;i++){ if(_hubTellQ[i].title===title && _hubTellQ[i].text===text) return; }
+        _hubTellQ.push({ title:title, text:text, ok:o.ok||'OK', then:(typeof o.then==='function'?o.then:null) });
+        if(_hubTellQ.length===1) _hubTellShow();
+    }
+    function _hubTellShow(){
+        var it=_hubTellQ[0]; if(!it) return;
+        var wide=(window.innerWidth||0)>600;
+        var ov=document.createElement('div'); ov.id='hubTellSheet';
+        ov.style.cssText='position:fixed;inset:0;background:rgba(18,20,28,.45);z-index:2147483001;display:flex;justify-content:center;align-items:'+(wide?'center':'flex-end')+';padding:'+(wide?'16px':'0')+';box-sizing:border-box;';
+        ov.innerHTML='<div role="alertdialog" aria-modal="true" aria-labelledby="hubTellTitle" aria-describedby="hubTellBody" style="background:#fff;width:100%;max-width:460px;box-sizing:border-box;border-radius:'+(wide?'18px':'18px 18px 0 0')+';padding:20px 18px calc(16px + env(safe-area-inset-bottom,0px));box-shadow:0 -8px 30px rgba(0,0,0,.18);text-align:left;">'
+            +'<div id="hubTellTitle" style="font-size:17px;font-weight:800;color:#1f2a44;margin-bottom:6px;overflow-wrap:anywhere;"></div>'
+            +'<div id="hubTellBody" style="font-size:14px;line-height:1.45;color:#3d4757;white-space:pre-wrap;overflow-wrap:anywhere;max-height:50vh;overflow-y:auto;"></div>'
+            +'<div style="display:flex;justify-content:flex-end;margin-top:16px;">'
+            +'<button type="button" id="hubTellOk" style="background:var(--caliches-pink,#ec3e7e);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;padding:12px 22px;cursor:pointer;min-height:44px;font-family:inherit;"></button>'
+            +'</div></div>';
+        document.body.appendChild(ov);
+        var tEl=ov.querySelector('#hubTellTitle'), bEl=ov.querySelector('#hubTellBody'), ok=ov.querySelector('#hubTellOk');
+        tEl.textContent=it.title; if(!it.title) tEl.style.display='none';
+        bEl.textContent=it.text; if(!it.text) bEl.style.display='none';
+        ok.textContent=it.ok;
+        function key(e){ if(e.key==='Escape') close(); }
+        function close(){
+            document.removeEventListener('keydown',key); if(ov.parentNode) ov.parentNode.removeChild(ov);
+            _hubTellQ.shift();
+            try{ if(it.then) it.then(); }catch(e){ console.error(e); }
+            if(_hubTellQ.length) _hubTellShow();
+        }
+        document.addEventListener('keydown',key);
+        ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+        ok.onclick=close;
+        setTimeout(function(){ try{ ok.focus(); }catch(e){} },30);
+    }
 
     // Which database migration level this code expects. Stamped by stamp.ps1
     // from the highest file in migrations/. Lets you tell, from the running
