@@ -98,7 +98,7 @@
         var _tf = (typeof hubTaxFrac==='function') ? hubTaxFrac() : QUOTE_TAX_RATE;
         const tax = Math.round(subtotal * _tf * 100) / 100;
         const total = Math.round((subtotal + tax) * 100) / 100;
-        try{ var _tl=document.getElementById('quoteTaxLabel'); if(_tl){ var _tc=(typeof hubTaxCityLabel==='function')?hubTaxCityLabel():''; _tl.innerText='Tax ('+(Math.round(_tf*10000)/100)+'%'+(_tc?(' \u2014 '+_tc):'')+'):'; } }catch(e){}
+        try{ var _tl=document.getElementById('quoteTaxLabel'); if(_tl){ var _tc=(typeof hubTaxCityLabel==='function')?hubTaxCityLabel():''; var _aq=(typeof hubTaxAsQuoted==='function')&&hubTaxAsQuoted(); _tl.innerText='Tax ('+(Math.round(_tf*10000)/100)+'%'+(_aq?' \u2014 as quoted':(_tc?(' \u2014 '+_tc):''))+'):'; } }catch(e){}
         document.getElementById('quoteSubtotal').innerText = '$' + subtotal.toFixed(2);
         document.getElementById('quoteTax').innerText = '$' + tax.toFixed(2);
         document.getElementById('quoteTotal').innerText = '$' + total.toFixed(2);
@@ -189,6 +189,8 @@
         var cont = document.getElementById('quoteItemsContainer'); if (cont) { cont.innerHTML = ''; addQuoteRow(); addQuoteRow(); addQuoteRow(); }
         var rl = document.getElementById('quoteResultLink'); if (rl) { rl.style.display = 'none'; rl.innerHTML = ''; }
         var rep = document.getElementById('quoteReportHtml'); if (rep) rep.value = '';
+        _quoteTaxKeepClear();
+        var city = document.getElementById('quoteTaxCity'); if (city) city.value = '';   // a new quote starts at Default, not at the last quote's city
         window._quoteDone = null;
         _quoteBtnRestore(document.getElementById('submitQuoteBtn'));
         try { recalcQuoteTotals(); } catch (e) {}
@@ -366,13 +368,42 @@
             document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
             document.getElementById('quotesView').style.display='block';
             fillQuoteForm(q);
+            if(typeof hubLoadTaxRates==='function') hubLoadTaxRates();   // list the cities here too (it keeps "As quoted" picked)
         });
+    }
+    // Edit & Resend must not change a quote's tax by itself. The city and rate are not stored on a quote,
+    // so the rate is read back from its own numbers (tax / subtotal) and kept as "As quoted" in the city menu.
+    // A tax-exempt quote (tax $0) stays at no tax. Picking a city or Default changes it on purpose.
+    function _quoteTaxKeepClear(){
+        window._quoteTaxKeep=null;
+        var sel=document.getElementById('quoteTaxCity'); if(!sel) return;
+        var was=(sel.value==='__asquoted__');
+        var o=sel.querySelector('option[value="__asquoted__"]'); if(o) o.parentNode.removeChild(o);
+        if(was) sel.value='';
+    }
+    function _quoteTaxKeepFrom(q){
+        _quoteTaxKeepClear();
+        var sel=document.getElementById('quoteTaxCity'); if(!sel||!q) return;
+        var sub=Number(q.subtotal);
+        var tax=(q.tax!=null&&q.tax!=='')?Number(q.tax):((q.total!=null&&q.total!=='')?(Number(q.total)-sub):NaN);
+        if(!(sub>0)||!isFinite(tax)||tax<0){ sel.value=''; return; }   // nothing to read the rate from: behave as before
+        var want=Math.round(tax*100);
+        var fits=function(f){ return Math.round(sub*f*100)===want; };
+        var dflt=(typeof QUOTE_TAX_RATE!=='undefined')?QUOTE_TAX_RATE:0.0839;
+        if(fits(dflt)){ sel.value=''; return; }                          // quoted at the default rate: Default it is
+        var ratio=tax/sub, f=ratio;
+        var cands=[0, Math.round(ratio*10000)/10000, Math.round(ratio*1000000)/1000000];
+        for(var i=0;i<cands.length;i++){ if(fits(cands[i])){ f=cands[i]; break; } }
+        window._quoteTaxKeep={ frac:f, pct:Math.round(f*10000)/100 };
+        var tmp=document.createElement('div'); tmp.innerHTML='<select>'+hubTaxAsQuotedOption()+'</select>';
+        var opt=tmp.querySelector('option'); if(opt){ sel.insertBefore(opt, sel.firstChild); sel.value='__asquoted__'; }
     }
     function fillQuoteForm(q){
         var form=document.getElementById('quoteForm'); if(!form) return;
         function setv(name,val){ var el=form.querySelector('[name="'+name+'"]'); if(el) el.value=(val==null?'':val); }
         setv('ContactName',q.contact_name); setv('Company',q.company); setv('ContactPhone',q.contact_phone); setv('ContactEmail',q.contact_email); setv('EventType',q.event_type); setv('Notes',q.notes);
         setv('EventDate', q.event_date? String(q.event_date).slice(0,10):'');
+        _quoteTaxKeepFrom(q);
         var cont=document.getElementById('quoteItemsContainer'); if(cont) cont.innerHTML='';
         var items=q.line_items; if(typeof items==='string'){ try{ items=JSON.parse(items); }catch(e){ items=[]; } } items=items||[];
         if(!items.length){ addQuoteRow(); } else { items.forEach(function(it){ addQuoteRow(it.qty!=null?it.qty:(it.quantity||1), it.desc||it.description||'', it.price!=null?it.price:(it.unit_price||'')); }); }

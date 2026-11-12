@@ -966,10 +966,16 @@
     // Reuses app_settings_get/set/delete (no new backend). Falls back to QUOTE_TAX_RATE
     // when no city is picked or a city has no rate yet, so nothing breaks before it's configured.
     var HUB_TAX_RATES = {};  // { 'City Name': 8.39 }  percent numbers
+    // A saved quote opened for Edit & Resend keeps the tax rate it was quoted at (window._quoteTaxKeep),
+    // shown in the city menu as "As quoted", until the person picks a city or Default on purpose.
     function hubTaxFrac(){
-        try{ var sel=document.getElementById('quoteTaxCity'); var c=sel?sel.value:''; if(c && HUB_TAX_RATES[c]!=null){ var pp=parseFloat(HUB_TAX_RATES[c]); if(!isNaN(pp)) return pp/100; } }catch(e){}
+        try{ var sel=document.getElementById('quoteTaxCity'); var c=sel?sel.value:'';
+            if(c==='__asquoted__' && window._quoteTaxKeep && isFinite(window._quoteTaxKeep.frac)) return window._quoteTaxKeep.frac;
+            if(c && HUB_TAX_RATES[c]!=null){ var pp=parseFloat(HUB_TAX_RATES[c]); if(!isNaN(pp)) return pp/100; } }catch(e){}
         return QUOTE_TAX_RATE;
     }
+    function hubTaxAsQuoted(){ try{ var sel=document.getElementById('quoteTaxCity'); return !!(sel && sel.value==='__asquoted__' && window._quoteTaxKeep); }catch(e){ return false; } }
+    function hubTaxAsQuotedOption(){ var k=window._quoteTaxKeep; if(!k) return ''; return '<option value="__asquoted__">As quoted ('+k.pct+'%'+(k.frac===0?' \u2014 no tax':'')+')</option>'; }
     function hubTaxCityLabel(){ try{ var sel=document.getElementById('quoteTaxCity'); var c=sel?sel.value:''; return (c&&HUB_TAX_RATES[c]!=null)?c:''; }catch(e){ return ''; } }
     function hubLoadTaxRates(){
         try{
@@ -977,7 +983,7 @@
             supabaseClient.rpc('app_settings_get',{p_username:currentUser.username,p_password:pin,p_group:'tax_rates'}).then(function(r){
                 HUB_TAX_RATES={}; ((r&&r.data)||[]).forEach(function(row){ var pct=parseFloat(row.value); if(!isNaN(pct)) HUB_TAX_RATES[row.label||row.key]=pct; });
                 var sel=document.getElementById('quoteTaxCity');
-                if(sel){ var cur=sel.value; var hh='<option value="">Default ('+(QUOTE_TAX_RATE*100).toFixed(2)+'%)</option>'; Object.keys(HUB_TAX_RATES).sort().forEach(function(c){ hh+='<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+' ('+HUB_TAX_RATES[c]+'%)</option>'; }); sel.innerHTML=hh; if(cur && HUB_TAX_RATES[cur]!=null) sel.value=cur; }
+                if(sel){ var cur=sel.value; var hh=hubTaxAsQuotedOption()+'<option value="">Default ('+(QUOTE_TAX_RATE*100).toFixed(2)+'%)</option>'; Object.keys(HUB_TAX_RATES).sort().forEach(function(c){ hh+='<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+' ('+HUB_TAX_RATES[c]+'%)</option>'; }); sel.innerHTML=hh; if(cur==='__asquoted__' && window._quoteTaxKeep) sel.value=cur; else if(cur && HUB_TAX_RATES[cur]!=null) sel.value=cur; else sel.value=''; }
                 if(typeof recalcQuoteTotals==='function') recalcQuoteTotals();
             }).catch(function(){});
         }catch(e){}
