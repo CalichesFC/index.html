@@ -110,17 +110,29 @@
             c.innerHTML = '<h2 style="color:var(--fail-red);margin-top:0;">Quote Not Found</h2><p style="color:#666;">This link is invalid or has expired. Please contact Caliche\'s Frozen Custard directly for help.</p>';
             return;
         }
-        let itemsHtml = (quote.line_items || []).map(li => {
+        // Line items can arrive as a list or as text; read both, and read the line's words whichever name they were saved under.
+        var _items = quote.line_items;
+        if (typeof _items === 'string') { try { _items = JSON.parse(_items); } catch (e) { _items = []; } }
+        if (!Array.isArray(_items)) _items = [];
+        let itemsHtml = _items.map(li => {
+            li = li || {};
             var qty = (li.qty!=null?li.qty:(li.quantity!=null?li.quantity:1));
             var sub = (li.subtotal!=null?li.subtotal:(Number(li.price!=null?li.price:(li.unit_price||0))*Number(qty)));
-            return '<tr><td style="padding:6px 4px;border-bottom:1px solid #eee;">' + escapeHtml(li.desc) + ' &times; ' + qty + '</td><td style="padding:6px 4px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap;">$' + Number(sub).toFixed(2) + '</td></tr>';
+            return '<tr><td style="padding:6px 4px;border-bottom:1px solid #eee;">' + escapeHtml(li.desc || li.description || li.label || li.name || '') + ' &times; ' + qty + '</td><td style="padding:6px 4px;border-bottom:1px solid #eee;text-align:right;white-space:nowrap;">$' + Number(sub).toFixed(2) + '</td></tr>';
         }).join('');
         let header = '<h2 style="color:var(--caliches-blue);margin-top:0;">Catering Quote #' + escapeHtml(String(quote.order_num)) + '</h2>' +
             '<p style="color:#666;margin:0 0 15px 0;font-size:14px;">For: <strong>' + escapeHtml(quote.contact_name || '') + '</strong>' + (quote.company ? ' (' + escapeHtml(quote.company) + ')' : '') + '<br>Event Date: ' + escapeHtml(quote.event_date || 'TBD') + (quote.event_type ? '<br>Event Type: ' + escapeHtml(quote.event_type) : '') + '</p>' +
             '<table style="width:100%;border-collapse:collapse;margin-bottom:10px;font-size:14px;">' + itemsHtml + '</table>' +
             '<div style="text-align:right;font-size:14px;color:#444;line-height:1.6;"><div>Subtotal: $' + Number(quote.subtotal||0).toFixed(2) + '</div><div>Tax: $' + Number(quote.tax||0).toFixed(2) + '</div><div style="font-weight:900;font-size:20px;color:var(--caliches-blue);margin-top:5px;">Total: $' + Number(quote.total||0).toFixed(2) + '</div></div>';
 
-        if (quote.status === 'Accepted') {
+        var _st = String(quote.status || '').trim().toLowerCase();
+        var _pdfLink = (quote.pdf_url ? '<a href="' + quote.pdf_url + '" target="_blank" style="display:block;text-align:center;margin-top:15px;color:var(--caliches-blue);font-weight:bold;text-decoration:underline;">View Full PDF</a>' : '');
+        if (_st === 'declined' || _st === 'cancelled' || _st === 'canceled' || _st === 'lost') {
+            // A quote the team closed is not re-opened from an old link (the server refuses it too).
+            c.innerHTML = header + '<div style="margin-top:20px;padding:15px;background:#fff6e5;border-radius:8px;text-align:center;color:#8a5a00;font-weight:bold;">This quote is no longer open.<br><span style="font-weight:normal;font-size:13px;color:#555;">If you would still like to book, please contact Caliche\'s Frozen Custard and we will be glad to help.</span></div>' + _pdfLink;
+            return;
+        }
+        if (_st === 'accepted') {
             var _sqNote = (quote.invoice_status === 'Paid')
                 ? '&#9989; Paid — thank you!'
                 : (quote.square_payment_url ? '<a href="' + quote.square_payment_url + '" target="_blank" style="color:#1f7a3d;font-weight:bold;">Pay online now &#8594;</a>' : '');

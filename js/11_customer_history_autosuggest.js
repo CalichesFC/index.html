@@ -136,11 +136,18 @@
         const _btn0 = document.getElementById('submitQuoteBtn');
         const _form0 = document.getElementById('quoteForm');
         if (!_form0) return;
+        // This quote is already saved: the button now reads "Start a new quote". Pressing it clears the
+        // builder. It never sends the same quote a second time under a new number.
+        if (window._quoteDone) { resetQuoteForm(); try { window.scrollTo(0, 0); } catch (e) {} return; }
         const _name0 = (_form0.querySelector('input[name="ContactName"]').value || '').trim();
         const _date0 = _form0.querySelector('input[name="EventDate"]').value;
         if (!_name0 || !_date0) { return alert('Please enter the contact name and event date!'); }
         // Check the line items BEFORE a quote number is taken, so a missing line never uses up a number.
         if (_quoteValidRows().length === 0) { return alert('Add at least one line item (a description and a price over $0) before sending the quote.'); }
+        // A line with a price but no description counted in the total on screen but was left out of the PDF
+        // and the saved quote. One rule now: it must have a description, or the price must be cleared.
+        var _noWords = _quoteRowsNoWords();
+        if (_noWords.length) { return alert(_quoteNoWordsMsg(_noWords)); }
         if (_btn0) { _btn0.innerText = 'Getting quote number...'; _btn0.disabled = true; }
         withQuoteOrderNum(window._editingQuote || null, function (num) {
             if (!num) { _quoteBtnRestore(_btn0); return; }
@@ -153,6 +160,19 @@
     function _quoteValidRows() {
         return [].slice.call(document.querySelectorAll('#quoteItemsContainer .quote-row')).filter(function(r){ return (r.querySelector('.quote-desc').value||'').trim() && (parseFloat(r.querySelector('.quote-price').value)||0)>0; });
     }
+    // Lines (counted from 1) that add money to the total but have no description.
+    function _quoteRowsNoWords() {
+        var out = [];
+        [].slice.call(document.querySelectorAll('#quoteItemsContainer .quote-row')).forEach(function (r, i) {
+            var words = (r.querySelector('.quote-desc').value || '').trim();
+            var money = (Math.max(0, parseFloat(r.querySelector('.quote-qty').value) || 0)) * (Math.max(0, parseFloat(r.querySelector('.quote-price').value) || 0));
+            if (!words && money > 0) out.push(i + 1);
+        });
+        return out;
+    }
+    function _quoteNoWordsMsg(lines) {
+        return (lines.length === 1 ? ('Line ' + lines[0] + ' has') : ('Lines ' + lines.join(', ') + ' have')) + ' a price but no description.\n\nAdd a description, or clear the price, so the total on screen matches the quote the customer gets.';
+    }
     // Put the Generate button back the way it was, so one mistake never leaves it greyed out.
     function _quoteBtnRestore(btn) {
         if (!btn) return;
@@ -160,6 +180,33 @@
         var e = window._editingQuote;
         if (e && e.order_num) { btn.innerHTML = '\u{1F504} UPDATE &amp; RESEND QUOTE #' + escapeHtml(String(e.order_num)); }
         else { btn.innerHTML = '\u{1F680} GENERATE QUOTE PDF'; }
+    }
+
+    // Empty the builder: no customer, three blank lines, no old PDF or link buttons.
+    function resetQuoteForm() {
+        var form = document.getElementById('quoteForm'); if (!form) return;
+        ['ContactName','Company','ContactPhone','ContactEmail','EventDate','EventType','Notes'].forEach(function (n) { var el = form.querySelector('[name="' + n + '"]'); if (el) el.value = ''; });
+        var cont = document.getElementById('quoteItemsContainer'); if (cont) { cont.innerHTML = ''; addQuoteRow(); addQuoteRow(); addQuoteRow(); }
+        var rl = document.getElementById('quoteResultLink'); if (rl) { rl.style.display = 'none'; rl.innerHTML = ''; }
+        var rep = document.getElementById('quoteReportHtml'); if (rep) rep.value = '';
+        window._quoteDone = null;
+        _quoteBtnRestore(document.getElementById('submitQuoteBtn'));
+        try { recalcQuoteTotals(); } catch (e) {}
+    }
+    // Say plainly that the quote is saved, and turn the big button into "Start a new quote".
+    function _quoteMarkSaved(num, hasPdf) {
+        window._quoteDone = { num: num };
+        var linkDiv = document.getElementById('quoteResultLink');
+        if (linkDiv) {
+            var old = document.getElementById('quoteSavedNote'); if (old && old.parentNode) old.parentNode.removeChild(old);
+            var note = document.createElement('div');
+            note.id = 'quoteSavedNote';
+            note.style.cssText = 'background:#e9f7ee;border:1px solid #b7e0c4;color:#0f7a3d;border-radius:8px;padding:10px 13px;margin-bottom:12px;font-size:14px;font-weight:bold;text-align:left;';
+            note.textContent = '\u2705 Quote #' + num + ' is saved.' + (hasPdf ? ' To change it, open it in Quotes & Invoices and tap Edit & Resend.' : ' To make the PDF again, open it in Quotes & Invoices and tap Edit & Resend.');
+            linkDiv.insertBefore(note, linkDiv.firstChild); linkDiv.style.display = 'block';
+        }
+        var b = document.getElementById('submitQuoteBtn');
+        if (b) { b.disabled = false; b.innerHTML = '\u2795 START A NEW QUOTE'; }
     }
 
     function _submitQuoteWithNumber() {
@@ -170,6 +217,8 @@
         if (!contactName || !eventDate) { _quoteBtnRestore(btn); return alert('Please enter the contact name and event date!'); }
         var _qValid=_quoteValidRows();
         if(_qValid.length===0){ _quoteBtnRestore(btn); return alert('Add at least one line item (a description and a price over $0) before sending the quote.'); }
+        var _noWords=_quoteRowsNoWords();
+        if(_noWords.length){ _quoteBtnRestore(btn); return alert(_quoteNoWordsMsg(_noWords)); }
         btn.innerText = 'Generating PDF...'; btn.disabled = true;
 
         const company = form.querySelector('input[name="Company"]').value;
@@ -190,7 +239,7 @@
         let lineItemsArr = [];
         document.querySelectorAll('#quoteItemsContainer .quote-row').forEach(row => {
             const qty = Math.max(0, parseFloat(row.querySelector('.quote-qty').value) || 0);
-            const desc = row.querySelector('.quote-desc').value || '';
+            const desc = (row.querySelector('.quote-desc').value || '').trim();
             const price = Math.max(0, parseFloat(row.querySelector('.quote-price').value) || 0);
             if (!desc) return;
             const lineSub = qty * price;
@@ -218,20 +267,25 @@
         .then(res => res.json())
         .then(googleData => {
             console.log('[Quote] GAS:', googleData);
-            btn.disabled = false; btn.innerText = '\u{1F680} GENERATE QUOTE PDF';
+            // Stay busy until the quote is really saved, so a quick second press cannot send it twice.
+            btn.disabled = true; btn.innerText = 'Saving quote...';
             const linkDiv = document.getElementById('quoteResultLink');
             const pdfUrl = (googleData.pdfUrl && googleData.pdfUrl !== 'No PDF') ? googleData.pdfUrl : null;
             if (pdfUrl) {
                 linkDiv.innerHTML = '<a href="' + pdfUrl + '" target="_blank" style="display:inline-block;background:#7b2d8b;color:white;padding:14px 28px;border-radius:8px;font-weight:bold;text-decoration:none;">\u{1F4C4} View / Download Quote PDF</a>';
             } else {
-                linkDiv.innerHTML = '<p style="color:#e74c3c;">PDF generation failed. Please try again.</p>';
+                linkDiv.innerHTML = '<p style="color:#e74c3c;">The PDF did not come back.</p>';
             }
             linkDiv.style.display = 'block';
             try { linkDiv.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e) {}
+            // The save did not go through: put the button back and take the PDF link away,
+            // so nobody hands out a PDF for a quote that is not in the system.
+            var _saveFailed = function () { _quoteBtnRestore(btn); linkDiv.style.display = 'none'; linkDiv.innerHTML = ''; };
 
             // Persist quote to Supabase — create new, or UPDATE the existing row if editing
             var qfields = { p_contact_name: contactName, p_company: company || null, p_contact_phone: phone || null, p_contact_email: email || null, p_event_date: eventDate, p_event_type: eventType || null, p_notes: notes || null, p_line_items: lineItemsArr, p_subtotal: subtotal, p_tax: tax, p_total: total, p_pdf_url: pdfUrl };
             var afterSaved = function(token) {
+                _quoteMarkSaved(orderNum, !!pdfUrl);
                 if (!token) return;
                 const acceptUrl = publicLinkBase() + '?accept=' + token;
                 const linkBtn = document.createElement('button');
@@ -246,15 +300,18 @@
                     var args = { p_admin_username: currentUser.username, p_admin_password: pin, p_id: editing.id };
                     Object.keys(qfields).forEach(function(k){ args[k] = qfields[k]; });
                     supabaseClient.rpc('app_quote_update', args).then(({ data, error }) => {
-                        if (error) { if (error.code === '42501') sessionPin = null; console.error('[Quote] update error:', error.message); alert('The PDF was made, but updating the quote failed: ' + error.message); }
-                        else { clearQuoteEdit(); afterSaved(data && data.accept_token); }
-                    }).catch(err => console.error('[Quote] update unexpected:', err));
+                        if (error) { if (error.code === '42501') sessionPin = null; console.error('[Quote] update error:', error.message); _saveFailed(); alert('The PDF was made, but updating the quote failed: ' + error.message); }
+                        else { _quoteEditOff(); afterSaved(data && data.accept_token); }
+                    }).catch(err => { console.error('[Quote] update unexpected:', err); _saveFailed(); alert('Connection error. The quote was NOT updated. Please try again.'); });
+                }, function () {
+                    _saveFailed();
+                    alert('The PDF was made, but the quote was NOT updated because no PIN was entered. Press the button again and enter your PIN to save it.');
                 });
             } else {
                 var cargs = { p_order_num: orderNum, p_submitted_by: currentUser.name || null };
                 Object.keys(qfields).forEach(function(k){ cargs[k] = qfields[k]; });
                 var _quoteSaved = function ({ data, error }) {
-                    if (error) { if (error.code === '42501') sessionPin = null; console.error('[Quote] Supabase insert error:', error.code, error.message); alert('The PDF was made, but saving the quote failed: ' + error.message); }
+                    if (error) { if (error.code === '42501') sessionPin = null; console.error('[Quote] Supabase insert error:', error.code, error.message); _saveFailed(); alert('The PDF was made, but saving the quote failed: ' + error.message); }
                     else { afterSaved(data && data[0] && data[0].accept_token); }
                 };
                 // Safety update: saving a new quote needs the login now (same as editing one). The older open
@@ -267,8 +324,9 @@
                             return supabaseClient.rpc('app_quote_create', cargs).then(_quoteSaved);
                         }
                         _quoteSaved(res);
-                    }).catch(err => console.error('[Quote] Unexpected Supabase error:', err));
+                    }).catch(err => { console.error('[Quote] Unexpected Supabase error:', err); _saveFailed(); alert('Connection error. The quote was NOT saved. Please try again.'); });
                 }, function () {
+                    _saveFailed();
                     alert('The PDF was made, but the quote was NOT saved because no PIN was entered. Press Generate again and enter your PIN to save it.');
                 });
             }
@@ -321,13 +379,22 @@
         recalcQuoteTotals();
         var b=document.getElementById('submitQuoteBtn'); if(b) b.innerHTML='\u{1F504} UPDATE &amp; RESEND QUOTE #'+escapeHtml(String(q.order_num));
         var rl=document.getElementById('quoteResultLink'); if(rl){ rl.style.display='none'; rl.innerHTML=''; }
+        window._quoteDone=null;
         var bn=document.getElementById('quoteEditBanner');
         if(!bn){ bn=document.createElement('div'); bn.id='quoteEditBanner'; bn.style.cssText='background:#f3e8fb;border:1px solid #d9b8ec;color:#7b2d8b;border-radius:8px;padding:10px 13px;margin-bottom:14px;font-size:13px;font-weight:bold;'; if(form.parentNode) form.parentNode.insertBefore(bn, form); }
         bn.innerHTML='✏️ Editing quote #'+escapeHtml(String(q.order_num))+' for '+escapeHtml(q.contact_name||'')+'. Adjust anything below and tap Update &amp; Resend &mdash; the customer’s accept link stays the same.';
         bn.style.display='block';
         window.scrollTo(0,0);
     }
+    // Called when the builder is opened for a NEW quote. If it still holds a quote that was already
+    // saved, or one that was open for editing, start clean so it is never sent again as a new quote.
+    // Typing on a quote that was never saved is left alone.
     function clearQuoteEdit(){
+        var stale = !!window._editingQuote || !!window._quoteDone;
+        _quoteEditOff();
+        if (stale) resetQuoteForm();
+    }
+    function _quoteEditOff(){
         window._editingQuote=null;
         var b=document.getElementById('submitQuoteBtn'); if(b) b.innerHTML='\u{1F680} GENERATE QUOTE PDF';
         var bn=document.getElementById('quoteEditBanner'); if(bn) bn.style.display='none';
