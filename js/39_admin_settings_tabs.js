@@ -89,9 +89,24 @@
             + '<span style="background:'+(open?'rgba(255,255,255,.22)':'#dbeafe')+';color:'+(open?'#fff':BLUE)+';border-radius:999px;padding:1px 7px;font-size:9.5px;letter-spacing:.03em;">ADMIN</span>'
             + '</button>';
     }
+    // Phone layout for the settings panel: on a narrow screen each label sits on its own line above its box,
+    // and the box takes the width that is left beside Save. Wider screens keep the one-line row as it was.
+    function astStyle(){
+        try{
+            if(byId('ast-style')) return;
+            var st=document.createElement('style'); st.id='ast-style';
+            st.textContent='@media (max-width:560px){'
+                + '.ast-head{flex-wrap:wrap;gap:2px 8px !important;}.ast-head b{flex:1 1 100% !important;}'
+                + '.ast-row{flex-wrap:wrap;gap:6px 10px !important;}.ast-row .ast-lab{flex:1 1 100% !important;}'
+                + '.ast-row input{flex:1 1 0;width:auto !important;min-width:0;}'
+                + '}';
+            document.head.appendChild(st);
+        }catch(e){}
+    }
     function panelShell(pageKey, title, inner){
+        astStyle();
         return '<div style="border:1px solid #cfe0f2;border-radius:12px;background:#f8fbff;padding:12px 14px;margin-top:10px;">'
-            + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'
+            + '<div class="ast-head" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'
             +   '<b style="flex:1;font-size:13.5px;color:#1F2A44;">&#9881; '+esc(title)+'</b>'
             +   '<span style="font-size:10.5px;color:'+GREY+';">Admin Managers and up &middot; saved instantly &middot; logged</span>'
             + '</div><div id="ast-body-'+esc(pageKey)+'">'+inner+'</div></div>';
@@ -175,14 +190,14 @@
                         }
                         var rowStyle = (st==='saved') ? 'background:#f0f9f3;border-radius:8px;' : '';
                         var fieldHtml =
-                            '<div style="flex:1;min-width:0;">'
+                            '<div class="ast-lab" style="flex:1;min-width:0;">'
                           +   '<div style="font-size:13px;color:#26242b;">'+esc(f.label)+'</div>'
                           +   (f.hint? '<div style="font-size:11px;color:'+GREY+';margin-top:1px;">'+esc(f.hint)+'</div>':'')
                           + '</div>'
                           + '<input id="ast-f-'+esc(pageKey)+'-'+esc(f.key)+'" value="'+esc(v)+'" placeholder="Not set" '
                           +   'style="width:180px;padding:7px 10px;border:1px solid '+(st==='saved'?GREEN:'#d7dbe2')+';border-radius:8px;font-size:13px;">'
                           + btn;
-                        inner += '<div style="display:flex;align-items:center;gap:10px;padding:9px 6px;'+(i===0?'':'border-top:1px solid #e6edf6;')+rowStyle+'">'+fieldHtml+'</div>';
+                        inner += '<div class="ast-row" style="display:flex;align-items:center;gap:10px;padding:9px 6px;'+(i===0?'':'border-top:1px solid #e6edf6;')+rowStyle+'">'+fieldHtml+'</div>';
                         continue;
                     }
                     if(S.msg[pageKey]) inner += note(S.msg[pageKey].text, S.msg[pageKey].ok?GREEN:'#c0264b');
@@ -257,6 +272,16 @@
                 try{
                     var old=byId('ast-perm-host');
                     if(!ok){ if(old && old.parentNode) old.parentNode.removeChild(old); return; }
+                    // The same editor also opens full screen from the Roles & Permissions tile, and
+                    // there must only ever be ONE box with this id: the editor draws into the first
+                    // one it finds. If the box was last used by the full screen editor, drop that
+                    // one and make this screen's own, so the card shows here every time.
+                    if(old && !view.contains(old)){
+                        var ov=byId('astPermModal');
+                        if(ov && ov.style.display!=='none' && ov.contains(old)) return;   // full screen editor is open right now: leave it alone
+                        if(old.parentNode) old.parentNode.removeChild(old);
+                        old=null;
+                    }
                     var host=old;
                     if(!host){ host=document.createElement('div'); host.id='ast-perm-host'; host.style.cssText='margin:12px 0;'; view.appendChild(host); }
                     loadPerm();
@@ -444,6 +469,10 @@
                 document.body.appendChild(ov);
             }
             ov.style.display='block';
+            // Settings & Console keeps its own copy of the editor box under the same id. Take that
+            // one away first, or the editor would draw into it (hidden) and this screen would be blank.
+            // Settings & Console makes a fresh one the next time it is opened.
+            var stale=byId('ast-perm-host'); if(stale && stale.parentNode) stale.parentNode.removeChild(stale);
             ov.innerHTML='<div style="background:'+BLUE+';color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;">'
                        +   '<b style="flex:1;font-size:16px;">Roles &amp; Permissions</b>'
                        +   '<button onclick="ast.closePerm()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;font-size:15px;">&times;</button>'

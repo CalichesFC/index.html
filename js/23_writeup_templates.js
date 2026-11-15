@@ -727,7 +727,7 @@
 
         ov.innerHTML=wtHeader(t.label+' Write-Up','wtBackToPicker()')+wtWrap('<div id="wtFormBody" style="background:#fff;border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.06);">'+h+'</div>');
         ov.scrollTop=0;
-        try{ document.getElementById('wtDate').value=new Date().toISOString().slice(0,10); }catch(e){}
+        try{ document.getElementById('wtDate').value=hubIsoDay(); }catch(e){} /* the person's own day, not the UTC day */
         wtInitPads();
     }
 
@@ -797,7 +797,7 @@
                       ['Issued by',currentUser.name||currentUser.username]];
             var stmts=[['Additional Details',details],['Expectations Communicated',t.expect||''],[t.signer+' Comments',empStmt]];
             var html=hubHrReportHtml(t.title,'#8a1f1f',flds,stmts,sigs);
-            var fileName=(date||new Date().toISOString().slice(0,10))+' - '+t.label+' '+lvlName+'.pdf';
+            var fileName=(date||hubIsoDay())+' - '+t.label+' '+lvlName+'.pdf';
             hubGenHrPdf('Disciplinary',empStore,empName,fileName,html,doCreate);
         } else {
             doCreate('');

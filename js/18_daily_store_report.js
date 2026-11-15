@@ -42,7 +42,7 @@
     function dsrTA(id,label,val){ return '<div style="margin-bottom:9px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">'+escapeHtml(label)+'</label><textarea id="'+id+'" rows="3" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;font-family:inherit;">'+escapeHtml(val||'')+'</textarea></div>'; }
     function dsrVal(id){ var e=document.getElementById(id); return e?e.value:''; }
     function dsrValF(id){ var v=parseFloat(dsrVal(id)); return isNaN(v)?0:v; }
-    function dsrMoney(n){ if(n==null||n==='') return '—'; var x=parseFloat(n); return isNaN(x)?'—':'$'+x.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+    function dsrMoney(n){ if(n==null||n==='') return '—'; var x=parseFloat(n); if(isNaN(x)) return '—'; var t=Math.abs(x).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); return ((x<0 && /[1-9]/.test(t))?'-':'')+'$'+t; }   // a short reads -$4.25, not $-4.25
     function dsrTotalTile(label,val,color){ return '<div style="flex:1;min-width:120px;background:#fafbfd;border:1px solid #eef0f5;border-radius:10px;padding:9px 11px;"><div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#5b6675;">'+escapeHtml(label)+'</div><div style="font-size:16px;font-weight:800;color:'+(color||'#1f2a44')+';">'+val+'</div></div>'; }
     function dsrTodayIso(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
     function dsrSum(a,b){ if(a==null&&b==null) return null; return (parseFloat(a)||0)+(parseFloat(b)||0); }
@@ -116,7 +116,7 @@
         if(f.location||f.date||f.status) h+=dsrBtn('Clear filters','dsrClearFilters()');
         h+='</div>';
 
-        if(!rows.length){ h+=dsrEmpty('No daily store reports yet. Tap "Open Today" to start the 5:00 closeout.'); }
+        if(!rows.length){ h+=dsrEmpty((f.location||f.date||f.status)?'No reports match the filter above. Tap "Clear filters" to see all reports.':'No daily store reports yet. Tap "Open Today" to start the 5:00 closeout.'); }
         else{ rows.forEach(function(r){ h+=dsrLandingCard(r); }); }
         h+='</div>';
         ov.innerHTML=h;
@@ -190,10 +190,47 @@
     // ============================================================
     function dsrWorkspace(id){ _dsr.view='workspace'; _dsr.wtab='header'; _dsr.reportId=id; _dsr.lastValidation=null; _dsr.audit=null; _dsr.showAudit=false; dsrLoadReport(); }
 
-    function dsrLoadReport(){
+    // ---- keep typing across a reload ----
+    // Every Save reloads the report from the server and redraws the tab. On the three tabs with more than one Save
+    // (5:00, Night, Log Book) that used to empty every box a person had typed in but not saved yet. These two helpers
+    // remember the boxes that were changed, and put the text back after the redraw. The card that was just saved
+    // (`saved`: an id prefix, or a list of exact ids) is left as the server returned it.
+    function dsrTypedSnapshot(){
+        var snap={ fields:{}, notes:{}, any:false };
+        if(_dsr.view!=='workspace' || ['five','night','logbook'].indexOf(_dsr.wtab)<0) return snap;
+        var sh=_dsr.shown; if(!sh || sh.id!==_dsr.reportId || sh.tab!==_dsr.wtab) return snap;
+        var ov=document.getElementById('dsrModal'); if(!ov) return snap;
+        var els=ov.querySelectorAll('input[id],textarea[id]');
+        for(var i=0;i<els.length;i++){
+            var e=els[i];
+            if(e.type==='checkbox'){ if(e.checked!==e.defaultChecked){ snap.fields[e.id]={c:e.checked}; snap.any=true; } }
+            else if(e.value!==e.defaultValue){ snap.fields[e.id]={v:e.value}; snap.any=true; }
+        }
+        DSR_LOG_SECTIONS.forEach(function(sec){ snap.notes[sec[0]]=dsrLogNotes(sec[0]).length; });
+        return snap;
+    }
+    function dsrTypedRestore(snap,saved){
+        if(!snap || !snap.any) return;
+        var sh=_dsr.shown; if(!sh || sh.id!==_dsr.reportId || sh.tab!==_dsr.wtab) return;
+        for(var id in snap.fields){
+            if(!Object.prototype.hasOwnProperty.call(snap.fields,id)) continue;
+            if(typeof saved==='string'){ if(saved && id.indexOf(saved)===0) continue; }
+            else if(saved && saved.indexOf(id)>=0) continue;
+            // a note that was just added: its box goes back to empty, like before
+            if(id.indexOf('dsrLN_')===0){ var sec=id.slice(6); if(dsrLogNotes(sec).length>(snap.notes[sec]||0)) continue; }
+            var e=document.getElementById(id); if(!e) continue;
+            var f=snap.fields[id];
+            if(e.type==='checkbox'){ if(f.c!=null) e.checked=f.c; }
+            else if(f.v!=null) e.value=f.v;
+        }
+        if(_dsr.wtab==='five'||_dsr.wtab==='night'){ try{ dsrRecalcLive(_dsr.wtab); }catch(e2){} }
+    }
+
+    function dsrLoadReport(saved){
+        var typed=dsrTypedSnapshot();
         var ov=dsrOverlay();
         ov.innerHTML=dsrHeader('Loading report&hellip;','openDailyReport()')+'<div style="max-width:900px;margin:0 auto;padding:40px 16px;text-align:center;color:#6b7686;">Loading&hellip;</div>';
-        dsrRpc('dsr_get',{p_id:_dsr.reportId},function(d){ _dsr.report=d||{}; dsrRenderWorkspace(); }, function(err){
+        dsrRpc('dsr_get',{p_id:_dsr.reportId},function(d){ _dsr.report=d||{}; dsrRenderWorkspace(); dsrTypedRestore(typed,saved); }, function(err){
             ov.innerHTML=dsrHeader('Daily Store Report','openDailyReport()')+'<div style="max-width:900px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">'+escapeHtml((err&&err.message)||'Could not load report.')+'</div>';
         });
     }
@@ -258,6 +295,7 @@
             default: body=dsrHeaderTab();
         }
         ov.innerHTML=dsrHeader(title,'openDailyReport()')+dsrTabsHtml()+'<div style="max-width:900px;margin:0 auto;padding:16px 16px 60px;">'+dsrStatusBar()+body+'</div>';
+        _dsr.shown={ id:_dsr.reportId, tab:_dsr.wtab };
         if(_dsr.wtab==='five'||_dsr.wtab==='night'){ try{ dsrRecalcLive(_dsr.wtab); }catch(e){} }
     }
 
@@ -359,7 +397,7 @@
                 '<div style="flex:1;min-width:150px;">'+dsrNumIn('dsrPR_empDisc','Employee discount ($)',pr.employee_discount)+'</div>'+
                 '</div>'+
                 dsrBtn('Save promo / waste','dsrSavePromo()','primary');
-            h+=dsrCard(prBody,'Promo &amp; waste');
+            h+=dsrCard(prBody,'Promo & waste');
         }
         return h;
     }
@@ -367,7 +405,7 @@
     function dsrSaveCloseout(type){
         var payload={ ring_out_time:dsrVal('dsrC_'+type+'_ring'), prepared_by:dsrVal('dsrC_'+type+'_prep'), tape_total:dsrValF('dsrC_'+type+'_tape'), bag_count:dsrValF('dsrC_'+type+'_bags'), deposit:dsrValF('dsrC_'+type+'_deposit'), transactions:dsrValF('dsrC_'+type+'_tx') };
         if(type==='night') payload.net_tape_total=dsrValF('dsrC_'+type+'_netTape');
-        dsrRpc('dsr_closeout_save',{p_id:_dsr.reportId,p_type:type,p_payload:payload},function(){ dsrLoadReport(); });
+        dsrRpc('dsr_closeout_save',{p_id:_dsr.reportId,p_type:type,p_payload:payload},function(){ dsrLoadReport('dsrC_'+type+'_'); });
     }
     function dsrSaveRegister(type,idx,existingId){
         var c=dsrCloseoutOf(type);
@@ -378,23 +416,23 @@
         var payload={ position_label:pos, employee_id:(/^[0-9]+$/.test(_emp)?parseInt(_emp,10):null) };
         DSR_DENOMS.forEach(function(d){ payload[d[0]]=dsrValF(pre+d[0]); });
         if(existingId!=null) payload.id=existingId;
-        dsrRpc('dsr_register_save',{p_closeout_id:c.id,p_payload:payload},function(){ dsrLoadReport(); });
+        dsrRpc('dsr_register_save',{p_closeout_id:c.id,p_payload:payload},function(){ dsrLoadReport(pre); });
     }
     function dsrSavePaymentAdj(type){
         var c=dsrCloseoutOf(type);
         if(!c || c.id==null){ alert('Save the closeout details above first.'); return; }
         var payload={};
         DSR_PAY_CATS.forEach(function(pc){ payload[pc[0]]=dsrValF('dsrP_'+type+'_'+pc[0]); });
-        dsrRpc('dsr_payment_adj_save',{p_closeout_id:c.id,p_payload:payload},function(){ dsrLoadReport(); });
+        dsrRpc('dsr_payment_adj_save',{p_closeout_id:c.id,p_payload:payload},function(){ dsrLoadReport('dsrP_'+type+'_'); });
     }
     function dsrSaveChangeRecon(){
         var payload={ change_in_safe:dsrValF('dsrCR_inSafe'), required_target:dsrValF('dsrCR_target'), need_additional:dsrValF('dsrCR_need'), denom:{} };
         DSR_DENOMS.slice(0,7).forEach(function(d){ payload.denom[d[0]]=dsrValF('dsrCR_'+d[0]); });
-        dsrRpc('dsr_change_recon_save',{p_id:_dsr.reportId,p_payload:payload},function(){ dsrLoadReport(); });
+        dsrRpc('dsr_change_recon_save',{p_id:_dsr.reportId,p_payload:payload},function(){ dsrLoadReport('dsrCR_'); });
     }
     function dsrSavePromo(){
         var payload={ free_items:dsrValF('dsrPR_freeItems'), promo_total_amt:dsrValF('dsrPR_totalAmt'), promo_total_num:dsrValF('dsrPR_totalNum'), open_discount:dsrValF('dsrPR_openDisc'), food_waste:dsrValF('dsrPR_foodWaste'), employee_discount:dsrValF('dsrPR_empDisc') };
-        dsrRpc('dsr_promo_save',{p_id:_dsr.reportId,p_payload:payload},function(){ dsrLoadReport(); });
+        dsrRpc('dsr_promo_save',{p_id:_dsr.reportId,p_payload:payload},function(){ dsrLoadReport('dsrPR_'); });
     }
 
     // ---- Combined Totals (read-only rollup) ----
@@ -463,7 +501,7 @@
             else{ lnBody+=dsrEmpty('No notes yet.'); }
             lnBody+='<div style="display:flex;gap:8px;"><input id="dsrLN_'+key+'" type="text" placeholder="Add a note&hellip;" style="flex:1;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;">'+dsrBtn('Add','dsrAddLogNote(&quot;'+key+'&quot;)')+'</div></div>';
         });
-        h+=dsrCard(lnBody,'Notes &amp; narratives');
+        h+=dsrCard(lnBody,'Notes & narratives');
 
         var atts=dsrAttachments();
         var atBody='';
@@ -479,14 +517,14 @@
         var lbl=dsrChecklistLines().filter(function(x){return dsrCkSlug(x)===key;})[0]||key;
         var am=document.getElementById(pre+'am'), pm=document.getElementById(pre+'pm');
         var payload={ item_key:key, item_label:lbl, am_done:!!(am&&am.checked), pm_done:!!(pm&&pm.checked), am_initials:dsrVal(pre+'amInit'), pm_initials:dsrVal(pre+'pmInit'), comment:dsrVal(pre+'comment') };
-        dsrRpc('dsr_checklist_entry_save',{p_id:_dsr.reportId,p_payload:payload},function(){ dsrLoadReport(); });
+        dsrRpc('dsr_checklist_entry_save',{p_id:_dsr.reportId,p_payload:payload},function(){ dsrLoadReport([pre+'am',pre+'amInit',pre+'pm',pre+'pmInit',pre+'comment']); });
     }
     function dsrSaveRating(cat){
         var pre='dsrRT_'+cat+'_';
         var payload={ am_score:dsrValF(pre+'am')||null, am_initials:dsrVal(pre+'amInit'), am_comment:dsrVal(pre+'amC'), pm_score:dsrValF(pre+'pm')||null, pm_initials:dsrVal(pre+'pmInit'), pm_comment:dsrVal(pre+'pmC') };
         var errEl=document.getElementById('dsrRT_'+cat+'_err');
         if(errEl) errEl.textContent='';
-        dsrRpc('dsr_rating_save',{p_id:_dsr.reportId,p_category:cat,p_payload:payload},function(){ dsrLoadReport(); }, function(err){
+        dsrRpc('dsr_rating_save',{p_id:_dsr.reportId,p_category:cat,p_payload:payload},function(){ dsrLoadReport(pre); }, function(err){
             var msg=(err&&err.message)||'Could not save rating.';
             if(errEl) errEl.textContent=msg; else alert(msg);
         });
@@ -627,13 +665,14 @@
     // ============================================================
     function dsrIsSubmittedStatus(s){ s=String(s||'').toLowerCase(); return ['submitted','under review','under_review','reviewed','locked'].indexOf(s)>=0; }
     function dsrCanSeeAudit(){ return !!(typeof isManagerRole==='function' && (isManagerRole()||isAdminManager()||isDiscAdmin())); }
+    function dsrRedrawKeepTyped(){ var typed=dsrTypedSnapshot(); dsrRenderWorkspace(); dsrTypedRestore(typed); }   // History only adds a card on top: the boxes below keep what was typed
     function dsrToggleHistory(){
-        if(_dsr.showAudit){ _dsr.showAudit=false; dsrRenderWorkspace(); return; }
+        if(_dsr.showAudit){ _dsr.showAudit=false; dsrRedrawKeepTyped(); return; }
         _dsr.showAudit=true;
-        dsrRenderWorkspace();
+        dsrRedrawKeepTyped();
         if(!_dsr.audit){
-            dsrRpc('dsr_audit_list',{p_id:_dsr.reportId},function(d){ _dsr.audit=d||[]; if(_dsr.showAudit) dsrRenderWorkspace(); },
-                function(err){ _dsr.audit=[]; if(_dsr.showAudit) dsrRenderWorkspace(); alert((err&&err.message)||'Could not load history.'); });
+            dsrRpc('dsr_audit_list',{p_id:_dsr.reportId},function(d){ _dsr.audit=d||[]; if(_dsr.showAudit) dsrRedrawKeepTyped(); },
+                function(err){ _dsr.audit=[]; if(_dsr.showAudit) dsrRedrawKeepTyped(); alert((err&&err.message)||'Could not load history.'); });
         }
     }
     function dsrHistoryCard(){

@@ -38,6 +38,10 @@
         return HUB_MON[a.getMonth()]+' '+a.getDate()+'–'+(b.getMonth()===a.getMonth()?'':HUB_MON[b.getMonth()]+' ')+b.getDate();
     }
     function hubWhen(ts){ var d=hubParseDate(ts); return d ? hubDay(d)+', '+hubTime(d) : String(ts==null?'':ts); }
+    // hubIsoDay() -> today as "2026-11-11" on the person's own clock; hubIsoDay(date) -> that day the same way.
+    // Use this for date boxes and "is it past due" checks. Do NOT use toISOString() for a day: that is the UTC day,
+    // which is already tomorrow after 5 pm Mountain Time (6 pm in summer).
+    function hubIsoDay(v){ var d=(v==null)?new Date():hubParseDate(v); if(!d) return ''; var m=d.getMonth()+1, n=d.getDate(); return d.getFullYear()+'-'+(m<10?'0':'')+m+'-'+(n<10?'0':'')+n; }
     function hubAsk(o, onYes){
         o=o||{}; var old=document.getElementById('hubAskSheet'); if(old&&old.parentNode) old.parentNode.removeChild(old);
         var wide=(window.innerWidth||0)>600;
@@ -600,7 +604,7 @@
                 sh.forEach(function(s, i) {
                     h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;' + (i < sh.length - 1 ? 'border-bottom:1px solid #eee;' : '') + '">' +
                         '<span style="flex:1;min-width:0;text-align:left;"><b style="display:block;font-size:14.5px;color:#1f2a44;">' + escapeHtml(hubDay(s.date) + ' \u00b7 ' + hubTimeRange(s.start, s.end)) + '</b>' + (s.location ? '<span style="font-size:12.5px;color:#6b7686;">' + escapeHtml(s.location) + '</span>' : '') + '</span>' +
-                        '<button onclick="openSwap(' + s.id + ',' + i + ')" style="background:#0d6eaf;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:bold;cursor:pointer;white-space:nowrap;">Request a cover</button></div>';
+                        '<button onclick="openCantWork(' + s.id + ',' + i + ')" style="background:#0d6eaf;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:bold;cursor:pointer;white-space:nowrap;">Request a cover</button></div>';   // the cover picker (ask coworkers first), same as Home; it used to open the old note-to-manager form
                 });
                 h += '</div>'; c.innerHTML = h;
             }).catch(function() { c.innerHTML = '<p style="color:#6b7686;font-size:13px;text-align:center;padding:10px;">Connection error.</p>'; });
@@ -666,15 +670,35 @@
             '<span style="background:'+(color||'#185FA5')+';color:#fff;font-size:12px;font-weight:800;min-width:22px;text-align:center;padding:2px 8px;border-radius:99px;">'+count+'</span>'+
             '<span style="color:#c2c7d0;font-size:16px;">&rsaquo;</span></button>';
     }
+    // Home has more than one to-do card: this one, "Needs your acknowledgment" (js/32), the manager
+    // "What needs you today" card (js/31) and My Day. The green "You're all caught up today" line used to
+    // show right above cards that were listing open items. It now shows only while none of them lists
+    // anything open. The Home tab is watched so the line follows the other cards as they draw or change.
+    function hubCaughtUpSync(){
+        try{
+            var el=document.getElementById('homeCaughtUp'); if(!el) return;
+            var open=document.querySelectorAll('#oaqCard [data-oaq-row], #homeTodayCard [data-ht-row], #homeTasksCard input[type="checkbox"][onchange^="onTaskCheck"]:not(:checked)').length;
+            el.style.display = open ? 'none' : '';
+        }catch(e){}
+    }
+    var _hubCaughtUpWatching=false, _hubCaughtUpTimer=null;
+    function hubCaughtUpWatch(){
+        try{
+            if(_hubCaughtUpWatching || typeof MutationObserver==='undefined') return;
+            var home=document.getElementById('tab-content-home'); if(!home) return;
+            _hubCaughtUpWatching=true;
+            new MutationObserver(function(){ if(_hubCaughtUpTimer) return; _hubCaughtUpTimer=setTimeout(function(){ _hubCaughtUpTimer=null; hubCaughtUpSync(); }, 0); }).observe(home,{childList:true,subtree:true});
+        }catch(e){}
+    }
     function loadActionItems(){
         var card=aiCard(); if(!card) return;
+        hubCaughtUpWatch();
         withPin(function(pin){
             var u={p_username:currentUser.username,p_password:pin};
             var _aiErr=false;
             function rc(fn,extra){ return supabaseClient.rpc(fn,Object.assign({},u,extra||{})).then(function(r){ if(r.error){ _aiErr=true; return null; } return r.data; }).catch(function(){ _aiErr=true; return null; }); }
             // Training stays out of sight until its switch is on for this person (same switch as the Training tile).
-            var _trnRole=(typeof effectiveRole==='function')?effectiveRole():((currentUser&&currentUser.role)||'');
-            var _trnOn=(typeof permAllow==='function')?permAllow('training', (_trnRole==='Admin Manager'||_trnRole==='Vice President/Co-Owner'||(currentUser&&currentUser.is_developer===true&&!window._viewAsRole))):false;
+            var _trnOn=(typeof trainingTileOn==='function')?trainingTileOn('training'):false;
             var jobs=[ rc('app_pending_schedule_confirm'), rc('app_supply_list',{p_scope:'incoming'}), rc('app_wo_list',{p_scope:'queue'}), (_trnOn?rc('app_lp_my'):Promise.resolve(null)), rc('app_my_support_notes'), (_aiIsFinance()?rc('wo_invoice_list'):Promise.resolve(null)) ];
             Promise.all(jobs).then(function(res){
                 var sched=res[0], supply=res[1]||[], wo=res[2]||[], lp=res[3]||{}, notes=res[4], inv=res[5];
@@ -689,7 +713,7 @@
                 if(tCount>0){ items.push(aiRow('&#127891;','Training to finish',tCount,'#1f7a3d','openTrainingPortal()')); }
                 var nCount=(notes&&notes.notes)?notes.notes.length:0;
                 if(nCount>0){ items.push(aiRow('&#128172;','New coaching notes for you',nCount,'#5b3aa6','openMyNotes()')); }
-                if(!items.length){ if(_aiErr){ card.innerHTML=_hubRetryHtml('Couldn&rsquo;t load your action items','loadActionItems()'); return; } card.innerHTML='<div class="home-card" style="background:#f3faf5;border:1px solid #d8eede;"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">&#9989;</span><div style="font-size:13.5px;color:#1b7a3d;font-weight:700;">You&rsquo;re all caught up today</div></div></div>'; return; }
+                if(!items.length){ if(_aiErr){ card.innerHTML=_hubRetryHtml('Couldn&rsquo;t load your action items','loadActionItems()'); return; } card.innerHTML='<div id="homeCaughtUp" class="home-card" style="background:#f3faf5;border:1px solid #d8eede;"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">&#9989;</span><div style="font-size:13.5px;color:#1b7a3d;font-weight:700;">You&rsquo;re all caught up today</div></div></div>'; hubCaughtUpSync(); return; }
                 card.innerHTML='<div class="home-card" style="background:linear-gradient(135deg,#ffffff,#f6f4ff);border:1px solid #e6e2f3;">'+
                     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;"><span style="font-size:18px;">&#9889;</span><div class="home-card-label" style="color:#5b3aa6;">NEEDS YOU TODAY</div><span style="flex:1;"></span><span style="font-size:11px;color:#5b6675;">'+items.length+' item'+(items.length===1?'':'s')+'</span></div>'+
                     items.join('')+'</div>';
@@ -1413,7 +1437,7 @@
         { id:'schedconfirms', label:'Schedule Confirmations', emoji:'&#9989;', section:'Schedule tools', keywords:['confirm','confirmation','who has seen','acknowledged','week confirm'], roleCheck:_hubRole('schedIsMgr'), go:function(){ openScheduling(); setTimeout(function(){ try{ openWeekConfirms(); }catch(e){} }, 600); } },
         { id:'yvmine', label:'Your Voice — My Submissions', emoji:'&#128203;', section:'Your Voice', keywords:['my submissions','reference code','access code','check status','case','follow up'], roleCheck:null, go:function(){ openYourVoice(); setTimeout(function(){ try{ yv2Mine(); }catch(e){} }, 500); } },
         { id:'whatsnew', label:"What's New", emoji:'&#127881;', section:'Help', keywords:['whats new','new features','update','release','how to use'], roleCheck:null, go:function(){ openHowTo(); } },
-        { id:'learningpaths', label:'My Training — Learning Paths', emoji:'&#127891;', section:'Training', keywords:['learning path','lms','course','lesson','quiz','certification','apron','scorm'], roleCheck:null, go:function(){ openLmsPreview(); } },
+        { id:'learningpaths', label:'My Training — Learning Paths', emoji:'&#127891;', section:'Training', keywords:['learning path','lms','course','lesson','quiz','certification','apron','scorm'], roleCheck:_hubRole('trainingLessonsOn'), go:function(){ openLmsPreview(); } }, /* hidden until training is ready: same rule as the training tiles */
         { id:'messages', key:'messages', label:'Messages', emoji:'&#128172;', section:'Messages', keywords:['message','chat','dm','direct','announcement','broadcast','inbox','updates'], roleCheck:null, go:function(){ openMessages(); } },
         /* --- tile enrichments: inherit the tile's label/emoji/visibility, add search keywords --- */
         { id:'scheduling', key:'scheduling', btn:'btn-scheduling', keywords:['schedule builder','build','publish','weekly shifts','rota'] },

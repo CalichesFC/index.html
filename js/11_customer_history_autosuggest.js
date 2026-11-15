@@ -674,8 +674,10 @@
     }
 
     // Determine + apply access. Blank the rows first (no flash of locked items),
-    // then ask app_forms_list. Any ERROR path FAILS OPEN (reveals everything) so a
-    // not-yet-deployed backend never locks anyone out; only a SUCCESS applies gating.
+    // then ask app_forms_list. Only a SUCCESS shows any form. When the list cannot be
+    // loaded (server error, no answer, no connection) the rows STAY HIDDEN and the person
+    // gets a plain "could not load" with a Try again button. It used to show all 23 forms
+    // to everyone on any failure (Payroll Report, Raise Eligibility, hiring uploads).
     function formsApplyAccess() {
         document.querySelectorAll('#formsLinksView [data-form-key]').forEach(function (el) { el.style.display = 'none'; el.removeAttribute('data-onetime'); });
         document.querySelectorAll('#formsLinksView .fl-section').forEach(function (el) { el.style.display = 'none'; });
@@ -684,19 +686,20 @@
         withPin(function (pin) {
             supabaseClient.rpc('app_forms_list', { p_username: currentUser.username, p_password: pin })
             .then(function (res) {
-                if (res && res.error) { if (res.error.code === '42501') sessionPin = null; formsFailOpen(); return; }
-                if (!res || res.data == null) { formsFailOpen(); return; }   // no data object -> treat as not-deployed -> fail open
-                try { formsRenderGated(res.data); } catch (e) { formsFailOpen(); }
+                if (res && res.error) { if (res.error.code === '42501') sessionPin = null; formsLoadFailed(); return; }
+                if (!res || res.data == null) { formsLoadFailed(); return; }   // no answer at all: nothing to go on, show nothing
+                try { formsRenderGated(res.data); } catch (e) { formsLoadFailed(); }
             })
-            .catch(function () { formsFailOpen(); });
+            .catch(function () { formsLoadFailed(); });
         }, function () { formsPinNeeded(); });
     }
 
-    // FAIL-OPEN: reveal every row + section exactly like the old static page.
-    function formsFailOpen() {
-        document.querySelectorAll('#formsLinksView [data-form-key]').forEach(function (el) { el.style.display = ''; el.removeAttribute('data-onetime'); });
-        document.querySelectorAll('#formsLinksView .fl-section').forEach(function (el) { el.style.display = ''; });
-        var hdr = document.getElementById('formsDynamicHeader'); if (hdr) { hdr.innerHTML = ''; hdr.style.display = 'none'; }
+    // The list could not be loaded: keep every row hidden and offer a retry.
+    function formsLoadFailed() {
+        document.querySelectorAll('#formsLinksView [data-form-key]').forEach(function (el) { el.style.display = 'none'; el.removeAttribute('data-onetime'); });
+        document.querySelectorAll('#formsLinksView .fl-section').forEach(function (el) { el.style.display = 'none'; });
+        var hdr = document.getElementById('formsDynamicHeader'); if (!hdr) return; hdr.style.display = 'block';
+        hdr.innerHTML = '<div style="background:#fff8ef;border:1px solid #f4e3c6;border-radius:11px;padding:16px;text-align:center;color:#4a4032;font-size:13px;">Could not load your forms &amp; documents. Please try again.<button onclick="formsApplyAccess()" style="margin-top:10px;display:block;width:100%;background:var(--caliches-blue);color:#fff;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;">Try again</button></div>';
     }
 
     // PIN cancelled: don't reveal locked items and don't hard-lock — offer a retry.
@@ -1018,7 +1021,10 @@
             withPin(function(pin) {
                 supabaseClient.rpc('app_admin_notifications_list', { p_admin_username: currentUser.username, p_admin_password: pin })
                     .then(({ data, error }) => {
-                        if (error && error.code === '42501') sessionPin = null;
+                        /* The PIN is NOT thrown away here. The server refuses this list (42501) for anyone it does
+                           not hand the bell list to, a Store Manager for one, and this check runs every minute.
+                           Treating that refusal as a wrong PIN made the page forget a good PIN about once a
+                           minute. A PIN that really is wrong is still caught by every other call. */
                         if (error) {
                             console.error('[Notifications] fetch error:', error);
                             return;
@@ -1210,7 +1216,18 @@
             });
         }
 
+        // The "Meet Mr. Scoopy" pop-up invites a person into the Teach Mr. Scoopy answer editor. That editor
+        // is an admin tool, so the pop-up is only for people who have the Teach Mr. Scoopy tile. The tile is
+        // shown or hidden by applyRoleUI() (Roles & Permissions), so this reads that one decision and adds no
+        // rule of its own. A new crew member is no longer sent into the editor on day one.
+        function scoopyTeachTileOn() {
+            var b = document.getElementById('knowledgeBaseBtn');
+            return !!(b && b.style.display !== 'none');
+        }
+
         function showScoopyOnboarding() {
+            // Checked before "prompted" is saved, so a person who is given the tile later still gets the pop-up once.
+            if (!scoopyTeachTileOn()) return;
             // Don't show once KB has been completed at least once
             if (localStorage.getItem('scoopy_kb_completed') || localStorage.getItem('scoopy_kb_prompted')) return;
             try { localStorage.setItem('scoopy_kb_prompted', '1'); } catch (e) {}
@@ -1241,13 +1258,13 @@
             var name = (currentUser && currentUser.name) ? currentUser.name.split(' ')[0] : 'there';
             var steps = [
                 { img:'scoopy-wave.png', title:'Welcome to the Hub, ' + name + '! \uD83C\uDF66',
-                  body:"This is Caliche's Operations Hub \u2014 your one place for shifts, clocking in, daily tasks, checklists, messages, and reports. This quick tour shows you where everything lives. Tap Next to begin!" },
+                  body:"This is Caliche's Operations Hub \u2014 your one place for shifts, daily tasks, checklists, messages, and reports. This quick tour shows you where everything lives. Tap Next to begin!" },
                 { img:'scoopy-point.png', title:'Getting around',
                   body:"Use the sections in the More menu: \uD83C\uDFE0 Home, \uD83D\uDCC5 Schedule, \uD83C\uDF66 Work, \uD83E\uDD1D Team, and (for managers) \u26A1 Admin. The Home tab also has quick-tap cards for the things you use most." },
                 { img:'scoopy-hero.png', title:'Your Home base',
                   body:"Tap \uD83C\uDFE0 My Home to see your upcoming shifts, any tasks assigned to you, and team updates. Check it at the start of every shift so nothing slips by." },
                 { img:'scoopy-thumbsup.png', title:'Clocking in & out',
-                  body:"Clock in and out at the register, the same way you do today. Clock in within 5 minutes of your shift start (or when a manager tells you to)." },
+                  body:"Store crews clock in and out at the store register, the same way you do today. Catering & Vending, office and marketing clock in and out here on the Hub. Clock in within 5 minutes of your shift start (or when a manager tells you to)." },
                 { img:'scoopy-point.png', title:'Requesting time off',
                   body:"Schedule \u2192 \uD83C\uDF34 Request Time Off. Submit at least 14 days ahead and always include a reason. You'll see your requests update once a manager reviews them." },
                 { img:'scoopy-cheer.png', title:'Daily store tasks',

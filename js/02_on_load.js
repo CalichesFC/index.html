@@ -46,7 +46,9 @@
         // matching every other overlay in this codebase. Confirming is still one tap away and
         // still the encouraged path -- this only guarantees there is always a way out.
         ov.setAttribute('onclick','if(event.target===this) dismissScheduleGate();');
-        ov.style.cssText='position:fixed;inset:0;background:rgba(18,18,28,.97);z-index:2147483600;display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto;';
+        // The gate sits just UNDER the Hub's own sheets (hubAsk 2147483000, hubTell 2147483001 in js/01), so
+        // "Something is wrong" and any error message open on top of it, not behind it.
+        ov.style.cssText='position:fixed;inset:0;background:rgba(18,18,28,.97);z-index:2147482000;display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto;';
         var shifts=d.shifts||[];
         var rows = shifts.length ? shifts.map(function(s){
             var dn=s.shift_date||''; try{ var dt=new Date(s.shift_date+'T00:00:00'); dn=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()]+' '+(dt.getMonth()+1)+'/'+dt.getDate(); }catch(e){}
@@ -356,7 +358,7 @@
                 setTimeout(() => { document.getElementById('splash-screen').style.display = 'none'; document.getElementById('login-view').style.display = 'flex'; }, 500);
             }, 3500);
         }
-        let today = new Date().toISOString().split('T')[0];
+        let today = hubIsoDay(); /* the person's own day; the UTC day is already tomorrow after 5 pm Mountain Time */
         ['dt','driverDt','shortageDt','maintDt','damageDt'].forEach(id => { let el = document.getElementById(id); if(el) el.value = today; });
 
         // PWA install prompt
@@ -428,6 +430,7 @@
 
     function saveDraft() {
         if (!document.getElementById('popInView') || document.getElementById('popInView').style.display === 'none') return;
+        if (window._popInSent) return;   /* this inspection was already sent: it is not a draft any more */
         let draft = {
             savedAt: new Date().toISOString(),
             location: document.getElementById('loc').value,
@@ -575,7 +578,7 @@
         document.getElementById('forgotUsername').value = '';
         document.getElementById('forgotEmail').value = '';
         document.getElementById('forgotPinError').style.display = 'none';
-        document.getElementById('forgotPinBtn').innerText = 'Send My PIN';
+        document.getElementById('forgotPinBtn').innerText = 'Check My Account';
         document.getElementById('forgotPinBtn').disabled = false;
     }
 
@@ -590,20 +593,22 @@
         let btn = document.getElementById('forgotPinBtn');
         errorEl.style.color = 'var(--fail-red)'; // default: real errors show red; the "account found" confirmation flips this to blue below
         if (!username || !email) { errorEl.innerText = 'Please fill in both fields.'; errorEl.style.display = 'block'; return; }
-        btn.innerText = 'Sending...'; btn.disabled = true; errorEl.style.display = 'none';
+        btn.innerText = 'Checking...'; btn.disabled = true; errorEl.style.display = 'none';
         supabaseClient.rpc('app_forgot_pin', { p_username: username, p_email: email })
         .then(({ data, error }) => {
-            if (error) { errorEl.innerText = 'Error: ' + error.message; errorEl.style.display = 'block'; btn.innerText = 'Send My PIN'; btn.disabled = false; return; }
-            if (!data || data.length === 0) { errorEl.innerText = 'No account found with that username and email. Contact your manager.'; errorEl.style.display = 'block'; btn.innerText = 'Send My PIN'; btn.disabled = false; return; }
+            if (error) { errorEl.innerText = 'Error: ' + error.message; errorEl.style.display = 'block'; btn.innerText = 'Check My Account'; btn.disabled = false; return; }
+            if (!data || data.length === 0) { errorEl.innerText = 'No account found with that username and email. Contact your manager.'; errorEl.style.display = 'block'; btn.innerText = 'Check My Account'; btn.disabled = false; return; }
             // Account verified. SECURITY (pre-launch B1): the credential-email block was removed.
             // app_forgot_pin now returns name + password (a bcrypt HASH) after the login/password
             // migration, so there is no plaintext `pin` to email and a hash must never be sent over
             // the public Apps Script mailer (G_URL). We confirm the account exists and route the user
             // to a manager PIN reset instead. A proper one-time reset-link flow is a backend follow-up.
             errorEl.style.color = 'var(--caliches-blue)';
-            errorEl.innerText = 'Your account was found. For security, PINs can\'t be emailed — please ask a manager to reset your PIN in the Hub (Admin → Users), or contact your Store Manager.';
+            // Words only: nothing is emailed from here, and the Hub has no "Admin → Users" screen, so the
+            // message no longer promises either. It still sends the person to their Store Manager.
+            errorEl.innerText = 'Your account was found. For security, PINs are not sent by email. Please ask your Store Manager for help getting back in.';
             errorEl.style.display = 'block';
-            btn.innerText = 'Send My PIN'; btn.disabled = false;
+            btn.innerText = 'Check My Account'; btn.disabled = false;
         });
     }
 

@@ -252,6 +252,31 @@
         h+='</div>';
         return h;
     }
+    // The Corrective Action tab asks the server for the PIP status every time it is shown (the same
+    // app_pip_active call the roster uses). It used to read a list that only the Employee Roster
+    // screen filled, so a profile opened from anywhere else said "No active corrective action" and
+    // offered Start PIP for someone already on one, and it never changed after a save.
+    // js/05 ccRefresh() calls this again after a PIP is started or a decision is recorded.
+    var _empPipSeq=0;
+    function empPipShow(){
+        var body=document.getElementById('empTabBody'); if(!body) return;
+        var p=_empProfile||{};
+        var card=function(inner){ return '<div class="emp-card"><div class="emp-sec">Corrective action</div>'+inner+'</div>'; };
+        if(!(typeof isDiscAdmin==='function' && isDiscAdmin())){ body.innerHTML=card('<div class="emp-empty">No corrective action on file.</div>'); return; }
+        body.innerHTML=card('<div class="emp-empty">Loading&hellip;</div>');
+        var seq=++_empPipSeq;
+        var stillHere=function(){ return seq===_empPipSeq && window._empTab==='corrective' && _empProfile===p && !!document.getElementById('empTabBody'); };
+        var failed=function(){ if(!stillHere()) return; document.getElementById('empTabBody').innerHTML=card('<div class="emp-empty">Could not load the corrective action status.</div><button onclick="empPipShow()" style="margin-top:10px;background:#fff;border:1px solid #d6deea;color:#1f2a44;font-weight:700;font-size:13px;padding:10px 14px;border-radius:9px;cursor:pointer;min-height:40px;">Try again</button>'); };
+        withPin(function(pin){
+            supabaseClient.rpc('app_pip_active',{p_username:currentUser.username,p_password:pin}).then(function(r){
+                if(r.error){ if(r.error.code==='42501') sessionPin=null; failed(); return; }
+                if(!stillHere()) return;
+                rosterState.pips={};
+                (r.data||[]).forEach(function(x){ rosterState.pips[x.employee_id]=x; });
+                document.getElementById('empTabBody').innerHTML=empPipHtml(p)||card('<div class="emp-empty">No corrective action on file.</div>');
+            }).catch(function(){ failed(); });
+        }, function(){ failed(); });
+    }
     function toggleEmpPromote(forceHide){
         var f=document.getElementById('empPromoteForm'); if(!f) return;
         if(forceHide){ f.style.display='none'; return; }
@@ -480,14 +505,14 @@
         else if(k==='recognition'){ body.innerHTML='<div class="emp-card"><div class="emp-sec">Recognition</div><div class="emp-empty">Shout-outs, milestones, and anniversaries for '+empFirst(p)+' will surface here from the Recognition feed.</div></div>'; }
         else if(k==='documents'){ body.innerHTML='<div class="emp-card"><div class="emp-sec">Employment documents</div><div class="emp-empty">This tab tracks document <b>status</b> (offer, I-9, handbook, food-handler card) as a checklist. Files are intentionally not stored here yet &mdash; they&rsquo;ll be served only through secure, backend-gated links once that path is approved.</div></div>'; }
         else if(k==='notes'){ body.innerHTML='<div id="empNotesBox" class="emp-card"><div class="emp-sec">Notes</div><div class="emp-empty">Loading&hellip;</div></div>'; loadEmpNotes(p.id); }
-        else if(k==='corrective'){ body.innerHTML=empPipHtml(p)||'<div class="emp-card"><div class="emp-sec">Corrective action</div><div class="emp-empty">No corrective action on file.</div></div>'; }
+        else if(k==='corrective'){ empPipShow(); }
         else if(k==='confidential'){ body.innerHTML='<div class="emp-card"><div class="emp-sec">Confidential records</div><div class="emp-empty">Medical, banking, background, and other sensitive records are gated behind the full permission + audit foundation. They are intentionally not accessible until that foundation is complete and every access is logged per category.</div></div>'; }
     }
     function empOverviewHtml(p){
         var certs=(p.certs||[]).map(function(c){ return '<div class="emp-row"><span>'+escapeHtml(c.type||'')+'</span><span>'+(c.expires?('exp '+escapeHtml(String(c.expires))):'&mdash;')+'</span></div>'; }).join('') || '<div class="emp-empty">None on file.</div>';
         var h='<div class="emp-card"><div class="emp-sec">Overview</div>';
-        h+='<div class="emp-row"><span>Email</span><span>'+escapeHtml(p.email||'&mdash;')+'</span></div>';
-        h+='<div class="emp-row"><span>Home store</span><span>'+escapeHtml(p.store||'&mdash;')+'</span></div>';
+        h+='<div class="emp-row"><span>Email</span><span>'+(p.email?escapeHtml(p.email):'&mdash;')+'</span></div>';
+        h+='<div class="emp-row"><span>Home store</span><span>'+(p.store?escapeHtml(p.store):'&mdash;')+'</span></div>';
         h+='<div class="emp-row"><span>Status</span><span>'+escapeHtml(p.status||'Active')+'</span></div>';
         h+='<div class="emp-row" style="border:none;"><span>Cleared positions</span><span>'+(p.cleared_positions||0)+'</span></div>';
         h+='</div>';

@@ -21,7 +21,7 @@
     //   {section_comment:'', items:{ '<item_key>':{score,na,note,no_photo_reason} }}
     // ============================================================
 
-    var _insp = { view:'landing', list:[], filters:{ location:'', status:'', type:'' }, cfg:null, cur:null, open:{}, picks:{}, dash:null, blockers:null };
+    var _insp = { view:'landing', list:[], filters:{ location:'', status:'', type:'' }, cfg:null, cur:null, open:{}, picks:{}, typed:{}, dash:null, blockers:null };
 
     var INSP_SCORE_META = { 5:['5','Excellent','#1f7a3d'], 4:['4','Good','#4c9a2a'], 3:['3','Needs improvement','#9a5b00'], 2:['2','Poor — action required','#c05a00'], 1:['1','CRITICAL','#c0264b'] };
     var INSP_SEV_COLORS = { critical:'#c0264b', poor:'#c05a00', attention:'#9a5b00', ok:'#1f7a3d' };
@@ -129,9 +129,10 @@
     // ============================================================
     function inspStartForm(){
         var ov=inspOverlay(); var cfg=_insp.cfg||{};
+        var own=''; try{ own=(typeof tempStoreLoc==='function' && tempStoreLoc())||''; }catch(e){}   // start on the person's own store, not the first one in the list
         var h=inspHeader('New inspection','inspLoadList()');
         h+='<div style="max-width:640px;margin:0 auto;padding:14px 16px 60px;">';
-        var inner='<div style="margin-bottom:9px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">Location</label><select id="inspS_loc" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;">'+inspStores().map(function(s){return '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>';}).join('')+'</select></div>';
+        var inner='<div style="margin-bottom:9px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">Location</label><select id="inspS_loc" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;">'+inspStores().map(function(s){return '<option value="'+escapeHtml(s)+'"'+(s===own?' selected':'')+'>'+escapeHtml(s)+'</option>';}).join('')+'</select></div>';
         inner+='<div style="margin-bottom:9px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">Site type</label><select id="inspS_site" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;">'+(cfg.site_types||['Store']).map(function(s){return '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>';}).join('')+'</select></div>';
         inner+='<div style="margin-bottom:9px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">Inspection type</label><select id="inspS_type" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;">'+(cfg.types||['Quarterly Full']).map(function(s){return '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>';}).join('')+'</select></div>';
         inner+=inspIn('inspS_mod','Manager on duty','');
@@ -143,7 +144,7 @@
     }
     function inspStartGo(){
         inspRpc('insp_start',{ p_location:inspVal('inspS_loc'), p_site_type:inspVal('inspS_site'), p_insp_type:inspVal('inspS_type'), p_manager_on_duty:inspVal('inspS_mod'), p_announced:inspVal('inspS_ann'), p_weather:inspVal('inspS_wx') },function(d){
-            _insp.cur=d; _insp.picks={}; _insp.open={}; _insp.blockers=null;
+            _insp.cur=d; _insp.picks={}; _insp.typed={}; _insp.open={}; _insp.blockers=null;
             var secs=(d&&d.sections)||[]; if(secs.length) _insp.open[secs[0].key]=true;
             inspRenderRun();
         });
@@ -156,7 +157,7 @@
         var ov=inspOverlay();
         ov.innerHTML=inspHeader('Inspection','inspLoadList()')+'<div style="max-width:860px;margin:0 auto;padding:40px 16px;text-align:center;color:#6b7686;">Loading&hellip;</div>';
         inspRpc('insp_get',{p_id:id},function(d){
-            _insp.cur=d; _insp.picks={}; _insp.blockers=null;
+            _insp.cur=d; _insp.picks={}; _insp.typed={}; _insp.blockers=null;
             if(d.status==='draft'){ inspRenderRun(); } else { inspRenderDetail(); }
         });
     }
@@ -170,6 +171,18 @@
         var answered=0, scored=0, sum=0, total=(sec.items||[]).length;
         (sec.items||[]).forEach(function(it){ var st=inspItemState(it); if(st.na||st.score!=null) answered++; if(!st.na&&st.score!=null){ scored++; sum+=st.score; } });
         return { answered:answered, total:total, pct:(scored?Math.round(1000*sum/(5*scored))/10:null) };
+    }
+
+    // Notes, "no photo" reasons and section comments a person typed but has not saved yet. The walk-through is redrawn
+    // when a section is opened or closed, when a photo is added and when another section is saved; without this the
+    // typed text was lost each time (the picked scores were already kept the same way, in _insp.picks).
+    function inspKeepTyped(){
+        var ov=document.getElementById('siteInspectionModal'); if(!ov) return;
+        var els=ov.querySelectorAll('textarea[id^="inspN_"],input[id^="inspR_"],textarea[id^="inspC_"]');
+        for(var i=0;i<els.length;i++){ var e=els[i]; if(e.value!==e.defaultValue) _insp.typed[e.id]=e.value; else delete _insp.typed[e.id]; }
+    }
+    function inspPutTyped(){
+        for(var id in _insp.typed){ if(!Object.prototype.hasOwnProperty.call(_insp.typed,id)) continue; var e=document.getElementById(id); if(e) e.value=_insp.typed[id]; }
     }
 
     function inspRenderRun(){
@@ -191,6 +204,7 @@
         h+='<div style="text-align:center;margin-top:8px;">'+inspBtn('Review &amp; submit','inspRenderReview()','primary')+'</div>';
         h+='</div>';
         ov.innerHTML=h;
+        inspPutTyped();
     }
 
     function inspSectionHtml(sec,evid){
@@ -210,7 +224,7 @@
         }
         return inspCard(head+body);
     }
-    function inspToggleSec(sk){ var d=_insp.cur||{}; (d.sections||[]).forEach(function(s){ if(inspK(s.key)===sk) _insp.open[s.key]=!_insp.open[s.key]; }); inspRenderRun(); }
+    function inspToggleSec(sk){ inspKeepTyped(); var d=_insp.cur||{}; (d.sections||[]).forEach(function(s){ if(inspK(s.key)===sk) _insp.open[s.key]=!_insp.open[s.key]; }); inspRenderRun(); }
 
     function inspItemHtml(sec,it,evid){
         var k=inspK(it.key); var st=inspItemState(it);
@@ -267,7 +281,9 @@
         });
         var payload={ section_comment:inspVal('inspC_'+sk), items:items };
         inspRpc('insp_section_save',{p_id:d.id,p_section:sec.key,p_payload:payload},function(nd){
-            (sec.items||[]).forEach(function(it){ delete _insp.picks[it.key]; });
+            inspKeepTyped();
+            (sec.items||[]).forEach(function(it){ delete _insp.picks[it.key]; delete _insp.typed['inspN_'+inspK(it.key)]; delete _insp.typed['inspR_'+inspK(it.key)]; });
+            delete _insp.typed['inspC_'+sk];
             _insp.cur=nd; inspRenderRun();
         });
     }
@@ -296,7 +312,7 @@
                         var pub=(supabaseClient.storage.from('training-materials').getPublicUrl(dd.path)||{}).data||{};
                         var url=dd.publicUrl||dd.url||pub.publicUrl||dd.path;
                         inspRpc('insp_photo_add',{p_id:d.id,p_item_key:itemKey,p_url:url,p_caption:f.name},function(nd){
-                            say(''); _insp.cur=nd;
+                            say(''); inspKeepTyped(); _insp.cur=nd;
                             if((_insp.cur||{}).status==='draft') inspRenderRun(); else inspRenderDetail();
                         });
                     }).catch(function(){ say(''); alert('Upload failed.'); });
@@ -310,6 +326,7 @@
     // REVIEW & SUBMIT
     // ============================================================
     function inspRenderReview(){
+        inspKeepTyped();   // coming from the walk-through: Back must bring the typed notes back
         var ov=inspOverlay(); var d=_insp.cur||{}; var evid=inspCfgNum('evidence_min_score',2);
         var h=inspHeader('Review & submit — '+d.location,'inspRenderRun()');
         h+='<div style="max-width:860px;margin:0 auto;padding:14px 16px 60px;">';
@@ -498,7 +515,7 @@
         });
         if(sb) h+=inspCard(sb,'Inspection summary');
         h+=inspCard(inspActionsHtml(d),'Corrective actions ('+(d.actions||[]).length+')');
-        var fx=inspFixesHtml(d); if(fx) h+=inspCard(fx,'Fixes — before &amp; after');
+        var fx=inspFixesHtml(d); if(fx) h+=inspCard(fx,'Fixes — before & after');
         (d.sections||[]).forEach(function(sec){
             var body='<div style="display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:13.5px;">'+escapeHtml(sec.label||sec.key)+'</b><span style="font-size:12px;">'+(sec.pct!=null?inspPct(sec.pct):'')+'</span></div>';
             (sec.items||[]).forEach(function(it){

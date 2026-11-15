@@ -733,7 +733,17 @@
         const fc = schedState.forecast||{};
         var _tgt=schedLaborTarget(), _near=(typeof cfgNum==='function'?cfgNum('cc_config','cc_proj_near_pp',2):2);
         const mobile = window.innerWidth < 760;
-        shownEmps.forEach(e=>{ days.forEach(d=>{ const ds=schedFmt(d); if((byKey[e.id+'|'+ds]||[]).length>0 && (elseMap[e.id+'|'+ds]||[]).length>0) conflicts++; }); });
+        // A real double-book is two shifts that OVERLAP in time (one here, one at another store), not just the same day:
+        // Lenox 11am-4pm and Valley 5-10:30pm is a normal two-store day and must not block Publish. Everyone on this
+        // store's schedule is counted, not only the people the Search box is showing, and the banner names who and when.
+        const _tMin = t => { const m=String(t||'').match(/^(\d{1,2}):(\d{2})/); return m ? (+m[1])*60+(+m[2]) : null; };
+        const _overlap = (a, b) => { let s1=_tMin(a.start_time), e1=_tMin(a.end_time), s2=_tMin(b.start_time), e2=_tMin(b.end_time);
+            if(s1==null||e1==null||s2==null||e2==null) return true;   // a time is missing: keep treating it as a clash, to be safe
+            if(e1<=s1) e1+=1440; if(e2<=s2) e2+=1440;
+            return s1<e2 && s2<e1; };
+        const clashOf = (cell, elsw) => { for(const a of (cell||[])){ for(const b of (elsw||[])){ if(_overlap(a,b)) return b; } } return null; };
+        const clashList = [];
+        emps.forEach(e=>{ days.forEach(d=>{ const ds=schedFmt(d); const x=clashOf(byKey[e.id+'|'+ds], elseMap[e.id+'|'+ds]); if(x){ conflicts++; clashList.push(schedShortName(e.name)+', '+hubDay(ds)+' (also at '+(x.location||'another store')+' '+hubTimeRange(x.start_time,x.end_time)+')'); } }); });
 
         let html='';
         if (mobile) {
@@ -748,10 +758,10 @@
             if(oc.length){ html += '<div class="sp-mrow" style="background:#faf7ff;"><div style="flex:1;font-weight:700;color:#5b3fb8;font-size:12px;">&#10753; Open shifts</div><div style="text-align:right;">'; oc.forEach(s=>{ html+=blockHtml(s,false); }); html+='</div></div>'; }
             if(!shownEmps.length) html += '<div style="text-align:center;padding:24px;color:#6b7686;font-size:13px;">'+(emps.length?'No team members match your search.':'No employees yet — add one from the menu.')+'</div>';
             shownEmps.forEach(e=>{
-                const k=e.id+'|'+ds; const cell=byKey[k]||[]; const off=offMap[k]; const elsw=elseMap[k]||[]; const conflict=(cell.length>0&&elsw.length>0);
+                const k=e.id+'|'+ds; const cell=byKey[k]||[]; const off=offMap[k]; const elsw=elseMap[k]||[]; const conflict=!!clashOf(cell,elsw);
                 let right='';
                 if(off && !cell.length){ right='<div class="hbg-off">&#128197; Time-off &middot; '+escapeHtml(off)+'</div>'; }
-                else { cell.forEach(s=>{ right+=blockHtml(s,conflict); }); elsw.forEach(x=>{ right+='<div class="hbg-loc">&#128205; '+escapeHtml(x.location)+' '+hbTime(x.start_time)+'</div>'; }); if(!cell.length&&!elsw.length) right='<button class="sp-addbtn" onclick="schedOpenModal('+e.id+",'"+ds+"',null)\">+ Add</button>"; }
+                else { cell.forEach(s=>{ right+=blockHtml(s,conflict); }); if(off&&cell.length) right+='<div title="'+escapeHtml(off)+'" style="font-size:10.5px;font-weight:800;color:#8a5200;background:#fff6e6;border:1px solid #f0d9a8;border-radius:6px;padding:2px 5px;margin-top:3px;text-align:center;">&#128197; Time off approved</div>'; elsw.forEach(x=>{ right+='<div class="hbg-loc">&#128205; '+escapeHtml(x.location)+' '+hbTime(x.start_time)+'</div>'; }); if(!cell.length&&!elsw.length) right='<button class="sp-addbtn" onclick="schedOpenModal('+e.id+",'"+ds+"',null)\">+ Add</button>"; }
                 html += '<div class="sp-mrow" data-empid="'+e.id+'" oncontextmenu="schedCtx(event,'+e.id+",'"+ds+"',"+(cell[0]?cell[0].id:'null')+')">'+DRAG_GRIP+avatarHtml(e)+'<div style="flex:1;min-width:0;"><div class="hbg-nm" title="'+escapeHtml(e.name)+'" onclick="schedToast(this.title,2500)">'+escapeHtml(schedShortName(e.name))+'</div><div class="hbg-sub">'+tagOf(e)+(empRole[e.id]?escapeHtml(empRole[e.id]):'')+'</div></div><div style="text-align:right;max-width:48%;">'+right+'</div></div>';
             });
             const pv=(ds in fc)?fc[ds]:'';
@@ -778,12 +788,13 @@
                 const eh = empHrs[e.id]||0; const reg=Math.min(eh,OT_THRESH), ot=Math.max(0,eh-OT_THRESH); const cost=reg*(wageOf[e.id]||0)+ot*(wageOf[e.id]||0)*OT_MULT;
                 html += '<tr class="hbg-emprow" data-empid="'+e.id+'"><td class="hbg-e"><div style="display:flex;align-items:center;gap:6px;">'+DRAG_GRIP+avatarHtml(e)+'<div style="min-width:0;"><div class="hbg-nm" title="'+escapeHtml(e.name)+'" onclick="schedToast(this.title,2500)">'+escapeHtml(schedShortName(e.name))+'</div><div class="hbg-sub">'+tagOf(e)+(empRole[e.id]?escapeHtml(empRole[e.id]):'')+'</div></div></div></td>';
                 days.forEach(d => {
-                    const ds=schedFmt(d); const k=e.id+'|'+ds; const cell=byKey[k]||[]; const off=offMap[k]; const elsw=elseMap[k]||[]; const conflict=(cell.length>0&&elsw.length>0);
+                    const ds=schedFmt(d); const k=e.id+'|'+ds; const cell=byKey[k]||[]; const off=offMap[k]; const elsw=elseMap[k]||[]; const conflict=!!clashOf(cell,elsw);
                     if (off && !cell.length) {
                         html += '<td class="hbg-cell" data-emp="'+e.id+'" data-date="'+ds+'" oncontextmenu="schedCtx(event,'+e.id+",'"+ds+"',null)\"><div class=\"hbg-off\">&#128197; Time-off<br><small style=\"font-weight:400;\">"+escapeHtml(off)+'</small></div></td>';
                     } else {
                         html += '<td class="hbg-cell" data-emp="'+e.id+'" data-date="'+ds+'" onclick="schedOpenModal('+e.id+",'"+ds+"',null)\" oncontextmenu=\"schedCtx(event,"+e.id+",'"+ds+"',"+(cell[0]?cell[0].id:'null')+')">';
                         cell.forEach(s=>{html+=blockHtml(s,conflict);});
+                        if(off&&cell.length) html+='<div title="'+escapeHtml(off)+'" style="font-size:10.5px;font-weight:800;color:#8a5200;background:#fff6e6;border:1px solid #f0d9a8;border-radius:6px;padding:2px 5px;margin-top:3px;text-align:center;">&#128197; Time off approved</div>';   // a shift on an approved day off: keep the time-off tag in view
                         elsw.forEach(x=>{html+='<div class="hbg-loc">&#128205; '+escapeHtml(x.location)+'<br>'+hubTimeRange(x.start_time,x.end_time)+'</div>';});
                         if(!cell.length&&!elsw.length)html+='<div class="hbg-add">+</div>';
                         html += '</td>';
@@ -802,7 +813,7 @@
         }
         const pb = document.getElementById('schedPublishBtn');
         if (conflicts>0) {
-            html = '<div class="sp-banner">&#9888; '+conflicts+' double-book'+(conflicts>1?'s':'')+' across stores — resolve before publishing.</div>' + html;
+            html = '<div class="sp-banner">&#9888; '+conflicts+' double-book'+(conflicts>1?'s':'')+' across stores — resolve before publishing.<div style="font-weight:600;margin-top:3px;">'+escapeHtml(clashList.slice(0,3).join('; ')+(clashList.length>3?('; and '+(clashList.length-3)+' more'):''))+'</div></div>' + html;
             if (pb){ pb.disabled=false; pb.classList.add('is-blocked'); pb.style.opacity=''; pb.style.cursor=''; pb.title='Fix the double-book first'; }
         } else if (pb){ pb.disabled=false; pb.classList.remove('is-blocked'); pb.style.opacity=''; pb.style.cursor=''; pb.title=''; }
         var _drafts=(schedState.data.shifts||[]).filter(function(s){ return !s.published; }).length;
@@ -1321,7 +1332,14 @@
             var a=String(s.start_time||'').split(':'), b=String(s.end_time||'').split(':');
             var h=(Number(b[0])+Number(b[1]||0)/60)-(Number(a[0])+Number(a[1]||0)/60); if(h<=0) h+=24;
             if(isFinite(h)) _hrs[s.employee_id]=(_hrs[s.employee_id]||0)+h; });
-        Object.keys(_hrs).forEach(function(id){ if(_hrs[id]>_otLim){ var e=(schedState.data.employees||[]).find(function(x){return String(x.id)===String(id);}); _ot.push(escapeHtml(e?e.name:'Employee')+' ('+(Math.round(_hrs[id]*10)/10)+'h)'); } });
+        // Hours already posted at OTHER stores this week count toward the limit too (11.5h here + 32h at another
+        // store is overtime, and the sheet used to say nothing).
+        var _else={};
+        (schedState.elsewhere||[]).forEach(function(s){ if(s.employee_id==null || s.published===false) return;
+            var a=String(s.start_time||'').split(':'), b=String(s.end_time||'').split(':');
+            var h=(Number(b[0])+Number(b[1]||0)/60)-(Number(a[0])+Number(a[1]||0)/60); if(h<=0) h+=24;
+            if(isFinite(h)) _else[s.employee_id]=(_else[s.employee_id]||0)+h; });
+        Object.keys(_hrs).forEach(function(id){ var _tot=_hrs[id]+(_else[id]||0); if(_tot>_otLim){ var e=(schedState.data.employees||[]).find(function(x){return String(x.id)===String(id);}); _ot.push(escapeHtml(e?e.name:'Employee')+' ('+(Math.round(_tot*10)/10)+'h'+(_else[id]?(', '+(Math.round(_else[id]*10)/10)+'h of it at other stores'):'')+')'); } });
         var _otHtml=_ot.length ? ('<div style="background:#fff6e6;border:1px solid #f0d9a8;border-radius:10px;padding:10px 12px;margin-top:10px;color:#6b5220;"><b>Overtime (over '+_otLim+' hours):</b> '+_ot.join(', ')+'.<br>Publishing means you approve this overtime. Leadership gets a notice.</div>') : '';
         hubAsk({ title:'Publish '+hubWeek(schedState.weekStart)+' at '+schedState.location+'?',
                  html:(_n ? ('<b>'+_n+' shift'+(_n===1?'':'s')+'</b> not posted yet'+(_p?(' for <b>'+_p+' '+(_p===1?'person':'people')+'</b>'):'')+'. ') : 'Everything on this week is already posted. ')+'Anyone on it with Hub phone alerts on gets an alert.'+_otHtml,
@@ -1413,7 +1431,7 @@
         var pattern=shifts.map(function(s){ var d=new Date(s.shift_date+'T00:00:00'); var dow=Math.round((d-ws)/86400000);
             return {dow:dow, emp:s.employee_id, pos:s.position_id||null, start:s.start_time, end:s.end_time, note:s.note||null}; })
             .filter(function(p){ return p.dow>=0 && p.dow<=6; });
-        msg.style.color='#5b6472'; msg.textContent='Saving&hellip;';
+        msg.style.color='#5b6472'; msg.textContent='Saving\u2026';
         withPin(function(pin){
             supabaseClient.rpc('app_template_save',{p_username:currentUser.username,p_password:pin,p_id:null,p_name:name,p_location:schedState.location,p_pattern:pattern}).then(function(r){
                 if(r.error){ msg.style.color='#c0264b'; msg.textContent='Error: '+r.error.message; return; }
@@ -1431,10 +1449,24 @@
             supabaseClient.rpc('app_template_get',{p_username:currentUser.username,p_password:pin,p_id:t.id}).then(function(r){
                 if(r.error||!r.data){ msg.style.color='#c0264b'; msg.textContent='Could not load template.'; return; }
                 var pattern=(r.data.pattern)||[]; if(!pattern.length){ msg.style.color='#c0264b'; msg.textContent='Template is empty.'; return; }
-                var ws=schedState.weekStart; var done=0, total=pattern.length;
+                var ws=schedState.weekStart; var done=0, total=pattern.length, added=0, dup=0, failed=0, why='';
+                // Shifts already on the week (same person, day and times) are skipped, so loading a template twice does not double it.
+                var hm=function(t){ return String(t||'').slice(0,5); }, have={};
+                ((schedState.data&&schedState.data.shifts)||[]).forEach(function(x){ have[x.employee_id+'|'+x.shift_date+'|'+hm(x.start_time)+'|'+hm(x.end_time)]=1; });
+                // Say what happened: how many were added, how many were skipped, and why the server refused any.
+                var finish=function(){
+                    closeSchedTemplates(); fetchScheduleWeek();
+                    var plural=function(k){ return k+' shift'+(k===1?'':'s'); };
+                    var t = added ? ('Added '+plural(added)+' as drafts.') : 'Nothing was added.';
+                    if(dup) t+=' Skipped '+plural(dup)+' already on this week.';
+                    if(failed) t+=' '+plural(failed)+' could not be added'+(why?(': '+why):'')+'.';
+                    if(dup||failed||!added) hubTell(t, { title:'Template loaded' }); else schedToast(t, 4000);
+                };
+                var one=function(ok, e){ if(ok) added++; else { failed++; if(!why && e && e.message) why=String(e.message).replace(/[.\s]+$/,''); } done++; if(done===total) finish(); };
                 pattern.forEach(function(p){
                     var ds=schedFmt(schedAddDays(ws, p.dow||0));
-                    supabaseClient.rpc('app_sched_upsert_shift',{p_username:currentUser.username,p_password:pin,p_id:null,p_location:schedState.location,p_shift_date:ds,p_employee_id:p.emp,p_position_id:p.pos||null,p_start:p.start,p_end:p.end,p_note:p.note||null}).then(function(){ done++; if(done===total){ closeSchedTemplates(); fetchScheduleWeek(); } }).catch(function(){ done++; if(done===total){ closeSchedTemplates(); fetchScheduleWeek(); } });
+                    if(have[p.emp+'|'+ds+'|'+hm(p.start)+'|'+hm(p.end)]){ dup++; done++; if(done===total) finish(); return; }
+                    supabaseClient.rpc('app_sched_upsert_shift',{p_username:currentUser.username,p_password:pin,p_id:null,p_location:schedState.location,p_shift_date:ds,p_employee_id:p.emp,p_position_id:p.pos||null,p_start:p.start,p_end:p.end,p_note:p.note||null}).then(function(res){ one(!(res&&res.error), res&&res.error); }).catch(function(e){ one(false, e); });
                 });
             }).catch(function(){ msg.style.color='#c0264b'; msg.textContent='Could not load template.'; });
         });

@@ -394,8 +394,10 @@
     function sensUntag(idx){
         try{
             var t=(S.sens||[])[idx]; if(!t) return;
-            try{ if(typeof confirm==='function' && !confirm('Remove the sensitive flag on '+(t.module||'')+' #'+(t.record_id||'')+'?')) return; }catch(e){}
-            rpc('app_sensitive_untag', {p_module:t.module, p_record_id:t.record_id}, function(){ loadSensitive(); }, function(){ loadSensitive(); });
+            var go=function(){ rpc('app_sensitive_untag', {p_module:t.module, p_record_id:t.record_id}, function(){ loadSensitive(); }, function(){ loadSensitive(); }); };
+            // the Hub's own yes/no sheet (was a browser confirm box)
+            if(typeof hubAsk==='function') hubAsk({title:'Remove this flag?', text:'Remove the sensitive flag on '+(t.module||'')+' #'+(t.record_id||'')+'?', yes:'Remove flag', no:'Keep it'}, go);
+            else go();
         }catch(e){}
     }
 

@@ -83,7 +83,7 @@
       {k:'lms_pass_pct',   l:'Quiz/SCORM pass score %',        d:80}
     ];
 
-    // Contract group `emergency` — the [____] slots in the Emergency screens.
+    // Contract group `emergency` — the phone numbers inside the Emergency steps (js/08 emgSay: a blank one is left out).
     var AC_EMERG = [
       {k:'manager_on_call', l:'Manager on call'},
       {k:'utility',         l:'Electric / gas utility'},
@@ -184,7 +184,7 @@
         var v=cfg('emergency',f.k,'');
         return '<label style="display:block;font-size:12px;color:#6b7686;margin:10px 0 3px;">'+acEsc(f.l)+'</label><input id="ac_e_'+f.k+'" type="text" value="'+acEsc(String(v))+'" placeholder="e.g. (555) 123-4567" style="width:100%;max-width:320px;padding:9px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;">';
       }).join('');
-      acShell(acCard('Emergency Numbers','These fill the [____] blanks in the Emergency Procedures screens.',rows+acSaveBtn('acSaveEmergency()','Save emergency numbers')));
+      acShell(acCard('Emergency Numbers','These numbers show inside the Emergency Procedures steps. A number left blank is simply left out of the step.',rows+acSaveBtn('acSaveEmergency()','Save emergency numbers')));
     }
     function acSaveEmergency(){
       var items=AC_EMERG.map(function(f,i){ var el=document.getElementById('ac_e_'+f.k); var val=el?String(el.value).trim():''; return {group:'emergency',key:f.k,label:f.l,value:val,sort:i}; });

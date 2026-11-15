@@ -921,6 +921,9 @@
     function psSlotHtml(pos,name){
         var sid=++window._psSlotSeq;
         var opts=PS_POSITIONS.map(function(p){ return '<option value="'+p+'"'+(p===pos?' selected':'')+'>'+p+'</option>'; }).join('');
+        // A row whose position is not one of the lineup's own used to fall back to the first choice ("Shift Leader").
+        // No position yet: show "Pick a position". A saved position this list does not have: keep it as it was saved.
+        if(PS_POSITIONS.indexOf(pos)<0) opts=(pos?('<option value="'+escapeHtml(pos)+'" selected>'+escapeHtml(pos)+'</option>'):'<option value="" selected>Pick a position</option>')+opts;
         return '<div class="ps-slot" data-sid="'+sid+'" style="display:flex;align-items:center;gap:7px;background:#fff;border:1px solid #ececf2;border-radius:10px;padding:8px 10px;margin-bottom:6px;">'+
                '<select class="ps-slot-pos" style="flex:0 0 116px;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:12.5px;">'+opts+'</select>'+
                '<input class="ps-slot-name" list="psNames" value="'+escapeHtml(name||'')+'" placeholder="Type or pick a name" autocomplete="off" style="flex:1;min-width:80px;padding:7px;border:1px solid #ddd;border-radius:7px;font-size:13px;">'+
@@ -936,18 +939,31 @@
         if(addBtn) box.insertBefore(node,addBtn); else box.appendChild(node);
     }
     function psRemoveSlot(btn){ var row=btn.closest('.ps-slot'); if(row && row.parentNode) row.parentNode.removeChild(row); }
+    // The schedule gives each person a job title (Blue Apron, Shift Lead...). The lineup is about where they work
+    // this shift. Only a title that IS a lineup position is carried over ("Shift Lead" is the same job as the
+    // lineup's "Shift Leader"); anyone else comes in with no position so the manager picks one.
+    function psLineupPos(schedPos){
+        var t=String(schedPos||'').trim().toLowerCase(); if(!t) return '';
+        if(t==='shift lead') t='shift leader';
+        for(var i=0;i<PS_POSITIONS.length;i++){ if(PS_POSITIONS[i].toLowerCase()===t) return PS_POSITIONS[i]; }
+        return '';
+    }
     function psMatchName(nm){ var roster=window._psRoster||[]; var t=(nm||'').trim().toLowerCase(); if(!t) return null; for(var i=0;i<roster.length;i++){ if((roster[i].name||'').trim().toLowerCase()===t) return roster[i]; } return null; }
     function psSlotProgress(btn){ var row=btn.closest('.ps-slot'); if(!row) return; var nm=row.querySelector('.ps-slot-name').value; var emp=psMatchName(nm); if(!emp){ alert('Type or pick a saved employee name first to see their training progress.'); return; } openPositionProgress(emp.id,emp.name); }
     function savePreshift(){
         var store=document.getElementById('psStore').value, date=document.getElementById('psDate').value||psTodayStr(), type=document.getElementById('psType').value;
-        var rows=document.querySelectorAll('#psRoster .ps-slot'); var assignments=[];
+        var rows=document.querySelectorAll('#psRoster .ps-slot'); var assignments=[]; var noPos=[];
         rows.forEach(function(row){
-            var pos=row.querySelector('.ps-slot-pos').value;
+            var sel=row.querySelector('.ps-slot-pos'); var pos=sel.value;
+            sel.style.borderColor='#ddd';
             var nm=(row.querySelector('.ps-slot-name').value||'').trim(); if(!nm) return;
+            if(!pos){ noPos.push(nm); sel.style.borderColor='#c0264b'; return; }
             var emp=psMatchName(nm);
             assignments.push({employee_id: emp?emp.id:null, employee_name: emp?emp.name:nm, position: pos});
         });
-        var msg=document.getElementById('psMsg'); msg.style.color='#5b6472'; msg.textContent='Saving…';
+        var msg=document.getElementById('psMsg');
+        if(noPos.length){ msg.style.color='#c0264b'; msg.textContent='Not saved yet. Pick a position for '+noPos.join(', ')+', then save.'; return; }
+        msg.style.color='#5b6472'; msg.textContent='Saving…';
         withPin(function(pin){
             supabaseClient.rpc('app_preshift_save',{p_username:currentUser.username,p_password:pin,p_location:store,p_date:date,p_type:type,
                 p_goal1:document.getElementById('psGoal1').value, p_goal2:document.getElementById('psGoal2').value, p_assignments:assignments}).then(function(r){
@@ -964,9 +980,10 @@
                 if(r.error){ msg.style.color='#c0264b'; msg.textContent=(String(r.error.message||'').indexOf('forbidden')>=0?'You do not have access to the schedule.':r.error.message); return; }
                 var sched=r.data||[];
                 if(!sched.length){ msg.style.color='#9a7400'; msg.textContent='No published schedule for this store/day yet — type names below. (This auto-loads once a weekly schedule is published.)'; return; }
-                var exa=sched.map(function(a){ return {pos:(a.position||'Item Maker'), name:(a.employee_name||''), empId:a.employee_id}; }).filter(function(a){ return a.name; });
+                var exa=sched.map(function(a){ return {pos:psLineupPos(a.position), name:(a.employee_name||''), empId:a.employee_id}; }).filter(function(a){ return a.name; });
                 renderPreshiftSlots(window._psRoster||[], exa);
-                msg.style.color='#1f7a3d'; msg.textContent='✓ Loaded '+exa.length+' crew from the published schedule. Adjust if needed, then Save.';
+                var needPick=exa.filter(function(a){ return !a.pos; }).length;
+                msg.style.color='#1f7a3d'; msg.textContent='✓ Loaded '+exa.length+' crew from the published schedule. '+(needPick?((needPick===1?'1 person still needs a position: pick it':needPick+' people still need a position: pick one for each')+', then Save.'):'Adjust if needed, then Save.');
             }).catch(function(){ msg.style.color='#c0264b'; msg.textContent='Could not load the scheduled crew.'; });
         });
     }

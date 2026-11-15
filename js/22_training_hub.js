@@ -82,7 +82,7 @@
     function trhLoading(msg){ trhOv().innerHTML=trhHeader()+'<div style="max-width:860px;margin:0 auto;padding:40px 16px;text-align:center;color:#6b7686;">'+msg+'</div>'; }
     function trhFail(msg){ trhOv().innerHTML=trhHeader()+trhTabs()+'<div style="max-width:860px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">'+escapeHtml(msg||'Could not load.')+'</div>'; }
 
-    function openTrainingHub(){ _trh.tab='my'; _trh.my=null; _trh.team=null; _trh.admin=null; _trh.detail=null; _trh.psMine=null; _trh.psTeam=null; _trh.qsMine=null; _trh.qsTeam=null; trhLoadMy(); }
+    function openTrainingHub(){ /* same rule as the Training Hub tile */ if(typeof trainingTileOn==='function' && !trainingTileOn('training_hub')){ trainingClosedTell(); return; } _trh.tab='my'; _trh.my=null; _trh.team=null; _trh.admin=null; _trh.detail=null; _trh.psMine=null; _trh.psTeam=null; _trh.qsMine=null; _trh.qsTeam=null; trhLoadMy(); }
     function trhLoadMy(){ trhLoading('Loading your training&hellip;'); trhRpc('trh_my',{},function(d){ _trh.my=d||{}; trhRender(); trhLoadMyExtras(); },function(e){ trhFail(e.message); }); }
     function trhLoadMyExtras(){
         trhRpc('trh_prestart_my',{},function(d){ _trh.psMine=d||{rows:[]}; if(_trh.tab==='my'&&!_trh.detail) trhRender(); },function(e){ if(!_trh.psMine) _trh.psMine={rows:[],_err:(e&&e.message)||'Could not load.'}; if(_trh.tab==='my'&&!_trh.detail) trhRender(); });
@@ -108,7 +108,8 @@
     function trhEmpty(msg){ return '<div style="background:#fff;border:1px dashed #d8dce4;border-radius:12px;padding:20px;text-align:center;color:#6b7686;font-size:13px;">'+msg+'</div>'; }
     function trhChip(txt,color){ return '<span style="background:'+(color||'#5b6472')+'18;color:'+(color||'#5b6472')+';padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;">'+txt+'</span>'; }
     function trhBar(pct,color){ return '<div style="background:#eef0f5;border-radius:99px;height:8px;overflow:hidden;"><div style="height:100%;width:'+(pct||0)+'%;background:'+(color||'#1f7a3d')+';transition:width .3s;"></div></div>'; }
-    function trhDate(s){ if(!s) return ''; try{ return new Date(s).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}); }catch(e){ return String(s).slice(0,10); } }
+    /* A plain date ("2026-12-15") is that day on the person's own calendar; read as UTC it showed a day early. */
+    function trhDate(s){ if(!s) return ''; try{ var d=hubParseDate(s); if(!d) return String(s).slice(0,10); return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}); }catch(e){ return String(s).slice(0,10); } }
 
     // ---------- modal2 (small centered dialog) ----------
     function trhM2(html){ var m=document.getElementById('trhModal2'); if(!m){ m=document.createElement('div'); m.id='trhModal2'; m.style.cssText='position:fixed;inset:0;background:rgba(20,22,30,.45);z-index:100060;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:16px;'; document.body.appendChild(m); } m.style.display='flex'; m.innerHTML='<div style="background:#fff;border-radius:14px;max-width:520px;width:100%;margin-top:36px;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.3);">'+html+'</div>'; }
@@ -147,7 +148,7 @@
                 trhChip(escapeHtml(c.status||''),col)+'</div>';
         });
         ext.forEach(function(c){
-            var expired=c.expires&&String(c.expires)<new Date().toISOString().slice(0,10);
+            var expired=c.expires&&String(c.expires)<hubIsoDay();
             ch+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f1f2f6;">'+
                 '<span style="font-size:20px;">🪪</span><div style="flex:1;"><b style="font-size:13.5px;color:#26242b;">'+escapeHtml(c.type||'')+'</b>'+
                 '<div style="font-size:11.5px;color:#8a91a0;">'+(c.number?'#'+escapeHtml(c.number)+' &middot; ':'')+(c.expires?'expires '+trhDate(c.expires):'no expiration')+'</div></div>'+
@@ -356,7 +357,7 @@
     function trhAwardModal(enrId){
         var e=(_trh.detail&&_trh.detail.enrollment)||{};
         _trhAward={enr:enrId};
-        var expDefault=''; if(e.cert_expires_days){ var d=new Date(); d.setDate(d.getDate()+e.cert_expires_days); expDefault=d.toISOString().slice(0,10); }
+        var expDefault=''; if(e.cert_expires_days){ var d=new Date(); d.setDate(d.getDate()+e.cert_expires_days); expDefault=hubIsoDay(d); }
         trhM2('<b style="font-size:15px;color:#1f2a44;">🏅 Award '+escapeHtml(e.cert_name||'certification')+'</b>'+
             '<div style="font-size:12px;color:#6b7686;margin-top:4px;">'+(e.ready?'All requirements verified — this records the certification, updates the Development Passport, and grants station clearance.':'<b style="color:#9a5b00;">Requirements are NOT all complete.</b> Awarding anyway requires the override box and a written reason (this is audited).')+'</div>'+
             trhInp('trhAwExpires','Expiration date (blank = '+(expDefault?'default '+expDefault:'no expiration')+')',expDefault,'','date')+
@@ -640,7 +641,7 @@
             var csv='Employee,Date,Minutes\r\n'+rows.map(function(r){ return trhCsvCell(r.employee)+','+trhCsvCell(r.date)+','+(r.minutes||0); }).join('\r\n')+'\r\n';
             var a=document.createElement('a');
             a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-            a.download='ready_to_start_payroll_'+new Date().toISOString().slice(0,10)+'.csv';
+            a.download='ready_to_start_payroll_'+hubIsoDay()+'.csv';
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
             alert(rows.length+' row'+(rows.length>1?'s':'')+' exported and stamped — the same minutes will never export twice.');
             trhLoadTeamExtras();

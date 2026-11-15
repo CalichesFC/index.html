@@ -261,12 +261,26 @@
     // ======================= TASK BOARD =======================
     // Marketing tasks use the SHARED task engine (app_task_create). This view
     // surfaces campaigns as work rows and lets you spin a store task off any.
-    function mcRenderTasks(){
+    // asked: (nothing) = the tab was just tapped; 'none' = the server was asked and has no
+    // campaigns; 'fail' = the server could not be reached. The list is asked for ONCE per tap.
+    // (It used to ask again every time the answer came back empty: with no campaigns that never
+    // stopped, and each answer pulled the person back onto this tab, even after the X.)
+    function mcRenderTasks(asked){
       var list=_mc.list||[];
       var h='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:8px;">Task board</div>'
         +'<div style="font-size:12.5px;color:#6b6275;margin-bottom:12px;">Marketing tasks run through the Hub\'s shared task system so they show up on the assignee\'s Today list. Open a campaign to add tasks, or create a quick store task below.</div>'
         +'<button onclick="mcQuickTask()" style="background:#185FA5;color:#fff;border:none;border-radius:9px;padding:10px 14px;font-weight:700;cursor:pointer;margin-bottom:14px;">&#10133; New marketing task</button>';
-      if(!list.length){ h+='<div style="color:#6b6275;font-size:13px;">Load the Campaigns tab first to see active campaigns here.</div>'; mcShell(h); mktRpc('mkt_campaign_list',{p_filters:{}},function(d){ _mc.list=d||[]; mcRenderTasks(); }); return; }
+      if(!list.length){
+        if(asked==='none') h+='<div style="color:#6b6275;font-size:13px;">No campaigns yet. Add one on the Campaigns tab and it will show here.</div>';
+        else if(asked==='fail') h+='<div style="color:#c0264b;font-size:13px;">Could not load the campaigns. Tap Task Board to try again.</div>';
+        else h+='<div style="color:#6b6275;font-size:13px;">Loading campaigns&hellip;</div>';
+        mcShell(h);
+        if(asked) return;
+        // only redraw if the person is still looking at the Task Board when the answer comes back
+        var still=function(){ var o=document.getElementById('marketingModal'); return _mc.tab==='tasks' && !!o && o.style.display!=='none'; };
+        mktRpc('mkt_campaign_list',{p_filters:{}},function(d){ if(!still()) return; _mc.list=d||[]; mcRenderTasks('none'); },function(){ if(still()) mcRenderTasks('fail'); });
+        return;
+      }
       list.forEach(function(c){ h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:11px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:8px;"><b style="flex:1;font-size:13px;">'+escapeHtml(c.name||'')+'</b>'+mcPill(c.status)+'<button onclick="mcAddTaskFor(\''+c.id+'\')" style="background:#eef3fb;color:#185FA5;border:none;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;">Add task</button></div>'; });
       mcShell(h);
     }

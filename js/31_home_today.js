@@ -96,7 +96,8 @@
         var meta=[]; if(it.source_module) meta.push(htEsc(htTitleCase(it.source_module))); if(it.location) meta.push(htEsc(String(it.location)));
         var due=it.due_date?('<span style="color:'+(overdue?'#a01b3e':'#6b6275')+';font-weight:'+(overdue?'800':'600')+';white-space:nowrap;">'+(overdue?'&#9888; ':'&#128197; ')+htEsc(htDate(it.due_date))+(age?(' &middot; '+age+'d overdue'):'')+'</span>'):'';
         var metaLine=meta.join(' &middot; ')+((meta.length&&due)?' &middot; ':'')+due;
-        return '<div onclick="htOpen()" style="display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid #f0f2f6;cursor:pointer;">'+
+        // data-ht-row: lets Home know this card is listing open items (js/01 hubCaughtUpSync).
+        return '<div data-ht-row="1" onclick="htOpen()" style="display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid #f0f2f6;cursor:pointer;">'+
             '<span style="width:4px;align-self:stretch;min-height:26px;background:'+accent+';border-radius:99px;flex:none;"></span>'+
             '<div style="flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:600;color:#26242b;line-height:1.35;">'+htEsc(String(it.title||'(untitled)'))+htPriPill(it.priority)+'</div>'+
             (metaLine?('<div style="font-size:11px;color:#6b6275;margin-top:2px;">'+metaLine+'</div>'):'')+'</div>'+
@@ -115,8 +116,10 @@
         if(!items.length){
             el.innerHTML=htShell('<div style="text-align:center;padding:16px 6px 10px;">'+
                 '<div style="font-size:26px;margin-bottom:4px;">&#127881;</div>'+
-                '<b style="color:#1f7a3d;font-size:14px;">You&rsquo;re all caught up</b>'+
-                '<div style="font-size:12px;color:#8a93a2;margin-top:2px;">No open or overdue items need you right now.</div></div>');
+                // Says only what this card checked (the Manager Action Center list). It used to say "You're all
+                // caught up" while other Home cards were still listing things for the same person.
+                '<b style="color:#1f7a3d;font-size:14px;">Nothing open in the Manager Action Center</b>'+
+                '<div style="font-size:12px;color:#8a93a2;margin-top:2px;">No open or overdue items there right now.</div></div>');
             return;
         }
         var top=items.slice(0,HTODAY_MAX);

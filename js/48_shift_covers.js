@@ -178,7 +178,7 @@
     }
     function covListHtml(){
         var P=_cov.pick, d=P.data||{}, list=d.candidates||[], asked=covAskedMap();
-        if(!list.length) return '<div style="padding:12px;color:'+COV_GREY+';font-size:13px;">Nobody else is set up to work at this store yet.</div>';
+        if(!list.length) return '<div style="padding:12px;color:'+COV_GREY+';font-size:13px;">Nobody else is set up to work at this store yet.'+(P.mode==='self'?' Send it to your manager instead.':'')+'</div>';
         var canL=list.filter(function(c){ return c.ok && !asked[c.id]; }), cantL=list.filter(function(c){ return !(c.ok && !asked[c.id]); });
         var h='';
         if(canL.length){
@@ -245,11 +245,15 @@
         else h+=covListHtml();
 
         h+='<div id="covMsg" style="min-height:16px;font-size:12.5px;color:'+COV_RED+';margin-top:8px;">'+covEsc(P.err||'')+'</div>';
-        if(!P.loadErr) h+='<button type="button" id="covAskBtn" onclick="covSubmit()" style="width:100%;margin-top:4px;color:#fff;border:none;border-radius:11px;padding:12px;font-size:15px;font-weight:800;"></button>';
         // "Send to my manager instead" retired 2026-11-10: ask coworkers first; if nobody can, it goes to the manager from there.
+        // "From there" needs a button: when there is nobody to ask, a crew member gets "Send to my manager" in place of
+        // the greyed "Pick who to ask" (a sick crew member could send nothing before).
+        var nobody = !P.loading && !P.loadErr && !isMgr && covCanList().length===0;
+        if(nobody) h+=covBtn('Send to my manager','covSendToManagerNobody()','primary','width:100%;margin-top:4px;border-radius:11px;padding:12px;font-size:15px;');
+        else if(!P.loadErr) h+='<button type="button" id="covAskBtn" onclick="covSubmit()" style="width:100%;margin-top:4px;color:#fff;border:none;border-radius:11px;padding:12px;font-size:15px;font-weight:800;"></button>';
         if(more) h+=covBtn('Back','covBackFromMore()','', 'width:100%;margin-top:8px;');
         h+='<div style="font-size:11.5px;color:#8a93a0;margin-top:10px;text-align:center;line-height:1.45;">'+
-           (isMgr ? 'The first person who says yes gets the shift right away.' : 'The first person who says yes takes it once a manager approves. You’re still on the shift until then.')+'</div>';
+           (isMgr ? 'The first person who says yes gets the shift right away.' : (nobody ? 'Your manager is told right away. You’re still on the shift until a manager approves.' : 'The first person who says yes takes it once a manager approves. You’re still on the shift until then.'))+'</div>';
         m.innerHTML=covShell(h);
         covPaintAskBtn();
     }
@@ -292,6 +296,15 @@
             P.busy=false; covShowManagerSent(); covAfterChange();
         }, function(e){ P.busy=false; covErr('Could not send: '+((e&&e.message)||'')); });
     }
+    // Nobody is free to ask: send the shift to the manager straight from the picker (a new request, or "ask more people").
+    function covSendToManagerNobody(){
+        var P=_cov.pick; if(!P || P.busy) return;
+        if(P.kind!=='more'){ covSendToManager(); return; }
+        P.busy=true;
+        covRpc('app_swap_create', { p_shift_id:Number(P.shiftId), p_note:'Can’t work — nobody else is free to cover' }, function(){
+            P.busy=false; covShowManagerSent(); covAfterChange();
+        }, function(e){ P.busy=false; covErr('Could not send: '+((e&&e.message)||'')); });
+    }
     function covShowManagerSent(){
         var btns=(typeof cwPendingContactButtons==='function') ? cwPendingContactButtons() : '';
         covModal().innerHTML=covShell('<h3 style="margin:0 0 8px;color:#1f2a44;">Sent to your manager</h3>'+
@@ -320,7 +333,17 @@
         try{ var v=document.getElementById('employeeHomeView'); if(v && v.style.display!=='none' && typeof loadEmployeeHome==='function') loadEmployeeHome(); }catch(e){}
         try{ covRenderHome(); }catch(e){}
         try{ if(document.getElementById('covMgrBox')) covLoadManager(); }catch(e){}
-        try{ _covWeek.at=0; if(document.getElementById('schedGrid') && typeof fetchScheduleWeek==='function') fetchScheduleWeek(); }catch(e){}
+        // Refresh the week only when that screen is open, and the way it was opened: crew get My shifts, managers the grid.
+        // (It used to load the manager grid for everyone. A crew login was refused, saw a red error and lost its PIN.)
+        try{ _covWeek.at=0;
+            var g=document.getElementById('schedGrid'), v=(g&&g.closest)?g.closest('.app-view'):null;
+            if(g && (!v || getComputedStyle(v).display!=='none')){
+                var mode=(typeof schedState!=='undefined' && schedState) ? schedState.mode : '';
+                var mgr=(typeof schedIsMgr==='function') ? schedIsMgr() : false;
+                if(mode==='staff' || !mgr){ if(typeof fetchMyShifts==='function') fetchMyShifts(); }
+                else if(typeof fetchScheduleWeek==='function') fetchScheduleWeek();
+            }
+        }catch(e){}
     }
 
     // ============================================================

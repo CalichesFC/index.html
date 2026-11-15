@@ -133,7 +133,11 @@
     }
 
     /* ===== meeting workspace ================================================ */
-    function opmOpen(id){ _opm.mid=id; _opm.view='meeting'; _opm.history=null; opmLoading('Loading meeting…');
+    function opmOpen(id){
+        // The attendance list, the owner list and the follow-up list belong to one meeting. Opening a different
+        // meeting starts them fresh, so one store's people and open items never show (or save) under another store.
+        if(_opm.listsFor!==id){ _opmAtt=null; _opm.leaders=null; _opm.followup=null; _opm.listsFor=id; }
+        _opm.mid=id; _opm.view='meeting'; _opm.history=null; opmLoading('Loading meeting…');
         opmRpc('opm_get',{p_id:id},function(d){ _opm.data=d||{}; _opm.tab=(d&&d.me&&d.me.can_manage)?_opm.tab:'brief'; if(!_opm.data.me) _opm.data.me={}; opmRender(); },
         function(e){ alert(e.message||'Could not open the meeting.'); openOpsMeeting(); });
     }
@@ -217,7 +221,7 @@
     }
     function opmLock(){ if(!confirm('Lock the agenda? Leadership-required topics must be acknowledged first.')) return;
         opmRpc('opm_lock',{p_id:_opm.mid},function(){ opmReload(); }); }
-    function opmPublish(){ if(!confirm('Publish the pre-meeting brief to your shift leaders?\n\nThey will see ONLY approved, shift-leader-visible topics and sl_ marked notes — never manager-only or sensitive content.')) return;
+    function opmPublish(){ if(!confirm('Publish the pre-meeting brief to your shift leaders?\n\nThey will see ONLY approved, shift-leader-visible topics and the notes marked shift-leader visible — never manager-only or sensitive content.')) return;
         opmRpc('opm_publish_brief',{p_id:_opm.mid},function(r){ opmSyncFocusPriorities(); alert('Brief published.'+(r&&r.seeded?(' '+r.seeded+' shift leader(s) added to the expected attendance list.'):'')+' Your Focus areas now show as store priorities in the Shift Console.'); opmReload(); }); }
 
     /* ===== PERFORMANCE ====================================================== */

@@ -79,7 +79,15 @@
     }
 
     // Big overall-score gauge + label + trend chip.
-    function shsScoreCard(o,tr){
+    // "Based on N of T parts": how many rows of the Score breakdown really have a score (the rest say
+    // NOT CONNECTED). Without it a big green score built on one row looked like the whole store.
+    function shsBasedOn(pillars){
+        var all=(pillars||[]).length; if(!all) return '';
+        var n=0; (pillars||[]).forEach(function(p){ if(p && p.included===true) n++; });
+        if(n>=all) return '<div style="font-size:12px;color:#5b6675;margin-top:3px;">Based on all '+all+' parts of the score.</div>';
+        return '<div style="font-size:12px;font-weight:700;color:#9a5b00;margin-top:3px;line-height:1.35;">Based on '+n+' of '+all+' parts. The other '+(all-n)+' '+((all-n)===1?'has':'have')+' no numbers yet.</div>';
+    }
+    function shsScoreCard(o,tr,pillars){
         var b=(o&&o.band)||'gray'; var ink=shsInk(b,'#5b6675'); var bg=shsBandBg(b);
         var trend='';
         if(tr){ if(tr.direction==='up') trend='<span style="color:#1b7a3d;font-weight:800;">&#9650; +'+shsScoreTxt(tr.delta)+'</span>';
@@ -94,6 +102,7 @@
             +'<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#5b6675;letter-spacing:.3px;">Overall store health</div>'
             +'<div style="font-size:20px;font-weight:900;color:'+ink+';margin:2px 0;">'+(escapeHtml((o&&o.label)||'')||'&mdash;')+'</div>'
             +(trend?'<div style="font-size:12px;">'+trend+'</div>':'')
+            +shsBasedOn(pillars)
             +'</div></div>';
         return h;
     }
@@ -141,7 +150,7 @@
         }
 
         // Overall score gauge + trend
-        h+=shsScoreCard(d.overall,d.trend);
+        h+=shsScoreCard(d.overall,d.trend,d.pillars);
 
         // The four #1 tiles
         h+='<div style="font-size:12px;font-weight:800;text-transform:uppercase;color:#5b6675;letter-spacing:.3px;margin:6px 2px 8px;">The 4 #1s</div>';

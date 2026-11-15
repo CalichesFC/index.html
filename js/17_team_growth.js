@@ -127,6 +127,8 @@
         h+='</div>';
 
         var pp=d.passport||{};
+        /* Training stays hidden until it is ready: the passport card shows only to people who have a training tile. */
+        if(typeof trainingAnyOn!=='function' || trainingAnyOn()){
         h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;">';
         h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#6b6275;margin-bottom:8px;">Development Passport</div>';
         if(pp.level && typeof passportMeter==='function'){
@@ -136,6 +138,7 @@
             h+='<div style="font-size:13px;color:#6b6275;">Your passport progress will show here once training begins.</div>';
         }
         h+='</div>';
+        }
 
         var certs=d.certs||[];
         h+='<div style="background:#fff;border:1px solid #ececf2;border-radius:14px;padding:16px;margin-bottom:12px;">';
@@ -155,7 +158,7 @@
         if(pending.length){
             h+='<div style="background:#fff7e6;border:1px solid #ffe2a8;border-radius:14px;padding:16px;margin-bottom:12px;">';
             h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#9a5b00;margin-bottom:8px;">Needs your acknowledgement</div>';
-            pending.forEach(function(e){ h+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;"><span style="flex:1;font-size:13px;color:#33303a;">'+escapeHtml(e.eval_type||'Evaluation')+' &middot; '+escapeHtml((e.eval_date||'').slice(0,10))+'</span><button onclick="tgEvalAck('+e.id+')" style="background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;">Acknowledge</button></div>'; });
+            pending.forEach(function(e){ h+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;"><span style="flex:1;font-size:13px;color:#33303a;">'+escapeHtml(e.eval_type||'Evaluation')+' &middot; '+escapeHtml((e.eval_date||'').slice(0,10))+'</span><button onclick="tgEvalOpenMine('+e.id+')" style="background:#1f7a3d;color:#fff;border:none;border-radius:8px;padding:10px 14px;min-height:44px;font-size:12.5px;font-weight:700;cursor:pointer;">Read &amp; acknowledge</button></div>'; });
             h+='</div>';
         }
 
@@ -174,7 +177,18 @@
     }
     function tgEvalAck(evalId){
         if(!confirm('Acknowledge this evaluation?')) return;
-        tgRpc('app_tg_eval_ack',{p_evaluation_id:evalId}, function(){ tgLoadMyGrowth(); });
+        tgRpc('app_tg_eval_ack',{p_evaluation_id:evalId}, function(){ tgModal2Close(); tgLoadMyGrowth(); });
+    }
+    // A person's own evaluation, opened from "Needs your acknowledgement": they read it first, and the Acknowledge
+    // button is inside it. If it cannot be opened, nothing is acknowledged.
+    function tgEvalOpenMine(evalId){
+        var fail=function(){ hubTell('It was not acknowledged. Please try again.', {title:'This evaluation could not be opened'}); };
+        tgRpc('app_tg_eval_get',{p_evaluation_id:evalId}, function(ev){
+            if(!ev || typeof ev!=='object'){ fail(); return; }
+            if(ev.id==null) ev.id=evalId;
+            ev._askAck=true;
+            tgEvalOpenView(ev);
+        }, fail);
     }
 
     // ============================================================
@@ -354,8 +368,9 @@
         if(ev.overall_score!=null) h+='<div style="margin-top:8px;font-size:13px;color:#1f2a44;">Overall score: <b>'+escapeHtml(String(ev.overall_score))+'</b></div>';
         if(ev.strengths) h+='<div style="margin-top:10px;"><div style="font-size:11px;font-weight:800;color:#6b6275;text-transform:uppercase;">Strengths</div><div style="font-size:13px;color:#26242b;white-space:pre-wrap;">'+escapeHtml(ev.strengths)+'</div></div>';
         if(ev.improvement_areas) h+='<div style="margin-top:10px;"><div style="font-size:11px;font-weight:800;color:#6b6275;text-transform:uppercase;">Areas for improvement</div><div style="font-size:13px;color:#26242b;white-space:pre-wrap;">'+escapeHtml(ev.improvement_areas)+'</div></div>';
-        if(ev.manager_recommendation) h+='<div style="margin-top:10px;"><div style="font-size:11px;font-weight:800;color:#6b6275;text-transform:uppercase;">Manager recommendation</div><div style="font-size:13px;color:#26242b;white-space:pre-wrap;">'+escapeHtml(ev.manager_recommendation)+'</div></div>';
-        if(ev.status==='submitted' && ev.employee_ack_status!=='acknowledged' && ev.self){ h+='<button onclick="tgEvalAck('+ev.id+')" style="width:100%;margin-top:14px;background:#1f7a3d;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;">Acknowledge</button>'; }
+        /* The person's own copy (opened from "Read & acknowledge") leaves the manager's recommendation out until the owners say it should show. Managers still see it. */
+        if(ev.manager_recommendation && !ev._askAck) h+='<div style="margin-top:10px;"><div style="font-size:11px;font-weight:800;color:#6b6275;text-transform:uppercase;">Manager recommendation</div><div style="font-size:13px;color:#26242b;white-space:pre-wrap;">'+escapeHtml(ev.manager_recommendation)+'</div></div>';
+        if(ev._askAck || (ev.status==='submitted' && ev.employee_ack_status!=='acknowledged' && ev.self)){ h+='<button onclick="tgEvalAck('+ev.id+')" style="width:100%;margin-top:14px;background:#1f7a3d;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;">Acknowledge</button>'; }
         tgModal2Body(h);
     }
 

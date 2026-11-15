@@ -472,6 +472,7 @@
     function submitAudit() {
         const btn = document.getElementById('submitBtn'); const form = document.getElementById('auditForm');
         var _submitBtnLabel = btn.innerHTML;  // H1: restore exactly on a failed save so the manager can retry
+        if(!window._popInBtnLabel) window._popInBtnLabel = _submitBtnLabel;   // the button's own words, to put back for the next inspection
         if(!document.getElementById('loc').value||!document.getElementById('sldr').value||!document.getElementById('conductor').value) { return alert('Please fill out Location, Shift Leader, and Conducted By!'); }
         let answered = 0; for(let i=1;i<=totalQuestions;i++) { if(document.querySelector('input[name="q'+i+'"]:checked')) answered++; }
         if(answered<totalQuestions) { return alert('Please answer all questions. You have answered '+answered+' out of '+totalQuestions+'.'); }
@@ -484,14 +485,18 @@
         pdfHtml += '<table style="width:100%;margin-bottom:20px;"><tr><td style="padding:8px;"><strong>Location:</strong> '+document.getElementById('loc').value+'</td><td style="padding:8px;"><strong>Date:</strong> '+document.getElementById('dt').value+'</td></tr><tr><td style="padding:8px;"><strong>Conducted By:</strong> '+document.getElementById('conductor').value+'</td><td style="padding:8px;"><strong>Shift Leader:</strong> '+document.getElementById('sldr').value+' ('+document.getElementById('shiftTime').value+')</td></tr></table>';
         pdfHtml += '<div style="background:#f0f4f8;padding:20px;border-radius:8px;margin-bottom:30px;text-align:center;"><h2 style="color:#4a68b1;margin:0;font-size:28px;">Score: '+document.getElementById('pct').innerText+'%</h2><h3 style="color:#555;margin:5px 0 15px 0;">Status: '+document.getElementById('st').innerText+'</h3><p style="margin:0;text-align:left;padding-top:15px;border-top:1px solid #ddd;"><strong>Comments:</strong> '+(document.getElementById('overallComments').value||'None')+'</p></div>';
         pdfHtml += '<table border="1" cellpadding="12" style="border-collapse:collapse;width:100%;font-size:14px;border-color:#ddd;"><tr style="background:#4a68b1;color:white;"><th style="text-align:left;">Question</th><th style="width:60px;text-align:center;">Score</th><th>Notes</th></tr>';
-        let loopIdx=1; questions.forEach(group => { pdfHtml += '<tr style="background:#f9f9f9;"><td colspan="3"><strong>'+group.cat+'</strong></td></tr>'; group.q.forEach(text => { let sel = document.querySelector('input[name="q'+loopIdx+'"]:checked'); let note = document.getElementById('note'+loopIdx).value; let score = sel?sel.value:'N/A'; if(score==='0') score='N/A'; pdfHtml += '<tr><td>'+text+'</td><td style="text-align:center;font-weight:bold;">'+score+'</td><td>'+note+'</td></tr>'; loopIdx++; }); });
+        let loopIdx=1; questions.forEach(group => { pdfHtml += '<tr style="background:#f9f9f9;"><td colspan="3"><strong>'+group.cat+'</strong></td></tr>'; group.q.forEach(text => { let sel = document.querySelector('input[name="q'+loopIdx+'"]:checked'); let note = document.getElementById('note'+loopIdx).value; let score = sel?sel.value:'N/A'; if(score==='0') score='N/A'; /* Photos attached to a question go into the report, under that question's note (the same way the maintenance report sends its photos). */ let ph = (questionPhotos[loopIdx]||[]); let phHtml = ph.length ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">'+ph.map(function(p){ return '<img src="'+p+'" style="max-height:120px;border-radius:6px;border:1px solid #ccc;">'; }).join('')+'</div>' : ''; pdfHtml += '<tr><td>'+text+'</td><td style="text-align:center;font-weight:bold;">'+score+'</td><td>'+note+phHtml+'</td></tr>'; loopIdx++; }); });
         pdfHtml += '</table></div>';
         document.getElementById('popInReportHtml').value = pdfHtml;
         btn.innerText = 'Saving…';
         /* DB-FIRST (Phase 3): save the inspection to Supabase before attempting the Apps-Script PDF,
            so a PDF-server hiccup can never lose the inspection data. */
+        var _run = window._popInRun = (window._popInRun||0) + 1;   // which send this is; a late PDF answer must not touch a form that has been started fresh
         saveToSupabase('pop_ins', form, null, () => {
-            localStorage.removeItem('calichesDraft_popIn');
+            /* Saved: this inspection is done. No more draft of it, and the next time Pop-In is opened the form starts fresh. */
+            window._popInSent = true; try{ clearTimeout(autoSaveTimer); }catch(e){}
+            localStorage.removeItem('calichesDraft_popIn'); savedDraftData = null;
+            try{ document.getElementById('hasDraftBadge').style.display='none'; document.getElementById('draftBanner').style.display='none'; }catch(e){}
             var _popInPrint = function(e) { if (e && e.preventDefault) e.preventDefault(); document.body.innerHTML = pdfHtml; setTimeout(() => { window.print(); location.reload(); }, 500); };
             var _popInCorrective = function() { if(window._popInFailed && window._popInFailed.length && typeof openCorrectiveActions==='function'){ setTimeout(function(){ openCorrectiveActions(window._popInFailed, window._popInStore, window._popInDate); }, 500); } };
             btn.innerText = 'Saved ✓ — generating PDF…';
@@ -499,15 +504,15 @@
             .then(res => res.json())
             .then(googleData => {
                 console.log('[Pop-In] GAS:', googleData);
-                btn.disabled = false; btn.style.backgroundColor = 'var(--pass-green)'; btn.innerText = 'SENT! (TAP TO PRINT)';
-                btn.onclick = _popInPrint;
+                if(window._popInRun===_run){ btn.disabled = false; btn.style.backgroundColor = 'var(--pass-green)'; btn.innerText = 'SENT! (TAP TO PRINT)';
+                btn.onclick = _popInPrint; }
                 _popInCorrective();
             })
             .catch(err => {
                 console.error('[Pop-In] GAS error:', err);
-                alert('Saved ✓ — PDF generation failed, you can reprint later.');
-                btn.disabled = false; btn.style.backgroundColor = 'var(--pass-green)'; btn.innerText = 'SAVED ✓ (TAP TO PRINT)';
-                btn.onclick = _popInPrint;
+                alert('Saved ✓ — the PDF could not be made. To print it, tap the green button before you leave this screen.');
+                if(window._popInRun===_run){ btn.disabled = false; btn.style.backgroundColor = 'var(--pass-green)'; btn.innerText = 'SAVED ✓ (TAP TO PRINT)';
+                btn.onclick = _popInPrint; }
                 _popInCorrective();
             });
         }, function(_errMsg){
@@ -516,6 +521,22 @@
             alert('Could not save the inspection. Nothing was submitted yet — check your connection and tap Submit again.\n\n' + _errMsg);
             btn.disabled = false; btn.innerHTML = _submitBtnLabel;
         });
+    }
+
+    // After a Pop-In has been sent, the next one starts with a clean form (answers, notes, photos, score, button).
+    function popInReset() {
+        var form = document.getElementById('auditForm'), btn = document.getElementById('submitBtn');
+        window._popInSent = false; window._popInRun = (window._popInRun||0) + 1;
+        if(form) form.reset();
+        for(var i=1;i<=totalQuestions;i++){ questionPhotos[i] = []; var pc = document.getElementById('imgPreviewContainer'+i); if(pc) pc.innerHTML = ''; }
+        ['finalStatus','popInReportHtml'].forEach(function(id){ var e = document.getElementById(id); if(e) e.value = ''; });
+        var dt = document.getElementById('dt'); if(dt) dt.value = hubIsoDay();
+        var st = document.getElementById('st'); if(st){ st.innerText = 'Pending'; st.style.backgroundColor = '#555'; }
+        if(btn){ btn.disabled = false; btn.style.backgroundColor = ''; if(window._popInBtnLabel) btn.innerHTML = window._popInBtnLabel; btn.onclick = function(){ submitAudit(); }; }
+        try{ calc(); }catch(e){}
+        try{ clearTimeout(autoSaveTimer); }catch(e){}   // calc() queues a draft save; an empty form is not a draft
+        localStorage.removeItem('calichesDraft_popIn'); savedDraftData = null;
+        try{ document.getElementById('hasDraftBadge').style.display='none'; document.getElementById('draftBanner').style.display='none'; }catch(e){}
     }
 
     function submitDriverForm() {
@@ -678,6 +699,8 @@
         }).catch(function(){ alert('Connection error.'); });
     }
     function openCrewTrainer(){
+        /* same rule as the Crew Trainer tile */
+        if(typeof trainingTileOn==='function' && !trainingTileOn('crew_trainer')){ trainingClosedTell(); return; }
         document.querySelectorAll('.app-view').forEach(function(v){v.style.display='none';});
         var m=document.getElementById('main-menu'); if(m) m.style.display='none';
         var v=document.getElementById('crewTrainerView'); if(v) v.style.display='block';
@@ -778,7 +801,7 @@
         document.getElementById('supplyTab-incoming').setAttribute('data-mgr', mgr?'1':'0'); var _ct=document.getElementById('supplyTab-catalog'); if(_ct) _ct.setAttribute('data-mgr', mgr?'1':'0');
         document.getElementById('supplyReqInfo').innerHTML='Requested by <b>'+escapeHtml((currentUser&&currentUser.name)||'')+'</b> &middot; '+new Date().toLocaleDateString();
         var _ss=document.getElementById('supplyStore'); if(_ss){ var _cur=_ss.value; var _stores=(typeof HUB_STORES!=='undefined'?HUB_STORES:['Roadrunner','Valley','Lenox','Alamogordo','Roswell']); _ss.innerHTML='<option value="">Select store&hellip;</option>'+_stores.map(function(s){return '<option>'+escapeHtml(s)+'</option>';}).join('')+'<option>Warehouse</option>'; if(_cur) _ss.value=_cur; else if(currentUser&&currentUser.store){ _ss.value=currentUser.store; } }
-        var _nd=document.getElementById('supplyNeededDate'); if(_nd){ try{ _nd.min=new Date().toISOString().slice(0,10); }catch(e){} }
+        var _nd=document.getElementById('supplyNeededDate'); if(_nd){ try{ _nd.min=hubIsoDay(); }catch(e){} } /* the person's own day, so "today" can still be picked in the evening */
         var st=document.getElementById('supplyStore'); if(st && !st.value) st.value=(currentUser&&currentUser.store)||'';
         if(!document.getElementById('supplyItems').children.length) supplyAddItemRow();
         supplyLoadCatalog();

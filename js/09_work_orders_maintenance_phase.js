@@ -973,7 +973,7 @@
         _correctiveItems = items||[]; if(!_correctiveItems.length) return;
         window._corrStore=store||''; window._corrDate=date||'';
         document.getElementById('correctiveSub').innerText = _correctiveItems.length+' item'+(_correctiveItems.length>1?'s':'')+' scored 1–2 at '+(store||'this store')+'. Assign a fix for each (or skip).';
-        var d=new Date(); d.setDate(d.getDate()+3); document.getElementById('correctiveDue').value=d.toISOString().slice(0,10);
+        var d=new Date(); d.setDate(d.getDate()+3); document.getElementById('correctiveDue').value=hubIsoDay(d); /* 3 days from the person's own day (the UTC day made it 4 in the evening) */
         document.getElementById('correctivePhoto').checked=true; document.getElementById('correctiveMsg').textContent='';
         var sel=document.getElementById('correctiveAssignee');
         function fill(arr){ sel.innerHTML='<option value="">Select…</option>'+arr.filter(function(e){return e.active!==false;}).map(function(e){ return '<option value="'+e.id+'">'+escapeHtml(e.name||('#'+e.id))+'</option>'; }).join(''); }
@@ -1113,8 +1113,9 @@
     }
     function myDayOpenChecklist(shift){
         if(typeof openChecklists!=='function') return;
-        openChecklists();
-        if(shift && shift!=='open' && typeof setChecklistTab==='function') setChecklistTab(shift);
+        // The screen opens a moment later (after the on-shift check), so the list to show is handed
+        // to it. Setting the tab here first was undone when the screen opened on Opening.
+        openChecklists(shift);
     }
     function toggleTask(aid, done){
         withPin(function(pin){

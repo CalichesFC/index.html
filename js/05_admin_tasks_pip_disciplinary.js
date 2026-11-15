@@ -1,7 +1,12 @@
     // ============================================================
     // ADMIN TASKS + PIP / DISCIPLINARY (Admin Manager only)
     // ============================================================
-    function ccRefresh(){ if(document.getElementById('commandCenterView').style.display==='block') ccLoad(); if(document.getElementById('rosterView').style.display==='block') loadRoster(); }
+    function ccRefresh(){
+        if(document.getElementById('commandCenterView').style.display==='block') ccLoad();
+        if(document.getElementById('rosterView').style.display==='block') loadRoster();
+        // a PIP was just started or decided from an employee profile: redraw its Corrective Action tab (js/04)
+        try{ var pv=document.getElementById('employeeProfileView'); if(pv && pv.style.display==='block' && window._empTab==='corrective' && typeof empPipShow==='function') empPipShow(); }catch(e){}
+    }
 
     function ccCompleteTask(id){
         withPin(function(pin){
@@ -50,7 +55,9 @@
         document.getElementById('pipModal').style.display='flex';
     }
     function closePip(){ document.getElementById('pipModal').style.display='none'; }
+    var _pipSaving=false;   // Start PIP was pressed and is not finished: a second press must not start a second PIP
     function savePip(){
+        if(_pipSaving) return;
         const empId=parseInt(document.getElementById('pipEmpId').value,10);
         const start=document.getElementById('pipStart').value, end=document.getElementById('pipEnd').value;
         const incident=document.getElementById('pipIncident').value;
@@ -64,19 +71,20 @@
         const msg=document.getElementById('pipMsg');
         if(!start||!end){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='PIP start and end dates are required.'; return; }
         const combined='Issue: '+issueLabel+(incident?(' on '+incident):'')+(expected?('. Expected actions: '+expected):'');
+        _pipSaving=true;
         withPin(function(pin){
             supabaseClient.rpc('app_pip_create',{p_username:currentUser.username,p_password:pin,p_employee_id:empId,p_start:start,p_end:end,p_reason:combined})
             .then(({data,error})=>{
-                if(error){ msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; }
+                if(error){ _pipSaving=false; msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Error: '+error.message; if(error.code==='42501') sessionPin=null; return; }
                 msg.style.display='block'; msg.style.color='#1f7a3d'; msg.innerText='PIP started ✓  Generating Written Warning Letter…';
                 const pipId=data;
                 const qs='?action=pip_warning_letter&employee='+encodeURIComponent(empName)+'&designation='+encodeURIComponent(designation)+'&location='+encodeURIComponent(location)+'&issue='+encodeURIComponent(issueLabel)+'&incident_date='+encodeURIComponent(incident||'')+'&expected='+encodeURIComponent(expected)+'&manager='+encodeURIComponent(mgrName)+'&pip_start='+encodeURIComponent(start)+'&pip_end='+encodeURIComponent(end)+'&final_review='+encodeURIComponent(end)+'&pip_id='+encodeURIComponent(pipId||'');
                 let done=false;
-                const finishOnce=function(){ if(done) return; done=true; clearTimeout(t); closePip(); if(typeof loadRoster==='function') loadRoster(); if(typeof ccRefresh==='function') ccRefresh(); };
+                const finishOnce=function(){ if(done) return; done=true; clearTimeout(t); _pipSaving=false; closePip(); if(typeof loadRoster==='function') loadRoster(); if(typeof ccRefresh==='function') ccRefresh(); };
                 var t=setTimeout(finishOnce, 15000);
                 fetch(G_URL+qs).then(r=>r.json()).then(()=>finishOnce()).catch(()=>finishOnce());
-            });
-        });
+            }).catch(function(){ _pipSaving=false; msg.style.display='block'; msg.style.color='#c0264b'; msg.innerText='Connection error. Please try again.'; });
+        }, function(){ _pipSaving=false; });
     }
 
     let decEmpName='';
@@ -561,6 +569,8 @@
 
     function openPopIn() {
         if (!isMgmt()) { alert('Store Pop-In Inspections are for management only.'); return; }
+        /* The last Pop-In was sent: start this one with a clean form. */
+        if (window._popInSent && typeof popInReset === 'function') { try { popInReset(); } catch(e) {} }
         triggerTransition(() => {
             document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
             document.getElementById('popInView').style.display = 'block';
@@ -624,7 +634,39 @@
         if(tab) dashGo(tab);
     }
 
+    /* ── Training stays hidden until it is ready (Issac 2026-11-10) ──
+       ONE rule for every way into training: the rule the menu tiles use. trainingTileOn(fid) is what
+       shows or hides a training tile (fid = training | training_hub | crew_trainer | team_dev), and
+       search, What's New, Home, Team Growth and the open functions ask the same question. A person
+       with no training tile has no other way in; leadership, and any role or person switched on in
+       Roles & Permissions, get in exactly as before. */
+    function trainingTileOn(fid){
+        try{
+            if(!currentUser) return false;
+            var role=(typeof effectiveRole==='function') ? effectiveRole() : (currentUser.role||'');
+            if(role==='Vice President/Co-Owner') role='Admin Manager';
+            var isManager=(role==='Admin Manager'||role==='Manager'||role==='Store Manager');
+            var devOverride=currentUser.is_developer===true && !isPreviewMode() && !window._viewAsRole;
+            return !!permAllow(fid, (fid==='team_dev') ? (devOverride||isManager) : (devOverride||role==='Admin Manager'));
+        }catch(e){ return false; }
+    }
+    /* The lessons screen (My Training) is reached from Training & Resources, from the Training Hub, and from the developer tile. */
+    function trainingLessonsOn(){ return trainingTileOn('training') || trainingTileOn('training_hub') || !!(currentUser && currentUser.is_developer===true); }
+    function trainingAnyOn(){ return trainingTileOn('training') || trainingTileOn('training_hub') || trainingTileOn('crew_trainer') || trainingTileOn('team_dev'); }
+    function trainingClosedTell(){ try{ hubTell('Training is not open yet.'); }catch(e){} }
+    /* What's New: the training how-to sections show only to people who have that training tile. */
+    function trainingApplyText(){
+        try{
+            document.querySelectorAll('[data-trn]').forEach(function(el){
+                var k=el.getAttribute('data-trn'), on=(k==='any') ? trainingAnyOn() : trainingTileOn(k);
+                el.style.display = on ? '' : 'none';
+            });
+        }catch(e){}
+    }
+
     function openTrainingPortal() {
+        /* Two tiles open this screen: Training & Resources (the training rule) and the developer tile (developers only). */
+        if(!(trainingTileOn('training') || (currentUser && currentUser.is_developer===true))){ trainingClosedTell(); return; }
         document.getElementById('main-menu').style.display = 'none';
         document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
         document.getElementById('trainingPortalView').style.display = 'block';
@@ -679,8 +721,8 @@
         if (preshiftBtn) preshiftBtn.style.display = permAllow('preshift', (devOverride || isManager || role === 'Shift Lead')) ? 'block' : 'none';
         const crewTrainerBtn = document.getElementById('btn-crewtrainer');
         /* Training stays hidden until it's ready (Issac 2026-11-10): leadership only unless a role or person is switched on. */
-        if (crewTrainerBtn) crewTrainerBtn.style.display = permAllow('crew_trainer', (devOverride || role === 'Admin Manager')) ? 'block' : 'none';
-        var _trnBtn=document.getElementById('btn-training'); if(_trnBtn) _trnBtn.style.display=permAllow('training', (devOverride || role === 'Admin Manager'))?'block':'none';
+        if (crewTrainerBtn) crewTrainerBtn.style.display = trainingTileOn('crew_trainer') ? 'block' : 'none';
+        var _trnBtn=document.getElementById('btn-training'); if(_trnBtn) _trnBtn.style.display=trainingTileOn('training')?'block':'none';
         const availApprBtn = document.getElementById('btn-availApprovals');
         if (availApprBtn) availApprBtn.style.display = permAllow('avail_approvals', (devOverride || isManager || role === 'Shift Lead')) ? 'block' : 'none';
         var _tcOn=(typeof hubClockOn==='function')&&hubClockOn(); ['homeClockBtn','btn-timeClock'].forEach(function(id){ var _e=document.getElementById(id); if(_e) _e.style.display=_tcOn?'':'none'; });
@@ -701,7 +743,7 @@
         if (celebrationsBtn) celebrationsBtn.style.display = permAllow('celebrations', (devOverride || isManager || role === 'Shift Lead')) ? 'block' : 'none';
         const shortageTrendsBtn = document.getElementById('shortageTrendsBtn');
         if (shortageTrendsBtn) shortageTrendsBtn.style.display = permAllow('shortage_trends', (devOverride || isManager)) ? 'block' : 'none';
-        var _teamDevBtn=document.getElementById('teamDevBtn'); if(_teamDevBtn) _teamDevBtn.style.display=permAllow('team_dev', (devOverride||isManager))?'block':'none';
+        var _teamDevBtn=document.getElementById('teamDevBtn'); if(_teamDevBtn) _teamDevBtn.style.display=trainingTileOn('team_dev')?'block':'none';
         var _frBtn=document.getElementById('btn-fundraiserHub'); if(_frBtn) _frBtn.style.display=permAllow('fundraiser', (devOverride||isManager))?'block':'none';
         /* Single marketing door (2026-07-13): role union of the old v1 + v2 tiles ('Office' added from v2). */
         var _mktBtn=document.getElementById('btn-marketingHub'); if(_mktBtn){ var _mkOn=permAllow('marketing', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Marketing Manager','Designer/Creative'].indexOf(role)>=0)); if(!_mkOn && permSwitch('marketing')===undefined) _mkOn=permAllow('marketing_v2', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Marketing Manager','Office'].indexOf(role)>=0)); _mktBtn.style.display=_mkOn?'block':'none'; } /* one switch (see_marketing) once Roles & Permissions has loaded */
@@ -712,7 +754,8 @@
         var _scBtn=document.getElementById('btn-shiftConsole'); if(_scBtn) _scBtn.style.display=permAllow('shift_console', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Shift Lead','Shift Leader','Office'].indexOf(role)>=0))?'block':'none';
         var _siBtn=document.getElementById('btn-siteInspection'); if(_siBtn) _siBtn.style.display=permAllow('site_inspection', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Shift Lead','Shift Leader'].indexOf(role)>=0))?'block':'none';
         var _omBtn=document.getElementById('btn-opsMeeting'); if(_omBtn) _omBtn.style.display=permAllow('ops_meeting', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Office'].indexOf(role)>=0))?'block':'none';
-        var _thBtn=document.getElementById('btn-trainingHub'); if(_thBtn) _thBtn.style.display=permAllow('training_hub', (devOverride || role === 'Admin Manager'))?'block':'none'; /* hidden until training is ready */
+        var _thBtn=document.getElementById('btn-trainingHub'); if(_thBtn) _thBtn.style.display=trainingTileOn('training_hub')?'block':'none'; /* hidden until training is ready */
+        trainingApplyText();
         var _wtBtn=document.getElementById('btn-writeupTemplates'); if(_wtBtn) _wtBtn.style.display=permAllow('writeup_templates', (devOverride||isManager||['Vice President/Co-Owner','Store Manager','Shift Lead','Shift Leader'].indexOf(role)>=0))?'block':'none';
         var _rrBtn=document.getElementById('btn-requestsRails'); if(_rrBtn) _rrBtn.style.display=permAllow('requests_rails', true)?'block':'none';
         var _ccBtn=document.getElementById('btn-commandCenter'); if(_ccBtn) _ccBtn.style.display='none'; // duplicate Store Intelligence tile retired — reach it via the Dashboards hub
@@ -872,7 +915,7 @@
         if (input === null) return;
         const mileage = parseInt(input, 10);
         if (isNaN(mileage)) { alert('Please enter a valid mileage.'); return; }
-        const today = new Date().toISOString().split('T')[0];
+        const today = schedFmt(new Date());   // the date on this device (was the world-clock date: after 5 pm Mountain it saved tomorrow)
         withPin(function(pin) {
             supabaseClient.rpc('app_vehicle_mark_serviced', { p_username: currentUser.username, p_password: pin, p_schedule_id: scheduleId, p_mileage: mileage, p_date: today })
             .then(({ error }) => {

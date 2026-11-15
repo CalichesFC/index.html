@@ -44,7 +44,16 @@
     var RQ_BTN='background:#185FA5;color:#fff;border:none;border-radius:10px;padding:11px 16px;font-size:14px;font-weight:800;cursor:pointer;width:100%;margin-top:14px;';
     var RQ_MINI='background:#eef0f3;color:#185FA5;border:none;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;';
 
-    function openRequestsRails(){ _rq.tab='hr'; _rq.ppLines=[{item:'',qty:1}]; _rq.gcLines=[{denom:'',qty:1}]; _rq.hrEmp=null; _rq.hrEmps=[];
+    // What a person typed stays put while a form is redrawn (adding a line, picking a card value, changing tabs).
+    // A form starts clean again only when the screen is opened or its request has been sent.
+    var RQ_KEEP={hr:['rqHrType','rqHrDel','rqHrNotes'],pp:['rqPpStore','rqPpDate','rqPpTime','rqPpCust','rqPpNotes'],gc:['rqGcStore','rqGcCo','rqGcDate','rqGcDel','rqGcNotes']};
+    function rqKeep(){ var k=_rq.keep=_rq.keep||{}; Object.keys(RQ_KEEP).forEach(function(t){ RQ_KEEP[t].forEach(function(id){ if(_rq.fresh===t){ delete k[id]; return; } var e=document.getElementById(id); if(e) k[id]=e.value; }); }); _rq.fresh=null; }
+    function rqPutBack(){ var k=_rq.keep||{}; Object.keys(k).forEach(function(id){ var e=document.getElementById(id); if(e&&k[id]!=null) e.value=k[id]; }); }
+    // The person's own store, when it is on the list (so an order does not go to the first store by mistake).
+    function rqMyStore(stores){ var s=''; try{ s=(typeof activeStoreLoc==='function'&&activeStoreLoc())||(currentUser&&(currentUser.home_location||currentUser.store))||''; }catch(e){} return (stores||[]).indexOf(s)>=0?s:''; }
+    function rqStoreOpts(stores){ var mine=rqMyStore(stores); return stores.map(function(s){return '<option value="'+rqAttr(s)+'"'+(s===mine?' selected':'')+'>'+rqEsc(s)+'</option>';}).join(''); }
+
+    function openRequestsRails(){ _rq.tab='hr'; _rq.ppLines=[{item:'',qty:1}]; _rq.gcLines=[{denom:'',qty:1}]; _rq.hrEmp=null; _rq.hrEmps=[]; _rq.keep={}; _rq.fresh=null;
         rqOv().innerHTML=rqHeader('Requests')+'<div style="max-width:760px;margin:0 auto;padding:40px 16px;text-align:center;color:#6b7686;">Loading requests&hellip;</div>';
         rqRpc('rq_config_get',{},function(cfg){ _rq.cfg=cfg||{}; rqLoadMine(function(){ rqRender(); }); },function(e){ rqOv().innerHTML=rqHeader('Requests')+'<div style="max-width:760px;margin:0 auto;padding:30px 16px;text-align:center;color:#c0264b;">'+rqEsc(e.message||'Could not load.')+'</div>'; });
     }
@@ -54,9 +63,9 @@
         var h='<div style="display:flex;gap:6px;max-width:760px;margin:14px auto 0;padding:0 16px;">'+b('hr','🗂️ HR / W-2')+b('pp','🎉 Party Pack')+b('gc','💳 Gift Cards');
         if(rqIsMgr()) h+=b('queue','📥 Queue');
         return h+'</div>'; }
-    function rqSetTab(t){ _rq.tab=t; if(t==='queue'){ rqOv().innerHTML=rqHeader('Requests')+rqTabs()+'<div style="max-width:760px;margin:0 auto;padding:40px 16px;text-align:center;color:#6b7686;">Loading queue&hellip;</div>'; rqLoadQueue(function(){ rqRender(); }); } else rqRender(); }
-    function rqRender(){ var body=(_rq.tab==='pp')?rqPpHtml():(_rq.tab==='gc')?rqGcHtml():(_rq.tab==='queue')?rqQueueHtml():rqHrHtml();
-        rqOv().innerHTML=rqHeader('Requests')+rqTabs()+'<div style="max-width:760px;margin:0 auto;padding:14px 16px 50px;">'+body+'</div>'; }
+    function rqSetTab(t){ rqKeep(); _rq.tab=t; if(t==='queue'){ rqOv().innerHTML=rqHeader('Requests')+rqTabs()+'<div style="max-width:760px;margin:0 auto;padding:40px 16px;text-align:center;color:#6b7686;">Loading queue&hellip;</div>'; rqLoadQueue(function(){ rqRender(); }); } else rqRender(); }
+    function rqRender(){ rqKeep(); var body=(_rq.tab==='pp')?rqPpHtml():(_rq.tab==='gc')?rqGcHtml():(_rq.tab==='queue')?rqQueueHtml():rqHrHtml();
+        rqOv().innerHTML=rqHeader('Requests')+rqTabs()+'<div style="max-width:760px;margin:0 auto;padding:14px 16px 50px;">'+body+'</div>'; rqPutBack(); }
 
     // ---------- shared "my requests" strip ----------
     function rqMineHtml(rtype){ var rows=(_rq.mine||[]).filter(function(r){ return r.rtype===rtype; });
@@ -87,7 +96,9 @@
         return h+rqMineHtml('hr'); }
     function rqHrEmpBoxHtml(){ if(_rq.hrEmp) return '<div style="font-size:12.5px;color:#1b7a3d;font-weight:700;margin-top:6px;">Requesting for: '+rqEsc(_rq.hrEmp.name)+' <button onclick="_rq.hrEmp=null;_rq.hrEmps=[];rqRender();" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:12px;">✕</button></div>';
         if(!_rq.hrEmps.length) return '';
-        return '<div style="margin-top:6px;">'+_rq.hrEmps.map(function(e){ return '<button onclick="rqHrPick('+e.id+',\''+rqAttr(e.name)+'\')" style="'+RQ_MINI+'margin:0 5px 5px 0;">'+rqEsc(e.name)+'</button>'; }).join('')+'</div>'; }
+        /* picked by its place in the list, so a name with an apostrophe (O'Brien) cannot break the button */
+        return '<div style="margin-top:6px;">'+_rq.hrEmps.map(function(e,i){ return '<button onclick="rqHrPickAt('+i+')" style="'+RQ_MINI+'margin:0 5px 5px 0;">'+rqEsc(e.name)+'</button>'; }).join('')+'</div>'; }
+    function rqHrPickAt(i){ var e=(_rq.hrEmps||[])[i]; if(e) rqHrPick(e.id,e.name); }
     function rqHrSearch(){ var q=(document.getElementById('rqHrQ')||{}).value||''; if(!q.trim()){ alert('Type part of a name first.'); return; }
         rqRpc('rq_emp_search',{p_q:q.trim()},function(d){ _rq.hrEmps=(d&&d.employees)||[]; var box=document.getElementById('rqHrEmpBox'); if(box) box.innerHTML=_rq.hrEmps.length?rqHrEmpBoxHtml():'<div style="font-size:12px;color:#9a5b00;margin-top:6px;">No matches.</div>'; }); }
     function rqHrPick(id,name){ _rq.hrEmp={id:id,name:name}; _rq.hrEmps=[]; var box=document.getElementById('rqHrEmpBox'); if(box) box.innerHTML=rqHrEmpBoxHtml(); var q=document.getElementById('rqHrQ'); if(q) q.value=''; }
@@ -95,13 +106,13 @@
         if(!t){ alert('Pick a request type.'); return; }
         rqRpc('rq_hr_create',{p_employee_id:_rq.hrEmp?_rq.hrEmp.id:null,p_subtype:t,p_delivery:del||'',p_notes:notes},function(res){
             alert('Request submitted.'+((res&&res.task_status&&String(res.task_status).indexOf('failed')===0)?' (Office was notified; a manager will file the task.)':''));
-            _rq.hrEmp=null; rqLoadMine(function(){ rqRender(); }); }); }
+            _rq.hrEmp=null; _rq.fresh='hr'; rqLoadMine(function(){ rqRender(); }); }); }
 
     // ---------- TAB 2: Party Pack ----------
     function rqPpHtml(){ var items=rqList('pp_items',['Vanilla Custard Tub','Chocolate Custard Tub']); var stores=rqStores();
         var h='<div style="'+RQ_CARD+'"><div style="font-size:15px;font-weight:800;color:#1f2a44;">🎉 Party-Pack order</div>'
           +'<p style="font-size:12.5px;color:#6b7686;margin:6px 0 0;">Creates a prep task at the store automatically (due '+rqEsc(String((_rq.cfg&&_rq.cfg.pp_prep_days)!=null?_rq.cfg.pp_prep_days:1))+' day(s) before the event) and notifies its managers.</p>'
-          +'<label style="'+RQ_LBL+'">Store</label><select id="rqPpStore" style="'+RQ_IN+'">'+stores.map(function(s){return '<option value="'+rqAttr(s)+'">'+rqEsc(s)+'</option>';}).join('')+'</select>'
+          +'<label style="'+RQ_LBL+'">Store</label><select id="rqPpStore" style="'+RQ_IN+'">'+rqStoreOpts(stores)+'</select>'
           +'<div style="display:flex;gap:8px;"><div style="flex:1;"><label style="'+RQ_LBL+'">Event date</label><input type="date" id="rqPpDate" style="'+RQ_IN+'"></div>'
           +'<div style="flex:1;"><label style="'+RQ_LBL+'">Time</label><input type="time" id="rqPpTime" style="'+RQ_IN+'"></div></div>'
           +'<label style="'+RQ_LBL+'">Customer / occasion (optional)</label><input id="rqPpCust" style="'+RQ_IN+'" placeholder="e.g. Smith birthday">'
@@ -123,14 +134,14 @@
         if(!store){ alert('Pick a store.'); return; } if(!d){ alert('Pick the event date.'); return; } if(!items.length){ alert('Add at least one item.'); return; }
         rqRpc('rq_party_pack_create',{p_store:store,p_event_date:d,p_event_time:tm,p_customer:cust,p_items:items,p_notes:notes},function(res){
             alert('Order placed.'+((res&&res.task_status==='created')?' A prep task was created at '+store+'.':' (Managers were notified; the task can be filed from the queue.)'));
-            _rq.ppLines=[{item:'',qty:1}]; rqLoadMine(function(){ rqRender(); }); }); }
+            _rq.ppLines=[{item:'',qty:1}]; _rq.fresh='pp'; rqLoadMine(function(){ rqRender(); }); }); }
 
     // ---------- TAB 3: Gift Cards ----------
     function rqGcHtml(){ var denoms=rqList('gc_denoms',['10','25','50','100']); var dels=rqList('gc_delivery',['Pickup in store','Deliver to business','Mail']); var stores=rqStores();
         var tq=0,ta=0; (_rq.gcLines||[]).forEach(function(l){ var q=parseInt(l.qty,10)||0; var dn=parseFloat(l.denom)||0; tq+=q; ta+=q*dn; });
         var h='<div style="'+RQ_CARD+'"><div style="font-size:15px;font-weight:800;color:#1f2a44;">💳 Gift-card order</div>'
           +'<p style="font-size:12.5px;color:#6b7686;margin:6px 0 0;">Bulk / corporate orders welcome — a fulfillment task is routed to the office with the totals.</p>'
-          +'<label style="'+RQ_LBL+'">Requesting store</label><select id="rqGcStore" style="'+RQ_IN+'">'+stores.map(function(s){return '<option value="'+rqAttr(s)+'">'+rqEsc(s)+'</option>';}).join('')+'</select>'
+          +'<label style="'+RQ_LBL+'">Requesting store</label><select id="rqGcStore" style="'+RQ_IN+'">'+rqStoreOpts(stores)+'</select>'
           +'<label style="'+RQ_LBL+'">Company / customer (optional)</label><input id="rqGcCo" style="'+RQ_IN+'" placeholder="e.g. Acme Realty — employee gifts">'
           +'<div style="display:flex;gap:8px;"><div style="flex:1;"><label style="'+RQ_LBL+'">Needed by</label><input type="date" id="rqGcDate" style="'+RQ_IN+'"></div>'
           +'<div style="flex:1;"><label style="'+RQ_LBL+'">Delivery</label><select id="rqGcDel" style="'+RQ_IN+'">'+dels.map(function(t){return '<option value="'+rqAttr(t)+'">'+rqEsc(t)+'</option>';}).join('')+'</select></div></div>'
@@ -153,7 +164,7 @@
         if(!lines.length){ alert('Add at least one denomination.'); return; }
         rqRpc('rq_gift_card_create',{p_store:store,p_needed_by:d,p_delivery:del,p_company:co,p_lines:lines,p_notes:notes},function(res){
             alert('Order placed: '+(res&&res.total_qty)+' card(s), $'+(res&&res.total_amount)+'.'+((res&&res.task_status==='created')?' The office got a fulfillment task.':' (The office was notified; the task can be filed from the queue.)'));
-            _rq.gcLines=[{denom:'',qty:1}]; rqLoadMine(function(){ rqRender(); }); }); }
+            _rq.gcLines=[{denom:'',qty:1}]; _rq.fresh='gc'; rqLoadMine(function(){ rqRender(); }); }); }
 
     // ---------- TAB 4: Fulfillment queue (managers/office) ----------
     function rqQueueHtml(){ if(!rqIsMgr()) return '<div style="'+RQ_CARD+'text-align:center;color:#6b7686;">Managers only.</div>';

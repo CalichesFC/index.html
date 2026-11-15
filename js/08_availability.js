@@ -43,6 +43,11 @@
         var w=[]; if(s.employee_id==null) return w;
         if(typeof availCheck==='function'){ var a=availCheck(s.employee_id,s.shift_date,s.start_time,s.end_time); if(a) w.push(a); }
         if(typeof complianceCheck==='function'){ complianceCheck(s.employee_id,s.shift_date,s.start_time,s.end_time,s.position_id).forEach(function(x){ w.push(x); }); }
+        // Approved time off on that day. A shift on a day off was flagged nowhere: not on the grid, not at Publish.
+        try{ var _to=(typeof schedState!=='undefined'&&schedState&&schedState.timeoff)||[];
+            for(var _i=0;_i<_to.length;_i++){ var _t=_to[_i];
+                if(String(_t.employee_id)===String(s.employee_id) && String(s.shift_date)>=String(_t.start_date) && String(s.shift_date)<=String(_t.end_date)){ w.push('has approved time off that day'+(_t.reason?(' ('+_t.reason+')'):'')); break; } }
+        }catch(e){}
         return w;
     }
     function openAvailability(){
@@ -51,10 +56,12 @@
         document.getElementById('availabilityView').style.display='block';
         window.scrollTo(0,0); loadAvailability();
     }
-    function loadAvailability(){
+    function loadAvailability(keepMsg){
         var box=document.getElementById('availEditor'); if(!box) return;
         box.innerHTML='<p style="text-align:center;color:#6b7686;padding:20px;">Loading&hellip;</p>';
-        document.getElementById('availMsg').textContent='';
+        if(!keepMsg) document.getElementById('availMsg').textContent='';   /* after a send, the "Submitted" line stays on screen */
+        /* Nothing to send until the week has loaded. A login that is not linked to the roster gets no Send button at all. */
+        window._availDays=null; availSendBtn(false);
         withPin(function(pin){
             supabaseClient.rpc('app_availability_mine',{p_username:currentUser.username,p_password:pin}).then(function(r){
                 if(r.error){ box.innerHTML='<p style="color:#c0264b;text-align:center;padding:18px;">'+escapeHtml(r.error.message)+'</p>'; return; }
@@ -62,7 +69,7 @@
                 if(d.linked===false){ box.innerHTML='<p style="text-align:center;color:#854F0B;padding:18px;">Your login isn’t linked to an employee record yet. Ask a manager to link it in the Roster, then you can set availability.</p>'; return; }
                 var start=(d.last_request&&d.last_request.days&&d.last_request.days.length)?d.last_request.days:(d.approved||[]);
                 window._availDays=[]; for(var i=0;i<7;i++){ var x=start[i]||{mode:'all'}; window._availDays[i]={mode:x.mode||'all',from:x.from||'16:00',to:x.to||'22:00'}; }
-                renderAvailEditor(d);
+                renderAvailEditor(d); availSendBtn(true);
             }).catch(function(){ box.innerHTML='<p style="color:#c0264b;text-align:center;padding:18px;">Could not load.</p>'; });
         });
     }
@@ -92,14 +99,16 @@
         box.innerHTML=h;
     }
     function availSetMode(dow, mode){ window._availDays[dow].mode=mode; var w=document.getElementById('availWin'+dow); if(w) w.style.display=(mode==='window')?'inline-flex':'none'; }
+    function availSendBtn(show){ var b=document.querySelector('#availabilityView .save-btn'); if(b) b.style.display=show?'':'none'; }
     function submitAvailability(){
+        if(!window._availDays) return;   /* the week did not load (or the login is not linked): there is nothing to send */
         var days=[]; for(var i=0;i<7;i++){ var d=window._availDays[i]||{mode:'all'}; days[i]=(d.mode==='window')?{mode:'window',from:d.from,to:d.to}:{mode:d.mode}; }
         var note=(document.getElementById('availNote')||{}).value||'';
         var msg=document.getElementById('availMsg'); msg.style.color='#5b6472'; msg.textContent='Submitting…';
         withPin(function(pin){
             supabaseClient.rpc('app_availability_submit',{p_username:currentUser.username,p_password:pin,p_days:days,p_note:note}).then(function(r){
                 if(r.error){ msg.style.color='#c0264b'; msg.textContent='Error: '+r.error.message; return; }
-                msg.style.color='#1f7a3d'; msg.textContent='✓ Submitted! A manager will approve it.'; loadAvailability();
+                msg.style.color='#1f7a3d'; msg.textContent='✓ Submitted! A manager will approve it.'; loadAvailability(true);
             }).catch(function(){ msg.style.color='#c0264b'; msg.textContent='Could not submit.'; });
         });
     }
@@ -143,7 +152,7 @@
 
     // ----- What's New / How-To popup -----
     var HOWTO_VERSION = '2026.06.25.aaron'; // bump to re-show after future how-to updates
-    function openHowTo(){ var m=document.getElementById('howtoModal'); if(m) m.style.display='flex'; }
+    function openHowTo(){ try{ if(typeof trainingApplyText==='function') trainingApplyText(); }catch(e){} var m=document.getElementById('howtoModal'); if(m) m.style.display='flex'; }
     function closeHowTo(){ var m=document.getElementById('howtoModal'); if(m) m.style.display='none'; try{ localStorage.setItem('howtoSeen_'+HOWTO_VERSION,'1'); }catch(e){} }
     function maybeShowHowTo(){ /* auto-popup on login removed per request; How-To still reachable manually */ return; }
     (function injectModalFitCss(){ try{ var st=document.createElement('style'); st.id='modal-fit-fix'; st.textContent='div[style*="position:fixed"][style*="align-items:center"]>div,div[style*="position: fixed"][style*="align-items: center"]>div{max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;}@media (max-height:640px){div[style*="position:fixed"][style*="align-items:center"]>div,div[style*="position: fixed"][style*="align-items: center"]>div{max-height:95vh;}}'; (document.head||document.documentElement).appendChild(st); }catch(e){} })();
@@ -187,65 +196,75 @@
 
     // ===== Emergency Mode (static, works offline) =====
     // ===== Emergency Mode (static, works offline) — phone numbers read from cfg lazily at render =====
+    // A number that management has not filled in yet (blank, or the "Not set" placeholder) is left out of the
+    // step. The step itself stays ("Call the manager on call."). Crew never see a blank like "[____]".
+    function emgNum(key){
+      var v=''; try{ if(typeof cfg==='function') v=cfg('emergency',key,''); }catch(e){ v=''; }
+      v=String(v==null?'':v).trim();
+      return (v && v.toLowerCase()!=='not set') ? v : '';
+    }
+    // "Call the manager on call" + ": 555-0101" when the number is set; just the words when it is not.
+    function emgSay(text,key){ var n=emgNum(key); return n ? (text+': '+n) : text; }
     function buildEmergency(){
       return [
       {icon:'⚡', title:'Power outage', steps:[
         'Stay calm; keep team and customers safe (use phone flashlights if needed).',
         'Keep freezers and the dipping cabinet CLOSED to hold temperature as long as possible.',
         'Write down the time the power went out (for food-safety records).',
-        'Call the manager on call: '+(typeof cfg==='function'?cfg('emergency','manager_on_call','[____]'):'[____]')+'.',
-        'Report the outage to the utility company: '+(typeof cfg==='function'?cfg('emergency','utility','[____]'):'[____]')+'.',
-        'If power is out more than [2 hours], check product temps and follow Food-Safety before serving.'
+        emgSay('Call the manager on call','manager_on_call')+'.',
+        emgSay('Report the outage to the utility company','utility')+'.',
+        // The time limit ("more than [2 hours]") is not confirmed by management yet, so it is not shown.
+        'If power is out, check product temps and follow Food-Safety before serving.'
       ]},
       {icon:'📶', title:'Internet / Wi-Fi outage', steps:[
         'Switch the register to offline/backup mode if available, or take orders on paper.',
         'For card payments, see "Credit-card / payment failure".',
         'Restart the modem/router (unplug 30 seconds, plug back in).',
-        'Call the manager on call: '+(typeof cfg==='function'?cfg('emergency','manager_on_call','[____]'):'[____]')+'; if still down, call the internet provider: '+(typeof cfg==='function'?cfg('emergency','internet','[____]'):'[____]')+'.'
+        emgSay('Call the manager on call','manager_on_call')+'; if still down, '+emgSay('call the internet provider','internet')+'.'
       ]},
       {icon:'💳', title:'Credit-card / payment failure', steps:[
         'Let customers know cards are temporarily down; offer cash or hold the order.',
         'Do NOT write down or key in card numbers by hand.',
         'Try restarting the card terminal.',
-        'Call the manager on call: '+(typeof cfg==='function'?cfg('emergency','manager_on_call','[____]'):'[____]')+'.'
+        emgSay('Call the manager on call','manager_on_call')+'.'
       ]},
       {icon:'🌪️', title:'Severe weather', steps:[
         'Move customers and staff away from windows; follow any official shelter guidance.',
         'If told to evacuate, secure cash, lock up if safe, and leave.',
         'Keep freezers closed if power is affected (see Power outage).',
-        'Call the manager on call: '+(typeof cfg==='function'?cfg('emergency','manager_on_call','[____]'):'[____]')+'.'
+        emgSay('Call the manager on call','manager_on_call')+'.'
       ]},
       {icon:'🔥', title:'Fire', steps:[
         'Get everyone out immediately — people first.',
         'Call 911.',
         'Only use an extinguisher on a small, contained fire if trained and safe (PASS: Pull, Aim, Squeeze, Sweep).',
         'Do NOT re-enter the building.',
-        'Once safe, call the manager on call: '+(typeof cfg==='function'?cfg('emergency','manager_on_call','[____]'):'[____]')+'.'
+        emgSay('Once safe, call the manager on call','manager_on_call')+'.'
       ]},
       {icon:'🚨', title:'Robbery / threatening person', steps:[
         'Your safety comes first — do not resist. Stay calm and comply.',
         'Do not chase or confront anyone.',
         'Once it is safe, call 911.',
         'Lock the doors if safe; keep everyone together; do not touch what the person handled.',
-        'Call the manager on call: '+(typeof cfg==='function'?cfg('emergency','manager_on_call','[____]'):'[____]')+'. Write down what you remember as soon as you can.'
+        emgSay('Call the manager on call','manager_on_call')+'. Write down what you remember as soon as you can.'
       ]},
       {icon:'🍦', title:'Custard / shake machine failure', steps:[
         'Stop using the machine; note the time and what happened.',
         'Move product to a working freezer if needed to protect it.',
         'File a repair report (Work → Report a Repair).',
-        'Call the manager on call: '+(typeof cfg==='function'?cfg('emergency','manager_on_call','[____]'):'[____]')+'; machine vendor: '+(typeof cfg==='function'?cfg('emergency','machine_vendor','[____]'):'[____]')+'.'
+        emgSay('Call the manager on call','manager_on_call')+(emgNum('machine_vendor')?('; machine vendor: '+emgNum('machine_vendor')):'')+'.'
       ]},
       {icon:'🚰', title:'Water interruption', steps:[
         'Stop any task that needs running water (handwashing, dishes, certain prep).',
         'Hand sanitizer is NOT a substitute for handwashing for food tasks.',
-        'If water safety is in question, stop serving affected items and call the manager on call: '+(typeof cfg==='function'?cfg('emergency','manager_on_call','[____]'):'[____]')+'.',
-        'Report to the water utility: '+(typeof cfg==='function'?cfg('emergency','water_utility','[____]'):'[____]')+'.'
+        emgSay('If water safety is in question, stop serving affected items and call the manager on call','manager_on_call')+'.',
+        emgSay('Report to the water utility','water_utility')+'.'
       ]},
       {icon:'🦠', title:'Food-safety concern', steps:[
         'Stop serving the affected product; set it aside and label it "DO NOT USE" (do not discard yet).',
         'Check and record temperatures of the unit/product.',
         'Note what happened, when, and which products are affected.',
-        'Call the manager on call: '+(typeof cfg==='function'?cfg('emergency','manager_on_call','[____]'):'[____]')+' before resuming.',
+        emgSay('Call the manager on call','manager_on_call')+' before resuming.',
         'Follow management direction on discarding or keeping product.'
       ]}
       ];
@@ -452,8 +471,11 @@
     function lmsScoreOf(cid){ var c=(_lms.my.completions||[]).filter(function(x){return x.course_id===cid;})[0]; return c?c.score:null; }
     function lmsPendingReviewOf(cid){ return (_lms.reviews||[]).filter(function(x){return x.course_id===cid&&x.status==='pending';})[0]||null; }
     function lmsCourseStatus(cid){ var passed=lmsPassedSet(); if(passed[cid]) return 'passed'; if(lmsPendingReviewOf(cid)) return 'pending_review'; if(lmsScoreOf(cid)!=null) return 'in_progress'; return 'not_started'; }
-    function openLmsPreview(){ lmsLoad(function(){ lmsHome(); }); }
+    /* Training stays hidden until it is ready: the lessons open only for people who have a training tile (same rule as the tiles, js/05 trainingTileOn). */
+    function lmsShut(){ if(typeof trainingLessonsOn==='function' && !trainingLessonsOn()){ lmsClose(); if(typeof trainingClosedTell==='function') trainingClosedTell(); return true; } return false; }
+    function openLmsPreview(){ if(lmsShut()) return; lmsLoad(function(){ lmsHome(); }); }
     function lmsLoad(cb){
+        if(lmsShut()) return;
         var ov=lmsOverlay(); ov.innerHTML=lmsHeader('My Training','')+'<div style="max-width:640px;margin:0 auto;padding:40px 16px;text-align:center;color:#6b7686;">Loading your training&hellip;</div>';
         withPin(function(pin){
             Promise.all([
@@ -522,6 +544,7 @@
     }
     function lmsManageCourses(){ lmsClose(); _td.tab='paths'; if(typeof tdLoad==='function'){ tdLoad(function(){ tdRender(); }); } else { alert('Open Team then Team Development then Paths to manage courses.'); } }
     function lmsOpenCourse(courseId){
+        if(lmsShut()) return;
         var ov=lmsOverlay(); ov.innerHTML=lmsHeader('Lesson','lmsHome()')+'<div style="max-width:640px;margin:0 auto;padding:40px 16px;text-align:center;color:#6b7686;">Loading&hellip;</div>';
         withPin(function(pin){
             supabaseClient.rpc('app_lp_course',{p_username:currentUser.username,p_password:pin,p_course_id:courseId}).then(function(r){
@@ -686,7 +709,7 @@
     function tdOverlay(){ var ov=document.getElementById('teamDevModal'); if(!ov){ ov=document.createElement('div'); ov.id='teamDevModal'; ov.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100000;overflow:auto;'; document.body.appendChild(ov); } ov.style.display='block'; return ov; }
     function tdClose(){ var ov=document.getElementById('teamDevModal'); if(ov) ov.style.display='none'; var m=document.getElementById('tdModal2'); if(m) m.style.display='none'; }
     function tdHeader(title,back){ return '<div style="background:linear-gradient(120deg,#185FA5,#7d1d4b);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;">'+(back?'<button onclick="'+back+'" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;">&#8249; Back</button>':'')+'<b style="flex:1;font-size:16px;">'+title+'</b><button onclick="tdClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer;">&times;</button></div>'; }
-    function openTeamDev(){ _td.tab='team'; tdLoad(function(){ tdRender(); }); }
+    function openTeamDev(){ if(typeof trainingTileOn==='function' && !trainingTileOn('team_dev')){ trainingClosedTell(); return; } _td.tab='team'; tdLoad(function(){ tdRender(); }); }
     function tdLoad(cb){
         var ov=tdOverlay(); ov.innerHTML=tdHeader('Team Development','')+'<div style="max-width:760px;margin:0 auto;padding:40px 16px;text-align:center;color:#6b7686;">Loading team&hellip;</div>';
         withPin(function(pin){

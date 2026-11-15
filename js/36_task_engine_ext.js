@@ -195,8 +195,13 @@
             '</div><div style="padding:6px 12px 10px;">'+inner+'</div></div>';
     }
 
-    // Only allow app-local deep links as an href (keeps taps inside the tool).
-    function txeDeepLink(v){ v=String(v==null?'':v).trim(); if(!v) return null; var c=v.charAt(0); if(c==='#'||c==='/'||c==='?'||/^index\.html/i.test(v)) return v; return null; }
+    // A row is only a link when the Hub can really follow it. The Hub has no screen router: a "#..."
+    // link acted like the Back button and dropped the person on Home, a "/..." link left the app,
+    // and "index.html?..." reloaded it for nothing. The only links the Hub follows are the ones its
+    // start-up code reads (js/02: ?equip= ?asset= ?cvasset= ?go=). Anything else is a plain row.
+    function txeDeepLink(v){ v=String(v==null?'':v).trim(); if(!v) return null;
+        var m=v.match(/^(?:index\.html)?\?(.+)$/i); if(!m) return null;
+        return /(^|&)(equip|asset|cvasset|go)=/.test(m[1]) ? v : null; }
 
     function txeMyRow(it){ it=it||{};
         var overdue=(it.is_overdue===true);

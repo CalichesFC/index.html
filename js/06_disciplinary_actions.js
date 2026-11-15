@@ -39,7 +39,7 @@
                 var list=r.data||[];
                 window._discEmps=list; /* cached so the PIP picker card can pass name/location to openPip */
                 sel.innerHTML='<option value="">— Select employee —</option>'+list.map(function(e){
-                    return '<option value="'+e.id+'">'+escapeHtml(e.name)+(e.location?' ('+escapeHtml(e.location)+')':'')+(e.open>0?'  •  '+e.open+' on file':'')+'</option>';
+                    return '<option value="'+e.id+'" data-name="'+escapeHtml(e.name)+'" data-store="'+escapeHtml(e.location||'')+'">'+escapeHtml(e.name)+(e.location?' ('+escapeHtml(e.location)+')':'')+(e.open>0?'  •  '+e.open+' on file':'')+'</option>';
                 }).join('');
             }).catch(function(){ sel.innerHTML='<option value="">Connection error</option>'; });
         }, function(){ sel.innerHTML='<option value="">PIN required</option>'; });
@@ -198,7 +198,10 @@
             fetch(G_URL,{method:'POST',body:body}).then(function(r){return r.json();}).then(function(j){ if(done)return; done=true; clearTimeout(to); cb((j&&(j.pdfUrl||j.url))||''); }).catch(function(){ if(done)return; done=true; clearTimeout(to); cb(''); });
         }catch(e){ if(!done){ done=true; clearTimeout(to); cb(''); } }
     }
-    function hubEmpStore(sel){ try{ var t=(sel.options[sel.selectedIndex].text)||''; var store=''; var m=t.match(/\(([^)]+)\)/); if(m) store=m[1].trim(); var name=t.split(' (')[0].split('  •')[0].trim(); return {name:name, store:store}; }catch(e){ return {name:'',store:''}; } }
+    // Name and store for the signed PDF. They come from the employee record the list was built from (kept on the
+    // option). The old way cut them out of the words shown in the list, so "Pat (PJ) Lee (Lenox)" was filed as
+    // employee "Pat", store "PJ". The old way is kept only for a list that has no record on its options.
+    function hubEmpStore(sel){ try{ var o=sel.options[sel.selectedIndex]; if(o && o.getAttribute('data-name')!==null){ return {name:(o.getAttribute('data-name')||'').trim(), store:(o.getAttribute('data-store')||'').trim()}; } var t=(o.text)||''; var store=''; var m=t.match(/\(([^)]+)\)/); if(m) store=m[1].trim(); var name=t.split(' (')[0].split('  •')[0].trim(); return {name:name, store:store}; }catch(e){ return {name:'',store:''}; } }
     function discSubmitForm(){
         var id=document.getElementById('discEmp').value;
         if(!id){ alert('Please select an employee.'); return; }
@@ -238,7 +241,7 @@
                     btn.disabled=false; btn.textContent=old;
                     if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
                     try{ fetch(G_URL+'?action=discipline_notify&level='+encodeURIComponent(f.level)+'&by='+encodeURIComponent(currentUser.name||currentUser.username),{mode:'no-cors'}); }catch(e){}
-                    alert(f.title+' submitted.'+(f.term?' Admin Managers notified.':' Store managers notified and a follow-up task was created for the Store Manager.')+(pdfUrl?' Signed PDF filed to Dropbox.':''));
+                    alert(f.title+' submitted.'+(f.term?' Admin Managers notified.':' Store managers notified and a follow-up task was created for the Store Manager.')+(pdfUrl?' Signed PDF filed to Dropbox.':' The signed PDF was NOT filed to Dropbox. The record is saved in the Hub.'));
                     discRenderForm(); discEmpChange(); discLoadFeed(); discLoadEmployees();
                 }).catch(function(){ btn.disabled=false; btn.textContent=old; alert('Connection error.'); });
             }, function(){ btn.disabled=false; btn.textContent=old; });
@@ -332,7 +335,7 @@
             supabaseClient.rpc('app_discipline_employees',{p_username:currentUser.username,p_password:pin}).then(function(r){
                 if(r.error){ if(r.error.code==='42501') sessionPin=null; sel.innerHTML='<option value="">Could not load</option>'; return; }
                 var list=r.data||[];
-                sel.innerHTML='<option value="">— Select employee —</option>'+list.map(function(e){ return '<option value="'+e.id+'">'+escapeHtml(e.name)+(e.location?' ('+escapeHtml(e.location)+')':'')+'</option>'; }).join('');
+                sel.innerHTML='<option value="">— Select employee —</option>'+list.map(function(e){ return '<option value="'+e.id+'" data-name="'+escapeHtml(e.name)+'" data-store="'+escapeHtml(e.location||'')+'">'+escapeHtml(e.name)+(e.location?' ('+escapeHtml(e.location)+')':'')+'</option>'; }).join('');
             }).catch(function(){ sel.innerHTML='<option value="">Connection error</option>'; });
         }, function(){ sel.innerHTML='<option value="">PIN required</option>'; });
     }
@@ -376,7 +379,7 @@
                 supabaseClient.rpc('app_attendance_create',{p_username:currentUser.username,p_password:pin,p_employee_id:parseInt(id,10),p_event_type:attType,p_event_date:date,p_call_time:time,p_scheduled_shift:shift,p_reason:reason,p_comments:comments,p_covered:!!coveredBy.trim(),p_covered_by:coveredBy,p_documentation:!!docType,p_doc_type:docType,p_signatures:sigs,p_pdf_url:(pdfUrl||null),p_shift_id:null}).then(function(r){
                     btn.disabled=false; btn.textContent=old;
                     if(r.error){ if(r.error.code==='42501') sessionPin=null; alert('Error: '+r.error.message); return; }
-                    alert('Logged. The attendance record has been updated.'+(pdfUrl?' PDF filed to Dropbox.':''));
+                    alert('Logged. The attendance record has been updated.'+(pdfUrl?' PDF filed to Dropbox.':' The PDF was NOT filed to Dropbox.'));
                     document.getElementById('attComments').value=''; document.getElementById('attCoveredBy').value=''; attClearSig();
                     attRecord();
                 }).catch(function(){ btn.disabled=false; btn.textContent=old; alert('Connection error.'); });
@@ -548,13 +551,16 @@
     // SHIFT CHECKLISTS
     // ============================================================
     var clShift='open';
-    function openChecklists(){
+    // shift (optional): 'open' | 'close' | 'clean'. The Home links pass the list they name, so the
+    // screen opens on that list. Anything else (the menu tile passes nothing) opens on Opening.
+    function openChecklists(shift){
         document.getElementById('main-menu').style.display='none';
         document.querySelectorAll('.app-view').forEach(function(v){ v.style.display='none'; });
         document.getElementById('checklistsView').style.display='block';
         window.scrollTo(0,0);
         document.getElementById('clStoreLabel').innerHTML='&#127970; '+escapeHtml(tempStoreLoc()||'No store set');
-        clShift='open'; setChecklistTab('open');
+        var first=(shift==='close'||shift==='clean')?shift:'open';
+        clShift=first; setChecklistTab(first);
     }
     function setChecklistTab(shift){
         clShift=shift;
