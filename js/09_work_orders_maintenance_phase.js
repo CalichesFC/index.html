@@ -12,19 +12,26 @@
     function woIsMgr(){ return currentUser.is_developer===true||['Admin Manager','Manager','Vice President/Co-Owner','Store Manager'].indexOf(currentUser.role)>=0; }
     function openWorkOrders(){ _wo.preset=null; var _dt=woIsMaint()?'queue':(woIsMgr()?'board':'report'); var _st=lsGet('woTab',_dt); var _ok={report:1,board:woIsMgr(),queue:(woIsMaint()||woIsMgr()),history:(woIsMgr()||woIsMaint())}; _wo.tab=_ok[_st]?_st:_dt; woLoad(function(){ woRender(); }); }
     /* ===================== STORE SCORECARDS ===================== */
-    var _sc={rows:[],selDate:null};
-    var SC_FIELDS=[['sales','Sales ($)','From Axial: Dashboard &rarr; Net Sales'],['sales_ly','Sales last year ($)','From Axial: comparison tile (Same Date Last Year)'],['guest_count','Guest count'],['speed_seconds','Speed of service (sec)'],['labor_pct','Labor %','From Axial: Total Labor incl. management (% of Net) — requires managers to clock in under a Manager job'],['inspection_score','Inspection score'],['training_pct','Training %'],['maintenance_open','Open maintenance'],['pick_n_take','Pick-N-Take'],['flips','Flips'],['complaints','Complaints']];
+    var _sc={rows:[],selDate:null,live:{},timer:null};
+    var SC_FIELDS=[['sales','Sales ($)','From Axial: Dashboard &rarr; Net Sales'],['sales_ly','Sales last year ($)','From Axial: comparison tile (Same Date Last Year)'],['guest_count','Checks'],['speed_seconds','Speed of service (sec)'],['labor_pct','Labor %','From Axial: Total Labor incl. management (% of Net) — requires managers to clock in under a Manager job'],['inspection_score','Inspection score'],['training_pct','Training %'],['maintenance_open','Open maintenance'],['pick_n_take','Pick-N-Take'],['flips','Flips'],['complaints','Complaints']];
     function scIsMgr(){ return !!(currentUser&&(currentUser.is_developer===true||(typeof woIsMgr==='function'&&woIsMgr()))); }
     function scRpc(name,args,cb){ withPin(function(pin){ supabaseClient.rpc(name,Object.assign({p_username:currentUser.username,p_password:pin},args||{})).then(function(r){ if(r.error){ alert(String(r.error.message||'').indexOf('forbidden')>=0?'Managers only.':r.error.message); return; } cb(r.data); }).catch(function(){ alert('Connection error.'); }); }); }
     function scOv(){ var o=document.getElementById('scModal'); if(!o){ o=document.createElement('div'); o.id='scModal'; o.style.cssText='position:fixed;inset:0;background:#f4f5f8;z-index:100040;overflow:auto;'; document.body.appendChild(o); } o.style.display='block'; return o; }
-    function scClose(){ var o=document.getElementById('scModal'); if(o) o.style.display='none'; }
+    function scClose(){ var o=document.getElementById('scModal'); if(o) o.style.display='none'; if(_sc.timer){ clearInterval(_sc.timer); _sc.timer=null; } }
     function scMoney(n){ if(n==null||n==='') return '—'; var x=parseFloat(n); return '$'+(isNaN(x)?'0':x.toLocaleString()); }
     function scNum(n){ return (n==null||n==='')?'—':String(n); }
     function scTodayIso(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
     function scPrettyDate(s){ if(!s) return ''; var p=String(s).slice(0,10).split('-'); if(p.length!==3) return String(s); var dt=new Date(+p[0],+p[1]-1,+p[2]); if(isNaN(dt.getTime())) return String(s); return dt.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'}); }
     function scLoadingHtml(){ return '<div style="padding:12px 14px;"><button onclick="scClose()" style="background:#eef0f3;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:700;">&times; Close</button></div><div style="text-align:center;color:#6b7686;padding:38px;">Loading scorecards&hellip;</div>'; }
     function openScorecards(){ scLoad(); }
-    function scLoad(){ _sc.selDate=null; scOv().innerHTML=scLoadingHtml(); scRpc('app_metrics_latest',{},function(d){ _sc.rows=d||[]; scRender(); }); }
+    function scLoad(){ _sc.selDate=null; scOv().innerHTML=scLoadingHtml(); scRpc('app_metrics_latest',{},function(d){ _sc.rows=d||[]; scRender(); scLiveLoad(); scLiveTimer(); }); }
+    // TODAY SO FAR (live): labor dollars and people on the clock, from the Axial feed. Quiet on purpose:
+    // if the server has no live numbers (or refuses), the scorecards simply show without the line.
+    function scLiveOpen(){ var o=document.getElementById('scModal'); return !!(o&&o.style.display!=='none'&&!_sc.selDate&&!document.getElementById('scfDate')); }
+    function scLiveLoad(){ if(_sc.selDate) return; withPin(function(pin){ supabaseClient.rpc('app_metrics_live',{p_username:currentUser.username,p_password:pin}).then(function(r){ if(r.error||!r.data||!r.data.length) return; var m={}; r.data.forEach(function(x){ if(x&&x.location) m[x.location]=x; }); _sc.live=m; if(scLiveOpen()) scRender(); }).catch(function(){}); }); }
+    function scLiveTimer(){ if(_sc.timer) clearInterval(_sc.timer); _sc.timer=setInterval(function(){ var o=document.getElementById('scModal'); if(!o||o.style.display==='none'){ clearInterval(_sc.timer); _sc.timer=null; return; } if(scLiveOpen()) scLiveLoad(); }, 300000); }
+    function scClock(iso){ var d=new Date(iso); if(!iso||isNaN(d.getTime())) return ''; return d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}); }
+    function scLiveLine(loc){ var lv=(!_sc.selDate&&_sc.live)?_sc.live[loc]:null; if(!lv||lv.is_today!==true) return ''; var parts=[]; if(lv.labor_cost!=null&&!isNaN(parseFloat(lv.labor_cost))) parts.push('Labor $'+Math.round(parseFloat(lv.labor_cost)).toLocaleString()); if(lv.on_clock!=null) parts.push(String(lv.on_clock)+' on the clock'); if(!parts.length) return ''; var t=scClock(lv.as_of); return '<div data-sc-live="1" style="background:#eef7ff;border:1px solid #cfe3f7;border-radius:10px;padding:7px 10px;margin-bottom:8px;font-size:12.5px;color:#0d4a80;"><b>Today so far:</b> '+escapeHtml(parts.join(' \u00b7 '))+(t?' <span style="color:#5b6675;">\u00b7 as of '+escapeHtml(t)+'</span>':'')+'</div>'; }
     function scLoadFor(date){ if(!date){ scLoad(); return; } _sc.selDate=date; scOv().innerHTML=scLoadingHtml(); scRpc('app_metrics_on_date',{p_date:date},function(d){ _sc.rows=d||[]; scRender(); }); }
     function scTile(label,val,sub,color){ return '<div style="flex:1;min-width:88px;background:#fff;border:1px solid #eef0f5;border-radius:10px;padding:8px 10px;"><div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#5b6675;letter-spacing:.3px;">'+label+'</div><div style="font-size:16px;font-weight:800;color:'+(color||'#1f2a44')+';">'+val+'</div>'+(sub?'<div style="font-size:10.5px;color:#6b6275;">'+sub+'</div>':'')+'</div>'; }
     function scRender(){
@@ -32,7 +39,7 @@
         var byLoc={}; (_sc.rows||[]).forEach(function(m){ byLoc[m.location]=m; });
         var h='<div style="background:linear-gradient(120deg,#185FA5,#1f7a3d);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:3;"><b style="flex:1;font-size:16px;">Store Scorecards</b><button onclick="scClose()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;">&times;</button></div>';
         h+='<div style="max-width:840px;margin:0 auto;padding:14px 16px 50px;">';
-        h+='<p style="font-size:12.5px;color:#6b7686;margin-top:0;">A snapshot per store. Managers can enter numbers now; Axial / POS sales + labor can auto-fill these.</p>';
+        h+='<p style="font-size:12.5px;color:#6b7686;margin-top:0;">A snapshot per store. Sales, checks, speed and labor fill in from Axial each morning. Managers can type in the rest.</p>';
         var _scShowing=_sc.selDate?('Showing the latest numbers <b>on or before '+escapeHtml(scPrettyDate(_sc.selDate))+'</b>'):'Showing the <b>latest available</b> numbers for each store';
         h+='<div style="background:#fff;border:1px solid #e6ebf2;border-radius:12px;padding:10px 12px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">'
          +'<div style="font-size:12.5px;color:#1f2a44;flex:1;min-width:190px;">📅 '+_scShowing+'</div>'
@@ -44,12 +51,13 @@
             var m=byLoc[loc]; var emoji=(typeof hubStoreEmoji==='function'?hubStoreEmoji(loc):'📍');
             h+='<div style="background:#fafbfd;border:1px solid #e6ebf2;border-radius:14px;padding:13px;margin-bottom:10px;">';
             h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><b style="flex:1;font-size:15px;color:#1f2a44;">'+emoji+' '+escapeHtml(loc)+'</b>'+(m&&m.metric_date?'<span style="font-size:11px;color:#5b6675;white-space:nowrap;">📊 as of '+escapeHtml(scPrettyDate(m.metric_date))+'</span>':'')+(scIsMgr()?'<button onclick="scEnter(\''+loc.replace(/'/g,"")+'\')" style="background:#185FA5;color:#fff;border:none;border-radius:7px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;">'+(m?'Update':'Enter')+'</button>':'')+'</div>';
+            h+=scLiveLine(loc);
             if(!m){ h+='<div style="font-size:12.5px;color:#5b6675;">No numbers entered yet'+(scIsMgr()?' — tap Enter to add them.':'.')+'</div>'; }
             else {
                 var dly=''; if(m.sales!=null&&m.sales_ly){ var pct=Math.round(((m.sales-m.sales_ly)/m.sales_ly)*100); dly=(pct>=0?'▲ +':'▼ ')+pct+'% vs LY'; }
                 h+='<div style="display:flex;gap:8px;flex-wrap:wrap;">';
                 h+=scTile('Sales',scMoney(m.sales),dly,(m.sales!=null&&m.sales_ly&&m.sales>=m.sales_ly)?'#1b7a3d':(m.sales_ly?'#a01b3e':'#1f2a44'));
-                h+=scTile('Guests',scNum(m.guest_count),'');
+                h+=scTile('Checks',scNum(m.guest_count),'');
                 h+=scTile('Speed',m.speed_seconds!=null?(m.speed_seconds+'s'):'—','');
                 h+=scTile('Labor',m.labor_pct!=null?(m.labor_pct+'%'):'—','',(m.labor_pct>25?'#a01b3e':(m.labor_pct!=null?'#1b7a3d':'#1f2a44')));
                 h+=scTile('Inspection',scNum(m.inspection_score),'');

@@ -21,7 +21,7 @@
     //   {section_comment:'', items:{ '<item_key>':{score,na,note,no_photo_reason} }}
     // ============================================================
 
-    var _insp = { view:'landing', list:[], filters:{ location:'', status:'', type:'' }, cfg:null, cur:null, open:{}, picks:{}, typed:{}, dash:null, blockers:null };
+    var _insp = { view:'landing', list:[], filters:{ location:'', status:'', type:'' }, cfg:null, cur:null, open:{}, picks:{}, typed:{}, dash:null, blockers:null, board:null, boardLoc:'', pre:null };
 
     var INSP_SCORE_META = { 5:['5','Excellent','#1f7a3d'], 4:['4','Good','#4c9a2a'], 3:['3','Needs improvement','#9a5b00'], 2:['2','Poor — action required','#c05a00'], 1:['1','CRITICAL','#c0264b'] };
     var INSP_SEV_COLORS = { critical:'#c0264b', poor:'#c05a00', attention:'#9a5b00', ok:'#1f7a3d' };
@@ -91,12 +91,14 @@
 
     function inspRenderLanding(){
         var ov=inspOverlay(); var rows=_insp.list||[]; var f=_insp.filters; var cfg=_insp.cfg||{};
-        var types=(cfg.types||[]);
+        var types=(cfg.types||[]).slice();
+        if(inspAreaList().length>1 && types.indexOf('Area Check')<0) types.push('Area Check');   // area checks get their own type on the server
         var h=inspHeader('Store & Site Inspection','');
         h+='<div style="max-width:860px;margin:0 auto;padding:14px 16px 60px;">';
-        h+='<p style="font-size:12.5px;color:#6b7686;margin-top:0;">Leadership walk-through: score every area, photo-document issues, and route corrective tasks automatically. Not a daily checklist &mdash; a brand-protection tool.</p>';
+        h+='<p style="font-size:12.5px;color:#6b7686;margin-top:0;">Leadership walk-through: score every area, photo-document issues, and route corrective tasks automatically. Walk the whole store, or check one area at a time. Not a daily checklist &mdash; a brand-protection tool.</p>';
         h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">';
         h+=inspBtn('Start inspection','inspStartForm()','primary');
+        h+=inspBtn('Scores by area','inspOpenBoard()');
         h+=inspBtn('Leadership dashboard','inspOpenDash()');
         h+=inspBtn('Refresh','inspLoadList()');
         h+='</div>';
@@ -112,7 +114,9 @@
                 var emoji=(typeof HUB_STORE_EMOJI!=='undefined'&&HUB_STORE_EMOJI&&HUB_STORE_EMOJI[r.location])?HUB_STORE_EMOJI[r.location]+' ':'';
                 var inner='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;cursor:pointer;" onclick="inspOpen('+r.id+')">'
                     +'<div style="flex:1;min-width:180px;"><b style="font-size:14px;">'+emoji+escapeHtml(r.location)+'</b>'
-                    +'<div style="font-size:11.5px;color:#6b7686;">'+escapeHtml(r.insp_type||'')+' &middot; '+escapeHtml(String(r.started_at||'').slice(0,10))+' &middot; '+escapeHtml(r.inspector_name||'')+(r.announced==='unannounced'?' &middot; Unannounced':'')+'</div></div>'
+                    +'<div style="font-size:11.5px;color:#6b7686;">'+escapeHtml(r.insp_type||'')+' &middot; '+escapeHtml(String(r.started_at||'').slice(0,10))+' &middot; '+escapeHtml(r.inspector_name||'')+(r.announced==='unannounced'?' &middot; Unannounced':'')+'</div>'
+                    +((r.scope==='areas'&&r.areas&&r.areas.length)?('<div data-insp-areas="1" style="font-size:11.5px;color:#185FA5;font-weight:700;margin-top:2px;">'+(r.areas.length>1?'Areas: ':'Area: ')+escapeHtml(r.areas.join(', '))+'</div>'):'')
+                    +'</div>'
                     +'<div style="text-align:right;">'+inspBadge(r.status)+'<div style="font-size:13px;margin-top:4px;">'+inspPct(r.overall_pct)
                     +(r.critical_count?(' <span style="color:#c0264b;font-weight:800;font-size:11px;">&#9888; '+r.critical_count+' critical</span>'):'')
                     +(r.open_actions?(' <span style="color:#9a5b00;font-weight:700;font-size:11px;">'+r.open_actions+' open action'+(r.open_actions>1?'s':'')+'</span>'):'')
@@ -127,14 +131,30 @@
     // ============================================================
     // START FORM
     // ============================================================
-    function inspStartForm(){
+    // The areas (sections) of the walk-through, straight from the template the server sends.
+    function inspAreaList(){ var t=(_insp.cfg&&_insp.cfg.template)||{}; return (t.sections||[]).filter(function(x){ return x&&x.key; }); }
+    // pre = {loc:'Lenox', areas:['safety']} when coming from "Scores by area": that store and that area are already picked.
+    function inspStartForm(pre){
+        pre=pre||{};
         var ov=inspOverlay(); var cfg=_insp.cfg||{};
-        var own=''; try{ own=(typeof tempStoreLoc==='function' && tempStoreLoc())||''; }catch(e){}   // start on the person's own store, not the first one in the list
+        var own=pre.loc||''; if(!own){ try{ own=(typeof tempStoreLoc==='function' && tempStoreLoc())||''; }catch(e){} }   // start on the person's own store, not the first one in the list
+        var areas=inspAreaList(); var pick=(pre.areas&&pre.areas.length)?pre.areas:null;
+        var storeList=inspStores().slice(); if(own&&storeList.indexOf(own)<0) storeList.push(own);
         var h=inspHeader('New inspection','inspLoadList()');
         h+='<div style="max-width:640px;margin:0 auto;padding:14px 16px 60px;">';
-        var inner='<div style="margin-bottom:9px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">Location</label><select id="inspS_loc" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;">'+inspStores().map(function(s){return '<option value="'+escapeHtml(s)+'"'+(s===own?' selected':'')+'>'+escapeHtml(s)+'</option>';}).join('')+'</select></div>';
+        var inner='<div style="margin-bottom:9px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">Location</label><select id="inspS_loc" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;">'+storeList.map(function(s){return '<option value="'+escapeHtml(s)+'"'+(s===own?' selected':'')+'>'+escapeHtml(s)+'</option>';}).join('')+'</select></div>';
+        if(areas.length>1){
+            // Whole store, or only the areas picked. An area check keeps its own score per area.
+            inner+='<div style="margin-bottom:9px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">What are you inspecting?</label>'
+                +'<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0;cursor:pointer;"><input type="radio" name="inspS_scope" id="inspS_scopeFull" value="full"'+(pick?'':' checked')+' onchange="inspStartScope()"> The whole store &mdash; every area</label>'
+                +'<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0;cursor:pointer;"><input type="radio" name="inspS_scope" id="inspS_scopeAreas" value="areas"'+(pick?' checked':'')+' onchange="inspStartScope()"> Just the areas I pick</label>'
+                +'<div id="inspS_areaBox" style="display:'+(pick?'block':'none')+';background:#f6f9fd;border:1px solid #dbe6f3;border-radius:10px;padding:8px 11px;margin-top:4px;">'
+                +areas.map(function(a){ return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0;cursor:pointer;"><input type="checkbox" class="inspS_area" value="'+escapeHtml(a.key)+'"'+((pick&&pick.indexOf(a.key)>=0)?' checked':'')+'> <span>'+escapeHtml(a.label||a.key)+' <span style="color:#8a91a0;font-size:11px;">('+((a.items||[]).length)+' lines)</span></span></label>'; }).join('')
+                +'<div style="font-size:11.5px;color:#6b7686;margin-top:5px;">An area check scores only what you pick. Each area keeps its own score. It does not replace the store&rsquo;s full inspection.</div>'
+                +'</div></div>';
+        }
         inner+='<div style="margin-bottom:9px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">Site type</label><select id="inspS_site" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;">'+(cfg.site_types||['Store']).map(function(s){return '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>';}).join('')+'</select></div>';
-        inner+='<div style="margin-bottom:9px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">Inspection type</label><select id="inspS_type" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;">'+(cfg.types||['Quarterly Full']).map(function(s){return '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>';}).join('')+'</select></div>';
+        inner+='<div id="inspS_typeRow" style="margin-bottom:9px;'+(pick?'display:none;':'')+'"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">Inspection type</label><select id="inspS_type" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;">'+(cfg.types||['Quarterly Full']).map(function(s){return '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>';}).join('')+'</select></div>';
         inner+=inspIn('inspS_mod','Manager on duty','');
         inner+='<div style="margin-bottom:9px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">Visit</label><select id="inspS_ann" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;"><option value="scheduled">Scheduled</option><option value="unannounced">Unannounced</option></select></div>';
         inner+=inspIn('inspS_wx','Weather / unusual conditions (optional)','');
@@ -142,12 +162,44 @@
         h+=inspCard(inner,'Inspection information')+'</div>';
         ov.innerHTML=h;
     }
+    function inspStartScope(){
+        var on=inspChk('inspS_scopeAreas');
+        var b=document.getElementById('inspS_areaBox'); if(b) b.style.display=on?'block':'none';
+        var t=document.getElementById('inspS_typeRow'); if(t) t.style.display=on?'none':'';   // an area check is its own type
+    }
+    function inspStartPicked(){
+        var out=[]; var els=document.querySelectorAll('#siteInspectionModal .inspS_area');
+        for(var i=0;i<els.length;i++){ if(els[i].checked) out.push(els[i].value); }
+        return out;
+    }
     function inspStartGo(){
-        inspRpc('insp_start',{ p_location:inspVal('inspS_loc'), p_site_type:inspVal('inspS_site'), p_insp_type:inspVal('inspS_type'), p_manager_on_duty:inspVal('inspS_mod'), p_announced:inspVal('inspS_ann'), p_weather:inspVal('inspS_wx') },function(d){
+        var args={ p_location:inspVal('inspS_loc'), p_site_type:inspVal('inspS_site'), p_insp_type:inspVal('inspS_type'), p_manager_on_duty:inspVal('inspS_mod'), p_announced:inspVal('inspS_ann'), p_weather:inspVal('inspS_wx') };
+        function go(d){
             _insp.cur=d; _insp.picks={}; _insp.typed={}; _insp.open={}; _insp.blockers=null;
             var secs=(d&&d.sections)||[]; if(secs.length) _insp.open[secs[0].key]=true;
             inspRenderRun();
-        });
+        }
+        if(inspChk('inspS_scopeAreas')){
+            var keys=inspStartPicked();
+            if(!keys.length){ alert('Pick at least one area to check.'); return; }
+            if(keys.length<inspAreaList().length){
+                args.p_sections=keys;
+                inspRpc('insp_start_areas',args,go,function(err){
+                    var m=String((err&&err.message)||'');
+                    alert(inspNotOnYet(m)?'Area checks are not turned on yet. Start a whole-store inspection for now.':(m.indexOf('forbidden')>=0?'Managers only.':(m||'Could not start the inspection.')));
+                });
+                return;
+            }
+            // every area picked = the whole store
+        }
+        inspRpc('insp_start',args,go);
+    }
+    // true when the server does not have the area-check piece yet
+    function inspNotOnYet(msg){ return /could not find|does not exist|schema cache/i.test(String(msg||'')); }
+    function inspAreaNames(d){ return ((d&&d.sections)||[]).map(function(x){ return x.label||x.key; }); }
+    function inspAreaChip(d){
+        if(!d||d.scope!=='areas') return '';
+        return '<span data-insp-area-chip="1" style="background:#eaf2fb;color:#185FA5;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:800;">Area check: '+escapeHtml(inspAreaNames(d).join(', '))+'</span>';
     }
 
     // ============================================================
@@ -192,8 +244,8 @@
         var h=inspHeader(d.location+' — '+(d.insp_type||'Inspection'),'inspLoadList()');
         h+='<div style="max-width:860px;margin:0 auto;padding:14px 16px 60px;">';
         h+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">'
-            +inspBadge(d.status)
-            +'<span style="font-size:12.5px;color:#5b6675;font-weight:700;">'+done+' of '+secs.length+' sections complete</span>'
+            +inspBadge(d.status)+inspAreaChip(d)
+            +'<span style="font-size:12.5px;color:#5b6675;font-weight:700;">'+done+' of '+secs.length+' section'+(secs.length===1?'':'s')+' complete</span>'
             +'<span style="font-size:12.5px;">Live score: <span id="inspLiveOverall">'+inspPct(d.overall_pct)+'</span></span>'
             +'<span style="flex:1;"></span>'
             +inspBtn('Review &amp; submit','inspRenderReview()','primary')
@@ -331,7 +383,7 @@
         var h=inspHeader('Review & submit — '+d.location,'inspRenderRun()');
         h+='<div style="max-width:860px;margin:0 auto;padding:14px 16px 60px;">';
         h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">'
-            +inspTile('Overall score',inspPct(d.overall_pct))
+            +inspTile(d.scope==='areas'?'Score for this check':'Overall score',inspPct(d.overall_pct))
             +inspTile('Answered',(d.answered||0)+' / '+(d.total_items||0))
             +inspTile('Critical items',String(d.critical_count||0),(d.critical_count?'#c0264b':'#1f7a3d'))
             +inspTile('Actions',String((d.actions||[]).length))
@@ -373,8 +425,8 @@
             +'</div>';
         sm+=inspIn('inspSum_fudate','Recommended follow-up date',d.followup_date||'','date');
         sm+=inspIn('inspSum_mgrnote','Manager follow-up note',d.mgr_followup_note||'');
-        sm+='<div style="margin-bottom:9px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">Overall store pride score (1-5)</label><select id="inspSum_pride" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;"><option value="">—</option>'+[5,4,3,2,1].map(function(n){return '<option value="'+n+'"'+(d.pride_score===n?' selected':'')+'>'+n+' — '+INSP_SCORE_META[n][1]+'</option>';}).join('')+'</select></div>';
-        sm+=inspIn('inspSum_pridec','Pride score comments',d.pride_comment||'');
+        if(d.scope!=='areas') sm+='<div style="margin-bottom:9px;"><label style="display:block;font-size:11px;font-weight:700;color:#5b6675;margin-bottom:3px;">Overall store pride score (1-5)</label><select id="inspSum_pride" style="width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:13px;"><option value="">—</option>'+[5,4,3,2,1].map(function(n){return '<option value="'+n+'"'+(d.pride_score===n?' selected':'')+'>'+n+' — '+INSP_SCORE_META[n][1]+'</option>';}).join('')+'</select></div>';
+        if(d.scope!=='areas') sm+=inspIn('inspSum_pridec','Pride score comments',d.pride_comment||'');   // the pride score is about the whole store, so an area check leaves it out
         sm+=inspTA('inspSum_fin','Final inspector notes',d.final_notes);
         sm+=inspBtn('Save summary','inspSaveSummary()');
         h+=inspCard(sm,'Final inspection summary');
@@ -499,15 +551,15 @@
         var ov=inspOverlay(); var d=_insp.cur||{};
         var h=inspHeader(d.location+' — '+(d.insp_type||'Inspection'),'inspLoadList()');
         h+='<div style="max-width:860px;margin:0 auto;padding:14px 16px 60px;">';
-        h+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">'+inspBadge(d.status)
+        h+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">'+inspBadge(d.status)+inspAreaChip(d)
             +(d.is_followup?('<span style="background:#185FA5;color:#fff;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:800;">Follow-up'+(d.followup_of_id?(' of #'+d.followup_of_id):'')+'</span>'):'')
             +'<span style="font-size:12px;color:#6b7686;">'+escapeHtml(String(d.submitted_at||d.started_at||'').slice(0,10))+' &middot; '+escapeHtml(d.inspector_name||'')+(d.manager_on_duty?(' &middot; MOD: '+escapeHtml(d.manager_on_duty)):'')+(d.announced==='unannounced'?' &middot; Unannounced':'')+'</span>'
             +'<span style="flex:1;"></span>'+(d.status==='submitted'?inspBtn('&#128424; Print / Save PDF','inspPrint()'):'')+'</div>';
         h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">'
-            +inspTile('Overall score',inspPct(d.overall_pct))
+            +inspTile(d.scope==='areas'?'Score for this check':'Overall score',inspPct(d.overall_pct))
             +inspTile('Critical items',String(d.critical_count||0),(d.critical_count?'#c0264b':'#1f7a3d'))
             +inspTile('Follow-up',(d.followup_recommended?('Yes'+(d.followup_date?(' — '+String(d.followup_date)):'')):'No'),(d.followup_recommended?'#c0264b':'#1f7a3d'))
-            +inspTile('Pride score',d.pride_score!=null?String(d.pride_score)+' / 5':'—')
+            +(d.scope==='areas'?'':inspTile('Pride score',d.pride_score!=null?String(d.pride_score)+' / 5':'—'))
             +'</div>';
         var sb='';
         [['Top strengths',d.top_strengths],['Top issues',d.top_issues],['Urgent / critical',d.urgent_notes],['Maintenance needs',d.maint_notes],['Supply needs',d.supply_notes],['Manager follow-up note',d.mgr_followup_note],['Final notes',d.final_notes],['Pride comments',d.pride_comment]].forEach(function(p){
@@ -539,6 +591,84 @@
     // ============================================================
     // LEADERSHIP DASHBOARD
     // ============================================================
+    // ============================================================
+    // SCORES BY AREA  (the latest score for each area at each store)
+    // Reads insp_area_board: full inspections and area checks together.
+    // Tap "Check" to start an area check for that one store + area.
+    // ============================================================
+    function inspShortDate(iso){
+        var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso||'')); if(!m) return '';
+        var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(m[2],10)-1]||'';
+        var y=parseInt(m[1],10);
+        return mo+' '+parseInt(m[3],10)+(y!==new Date().getFullYear()?(', '+y):'');
+    }
+    function inspOpenBoard(){
+        var ov=inspOverlay();
+        ov.innerHTML=inspHeader('Scores by area','inspLoadList()')+'<div style="max-width:860px;margin:0 auto;padding:40px 16px;text-align:center;color:#6b7686;">Loading&hellip;</div>';
+        inspRpc('insp_area_board',{p_filters:{}},function(d){ _insp.board=d||{}; inspRenderBoard(); },function(err){
+            var m=String((err&&err.message)||'');
+            ov.innerHTML=inspHeader('Scores by area','inspLoadList()')+'<div style="max-width:860px;margin:0 auto;padding:30px 16px;color:#c0264b;text-align:center;">'+escapeHtml(inspNotOnYet(m)?'Scores by area is not turned on yet.':(m.indexOf('forbidden')>=0?'Managers only.':(m||'Could not load the scores.')))+'</div>';
+        });
+    }
+    function inspRenderBoard(){
+        var ov=inspOverlay(); var d=_insp.board||{}; var secs=d.sections||[]; var rows=d.rows||[];
+        var stores=inspStores().slice();
+        rows.forEach(function(r){ if(r&&r.location&&stores.indexOf(r.location)<0) stores.push(r.location); });   // a site that is not one of the stores still shows
+        _insp.boardStores=stores;
+        var by={}; rows.forEach(function(r){ if(r) by[r.location+'|'+r.section_key]=r; });
+        var f=_insp.boardLoc||''; if(f&&stores.indexOf(f)<0) f='';
+        var h=inspHeader('Scores by area','inspLoadList()');
+        h+='<div style="max-width:860px;margin:0 auto;padding:14px 16px 60px;">';
+        h+='<p style="font-size:12.5px;color:#6b7686;margin-top:0;">The latest score for each area at each store. It uses whole-store inspections and area checks together. Tap a score to open that inspection. Tap <b>Check</b> to inspect just that one area.</p>';
+        h+='<div style="background:#fff;border:1px solid #e6ebf2;border-radius:12px;padding:10px 12px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">'
+            +'<select id="inspBoardLoc" onchange="_insp.boardLoc=this.value; inspRenderBoard();" style="padding:7px 9px;border:1px solid #cdd5e0;border-radius:8px;font-size:12.5px;"><option value="">All stores</option>'+stores.map(function(st){ return '<option value="'+escapeHtml(st)+'"'+(f===st?' selected':'')+'>'+escapeHtml(st)+'</option>'; }).join('')+'</select>'
+            +inspBtn('Refresh','inspOpenBoard()')+'</div>';
+        if(!secs.length){ h+=inspEmpty('No areas are set up yet.'); }
+        stores.forEach(function(st,si){
+            if(f&&f!==st) return;
+            var low=null, none=0, body='';
+            secs.forEach(function(sec){
+                var r=by[st+'|'+sec.key]; var has=!!(r&&r.last_pct!=null);
+                var right;
+                if(has){
+                    var v=parseFloat(r.last_pct), trend='';
+                    if(!low||v<low.v) low={v:v,label:sec.label||sec.key};
+                    if(r.prev_pct!=null){
+                        var df=Math.round((v-parseFloat(r.prev_pct))*10)/10;
+                        if(df>0) trend=' <span style="color:#1f7a3d;font-size:10.5px;font-weight:800;">&#9650; +'+df.toFixed(1)+'</span>';
+                        else if(df<0) trend=' <span style="color:#c0264b;font-size:10.5px;font-weight:800;">&#9660; '+df.toFixed(1)+'</span>';
+                        else trend=' <span style="color:#8a91a0;font-size:10.5px;font-weight:800;">same</span>';
+                    }
+                    right='<span style="cursor:pointer;" onclick="inspOpen('+(parseInt(r.last_id,10)||0)+')">'+inspPct(v)+'</span>'+trend
+                        +'<div style="font-size:10.5px;color:#8a91a0;">'+escapeHtml(inspShortDate(r.last_date))+(r.last_scope==='areas'?' &middot; area check':' &middot; full inspection')+'</div>';
+                } else {
+                    none++;
+                    right='<span style="color:#8a91a0;font-size:12px;">Not checked yet</span>';
+                }
+                body+='<div data-insp-area-row="1" style="display:flex;align-items:center;gap:8px;border-top:1px solid #f0f1f6;padding:7px 0;font-size:12.5px;">'
+                    +'<div style="flex:1;min-width:110px;">'+escapeHtml(sec.label||sec.key)+'</div>'
+                    +'<div style="min-width:104px;text-align:right;">'+right+'</div>'
+                    +'<button onclick="inspStartArea('+si+',\''+inspK(sec.key)+'\')" style="background:#185FA5;color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:11.5px;font-weight:700;cursor:pointer;">Check</button>'
+                    +'</div>';
+            });
+            var top='<div style="font-size:12px;color:#5b6675;margin-bottom:6px;">';
+            if(low) top+='Lowest area: <b>'+escapeHtml(low.label)+'</b> '+inspPct(low.v)+(none?(' &middot; '+none+' not checked yet'):'');
+            else top+='No area has been scored here yet.';
+            top+='</div>';
+            var emoji=(typeof HUB_STORE_EMOJI!=='undefined'&&HUB_STORE_EMOJI&&HUB_STORE_EMOJI[st])?HUB_STORE_EMOJI[st]+' ':'';
+            h+=inspCard(top+body,emoji+st);
+        });
+        h+='</div>';
+        ov.innerHTML=h;
+    }
+    // "Check" on the board: open the start form with that store and that one area already picked.
+    function inspStartArea(si,sk){
+        var st=(_insp.boardStores||[])[si]||'';
+        var key=''; inspAreaList().forEach(function(a){ if(inspK(a.key)===sk) key=a.key; });
+        if(!key){ ((_insp.board&&_insp.board.sections)||[]).forEach(function(a){ if(inspK(a.key)===sk) key=a.key; }); }
+        inspStartForm({ loc:st, areas:key?[key]:[] });
+    }
+
     function inspOpenDash(){
         var ov=inspOverlay();
         ov.innerHTML=inspHeader('Inspection dashboard','inspLoadList()')+'<div style="max-width:900px;margin:0 auto;padding:40px 16px;text-align:center;color:#6b7686;">Loading&hellip;</div>';
@@ -552,12 +682,13 @@
         var h=inspHeader('Inspection dashboard','inspLoadList()');
         h+='<div style="max-width:900px;margin:0 auto;padding:14px 16px 60px;">';
         h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">'
-            +inspTile('Inspections (12 mo)',String(s.inspections||0))
+            +inspTile(s.area_checks!=null?'Full inspections (12 mo)':'Inspections (12 mo)',String(s.inspections||0))
+            +(s.area_checks!=null?inspTile('Area checks (12 mo)',String(s.area_checks||0)):'')
             +inspTile('Avg score',s.avg_pct!=null?inspPct(s.avg_pct):'—')
             +inspTile('Critical findings',String(s.critical_findings||0),(s.critical_findings?'#c0264b':'#1f7a3d'))
             +inspTile('Follow-ups recommended',String(s.followups_recommended||0))
             +'</div>';
-        h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">'+inspBtn('&#128276; Reminders','inspRunReminders()')+'<span style="font-size:11px;color:#8a91a0;">Nudges stores about draft follow-up inspections due within 3 days or overdue.</span></div>';
+        h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">'+inspBtn('Scores by area','inspOpenBoard()')+inspBtn('&#128276; Reminders','inspRunReminders()')+'<span style="font-size:11px;color:#8a91a0;">Nudges stores about draft follow-up inspections due within 3 days or overdue.</span></div>';
         if(d.data_context) h+='<div style="font-size:11px;color:#6b7686;background:#f7f9fc;border:1px solid #eef0f5;border-radius:8px;padding:7px 10px;margin-bottom:12px;">&#9432; '+escapeHtml(d.data_context)+'</div>';
         var locs=d.locations||[];
         var lb='';
@@ -684,7 +815,7 @@
         var w=window.open('','_blank'); if(!w){ alert('Allow pop-ups to print the inspection.'); return; }
         var x='<html><head><title>Inspection packet</title><style>body{font-family:Arial,sans-serif;color:#222;max-width:700px;margin:24px auto;}h1{font-size:20px;margin-bottom:2px;}h2{font-size:15px;border-bottom:1px solid #ccc;padding-bottom:3px;margin-top:22px;}p{font-size:13px;}li{margin:4px 0;font-size:13px;}table{border-collapse:collapse;width:100%;font-size:13px;}td,th{border-bottom:1px solid #eee;padding:4px 6px;text-align:left;}img{max-width:180px;max-height:140px;border:1px solid #ccc;border-radius:4px;margin:2px 4px 2px 0;vertical-align:top;}.f{page-break-inside:avoid;border-bottom:1px solid #eee;padding:8px 0;}.meta{color:#666;font-size:12px;}.sev{font-weight:bold;text-transform:uppercase;font-size:11px;}</style></head><body>';
         x+='<h1>Store &amp; Site Inspection &mdash; '+escapeHtml(d.location||'')+'</h1>';
-        x+='<p class="meta">'+escapeHtml(d.insp_type||'')+' &middot; '+escapeHtml(d.site_type||'')+' &middot; '+escapeHtml(String(d.submitted_at||d.started_at||'').slice(0,10))+' &middot; Inspector: '+escapeHtml(d.inspector_name||'')+(d.manager_on_duty?(' &middot; MOD: '+escapeHtml(d.manager_on_duty)):'')+(d.announced==='unannounced'?' &middot; Unannounced':'')+(d.is_followup?(' &middot; Follow-up'+(d.followup_of_id?(' of inspection #'+d.followup_of_id):'')):'')+'</p>';
+        x+='<p class="meta">'+escapeHtml(d.insp_type||'')+(d.scope==='areas'?(': '+escapeHtml(inspAreaNames(d).join(', '))):'')+' &middot; '+escapeHtml(d.site_type||'')+' &middot; '+escapeHtml(String(d.submitted_at||d.started_at||'').slice(0,10))+' &middot; Inspector: '+escapeHtml(d.inspector_name||'')+(d.manager_on_duty?(' &middot; MOD: '+escapeHtml(d.manager_on_duty)):'')+(d.announced==='unannounced'?' &middot; Unannounced':'')+(d.is_followup?(' &middot; Follow-up'+(d.followup_of_id?(' of inspection #'+d.followup_of_id):'')):'')+'</p>';
         x+='<p style="font-size:15px;"><b>Overall: '+(d.overall_pct!=null?parseFloat(d.overall_pct).toFixed(1)+'%':'&mdash;')+'</b> &middot; '+(d.critical_count||0)+' critical finding(s) &middot; Follow-up: '+(d.followup_recommended?('YES'+(d.followup_date?(' ('+escapeHtml(String(d.followup_date))+')'):'')):'No')+(d.pride_score!=null?(' &middot; Pride score '+d.pride_score+'/5'):'')+'</p>';
         x+='<h2>Section scores</h2><table><tr><th>Section</th><th>Score</th></tr>';
         (d.sections||[]).forEach(function(s){ x+='<tr><td>'+escapeHtml(s.label||s.key)+'</td><td>'+(s.pct!=null?parseFloat(s.pct).toFixed(1)+'%':'&mdash;')+'</td></tr>'; });
